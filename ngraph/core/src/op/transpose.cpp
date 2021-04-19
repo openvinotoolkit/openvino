@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "ngraph/runtime/reference/transpose.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -97,37 +98,30 @@ namespace transpose
         NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
                      "axis element type is not integral data type");
 
-        std::vector<int64_t> axis_order = host_tensor_2_vector<int64_t>(arg2);
-
+        std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
         Shape in_shape = arg1->get_shape();
-        AxisVector in_axis_order(shape_size(arg2->get_shape()));
-        if (in_axis_order.empty())
+        if (shape_size(arg2->get_shape()) == 0)
         {
+            axes_order.clear();
             size_t rank = in_shape.size();
-            for (size_t i = 1; i <= rank; ++i)
-                in_axis_order.emplace_back(rank - i);
-        }
-        else
-        {
-            std::transform(axis_order.begin(),
-                           axis_order.end(),
-                           in_axis_order.begin(),
-                           [&](const int64_t& v) { return (v > 0) ? v : 0; });
+            for (int64_t i = 1; i <= rank; ++i)
+                axes_order.emplace_back(rank - i);
         }
 
         Shape out_shape(in_shape.size());
-        std::transform(in_axis_order.begin(),
-                       in_axis_order.end(),
-                       out_shape.begin(),
-                       [&](const int64_t& v) { return in_shape[v]; });
+        std::transform(
+            axes_order.begin(), axes_order.end(), out_shape.begin(), [&](const int64_t& v) {
+                NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
+                return in_shape[v];
+            });
 
         out->set_shape(out_shape);
-        runtime::opt_kernel::reshape(arg1->get_data_ptr<char>(),
-                                     out->get_data_ptr<char>(),
-                                     arg1->get_shape(),
-                                     in_axis_order,
-                                     out->get_shape(),
-                                     arg1->get_element_type().size());
+        runtime::reference::transpose(arg1->get_data_ptr<char>(),
+                                      out->get_data_ptr<char>(),
+                                      arg1->get_shape(),
+                                      arg1->get_element_type().size(),
+                                      axes_order.data(),
+                                      out_shape);
         return true;
     }
 }
