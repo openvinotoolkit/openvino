@@ -77,6 +77,7 @@ public:
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
+    float getGamma() const { return gamma; }
     mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
 
     bool isWithBroadcast();

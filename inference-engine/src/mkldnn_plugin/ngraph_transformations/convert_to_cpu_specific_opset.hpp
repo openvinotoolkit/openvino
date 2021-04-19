@@ -10,6 +10,8 @@
 #include "convert_broadcast_to_tiles.hpp"
 #include "convert_tile_to_seq_tiles.hpp"
 #include "reshape_1d_ops.hpp"
+#include "convert_to_power_static.hpp"
+#include "convert_to_leaky_relu.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -25,6 +27,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertMatMulToGemm>();
     manager.register_pass<FullyConnectedBiasFusion>();
     manager.register_pass<ReshapeFullyConnected>();
+    manager.register_pass<ConvertToPowerStatic>();
+    manager.register_pass<ConvertToLeakyRelu>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
