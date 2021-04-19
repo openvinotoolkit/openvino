@@ -313,6 +313,8 @@ size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "asked for size in bytes of a dynamic tensor with no allocated storage");
+    // TODO expand size calculation for type with bitwidth less than 8 like:
+    // m_wrapped_tensor->get_size_in_bytes()
     return get_element_count() * get_element_type().size();
 }
 
