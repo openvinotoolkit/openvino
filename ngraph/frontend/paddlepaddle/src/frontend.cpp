@@ -144,7 +144,9 @@ std::shared_ptr<Function>
                 for (const auto& name_to_ports : op_place->getOutputPorts()) {
                     for (size_t idx = 0; idx < name_to_ports.second.size(); ++idx) {
                         const auto& var = name_to_ports.second[idx]->getTargetTensorPDPD()->getDesc();
-                        nodes_dict[var->name()] = named_outputs.at(name_to_ports.first)[idx];
+                        const auto& node_output = named_outputs.at(name_to_ports.first)[idx];
+                        node_output.get_tensor().set_names({var->name()});
+                        nodes_dict[var->name()] = node_output;
                     }
                 }
             }
