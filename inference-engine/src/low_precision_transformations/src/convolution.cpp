@@ -215,7 +215,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         reshapeFromWeights :
                         multiplyFromWeights->input_value(0)
                     }),
-                fold<opset1::Convert>(
+                foldConvert(
                     fold_reshape<opset1::Reshape>(
                         multiplyFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
