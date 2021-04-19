@@ -197,7 +197,17 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(getInputPort);
         }
 
+        Place::Ptr Place::getInputPort (const std::string& intputName, int inputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getInputPort);
+        }
+
         Place::Ptr Place::getOutputPort (int outputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getOutputPort);
+        }
+
+        Place::Ptr Place::getOutputPort (const std::string& outputName, int outputPortIndex) const
         {
             FRONT_END_NOT_IMPLEMENTED(getOutputPort);
         }

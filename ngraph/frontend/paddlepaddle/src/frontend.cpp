@@ -54,11 +54,11 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
     std::map<std::string, OutputVector> named_inputs;
     const auto& input_ports = op_place->getInputPorts();
-    for (const auto& name_to_port : input_ports) {
-        for (std::size_t idx = 0; idx < name_to_port.second->getSourceTensors().size(); ++idx) {
-            const auto& var_desc = name_to_port.second->getSourceTensorPDPD(idx)->getDesc();
+    for (const auto& name_to_ports : input_ports) {
+        for (const auto& port : name_to_ports.second) {
+            const auto& var_desc = port->getSourceTensorPDPD()->getDesc();
             if (nodes.count(var_desc->name()))
-                named_inputs[name_to_port.first].push_back(nodes.at(var_desc->name()));
+                named_inputs[name_to_ports.first].push_back(nodes.at(var_desc->name()));
             else
                 return std::shared_ptr<ngraph::Node>();
         }
@@ -138,14 +138,16 @@ std::shared_ptr<Function>
                 const auto& node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 if (node) {
                     // set layer name by the name of first output var
-                    const auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
+                    const auto& first_output_var = op_place->getOutputPorts().begin()->second[0]->getTargetTensorPDPD()->getDesc();
                     node->set_friendly_name(first_output_var->name());
 
                     std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                    for (const auto &name_to_port : op_place->getOutputPorts()) {
-                        for (size_t idx = 0; idx < name_to_port.second->getTargetTensors().size(); ++idx) {
-                            const auto& var = name_to_port.second->getTargetTensorPDPD(idx)->getDesc();
+                    for (const auto& name_to_ports : op_place->getOutputPorts()) {
+                        int idx = 0;
+                        for (const auto& port : name_to_ports.second) {
+                            const auto& var = port->getTargetTensorPDPD()->getDesc();
                             nodes_dict[var->name()] = node->output(idx);
+                            idx++;
                         }
                     }
                 }
