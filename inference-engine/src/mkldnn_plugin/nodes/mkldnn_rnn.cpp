@@ -464,10 +464,10 @@ void MKLDNNRNN::verifyWeights() {
         THROW_ERROR << "Missed weights blob.";
 
     const auto& weightsPrec = weightsIt->second->getTensorDesc().getPrecision();
-    const auto& layerPrec = layer->outData[0]->getPrecision();
-    if (!verifyWeightsPrecision(layerPrec, weightsPrec)) {
+
+    if (!verifyWeightsPrecision(runtimePrecision, weightsPrec)) {
         THROW_ERROR << "Weights precision " << weightsPrec <<
-            " does not match layer precision" << layerPrec;
+            " does not match runtime precision" << runtimePrecision;
     }
 }
 
