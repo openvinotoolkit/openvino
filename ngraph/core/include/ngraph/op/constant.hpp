@@ -335,7 +335,7 @@ namespace ngraph
                     m_alloc_buffer_on_visit_attributes = val;
                 }
 
-            protected:
+            private:
                 template <element::Type_t Type, typename OUT_T>
                 void cast_vector(std::vector<OUT_T>& output_vector) const
                 {

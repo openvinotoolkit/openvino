@@ -677,26 +677,3 @@ bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
 {
     return evaluate(outputs, {});
 }
-
-//
-// We have to open up namespace blocks here to work around a problem with gcc:
-//
-// https://stackoverflow.com/questions/25594644/warning-specialization-of-template-in-different-namespace
-//
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            template <>
-            void Constant::write_to_buffer<string>(const element::Type& /* target_type */,
-                                                   const Shape& /* target_shape */,
-                                                   const vector<string>& /* source */,
-                                                   void* /* target */,
-                                                   size_t /* target_element_count */)
-            {
-            }
-        }
-    }
-}
