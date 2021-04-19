@@ -30,23 +30,13 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() {
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
         if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
             if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
-                #if !(TBB_NUMA_SUPPORT_PRESENT)
-                if (value == CONFIG_VALUE(NUMA))
-                    IE_THROW() << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to NUMA. But IE was built with "
-                                       << "TBB version without NUMA-aware support";
-                #endif
-
                 #if (defined(__APPLE__) || defined(_WIN32))
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
                 #else
                 _threadBindingType = (value == CONFIG_VALUE(YES))
                         ? IStreamsExecutor::ThreadBindingType::CORES : IStreamsExecutor::ThreadBindingType::NUMA;
-               #endif
-            } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
-                #if !(TBB_HYBRID_CPUS_SUPPORT_PRESENT)
-                IE_THROW() << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to HYBRID_AWARE. But IE was built without "
-                << "TBB, so Hybrid-aware code-path is not available.";
                 #endif
+            } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
             } else if (value == CONFIG_VALUE(NO)) {
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
@@ -154,7 +144,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
     int num_cores_default = getNumberOfCPUCores();
     //additional latency-case logic for hybrid processors:
-    #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB with hybrid CPU aware task_arena api
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = custom::info::core_types();
         const auto num_little_cores = custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
@@ -177,7 +166,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
     }
-    #endif
 
     const auto hwCores = !bLatencyCase && numaNodesNum == 1
         // throughput case on a single-NUMA node machine uses all available cores

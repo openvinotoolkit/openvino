@@ -83,7 +83,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-    #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB has hybrid CPU aware task_arena api
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         const auto little_cores = core_types.front();

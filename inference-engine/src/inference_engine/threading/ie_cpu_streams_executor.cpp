@@ -72,10 +72,7 @@ struct CPUStreamsExecutor::Impl {
                     (_streamId % _impl->_config._streams) /
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-            // default arena (the rest of code may replace that to accomodate more specific config)
-            _taskArena.reset(new custom::task_arena{concurrency});
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-                #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
                        // TODO: REMOVE THE DEBUG PRINTF
@@ -105,14 +102,12 @@ struct CPUStreamsExecutor::Impl {
                     printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
                         _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
                 }
-                #endif
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                 #if TBB_NUMA_SUPPORT_PRESENT
                  _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-                 #endif
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                _taskArena.reset(new custom::task_arena{ concurrency });
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
@@ -200,7 +195,6 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 
-        #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB with hybrid CPU aware task_arena api
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
             const int threadsPerStream = (0 == config._threadsPerStream) ? std::thread::hardware_concurrency() : config._threadsPerStream;
@@ -223,7 +217,6 @@ struct CPUStreamsExecutor::Impl {
                 total_streams_on_core_types.front().second,
                 static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
         }
-        #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -292,14 +285,12 @@ struct CPUStreamsExecutor::Impl {
     bool                                    _isStopped = false;
     std::vector<int>                        _usedNumaNodes;
     ThreadLocal<std::shared_ptr<Stream>>    _streams;
-    #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB with hybrid CPU aware task_arena api
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
     // every entry is the core type and #streams that this AND ALL EARLIER entries can handle (prefix sum)
     // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
-    #endif
 };
 
 
