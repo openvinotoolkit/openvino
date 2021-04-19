@@ -97,7 +97,7 @@ tensor elements.
 
 * *class_agnostic_box_regression*
 
-    * **Description**: *class_agnostic_box_regression* attribute ia a flag specifies whether to delete background 
+    * **Description**: *class_agnostic_box_regression* attribute is a flag that specifies whether to delete background 
     classes or not.
     * **Range of values**:
       * `true` means background classes should be deleted
