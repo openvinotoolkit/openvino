@@ -2,61 +2,18 @@
 
 ## Disclaimer
 
-Inference Engine with low-precision 8-bit integer inference requires the following prerequisites to be satisfied:
-- Inference Engine [CPU Plugin](supported_plugins/CPU.md) must be built with the Intel® Math Kernel Library (Intel® MKL) dependency. In the Intel® Distribution of OpenVINO™ it is 
-  satisfied by default, this is mostly the requirement if you are using OpenVINO™ available in open source, because [open source version of OpenVINO™](https://github.com/openvinotoolkit/openvino) can be built with OpenBLAS* that is unacceptable if you want to use 8-bit integer inference.
-- Intel® platforms that support at least one extension to x86 instruction set from the following list:
+Low-precision 8-bit inference is optimized for:
+- Intel® architecture processors with the following instruction set architecture extensions:  
+  - Intel® Advanced Vector Extensions 512 Vector Neural Network Instructions (Intel® AVX-512 VNNI)
   - Intel® Advanced Vector Extensions 512 (Intel® AVX-512)
   - Intel® Advanced Vector Extensions 2.0 (Intel® AVX2)
   - Intel® Streaming SIMD Extensions 4.2 (Intel® SSE4.2)
-- A model must be quantized. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
-
-The 8-bit inference feature was validated on the following topologies:
-* **Classification models:**
-	* Caffe\* DenseNet-121, DenseNet-161, DenseNet-169, DenseNet-201
-    * Caffe Inception v1, Inception v2, Inception v3, Inception v4
-    * Caffe YOLO v1 tiny, YOLO v3
-	* Caffe ResNet-50 v1, ResNet-101 v1, ResNet-152 v1, ResNet-269 v1
-    * Caffe ResNet-18
-	* Caffe MobileNet, MobileNet v2
-    * Caffe SE ResNeXt-50
-	* Caffe SqueezeNet v1.0, SqueezeNet v1.1
-	* Caffe VGG16, VGG19
-    * TensorFlow\* DenseNet-121, DenseNet-169
-    * TensorFlow Inception v1, Inception v2, Inception v3, Inception v4, Inception ResNet v2
-    * TensorFlow Lite Inception v1, Inception v2, Inception v3, Inception v4, Inception ResNet v2
-    * TensorFlow Lite MobileNet v1, MobileNet v2
-    * TensorFlow MobileNet v1, MobileNet v2
-    * TensorFlow ResNet-50 v1.5, ResNet-50 v1, ResNet-101 v1, ResNet-152 v1, ResNet-50 v2, ResNet-101 v2, ResNet-152 v2
-    * TensorFlow VGG16, VGG19
-    * TensorFlow YOLO v3
-    * MXNet\* CaffeNet
-    * MXNet DenseNet-121, DenseNet-161, DenseNet-169, DenseNet-201
-    * MXNet Inception v3,  inception_v4
-    * MXNet Mobilenet, Mobilenet v2
-    * MXNet ResNet-101 v1, ResNet-152 v1, ResNet-101 v2, ResNet-152 v2
-    * MXNet ResNeXt-101
-    * MXNet SqueezeNet v1.1
-    * MXNet VGG16, VGG19
-    
-
-* **Object detection models:**
-	* Caffe SSD GoogLeNet 
-    * Caffe SSD MobileNet
-    * Caffe SSD SqueezeNet
-	* Caffe SSD VGG16 300, SSD VGG16 512
-    * TensorFlow SSD MobileNet v1, SSD MobileNet v2
-    * MXNet SSD Inception v3 512
-    * MXNet SSD MobileNet 512
-    * MXNet SSD ResNet-50 512
-    * MXNet SSD VGG16 300
-    * ONNX\* SSD ResNet 34
-
-* **Semantic segmentation models:**
-    * Unet2D
-
-* **Recommendation system models:**
-    * NCF
+- Intel® processor graphics:
+  - Intel® Iris® Xe Graphics
+  - Intel® Iris® Xe MAX Graphics
+- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For quantization, you can use the:
+  - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+  - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
 ## Introduction
 
@@ -65,63 +22,62 @@ A lot of investigation was made in the field of deep learning with the idea of u
 
 8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
-Current Inference Engine solution for low-precision inference uses Intel MKL-DNN and supports inference of the following layers in 8-bit integer computation mode:
-* Convolution
-* FullyConnected
-* ReLU
-* ReLU6
-* Reshape
-* Permute
-* Pooling
-* Squeeze
-* Eltwise
-* Concat
-* Resample
-* MVN
 
-This means that 8-bit inference can only be performed with the CPU plugin on the layers listed above. All other layers are executed in the format supported by the CPU plugin: 32-bit floating point format (`fp32`).
+Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+```sh
+./downloader.py --name resnet-50-tf --precisions FP16-INT8
+```
+After that you should quantize model by [Model Quantizer](@ref omz_tools_downloader) tool.
+```sh
+./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+```
+The simplest way to infer the model and collect performance counters is [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
+```sh
+./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
+```
+If you infer the model in the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-For 8-bit integer computations, a model must be quantized. If the model is not quantized then you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds `FakeQuantize` layers on activations and weights for most layers. Read more about mathematical computations under the hood in the [white paper](https://intel.github.io/mkl-dnn/ex_int8_simplenet.html).
+For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
-1. *Offline stage*, or *model quantization*. During this stage, `FakeQuantize` layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `Quantization Levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `Quantization Levels` attribute value has to be 255 or 256.
+1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
-2. *Run-time stage*. This stage is an internal procedure of the [CPU Plugin](supported_plugins/CPU.md). During this stage, the quantized model is loaded to the plugin. The plugin updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
+   When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
+
+2. *Run-time stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to update the model to infer it in low precision:
+   - Update `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
+   - Weights are quantized and stored in `Constant` layers. 
+
 ![int8_flow]
-
-### Offline Stage: Model Quantization
-
-To infer a layer in low precision and get maximum performance, the input tensor for the layer has to be quantized and each value has to be in the target low precision range. For this purpose, `FakeQuantize` layer is used in the OpenVINO™ intermediate representation file (IR). To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
-
-When you pass the calibrated IR to the [CPU plugin](supported_plugins/CPU.md), the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference, the model is inferred in precision that this plugin supports.
-
-### Run-Time Stage: Quantization
-
-This is the second stage of the 8-bit integer inference. After you load the quantized model IR to a plugin, the pluing uses the `Low Precision Transformation` component to update the model to infer it in low precision:
-* Updates `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in next `FakeQuantize` or `ScaleShift` layers.
-* Weights are quantized and stored in `Const` layers.
-* Biases are updated to avoid shifts in dequantization layers.
 
 ## Performance Counters
 
 Information about layer precision is stored in the performance counters that are
-available from the Inference Engine API. The layers have the following marks:
-* Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
-* Suffix `FP32` for layers computed in 32-bit precision
+available from the Inference Engine API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](supported_plugins/CPU.md) looks as follows:
 
-For example, the performance counters table for the Inception model can look as follows:
 
-```
-inception_5b/5x5_reduce       EXECUTED       layerType: Convolution        realTime: 417        cpu: 417            execType: gemm_blas_I8
-inception_5b/output           EXECUTED       layerType: Concat             realTime: 34         cpu: 34             execType: ref_I8
-inception_5b/output_U8_nhw... EXECUTED       layerType: Reorder            realTime: 33092      cpu: 33092          execType: reorder_I8
-inception_5b/output_oScale... EXECUTED       layerType: ScaleShift         realTime: 1390       cpu: 1390           execType: jit_avx2_FP32
-inception_5b/output_oScale... EXECUTED       layerType: Reorder            realTime: 143        cpu: 143            execType: reorder_FP32
-inception_5b/pool             EXECUTED       layerType: Pooling            realTime: 59301      cpu: 59301          execType: ref_any_I8
-```
+| layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
+| --------------------------------------------------------- | ---------- | ------------ | -------------------- | ------------- | ------------ |
+| resnet\_model/batch\_normalization\_15/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.377         | 0.377        |
+| resnet\_model/conv2d\_16/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/batch\_normalization\_16/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_I8      | 0.499         | 0.499        |
+| resnet\_model/conv2d\_17/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/batch\_normalization\_17/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.399         | 0.399        |
+| resnet\_model/add\_4/fq\_input\_0                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/add\_4                                      | NOT\_RUN   | Eltwise      | undef                | 0             | 0            |
+| resnet\_model/add\_5/fq\_input\_1                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
 
-The `execType` column of the table includes inference primitives with specific suffixes.
+
+> The `exeStatus` column of the table includes possible values:
+> - `EXECUTED` - layer was executed by standalone primitive,
+> - `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
+>
+> The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
+> * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
+> * Suffix `FP32` for layers computed in 32-bit precision 
+
+All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
 
 [int8_flow]: img/cpu_int8_flow.png

@@ -115,3 +115,22 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 * [Known Issues](Known_Issues_Limitations.md)
 
 **Typical Next Step:** [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
+
+## Video: Model Optimizer Concept
+
+[![](https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg)](https://www.youtube.com/watch?v=Kl1ptVb7aI8)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
+## Video: Model Optimizer Basic Operation
+[![](https://img.youtube.com/vi/BBt1rseDcy0/0.jpg)](https://www.youtube.com/watch?v=BBt1rseDcy0)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
+## Video: Choosing the Right Precision
+[![](https://img.youtube.com/vi/RF8ypHyiKrY/0.jpg)](https://www.youtube.com/watch?v=RF8ypHyiKrY)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly

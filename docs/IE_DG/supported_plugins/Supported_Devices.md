@@ -16,6 +16,8 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 |[Multi-Device plugin](MULTI.md) |Multi-Device plugin enables simultaneous inference of the same network on several Intel&reg; devices in parallel    |   
 |[Heterogeneous plugin](HETERO.md) |Heterogeneous plugin enables automatic inference splitting between several Intel&reg; devices (for example if a device doesn't [support certain layers](#supported-layers)).                                                           |
 
+Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+
 ## Supported Configurations
 
 The Inference Engine can inference models in different formats with various input and output formats.

@@ -6,6 +6,31 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ APT distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime). 
 
+## Included with Runtime Package
+
+The following components are installed with the OpenVINO runtime package:
+
+| Component | Description|
+|-----------|------------|
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
+| [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
+| Deep Learning Streamer (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+
+## Included with Developer Package
+
+The following components are installed with the OpenVINO developer package:
+
+| Component | Description|
+|-----------|------------|
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) | The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.|
+| [OpenCV*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
+| [Sample Applications](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
+| [Demo Applications](@ref omz_demos) | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases. |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
+| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo).  |
+| Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer\*, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+
 ## Set up the Repository
 ### Install the GPG key for the repository
 
@@ -76,7 +101,7 @@ apt-cache search openvino
 ## Install the runtime or developer packages using the APT Package Manager
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 
-A symlink will be created: `/opt/intel/openvino`
+A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
 ### To Install a specific version

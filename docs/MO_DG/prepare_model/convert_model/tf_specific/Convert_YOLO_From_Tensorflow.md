@@ -110,7 +110,7 @@ where:
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
 
-OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. For more information, refer to [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_ssd_async_README).
+OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. For more information, refer to [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_cpp).
 
 ## Convert YOLOv1 and YOLOv2 Models to the IR
 

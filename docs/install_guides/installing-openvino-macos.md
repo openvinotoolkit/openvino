@@ -24,22 +24,22 @@ The following components are installed by default:
 | Component                                                                                           | Description                                                                                                                                                                                                                                                  |
 | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe*, TensorFlow*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                      |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
-| [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
-| [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
+| [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
+| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 **Could Be Optionally Installed**
 
 [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
 configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader_README)
-* [Intel® Open Model Zoo](@ref omz_models_intel_index)
+* [Model Downloader](@ref omz_tools_downloader)
+* [Intel® Open Model Zoo](@ref omz_models_group_intel)
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Post-training Optimization Tool](@ref pot_README)
-* [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
+* [Accuracy Checker](@ref omz_tools_accuracy_checker)
 * [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
 
 Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
@@ -53,7 +53,6 @@ The development and target platforms have the same requirements, but you can sel
 > **NOTE**: The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS* supports inference on Intel CPUs and Intel® Neural Compute Sticks 2 only.
 
 * 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
-* Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel® Neural Compute Stick 2
@@ -280,7 +279,7 @@ Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Tool
 
 - To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2021/deployment_tools/demo/`.
 
-- For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_intel_index) page.
+- For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_group_intel) page.
 
 - More information on [sample applications](../IE_DG/Samples_Overview.md).
 

@@ -270,7 +270,6 @@ limitations under the License.
         <tab id="deploying_inference" type="usergroup" title="Deploying Inference" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
             <!-- Inference Engine Developer Guide -->
             <tab type="usergroup" title="Inference Engine Developer Guide" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
-                <tab type="user" title="Introduction to Inference Engine" url="@ref openvino_docs_IE_DG_inference_engine_intro"/>
                 <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                 <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                 <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
