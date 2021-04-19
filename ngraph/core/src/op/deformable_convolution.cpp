@@ -173,11 +173,20 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             m_group);
     }
 
+    // adjust filter shape to reuse regular infer_convolution_forward()
+    const auto new_filters_pshape = [&](int groups) {
+        auto new_shape(filters_pshape);
+        if (new_shape.rank().is_static())
+        {
+            new_shape[1] *= groups;
+        }
+        return new_shape;
+    }(m_group);
     PartialShape result_shape =
         validate_and_infer_convolution_forward_output_shape(this,
                                                             result_ps_rank,
                                                             data_batch_pshape,
-                                                            filters_pshape,
+                                                            new_filters_pshape,
                                                             m_auto_pad,
                                                             m_strides,
                                                             m_dilations,

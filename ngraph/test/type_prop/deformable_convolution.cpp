@@ -13,7 +13,7 @@ TEST(type_prop, deformable_convolution_partial_auto_padding_same)
 {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
     const PartialShape deformable_pshape{1, 36, 5, 5};
-    const PartialShape filters_pshape{4, 4, 3, 3};
+    const PartialShape filters_pshape{4, 1, 3, 3};
     const element::Type_t et = element::f32;
 
     Strides strides{1, 1};
@@ -116,7 +116,7 @@ TEST(type_prop, deformable_convolution_partial_auto_padding_same_spatial_dims_dy
 {
     const PartialShape data_batch_pshape{1, 4, Dimension::dynamic(), 5};
     const PartialShape deformable_pshape{1, 36, 5, 5};
-    const PartialShape filters_pshape{4, 4, 3, 3};
+    const PartialShape filters_pshape{4, 1, 3, 3};
     const element::Type_t et = element::f32;
 
     Strides strides{1, 1};
@@ -185,7 +185,7 @@ TEST(type_prop, deformable_convolution_deformable_values_dynamic)
 {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
     const PartialShape deformable_pshape{PartialShape::dynamic()};
-    const PartialShape filters_pshape{4, 4, 3, 3};
+    const PartialShape filters_pshape{4, 2, 3, 3};
     const element::Type_t et = element::f32;
 
     const auto auto_pad = op::PadType::SAME_LOWER;
@@ -913,7 +913,7 @@ TEST(type_prop, deformable_convolution_incompatible_data_batch_and_filters_chann
 {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
     const PartialShape deformable_pshape{1, 36, 3, 3};
-    const PartialShape filters_pshape{4, 8, 3, 3};
+    const PartialShape filters_pshape{4, 4, 3, 3};
     element::Type_t et = element::f32;
 
     Strides strides{1, 1};
@@ -947,7 +947,7 @@ TEST(type_prop, deformable_convolution_incompatible_data_batch_and_filters_chann
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            "Data batch channel count (4) does not match filter input channel count (8)");
+            "Data batch channel count (4) does not match filter input channel count (16)");
     }
     catch (...)
     {
@@ -961,7 +961,7 @@ TEST(type_prop, deformable_convolution_invalid_deformable_values_spatial_dims)
 {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
     const PartialShape deformable_pshape{1, 36, 4, 4};
-    const PartialShape filters_pshape{4, 4, 3, 3};
+    const PartialShape filters_pshape{4, 1, 3, 3};
     const element::Type_t et = element::f32;
 
     Strides strides{1, 1};
