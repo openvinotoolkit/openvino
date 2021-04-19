@@ -279,6 +279,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut)
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
+    editor.set_input_shapes({{"conv1/7x7_s2_1", PartialShape({1, 64, 112, 112})}});
 
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");

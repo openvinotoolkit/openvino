@@ -458,24 +458,37 @@ def decodeNameWithPort (graph: Graph, node_name: str):
     :param node_name:
     :return: decoded place in the graph
     """
-    # Check exact match with one of the names in the graph first
     inputModel = graph.graph['input_model']
-    #TODO: search for any name, not only a tensor
-    node = inputModel.getPlaceByTensorName(node_name)
+
+    # First try to interpret node_name as pure FW name and find exact match:
+    node = inputModel.getPlaceByName(node_name)
+
     if node:
         return node
+
+    # If there are not matches , try to decode MO syntax
+
+    # Postfix port
     regexpPost = r'(.*)(:(\d+))'
     matchPost = re.search(regexpPost, node_name)
-    nodePost = inputModel.getPlaceByTensorName(matchPost.group(1)) if matchPost else None
+    # Again search in all names, including tensors and operations
+    # TODO: Search for operation only?
+    nodePost = inputModel.getPlaceByName(matchPost.group(1)) if matchPost else None
+
+    # Prefix port
     regexpPre = r'((\d+):)(.*)'
     matchPre = re.search(regexpPre, node_name)
-    nodePre = inputModel.getPlaceByTensorName(matchPre.group(3)) if matchPost else None
+    # TODO: Search for operation only?
+    nodePre = inputModel.getPlaceByName(matchPre.group(3)) if matchPost else None
+
+    # Next we try to get the input and output ports for any places, including tensors!
+
     if nodePost and nodePre:
         raise Error('Name collision for {}'.format(node_name))
     if nodePost:
-        return node.getOutputPort(int(matchPost.group(3)))
+        return nodePost.getOutputPort(int(matchPost.group(3)))
     if nodePre:
-        return node.getInputPort(int(matchPre.group(1)))
+        return nodePre.getInputPort(int(matchPre.group(1)))
     raise Error('There is no node with name {}'.format(node_name))
 
 

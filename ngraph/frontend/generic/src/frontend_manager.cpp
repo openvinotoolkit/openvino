@@ -51,6 +51,11 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(getPlaceByOperationName);
         }
 
+        Place::Ptr InputModel::getPlaceByName (const std::string& operationName)
+        {
+            FRONT_END_NOT_IMPLEMENTED(getPlaceByName);
+        }
+
         Place::Ptr InputModel::getPlaceByOperationAndInputPort (const std::string& operationName, int inputPortIndex)
         {
             FRONT_END_NOT_IMPLEMENTED(getPlaceByOperationAndInputPort);

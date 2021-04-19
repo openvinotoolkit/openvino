@@ -110,10 +110,12 @@ public:
     /// Returns a port that produces data for this place
     virtual Ptr getProducingPort () const;
 
-    /// For operation node returns reference to an input port with specified index
+    /// For operation node returns reference to an input port with specified index,
+    /// for a tensor returns input port of operation that produces that tensor
     virtual Ptr getInputPort (int inputPortIndex = -1) const;
 
-    /// For operation node returns reference to an output port with specified index
+    /// For operation node returns reference to an output port with specified index,
+    /// for a tensor returns output port that that produces this tensor
     virtual Ptr getOutputPort (int outputPortIndex = -1) const;
 
     /// Returns all input ports that consume data flows through this place
@@ -184,6 +186,9 @@ public:
 
     /// Returns an operation place by a tensor name following framework conventions, or nullptr if an operation with this name doesn't exist.
     virtual Place::Ptr getPlaceByOperationName (const std::string& operationName);
+
+    /// Returns a tensor place by any name that is convenient for target framework.
+    virtual Place::Ptr getPlaceByName (const std::string& name);
 
     /// Returns an input port.
     virtual Place::Ptr getPlaceByOperationAndInputPort (const std::string& operationName, int inputPortIndex);
