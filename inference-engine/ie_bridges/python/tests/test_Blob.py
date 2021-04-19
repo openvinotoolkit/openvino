@@ -53,6 +53,7 @@ def test_get_buffer():
     ("I64", np.int64),
     ("BOOL", np.uint8),
     ("BIN", np.int8),
+    ("BF16", np.float16),
 ])
 def test_write_to_buffer(precision, numpy_precision):
     tensor_desc = TensorDesc(precision, [1, 3, 127, 127], "NCHW")

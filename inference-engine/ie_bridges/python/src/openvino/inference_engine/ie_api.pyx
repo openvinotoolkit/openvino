@@ -1538,8 +1538,6 @@ cdef class BlobBuffer:
         name = bytes(precision.name()).decode()   
         if name == "FP16":    
             return np.asarray(self).view(dtype=np.float16)
-        elif name == "BF16":
-            raise BufferError("Can't represent BF16 precision in python memory")
         else:
             return np.asarray(self)
 
