@@ -78,7 +78,7 @@ TEST(type_prop, split_v1)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_element_type(i), element::f16);
         EXPECT_EQ(split->get_output_shape(i), (Shape{2, 1, 4}));
@@ -94,7 +94,7 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_known)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), (PartialShape{2, 1, Dimension::dynamic()}));
     }
@@ -109,7 +109,7 @@ TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i),
                   (PartialShape{1, Dimension::dynamic(), Dimension::dynamic()}));
@@ -125,7 +125,7 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i),
                   (PartialShape{4, Dimension::dynamic(), 3, 5}));
@@ -140,7 +140,7 @@ TEST(type_prop, split_v1_axis_const_only_data_rank_known)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic(4));
     }
@@ -154,7 +154,7 @@ TEST(type_prop, split_v1_axis_not_const_only_data_rank_known)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic(4));
     }
@@ -168,7 +168,7 @@ TEST(type_prop, split_v1_axis_const_data_rank_unknown)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
     }
@@ -182,7 +182,7 @@ TEST(type_prop, split_v1_axis_not_const_data_rank_unknown)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
     }
@@ -196,7 +196,7 @@ TEST(type_prop, split_v1_axis_dynamic_rank)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
     }

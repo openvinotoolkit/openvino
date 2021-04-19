@@ -116,7 +116,7 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
     PartialShape output_shape = PartialShape::dynamic(data_shape_merged.rank());
     if (output_shape.rank().is_static())
     {
-        for (size_t i = 0; i < output_shape.rank().get_length(); i++)
+        for (int64_t i = 0; i < output_shape.rank().get_length(); i++)
         {
             NODE_VALIDATION_CHECK(node,
                                   data_dilation[i] > 0,
@@ -409,7 +409,7 @@ PartialShape ngraph::infer_convolution_forward(const Node* node,
     // Note: spatial_rank is definitely static at this point.
     //
 
-    for (size_t i = 0; i < spatial_rank.get_length(); i++)
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++)
     {
         if (data_batch_shape.rank().is_static())
         {
@@ -461,7 +461,7 @@ PartialShape ngraph::infer_convolution_forward(const Node* node,
     batch_output_shape[0] = batch_size;
     batch_output_shape[1] = filter_output_channel_count;
 
-    for (size_t i = 0; i < spatial_rank.get_length(); i++)
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++)
     {
         batch_output_shape[i + 2] = data_output_shape[i];
     }
@@ -522,7 +522,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
         batch_size = data_batch_shape[0];
         channel_count = data_batch_shape[1];
 
-        for (size_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
+        for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
         {
             data_spatial_shape[i] = data_batch_shape[i + 2];
         }
@@ -555,7 +555,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
     data_batch_output_shape[0] = batch_size;
     data_batch_output_shape[1] = channel_count;
 
-    for (size_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
+    for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
     {
         data_batch_output_shape[i + 2] = data_output_spatial_shape[i];
     }
@@ -806,7 +806,7 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 
     std::vector<Dimension> dim;
 
-    size_t input_shape_idx = 0;
+    int64_t input_shape_idx = 0;
     for (size_t axis = 0; axis < begin.size(); ++axis)
     {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
@@ -1104,7 +1104,7 @@ namespace
             {
                 for (auto elt : op->cast_vector<int64_t>())
                 {
-                    if (max_val < elt)
+                    if (max_val < static_cast<uint64_t>(elt))
                     {
                         max_val = elt;
                     }
@@ -1188,7 +1188,7 @@ namespace
     {
         const auto& inputPS = node->get_input_partial_shape(0);
         std::vector<uint64_t> shapeDims;
-        for (size_t i = 0; i < inputPS.rank().get_length(); i++)
+        for (int64_t i = 0; i < inputPS.rank().get_length(); i++)
         {
             if (inputPS[i].is_static())
             {
@@ -1223,7 +1223,8 @@ namespace
         }
 
         const auto& indicesVec = indices->cast_vector<int64_t>();
-        if (indicesVec.size() != 1 || indicesVec[0] >= inputs[0].m_slices.size())
+        if (indicesVec.size() != 1 ||
+            indicesVec[0] >= static_cast<int64_t>(inputs[0].m_slices.size()))
         {
             return {MaxValue()};
         }
