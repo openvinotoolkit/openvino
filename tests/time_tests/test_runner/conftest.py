@@ -207,7 +207,7 @@ def validate_test_case(request, test_info):
             }
         },
         "required": ["device", "model"],
-        "additionalProperties": false
+        "additionalProperties": true
     }
     """
     schema = json.loads(schema)
