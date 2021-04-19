@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& 
     std::map<std::string, OutputVector> named_inputs;
     const auto& input_ports = op_place->getInputPorts();
     for (const auto& name_to_port : input_ports) {
-        for (int idx = 0; idx < name_to_port.second->getSourceTensors().size(); ++idx) {
+        for (std::size_t idx = 0; idx < name_to_port.second->getSourceTensors().size(); ++idx) {
             const auto& var_desc = name_to_port.second->getSourceTensorPDPD(idx)->getDesc();
             if (nodes.count(var_desc->name()))
                 named_inputs[name_to_port.first].push_back(nodes.at(var_desc->name()));
@@ -126,7 +126,7 @@ std::shared_ptr<Function>
         parameter_nodes.push_back(param);
     }
     
-    for (int i = 0; i < model->getBlockNumber(); i++) {
+    for (std::size_t i = 0; i < model->getBlockNumber(); i++) {
         const auto& op_places = model->getOpPlaces(i);
         for (const auto &op_place : op_places) {
             const auto& op_type = op_place->getDesc()->type();
