@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
-#include <regex>
 
 #include "mkldnn_graph.h"
 #include "mkldnn_graph_dumper.h"

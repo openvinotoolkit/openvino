@@ -91,8 +91,6 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
 
     if (shouldDumpInternalBlobs)
         dumpInternalBlobs(node);
-
-    return;
 }
 
 void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
