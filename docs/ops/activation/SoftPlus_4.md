@@ -19,9 +19,9 @@ SoftPlus(x) = \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-**Note**: For numerical stability the operation reverts the linear function when `x > threshold` where `threshold` depends on *T* and
+**Note**: For numerical stability the operation reverts to the linear function when `x > threshold` where `threshold` depends on *T* and
 is chosen in such a way that the difference between the linear function and exact calculation is no more than `1e-6`.
-The `threshold` can be calculated with the following formula where `alpha` is the count of the numbers after the decimal point,
+The `threshold` can be calculated with the following formula where `alpha` is the number of digits after the decimal point,
 `beta` is maximum value of *T* data type:
 
 \f[
