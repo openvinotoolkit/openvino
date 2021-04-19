@@ -4,10 +4,11 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <vector>
 #include "ie_parallel.hpp"
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
+#include <iostream>
+#include <vector>
 
 # define XBYAK_NO_OP_NAMES
 # define XBYAK_UNDEF_JNL
@@ -90,32 +91,21 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 #if defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
-int getNumberOfCPUCores(bool bigCoresOnly) { return parallel_get_max_threads();}
+int getNumberOfCPUCores() { return parallel_get_max_threads();}
 #if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() { return {-1}; }
+std::vector<int> getAvailableNUMANodes() { return {0}; }
 #endif
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-// we have to put this under a check for the TBB code-path
-// because (for Linux) the alternative impl that parses system config exeists (for OMP/SEQ codepaths)
 std::vector<int> getAvailableNUMANodes() {
-#if TBB_NUMA_SUPPORT_PRESENT
     return custom::info::numa_nodes();
-#else
-    return {-1};
-#endif
 }
-#endif
-
 // this is impl only with the TBB, so the fallback is same for any OS
 std::vector<int> getAvailableCoresTypes() {
-#if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     return custom::info::core_types();
-#else
-    return {-1};
-#endif
 }
+#endif
 
 std::exception_ptr& CurrentException() {
      static thread_local std::exception_ptr currentException = nullptr;
