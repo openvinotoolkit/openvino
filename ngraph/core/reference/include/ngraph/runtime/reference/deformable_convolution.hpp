@@ -156,7 +156,7 @@ namespace ngraph
                     }
                 }
 
-            }
+            } // namespace def_conv_impl
             template <typename T>
             void deformable_convolution(const T* in,
                                         const T* offsets,
