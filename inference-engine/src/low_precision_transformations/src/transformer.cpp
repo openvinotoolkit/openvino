@@ -44,6 +44,7 @@
 #include "low_precision/multiply.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
+#include "low_precision/pad.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
@@ -233,6 +234,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MVNTransformation, op::MVN>(params).
         add<MVNTransformation, opset6::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        add<PadTransformation, opset1::Pad>(params).
         add<PReluTransformation, opset1::PRelu>(params).
         add<ReduceMaxTransformation, opset1::ReduceMax>(params).
         add<ReduceMeanTransformation, opset1::ReduceMean>(params).
