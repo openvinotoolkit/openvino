@@ -259,6 +259,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                     meta_info=get_meta_info(argv),
                     use_temporary_path=True)
 
+    # This graph cleanup is required to avoid double memory consumption
     graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
