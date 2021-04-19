@@ -80,32 +80,24 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 }
 
 std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
-    if (fmts.empty())
-        return {};
-
     std::string str;
-
     for (auto &fmt : fmts) {
-        (str += cpu_fmt2str(fmt)) += ",";
+        ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
     }
-    str.pop_back();
-    str += "(cpu)";
-
+    if (!str.empty()) {
+        str.pop_back();
+    }
     return str;
 }
 
 std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
-    if (priority.empty())
-        return {};
-
     std::string str;
-
     for (auto &impl : priority) {
-        (str += impl) += ",";
+        ((str += "cpu:") += impl) += ",";
     }
-    str.pop_back();
-    str += "(cpu)";
-
+    if (!str.empty()) {
+        str.pop_back();
+    }
     return str;
 }
 
