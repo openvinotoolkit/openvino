@@ -846,7 +846,6 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     }
 
     if (!ngraphNode && m_use_framework_node) {
-        // TODO: pass output shapes
         ngraphNode = std::make_shared<ngraph::op::util::FrameworkNode>(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
         ngraphNode->visit_attributes(visitor);

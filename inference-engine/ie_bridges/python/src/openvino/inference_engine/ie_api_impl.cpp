@@ -444,8 +444,11 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(const std::
                                                                      const std::string & path_to_bin,
                                                                      const std::vector<std::string> & extensions) {
     std::vector<InferenceEngine::IExtensionPtr> ext;
-    // TODO: create vector of extensions
-    auto net = InferenceEngine::details::ReadNetwork(path_to_xml, path_to_bin, {});
+    for (const auto & path : extensions) {
+        ext.push_back(std::make_shared<InferenceEngine::Extension>(path));
+    }
+
+    auto net = InferenceEngine::details::ReadNetwork(path_to_xml, path_to_bin, ext);
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
