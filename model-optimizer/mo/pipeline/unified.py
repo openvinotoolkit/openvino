@@ -86,11 +86,21 @@ def moc_pipeline(argv: argparse.Namespace):
         print("Inputs: {}".format(newInputPlaces))
         print("Outputs: {}".format(newOutputPlaces))
         inputModel.extractSubgraph(newInputPlaces, newOutputPlaces)
+    elif not inputsEqual:
+        newInputPlaces = [x['node'] for x in user_shapes]
+        print("Using overrideAllInputs")
+        print("Inputs: {}".format(newInputPlaces))
+        inputModel.overrideAllInputs(newInputPlaces)
+    elif not outputsEqual:
+        newOutputPlaces = [x['node'] for x in outputs]
+        print("Using overrideAllOutputs")
+        print("Outputs: {}".format(newOutputPlaces))
+        inputModel.overrideAllOutputs(newOutputPlaces)
 
-
-#    if len(user_shapes) > 0:
-#        for user_shape in user_shapes:
-#            inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
+    if len(user_shapes) > 0:
+        for user_shape in user_shapes:
+            if 'shape' in user_shape and user_shape['shape'] is not None:
+                inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
     nGraphModel = fe.convert(inputModel)
     network = function_to_cnn(nGraphModel)
     graph.graph['network'] = network
