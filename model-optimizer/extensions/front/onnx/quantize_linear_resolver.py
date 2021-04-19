@@ -72,7 +72,7 @@ class QuantizeLinearResolver(FrontReplacementOp):
         rename_nodes([(node, node_name + '/TBD'), (cast, node_name)])
         fake_quantize.out_port(0).connect(cast.in_port(0))
 
-        axis = node.soft_get('axis', node.id)
+        axis = node.soft_get('axis', 1)
         if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             fake_quantize.in_port(0).get_source().connect(data_shape_node.in_port(0))
@@ -84,8 +84,8 @@ class QuantizeLinearResolver(FrontReplacementOp):
             rank_node = Rank(graph, {'name': node_name + '/Rank'}).create_node()
             fake_quantize.in_port(0).get_source().connect(rank_node.in_port(0))
 
-            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array([0]),
-                                                                    2: int64_array([1])},
+            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(0),
+                                                                    2: int64_array(1)},
                                                      {'name': node_name + '/Range'})
             rank_node.out_port(0).connect(range_node.in_port(1))
             greater_equal_node = create_op_with_const_inputs(graph, GreaterEqual, {1: int64_array([0])},

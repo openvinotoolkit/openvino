@@ -165,7 +165,6 @@ class TestQuantizeLinearResolver(unittest.TestCase):
             'out_low': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
             'out_high': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
             'out': {'kind': 'op', 'op': 'AnyOp'},
-
             'rank': {'kind': 'op', 'op': 'Rank'},
             'shape': {'kind': 'op', 'op': 'Shape'},
             'range_const0': {'kind': 'op', 'type': 'Const', 'op': 'Const'},

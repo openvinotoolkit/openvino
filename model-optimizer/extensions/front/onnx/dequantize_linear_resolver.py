@@ -45,7 +45,7 @@ class DequantizeLinearResolver(FrontReplacementOp):
             cast.out_port(0).connect(mul.in_port(0))
         node.in_port(0).get_connection().set_destination(cast.in_port(0))
 
-        axis = node.soft_get('axis', node.id)
+        axis = node.soft_get('axis', 1)
         if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             cast.in_port(0).get_source().connect(data_shape_node.in_port(0))
@@ -57,8 +57,8 @@ class DequantizeLinearResolver(FrontReplacementOp):
             rank_node = Rank(graph, {'name': node_name + '/Rank'}).create_node()
             cast.in_port(0).get_source().connect(rank_node.in_port(0))
 
-            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array([0]),
-                                                                    2: int64_array([1])},
+            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(0),
+                                                                    2: int64_array(1)},
                                                      {'name': node_name + '/Range'})
             rank_node.out_port(0).connect(range_node.in_port(1))
             greater_equal_node = create_op_with_const_inputs(graph, GreaterEqual, {1: int64_array([0])},
@@ -78,12 +78,17 @@ class DequantizeLinearResolver(FrontReplacementOp):
             scatter_elements_node.out_port(0).connect(reshape_y_scale_node.in_port(1))
 
             node.in_port(1).get_connection().set_destination(reshape_y_scale_node.in_port(0))
-            reshape_y_scale_node.out_port(0).connect(mul.in_port(1))
+            cast_reshape_y_scale = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Reshape_y_scale/Cast'}).create_node()
+            reshape_y_scale_node.out_port(0).connect(cast_reshape_y_scale.in_port(0))
+            cast_reshape_y_scale.out_port(0).connect(mul.in_port(1))
 
             reshape_y_zero_point_node = Reshape(graph, {'name': node_name + '/Reshape_y_zero_point'}).create_node()
             scatter_elements_node.out_port(0).connect(reshape_y_zero_point_node.in_port(1))
             node.in_port(2).get_connection().set_destination(reshape_y_zero_point_node.in_port(0))
-            reshape_y_zero_point_node.out_port(0).connect(sub.in_port(1))
+            cast_reshape_y_zero_point_node = Cast(graph, {'dst_type': model_data_type,
+                                                  'name': node_name + '/Reshape_y_zero_point/Cast'}).create_node()
+            reshape_y_zero_point_node.out_port(0).connect(cast_reshape_y_zero_point_node.in_port(0))
+            cast_reshape_y_zero_point_node.out_port(0).connect(sub.in_port(1))
         else:
             node.in_port(1).get_connection().set_destination(mul.in_port(1))
             if node.is_in_port_connected(2):
