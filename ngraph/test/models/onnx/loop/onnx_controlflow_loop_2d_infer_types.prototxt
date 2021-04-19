@@ -70,7 +70,6 @@ graph {
           name: "a_in"
           type {
             tensor_type {
-              elem_type: 1
               shape {
                 dim {
                   dim_value: 1
