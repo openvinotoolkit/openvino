@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
             } catch (...) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
-            LayerTestsUtils::Summary::setSaveReportInCycle(timeout);
+            LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
         }
     }
 

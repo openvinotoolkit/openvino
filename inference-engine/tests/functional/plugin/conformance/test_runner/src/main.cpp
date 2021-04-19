@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
         LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
     }
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
-    LayerTestsUtils::Summary::setSaveReportInCycle(FLAGS_save_report_timeout);
+    LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ConformanceTests::targetDevice = FLAGS_device.c_str();

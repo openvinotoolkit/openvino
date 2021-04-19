@@ -239,7 +239,7 @@ void Summary::saveReport() {
     bool result = false;
     do {
         result = doc.save_file(outputFilePath.c_str());
-    } while (!result || std::chrono::system_clock::now() < exitTime);
+    } while (!result && std::chrono::system_clock::now() < exitTime);
 
     if (!result) {
         std::string errMessage = "Failed to write report to " + outputFilePath;

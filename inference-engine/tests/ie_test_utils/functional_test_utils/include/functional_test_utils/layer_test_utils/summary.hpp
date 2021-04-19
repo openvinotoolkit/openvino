@@ -101,9 +101,9 @@ public:
 
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
 
-    static void setSaveReportInCycle(size_t val) { saveReportTimeout = val; }
+    static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
 
-    static size_t getSaveReportInCycle() { return saveReportTimeout; }
+    static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
 };
