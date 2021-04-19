@@ -13,7 +13,7 @@ namespace ngraph
     {
         Subgraph Attribute::get_subgraph(
             const Graph& parent_graph,
-            const std::map<std::string, std::string> parent_subgraph_inputs_map) const
+            const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const
         {
             if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH)
             {
@@ -25,28 +25,22 @@ namespace ngraph
             const auto& graph = m_attribute_proto->g();
             model_proto->mutable_graph()->CopyFrom(graph);
 
-            const auto& parent_graph_cache = parent_graph.get_graph_cache();
-            auto* subgraph_inputs = model_proto->mutable_graph()->mutable_input();
-
-            // Use the `parent_subgraph_inputs_map` to infer the types for the subgraph inputs
-            for (const auto& inputs_pair : parent_subgraph_inputs_map)
+            const std::size_t subgraph_inputs_count =
+                static_cast<size_t>(model_proto->mutable_graph()->mutable_input()->size());
+            // Use the `subgraph_inputs_types_map` to infer the types for the subgraph inputs
+            for (const auto& input_index_type_map : subgraph_inputs_types_map)
             {
-                auto subgraph_in = std::find_if(subgraph_inputs->begin(),
-                                                subgraph_inputs->end(),
-                                                [&](const ONNX_NAMESPACE::ValueInfoProto& in) {
-                                                    return in.name() == inputs_pair.second;
-                                                });
-                if (subgraph_in == subgraph_inputs->end())
+                if (input_index_type_map.first >= subgraph_inputs_count)
                 {
-                    NGRAPH_WARN << "Input '" << inputs_pair.second
+                    NGRAPH_WARN << "Input with index: '" << input_index_type_map.first
                                 << "' was not found in the subgraph for the ONNX Loop operator";
                 }
                 else
                 {
-                    const auto& ng_type_from_parent_graph =
-                        parent_graph_cache.get_node(inputs_pair.first).get_element_type();
+                    auto subgraph_in =
+                        model_proto->mutable_graph()->mutable_input(input_index_type_map.first);
                     subgraph_in->mutable_type()->mutable_tensor_type()->set_elem_type(
-                        onnx_common::ng_to_onnx_data_type(ng_type_from_parent_graph));
+                        onnx_common::ng_to_onnx_data_type(input_index_type_map.second));
                 }
             }
 

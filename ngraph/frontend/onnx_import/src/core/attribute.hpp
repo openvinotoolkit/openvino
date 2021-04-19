@@ -283,7 +283,7 @@ namespace ngraph
             const std::string& get_string() const { return m_attribute_proto->s(); }
             Subgraph get_subgraph(
                 const Graph& parent_graph,
-                const std::map<std::string, std::string> parent_subgraph_inputs_map) const;
+                const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const;
 
             std::vector<Tensor> get_tensor_array() const
             {

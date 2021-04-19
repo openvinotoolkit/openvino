@@ -46,7 +46,7 @@ namespace ngraph
 
             Subgraph get_subgraph_from_attribute(
                 const std::string& name,
-                const std::map<std::string, std::string>& parent_subgraph_inputs_map) const;
+                const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const;
 
             template <typename T>
             T get_attribute_value(const std::string& name, T default_value) const;
@@ -96,7 +96,7 @@ namespace ngraph
 
         Subgraph Node::Impl::get_subgraph_from_attribute(
             const std::string& name,
-            const std::map<std::string, std::string>& parent_subgraph_inputs_map) const
+            const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const
         {
             auto it = std::find_if(
                 std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
@@ -106,7 +106,7 @@ namespace ngraph
             {
                 throw error::node::UnknownAttribute{this->name(), name};
             }
-            return it->get_subgraph(graph(), parent_subgraph_inputs_map);
+            return it->get_subgraph(graph(), subgraph_inputs_types_map);
         }
 
         template <typename T>
@@ -140,8 +140,8 @@ namespace ngraph
         template <>
         Subgraph Node::Impl::get_attribute_value(const std::string& name) const
         {
-            const std::map<std::string, std::string> empty_parent_subgraph_inputs_map;
-            return get_subgraph_from_attribute(name, empty_parent_subgraph_inputs_map);
+            const std::map<std::size_t, element::Type_t> empty_map;
+            return get_subgraph_from_attribute(name, empty_map);
         }
 
         OutputVector Node::Impl::get_ng_nodes(const Node& node) const
@@ -221,9 +221,9 @@ namespace ngraph
 
         Subgraph Node::get_subgraph_from_attribute(
             const std::string& name,
-            const std::map<std::string, std::string>& parent_subgraph_inputs_map) const
+            const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const
         {
-            return m_pimpl->get_subgraph_from_attribute(name, parent_subgraph_inputs_map);
+            return m_pimpl->get_subgraph_from_attribute(name, subgraph_inputs_types_map);
         }
 
         template <>
