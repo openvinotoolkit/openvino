@@ -713,6 +713,19 @@ def output_user_data_repack(graph: Graph, outputs: list):
             ]
     }
     """
+    if 'frontend' in graph.graph:
+        _outputs = []
+        # New version of FrontEnd is activated
+        print("I'm HERE - output")
+        print("Outputs is list or dict")
+        if outputs is not None and len(outputs) > 0:
+            for output in outputs:
+                node = decodeNameWithPort(graph, output)
+                if node is None:
+                    raise Error('Cannot find location {} in the graph'.format(output))
+                _outputs.append({'node': node})
+        return _outputs
+
     _outputs = defaultdict(list)
     if outputs is None:
         _outputs = None
