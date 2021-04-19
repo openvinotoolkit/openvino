@@ -13,11 +13,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 
-TEST(InferRequestCPPTests, throwsOnInitWithNull) {
-    IInferRequest::Ptr nlptr = nullptr;
-    ASSERT_THROW(InferRequest req(nlptr), InferenceEngine::Exception);
-}
-
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;
     ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::Exception);
@@ -81,7 +76,7 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
 
 TEST(InferRequestCPPTests, throwsOnUninitializedCast) {
     InferRequest req;
-    ASSERT_THROW((void)static_cast<IInferRequest::Ptr &>(req), InferenceEngine::Exception);
+    ASSERT_THROW((void)static_cast<IInferRequest::Ptr>(req), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedQueryState) {
