@@ -4,7 +4,7 @@ This instruction covers conversion of RNN-t model from [MLCommons](https://githu
 converting into IR PyTorch model need to be exported into ONNX. In order to that follow the steps below.
 
 **Step 1**. Clone RNN-t PyTorch implementation from MLCommons repository. In order to pull only RNN-t model 
-without full repository make shallow clone. If you alreade have a full repository skip this and go to **Step 2**:
+without full repository make a shallow clone. If you alreade have a full repository skip this and go to **Step 2**:
 ```bash
 git clone -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
 cd rnnt_for_openvino
@@ -29,7 +29,7 @@ if you have done steps from https://github.com/mlcommons/inference/tree/master/s
 
 **Step 4**. Install required python packages:
 ```bash
-pip install torch toml
+pip3 install torch toml
 ```
 
 **Step 5**. Export RNN-t model into ONNX with the script below. Copy it into a file with a name `export_rnnt_to_onnx.py` 
@@ -85,7 +85,7 @@ torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
 ```
 
 ```bash
-python export_rnnt_to_onnx.py
+python3 export_rnnt_to_onnx.py
 ```
 
 After that files rnnt_encoder.onnx, rnnt_prediction.onnx, and rnnt_joint.onnx will be saved in the current directory. 
