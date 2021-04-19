@@ -7,9 +7,7 @@
 **Short description**: *Transpose* operation reorders the input tensor dimensions.
 
 **Detailed description**: *Transpose* operation reorders the input tensor dimensions. Source indexes and destination indexes are bound by the formula: 
-
-    output[i(order[0]), i(order[1]), ..., i(order[N-1])] = input[i(0), i(1), ..., i(N-1)], 
-    where i(j) in range 0..(input.shape[j]-1)
+\f[output[i(order[0]), i(order[1]), ..., i(order[N-1])] = input[i(0), i(1), ..., i(N-1)]\\ \quad \textrm{where} \quad i(j) \quad\textrm{is in the range} \quad [0, (input.shape[j]-1)]\f]
 
 
 **Attributes**: *Transpose* operation has no attributes.
