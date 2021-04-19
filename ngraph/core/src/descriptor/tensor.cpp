@@ -60,6 +60,7 @@ void descriptor::Tensor::invalidate_values()
 {
     m_upper_value = nullptr;
     m_lower_value = nullptr;
+    m_value_label.clear();
 }
 
 void descriptor::Tensor::set_lower_value(const HostTensorPtr& value)
@@ -76,6 +77,21 @@ void descriptor::Tensor::set_upper_value(const HostTensorPtr& value)
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_upper_value = value;
+}
+
+void descriptor::Tensor::set_value_label(const TensorLabel& value_label)
+{
+    const auto& labels_size = value_label.size();
+    if (labels_size == 0)
+    {
+        m_value_label.clear();
+    }
+    else
+    {
+        NGRAPH_CHECK(m_partial_shape.is_static());
+        NGRAPH_CHECK(shape_size(m_partial_shape.to_shape()) == labels_size);
+        m_value_label = value_label;
+    }
 }
 
 const Shape& descriptor::Tensor::get_shape() const

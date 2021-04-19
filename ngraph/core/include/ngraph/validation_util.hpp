@@ -277,6 +277,15 @@ namespace ngraph
     /// \return boolean status if value evaluation was successful.
     NGRAPH_API bool default_lower_bound_evaluator(const Node* node,
                                                   const HostTensorVector& output_values);
+
+    /// \brief Propagates value label from 0 input to the only output through an operation.
+    /// Not applicable for operations which require values interaction (example: mathematical
+    /// operations). Could be used for movement operations (example: gathering, shape change) \param
+    /// node Operation to be performed \param output_labels Vector of TensorLabel objects
+    /// representing resulting value labels \return boolean status if label evaluation was
+    /// successful.
+    NGRAPH_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
+
     /// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
     /// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
     /// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
@@ -296,6 +305,10 @@ namespace ngraph
     /// and pointers are the same. It doesn't check if lower and upper values are the same relying
     /// only on pointers comparison.
     NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
+
+    /// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
+    /// and pointers are the same. Checks if lower and upper values are the same.
+    NGRAPH_API bool bounds_are_mathematically_equal(const Output<Node>& source);
 
     /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
     /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.

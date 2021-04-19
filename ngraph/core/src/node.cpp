@@ -971,6 +971,11 @@ bool Node::evaluate_upper(const HostTensorVector& output_values) const
     return default_upper_bound_evaluator(this, output_values);
 }
 
+bool Node::evaluate_label(TensorLabelVector& output_labels) const
+{
+    return false;
+}
+
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
