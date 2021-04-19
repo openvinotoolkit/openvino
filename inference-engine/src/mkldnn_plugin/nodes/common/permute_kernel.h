@@ -63,15 +63,14 @@ class PermuteKernel {
 public:
     PermuteKernel(const PermuteUtils::PermuteParams& params, const bool areDefault = true);
 
-    bool isOptimized() {
-        return permute_kernel != nullptr;
-    }
-    void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const size_t mb);
-    void execute(const uint8_t* src_data, uint8_t* dst_data, const size_t mb);
+    void execute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
 private:
     void prepareDefaultParams();
     void prepareParamsForOptimizedExecute();
+
+    void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
+    void commonExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
     PermuteUtils::PermuteParams params;

@@ -643,11 +643,6 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    if (permuteKernel->isOptimized()) {
-        permuteKernel->optimizedExecute(srcData, dstData, MB);
-        return;
-    }
-
     permuteKernel->execute(srcData, dstData, MB);
 }
 

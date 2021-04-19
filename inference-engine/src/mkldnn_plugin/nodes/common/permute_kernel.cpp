@@ -300,7 +300,16 @@ void PermuteKernel::prepareParamsForOptimizedExecute() {
     }
 }
 
-void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const size_t mb) {
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+    if (permute_kernel) {
+        optimizedExecute(src_data, dst_data, mb);
+        return;
+    }
+
+    commonExecute(src_data, dst_data, mb);
+}
+
+void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
     const auto &jcp = (*permute_kernel).jcp;
 
     SizeVector dst_dims = jcp.dst_block_dims;
@@ -369,7 +378,7 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
     }
 }
 
-void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const size_t mb) {
+void PermuteKernel::commonExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
     SizeVector dst_dims = params.dst_block_dims;
     const SizeVector dst_strides = params.dst_block_strides;
     const SizeVector src_strides = params.src_block_strides;

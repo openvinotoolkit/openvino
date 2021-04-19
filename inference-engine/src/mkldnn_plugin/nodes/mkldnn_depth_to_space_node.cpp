@@ -228,13 +228,7 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    int MB = batchToProcess();
-    if (permuteKernel->isOptimized()) {
-        permuteKernel->optimizedExecute(srcData, dstData, MB);
-        return;
-    }
-
-    permuteKernel->execute(srcData, dstData, MB);
+    permuteKernel->execute(srcData, dstData, batchToProcess());
 }
 
 bool MKLDNNDepthToSpaceNode::created() const {
