@@ -187,9 +187,9 @@ private:
     Xbyak::Reg64 reg_tbl_x = rbp;
     Xbyak::Reg64 reg_table = rdx;   // do not need reg_index_offset in this mode, so use rdx
 
-    Vmm vmm_val = Vmm(0);
-    Xmm xmm_val = Xmm(0);
-    Vmm vmm_index = Vmm(1);
+    Vmm vmm_val = Vmm(1);
+    Xmm xmm_val = Xmm(1);
+    Vmm vmm_index = Vmm(0);
     Vmm vmm_zero = Vmm(2);
     Vmm vmm_mask = Vmm(3);
     Vmm vmm_d_weights = Vmm(4);

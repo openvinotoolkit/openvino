@@ -1,6 +1,6 @@
 # Object Detection C Sample SSD {#openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README}
 
-Inference of object detection networks like SSD-VGG using Asynchronous Inference Request API and [input reshape feature](../../../../../docs/IE_DG/ShapeInference.md).
+This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Asynchronous Inference Request API and [input reshape feature](../../../../../docs/IE_DG/ShapeInference.md).
 
 Object Detection C sample SSD application demonstrates how to use the following Inference Engine C API in applications:
 
@@ -29,7 +29,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 ## How It Works
 
 Upon the start-up the sample application reads command line parameters, loads specified network and image(s) to the Inference
-Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image(s) and output data to the standard output stream.
+Engine plugin. Then, the sample creates an asynchronous inference request object. When inference is done, the application creates output image(s) and output data to the standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
