@@ -30,7 +30,7 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
 
 void op::util::GatherBase::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_GatherBase_common_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);

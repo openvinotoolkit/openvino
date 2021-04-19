@@ -12,7 +12,7 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief GatherBase basic calss for Gather v1 and v7
+            /// \brief GatherBase basic class for Gather v1 and v7
             class NGRAPH_API GatherBase : public Op
             {
             public:

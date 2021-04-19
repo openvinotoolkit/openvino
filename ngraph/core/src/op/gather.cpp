@@ -5,7 +5,6 @@
 #include "ngraph/op/gather.hpp"
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
-#include "ngraph/op/util/gather_base.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
 #include "ngraph/op/util/gather_base.hpp"
 
 namespace ngraph
