@@ -26,9 +26,9 @@ namespace frontend {
 
 class NGRAPH_API FrontEndPDPD : public FrontEnd
 {
-    std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model) const;
-    std::shared_ptr<opset6::Constant> read_tensor(std::shared_ptr<VarPlacePDPD> place,
-                                                  std::shared_ptr<InputModelPDPD> model) const;
+    static std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model);
+    static std::shared_ptr<opset6::Constant> read_tensor(const std::shared_ptr<TensorPlacePDPD>& place,
+                                                  const std::shared_ptr<InputModelPDPD>& model);
 public:
 
     FrontEndPDPD ()
