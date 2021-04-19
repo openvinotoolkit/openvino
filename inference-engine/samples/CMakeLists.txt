@@ -255,6 +255,9 @@ macro(ie_add_sample)
         add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
                            CUSTOM_FILTERS ${custom_filters})
     endif()
+    if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_TARGETS ${IE_SAMPLE_NAME})
+    endif()
 endmacro()
 
 # collect all samples subdirectories
