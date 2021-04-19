@@ -447,12 +447,23 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 endforeach()
 
 # SOURCE FOR FRONTEND TESTING
-# TODO: try to find a way to move it out of common CMakeLists
-file(GLOB_RECURSE FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+
 # ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
 # --- END OF --DO_NOT_RELEASE--
+
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/*.cpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+# TODO: try to find a way to move it out of common CMakeLists
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+    set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+endif()
+
 #-----
 
 add_executable(unit-test ${SRC})

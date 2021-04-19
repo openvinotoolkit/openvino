@@ -28,8 +28,9 @@
 #endif
 
 #include "frontend_manager/frontend_manager.hpp"
+#ifdef NGRAPH_PDPD_FRONTEND_ENABLE
 #include "paddlepaddle_frontend/frontend.hpp"
-
+#endif
 
 namespace ngraph
 {
@@ -450,7 +451,9 @@ namespace ngraph
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE) && defined(NGRAPH_ONNX_EDITOR_ENABLE)
                 registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
 #endif
+#ifdef NGRAPH_PDPD_FRONTEND_ENABLE
                 registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+#endif
 #ifdef NGRAPH_TF_FRONTEND_ENABLE
                 registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
 #endif
