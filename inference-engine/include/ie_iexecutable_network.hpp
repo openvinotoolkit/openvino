@@ -60,6 +60,7 @@ public:
      */
     virtual StatusCode GetInputsInfo(ConstInputsDataMap& inputs, ResponseDesc* resp) const noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Creates an inference request object used to infer the network.
      *
@@ -70,6 +71,7 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Exports the current executable network.
