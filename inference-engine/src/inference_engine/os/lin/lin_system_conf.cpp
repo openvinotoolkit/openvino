@@ -10,9 +10,9 @@
 #include <numeric>
 #include <sched.h>
 
-#include "ie_system_conf.h"
-#include "ie_parallel_custom_arena.hpp"
 #include "ie_common.h"
+#include "ie_system_conf.h"
+#include "threading/ie_parallel_custom_arena.hpp"
 
 
 namespace InferenceEngine {

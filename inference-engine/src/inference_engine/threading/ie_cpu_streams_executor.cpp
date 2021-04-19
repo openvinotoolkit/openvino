@@ -194,7 +194,7 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
-
+        #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
             const int threadsPerStream = (0 == config._threadsPerStream) ? std::thread::hardware_concurrency() : config._threadsPerStream;
@@ -217,6 +217,7 @@ struct CPUStreamsExecutor::Impl {
                 total_streams_on_core_types.front().second,
                 static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
         }
+        #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -285,12 +286,14 @@ struct CPUStreamsExecutor::Impl {
     bool                                    _isStopped = false;
     std::vector<int>                        _usedNumaNodes;
     ThreadLocal<std::shared_ptr<Stream>>    _streams;
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
     // every entry is the core type and #streams that this AND ALL EARLIER entries can handle (prefix sum)
     // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
+    #endif
 };
 
 

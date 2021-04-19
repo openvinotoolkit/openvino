@@ -143,6 +143,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
     int num_cores_default = getNumberOfCPUCores();
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     //additional latency-case logic for hybrid processors:
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = custom::info::core_types();
@@ -166,7 +167,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
     }
-
+    #endif
     const auto hwCores = !bLatencyCase && numaNodesNum == 1
         // throughput case on a single-NUMA node machine uses all available cores
         ? parallel_get_max_threads()

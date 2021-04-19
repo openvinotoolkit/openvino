@@ -100,9 +100,14 @@ std::vector<int> getAvailableNUMANodes() { return {0}; }
 std::vector<int> getAvailableNUMANodes() {
     return custom::info::numa_nodes();
 }
-// this is impl only with the TBB, so the fallback is same for any OS
+// this is impl only with the TBB
 std::vector<int> getAvailableCoresTypes() {
     return custom::info::core_types();
+}
+#else
+// as the impl exists only with the TBB, the fallback is same for any OS
+std::vector<int> getAvailableCoresTypes() {
+    return {-1};
 }
 #endif
 
