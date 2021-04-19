@@ -15,7 +15,7 @@ namespace Cpu {
 class CTCGreedyDecoderSeqLenImpl: public ExtLayerBase {
 public:
     explicit CTCGreedyDecoderSeqLenImpl(const CNNLayer* layer) : mergeRepeated_(true) {
-        std::string errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + layer->name + "' ";
+        errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + layer->name + "' ";
         if (layer->insData.size() < 2 || layer->insData.size() > 3)
             IE_THROW() << errPrefix << "has invalid number of input edges: " << layer->insData.size();
         if (layer->outData.size() != 2)
@@ -75,6 +75,16 @@ public:
 
         size_t workAmount = 0;
         for (size_t b = 0; b < B; b++) {
+            if (sequenceLengths[b] > T) {
+                if (resp) {
+                    std::string errorMsg = errPrefix
+                        + ". Sequence length " + std::to_string(sequenceLengths[b])
+                        + " cannot be greater than according decoded classes dimension size "
+                        + std::to_string(outputs[DECODED_CLASSES_INDEX]->getTensorDesc().getDims()[1]);
+                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                }
+                return PARAMETER_MISMATCH;
+            }
             workAmount += sequenceLengths[b];
         }
         // Parallelization could not be made directly by T due to output index depends on merged classes and
@@ -153,6 +163,7 @@ private:
     const size_t DECODED_CLASSES_INDEX = 0lu;
     const size_t DECODED_CLASSES_LENGTH_INDEX = 1lu;
     bool mergeRepeated_;
+    std::string errPrefix;
 };
 
 REG_FACTORY_FOR(CTCGreedyDecoderSeqLenImpl, CTCGreedyDecoderSeqLen);
