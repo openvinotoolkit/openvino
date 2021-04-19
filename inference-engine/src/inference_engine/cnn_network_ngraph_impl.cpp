@@ -216,8 +216,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
+                } else if (outputIndex >= layer->outputs().size()) {
+                    return DescriptionBuffer(OUT_OF_BOUNDS, resp)
+                    << "port index " << outputIndex << " exceeds layer's outputs which is " << layer->outputs().size();
                 }
-
+                
                 // Check that we don't have a result for the output port
                 for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
                     if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
