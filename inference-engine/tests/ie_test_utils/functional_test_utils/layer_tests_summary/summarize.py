@@ -150,8 +150,6 @@ def merge_xmls(xmls: list):
                             else:
                                 total_tests_count_xml += int(entry.attrib.get(attr_name))
                                 total_tests_count_summary += int(res_summary.attrib.get(attr_name))
-                        if total_tests_count_xml != total_tests_count_summary and device.tag == "TEMPLATE":
-                            print("3")
                         if total_tests_count_xml > total_tests_count_summary:
                             for attr_name in device_results.find(entry.tag).attrib:
                                 if attr_name == "passrate":
