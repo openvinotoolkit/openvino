@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,9 @@ using namespace InferenceEngine;
 
 namespace {
 
+/**
+* @brief Overload output stream operator to print vectors in pretty form [value1, value2, ...]
+*/
 template <typename T>
 std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
     stream << "[ ";
@@ -26,8 +29,15 @@ std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
     return stream << "]";
 }
 
+/**
+* @brief Print IE Parameters
+* @param reference on IE Parameter
+* @return void
+*/
 void printParameterValue(const Parameter & value) {
-    if (value.is<bool>()) {
+    if (value.empty()) {
+        std::cout << "EMPTY VALUE" << std::endl;
+    } else if (value.is<bool>()) {
         std::cout << std::boolalpha << value.as<bool>() << std::noboolalpha << std::endl;
     } else if (value.is<int>()) {
         std::cout << value.as<int>() << std::endl;
@@ -70,30 +80,30 @@ void printParameterValue(const Parameter & value) {
 
 int main(int argc, char *argv[]) {
     try {
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (argc != 1) {
             std::cout << "Usage : "<< argv[0] << std::endl;
             return EXIT_FAILURE;
         }
 
-        // --------------------------- 1. Load Inference engine instance -------------------------------------
-
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
+        std::cout << "Loading Inference Engine" << std::endl;
         Core ie;
 
-        // --------------------------- 2. Get list of available devices  -------------------------------------
+        // --------------------------- Get list of available devices  -------------------------------------
 
         std::vector<std::string> availableDevices = ie.GetAvailableDevices();
 
-        // --------------------------- 3. Query and print supported metrics and config keys--------------------
+        // --------------------------- Query and print supported metrics and config keys--------------------
 
         std::cout << "Available devices: " << std::endl;
         for (auto && device : availableDevices) {
-            std::cout << "\tDevice: " << device << std::endl;
+            std::cout << device << std::endl;
 
-            std::cout << "\tMetrics: " << std::endl;
+            std::cout << "\tSUPPORTED_METRICS: " << std::endl;
             std::vector<std::string> supportedMetrics = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricName : supportedMetrics) {
-                if (metricName != METRIC_KEY(AVAILABLE_DEVICES)) {
+                if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     std::cout << "\t\t" << metricName << " : " << std::flush;
                     printParameterValue(ie.GetMetric(device, metricName));
                 }
@@ -101,7 +111,7 @@ int main(int argc, char *argv[]) {
 
             if (std::find(supportedMetrics.begin(), supportedMetrics.end(),
                 METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
-                std::cout << "\tDefault values for device configuration keys: " << std::endl;
+                std::cout << "\tSUPPORTED_CONFIG_KEYS (default values): " << std::endl;
                 std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto && configKey : supportedConfigKeys) {
                     std::cout << "\t\t" << configKey << " : " << std::flush;
@@ -112,7 +122,7 @@ int main(int argc, char *argv[]) {
             std::cout << std::endl;
         }
     } catch (const std::exception & ex) {
-        std::cerr << ex.what() << std::endl;
+        std::cerr << std::endl << "Exception occurred: " << ex.what() << std::endl << std::flush;
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

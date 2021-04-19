@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 import re
 
@@ -32,6 +20,7 @@ mapping_rules = [
     ('resizer_image_width', 'image_resizer/fixed_shape_resizer/width'),
     ('resizer_min_dimension', 'image_resizer/keep_aspect_ratio_resizer/min_dimension'),
     ('resizer_max_dimension', 'image_resizer/keep_aspect_ratio_resizer/max_dimension'),
+    ('pad_to_max_dimension', 'image_resizer/keep_aspect_ratio_resizer/pad_to_max_dimension', False),
     # anchor generator attributes
     ('anchor_generator_height', 'first_stage_anchor_generator/grid_anchor_generator/height$', 256),
     ('anchor_generator_width', 'first_stage_anchor_generator/grid_anchor_generator/width$', 256),

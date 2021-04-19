@@ -6,57 +6,14 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "cfba5fc0895a564fa51a1438f1c4d4f06198be982b1c2fb973c5cb9ab0a3c1f3"
-    "4176456c96b151470de3a723b603503306cff2e52975b739927e37d730c053be")
+    "11a6db07d3a17c9c0fc4247fce47c942e0dcd59f8d70665a96bae0d7b7121fe9"
+    "43f3dc0f0a8114ca34226167970aafdc869600929d6e3761c1eaa6eec71f2237")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1639)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
-
-#
-# CMake variables to override default firmware files
-#
-list(LENGTH VPU_SUPPORTED_FIRMWARES num_firmwares)
-math(EXPR num_firmwares "${num_firmwares} - 1")
-foreach(idx RANGE 0 ${num_firmwares})
-    list(GET VPU_SUPPORTED_FIRMWARES ${idx} firmware_name)
-    list(GET VPU_SUPPORTED_FIRMWARES_HASH ${idx} hash)
-    string(TOUPPER "${firmware_name}" firmware_name_upper)
-
-    set(firmware_name_full ${firmware_name}.mvcmd)
-    # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
-        set(firmware_name_full ${firmware_name}.elf)
-    endif ()
-
-    reset_deps_cache(VPU_FIRMWARE_${firmware_name_upper}_FILE)
-
-    RESOLVE_DEPENDENCY(VPU_FIRMWARE_${firmware_name_upper}
-        ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
-        TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
-        ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
-        FOLDER
-        SHA256 ${hash})
-    debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
-
-    update_deps_cache(
-        VPU_FIRMWARE_${firmware_name_upper}_FILE
-        "${VPU_FIRMWARE_${firmware_name_upper}}/mvnc/${firmware_name_full}"
-        "[VPU] ${firmware_name_full} firmware")
-
-    find_file(
-        VPU_FIRMWARE_${firmware_name_upper}_FILE
-        NAMES ${firmware_name_full}
-        NO_CMAKE_FIND_ROOT_PATH)
-    if(NOT VPU_FIRMWARE_${firmware_name_upper}_FILE)
-        message(FATAL_ERROR "[VPU] Missing ${firmware_name_full} firmware")
-    endif()
-endforeach()
-
-#
+set(FIRMWARE_PACKAGE_VERSION 1658)
 # `vpu_copy_firmware` CMake target
 #
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,7 @@ namespace InferenceEngine {
  * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal,
-                                           public std::enable_shared_from_this<ExecutableNetworkThreadSafeDefault> {
+class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeDefault object
@@ -62,15 +61,12 @@ protected:
      */
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequest::Ptr CreateAsyncInferRequestFromSync() {
-        IInferRequest::Ptr asyncRequest;
-
         auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
         auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(
             syncRequestImpl, _taskExecutor, _callbackExecutor);
-        asyncRequest.reset(new InferRequestBase(asyncThreadSafeImpl),
-            [](IInferRequest *p) { p->Release(); });
+        IInferRequest::Ptr asyncRequest = std::make_shared<InferRequestBase>(asyncThreadSafeImpl);
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 
         return asyncRequest;

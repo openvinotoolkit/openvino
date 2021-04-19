@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -38,7 +26,7 @@ namespace ngraph
                 {
                     axis += data_shape.size();
                 }
-                if (axis < 0 || axis >= data_shape.size())
+                if (axis < 0 || axis >= static_cast<int64_t>(data_shape.size()))
                 {
                     throw std::domain_error{
                         "axis for GatherElements exceeds allowed range [0, data_rank)"};
@@ -47,9 +35,9 @@ namespace ngraph
                 // in 1D case results can be achieved without additional calculations
                 if (data_shape.size() == 1)
                 {
-                    for (int64_t i = 0; i < indices_shape[0]; i++)
+                    for (size_t i = 0; i < indices_shape[0]; i++)
                     {
-                        if (indices[i] >= data_shape[0])
+                        if (static_cast<size_t>(indices[i]) >= data_shape[0])
                         {
                             throw std::domain_error{
                                 "indices values of GatherElement exceed data size"};
@@ -66,11 +54,11 @@ namespace ngraph
                 size_t data_num_columns = data_shape[1];
                 if (data_shape.size() == 2)
                 {
-                    int64_t idx;
+                    size_t idx;
                     if (axis == 0)
                     {
-                        for (int64_t i = 0; i < num_rows; i++)
-                            for (int64_t j = 0; j < num_columns; j++)
+                        for (size_t i = 0; i < num_rows; i++)
+                            for (size_t j = 0; j < num_columns; j++)
                             {
                                 idx = indices[num_columns * i + j];
                                 if (idx < 0 || idx >= data_shape[0])
@@ -84,8 +72,8 @@ namespace ngraph
                     }
                     else // axis == 1
                     {
-                        for (int64_t i = 0; i < num_rows; i++)
-                            for (int64_t j = 0; j < num_columns; j++)
+                        for (size_t i = 0; i < num_rows; i++)
+                            for (size_t j = 0; j < num_columns; j++)
                             {
                                 idx = indices[num_columns * i + j];
                                 if (idx < 0 || idx >= data_shape[1])
@@ -120,13 +108,13 @@ namespace ngraph
                 */
 
                 size_t max_inner_sum = 1;
-                for (int i = axis + 1; i < indices_shape.size(); i++)
+                for (size_t i = axis + 1; i < indices_shape.size(); i++)
                     max_inner_sum *= indices_shape[i];
 
                 size_t max_outer_sum = 1, outer_sum_inc = 1;
                 for (int i = 0; i < axis; i++)
                     max_outer_sum *= indices_shape[i];
-                for (int i = axis; i < data_shape.size(); i++)
+                for (size_t i = axis; i < data_shape.size(); i++)
                     outer_sum_inc *= data_shape[i];
                 max_outer_sum *= outer_sum_inc;
 
@@ -135,7 +123,8 @@ namespace ngraph
                     for (size_t k = 0; k < indices_shape[axis]; k++)
                         for (size_t inner_sum = 0; inner_sum < max_inner_sum; inner_sum++)
                         {
-                            if (indices[i] < 0 || indices[i] >= data_shape[axis])
+                            if (indices[i] < 0 ||
+                                static_cast<size_t>(indices[i]) >= data_shape[axis])
                             {
                                 throw std::domain_error{
                                     "indices values of GatherElement exceed data size"};

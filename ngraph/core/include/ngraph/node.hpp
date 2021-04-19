@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -107,20 +95,21 @@ namespace ngraph
     /// Alias useful for cloning
     using NodeMap = std::unordered_map<ngraph::Node*, std::shared_ptr<ngraph::Node>>;
 
-/// \brief Used in evaluator switch statement so that the case type and evaluate call
-/// are guaranteed to have the types match.
-///
-/// Use this in an evaluate_*() function like this
-///    switch (arg0->get_element_type())
-///    {
-///        TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec); break;
-///        TYPE_CASE(i16)(arg0, arg1, out, broadcast_spec); break;
-///
-/// Each TYPE_CASE statement expands like this:
-///   case element::Type_t::a: rc = evaluate<element::Type_t::a>(arg0, arg1, out, broadcast_spec)
-///
-/// \note Don't forget to put a break after each statement or it will fall through and generate
-/// a runtime error.
+    /// \brief Used in evaluator switch statement so that the case type and evaluate call
+    /// are guaranteed to have the types match.
+    ///
+    /// Use this in an evaluate_*() function like this
+    ///    switch (arg0->get_element_type())
+    ///    {
+    ///        TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec); break;
+    ///        TYPE_CASE(i16)(arg0, arg1, out, broadcast_spec); break;
+    ///
+    /// Each TYPE_CASE statement expands like this:
+    ///   case element::Type_t::a: rc = evaluate<element::Type_t::a>(arg0, arg1, out,
+    ///   broadcast_spec)
+    ///
+    /// \note Don't forget to put a break after each statement or it will fall through and generate
+    /// a runtime error.
 
 #define TYPE_CASE(a)                                                                               \
     case element::Type_t::a: rc = evaluate<element::Type_t::a>
@@ -649,6 +638,7 @@ namespace ngraph
         bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         std::shared_ptr<Node>& m_ref;
     };
@@ -663,6 +653,7 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         NodeVector& m_ref;
     };

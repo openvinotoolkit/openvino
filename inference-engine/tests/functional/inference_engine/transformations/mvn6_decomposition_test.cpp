@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,8 +69,9 @@ TEST(TransformationTests, MVN6Decomposition_Inside_Sqrt) {
         auto mean = std::make_shared<ngraph::opset6::ReduceMean>(input0, axes_const, true);
         auto mean_normalization = std::make_shared<ngraph::opset6::Subtract>(input0, mean);
 
-        auto mul = std::make_shared<ngraph::opset6::Multiply>(mean_normalization, mean_normalization);
-        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(mul, axes_const, true);
+        auto sqr_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 2 });
+        auto sqr = std::make_shared<ngraph::opset6::Power>(mean_normalization, sqr_const);
+        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(sqr, axes_const, true);
 
         auto eps_node = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1e-5 });
 
@@ -107,8 +108,9 @@ TEST(TransformationTests, MVN6Decomposition_Outside_Sqrt) {
         auto mean = std::make_shared<ngraph::opset6::ReduceMean>(input0, axes_const, true);
         auto mean_normalization = std::make_shared<ngraph::opset6::Subtract>(input0, mean);
 
-        auto mul = std::make_shared<ngraph::opset6::Multiply>(mean_normalization, mean_normalization);
-        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(mul, axes_const, true);
+        auto sqr_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 2 });
+        auto sqr = std::make_shared<ngraph::opset6::Power>(mean_normalization, sqr_const);
+        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(sqr, axes_const, true);
 
         auto eps_node = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1e-5 });
 

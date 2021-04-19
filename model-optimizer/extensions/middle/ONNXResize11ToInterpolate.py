@@ -1,32 +1,19 @@
-"""
- Copyright (C) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 import numpy as np
 
-from extensions.ops.activation_ops import Floor
 from extensions.ops.Cast import Cast
+from extensions.ops.activation_ops import Floor
 from extensions.ops.elementwise import Add, Div, Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_depth_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph, Node, rename_nodes
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
@@ -107,10 +94,10 @@ def replace_resize(graph: Graph, resize: Node):
                                            {1: float_array([1.0e-5])},
                                            {'name': resize_name + '/Add'})
 
-    input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+    dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
     if num_of_inputs == 3:
-        cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
+        cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
@@ -132,8 +119,8 @@ def replace_resize(graph: Graph, resize: Node):
         connection_of_resize_input.get_source().connect(shape_of.in_port(0))
         connection_of_scales.get_source().connect(mul_node.in_port(1))
     else:
-        cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
-        cast_sizes_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
+        cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
+        cast_sizes_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         div_node = Div(graph, {'name': resize_name + '/Div'}).create_node()
         cast_sizes_to_float.out_port(0).connect(div_node.in_port(0))
         cast_shape_to_float.out_port(0).connect(div_node.in_port(1))

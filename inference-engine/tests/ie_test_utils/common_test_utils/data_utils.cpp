@@ -1,11 +1,10 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cmath>
 
 #include <debug.h>  // to allow putting vector into exception string stream
-#include <details/ie_exception.hpp>
 
 #include <ie_blob.h>
 #include <blob_factory.hpp>
@@ -123,7 +122,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
             copy_7D<uint8_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision by fill_data_with_broadcast function";
+            IE_THROW() << "Unsupported precision by fill_data_with_broadcast function";
     }
 }
 
@@ -154,7 +153,7 @@ InferenceEngine::Blob::Ptr make_with_precision_convert(InferenceEngine::Blob::Pt
         copy_with_convert<InferenceEngine::Precision::FP32, InferenceEngine::Precision::_PRC> (blob, new_blob); break
     switch (prc) {
         CASE(FP32); CASE(I64); CASE(U64); CASE(I32); CASE(U32); CASE(I16); CASE(U16); CASE(I8); CASE(U8);
-        default: THROW_IE_EXCEPTION << "Unsupported precision case";
+        default: IE_THROW() << "Unsupported precision case";
     }
 #undef CASE
 
@@ -243,7 +242,7 @@ void fill_data_const(InferenceEngine::Blob::Ptr& blob, const std::vector<float> 
             fill_data_const<Precision::I16>(raw_data_ptr, raw_data_size, val);
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision by fill_data_const() function";
+            IE_THROW() << "Unsupported precision by fill_data_const() function";
     }
 }
 

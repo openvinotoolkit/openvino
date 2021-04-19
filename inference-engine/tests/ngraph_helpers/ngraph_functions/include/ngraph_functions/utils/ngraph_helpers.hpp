@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporationconvert2OutputVector
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,7 +120,9 @@ enum ActivationTypes {
     Swish,
     HSigmoid,
     RoundHalfToEven,
-    RoundHalfAwayFromZero
+    RoundHalfAwayFromZero,
+    GeluErf,
+    GeluTanh
 };
 
 enum EltwiseTypes {
@@ -131,7 +133,8 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
-    MOD
+    MOD,
+    ERF
 };
 
 enum ComparisonTypes {
@@ -198,6 +201,8 @@ enum class TensorIteratorBody {
 
 enum class SequenceTestsMode {
     PURE_SEQ,
+    PURE_SEQ_RAND_SEQ_LEN_CONST,
+    PURE_SEQ_RAND_SEQ_LEN_PARAM,
     CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
     CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
     CONVERT_TO_TI_RAND_SEQ_LEN_CONST,

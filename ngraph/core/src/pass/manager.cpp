@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <iomanip>
@@ -32,6 +20,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -42,32 +31,6 @@ namespace ngraph
     {
         namespace
         {
-            class PerfCounters
-            {
-                PerfCounters(PerfCounters const&) = delete;
-                PerfCounters& operator=(PerfCounters const&) = delete;
-
-            public:
-                PerfCounters() = default;
-
-                openvino::itt::handle_t operator[](::ngraph::Node::type_info_t const& type_inf)
-                {
-                    std::lock_guard<std::mutex> guard(m_mutex);
-                    auto it = m_counters.find(&type_inf);
-                    if (it != m_counters.end())
-                        return it->second;
-                    return m_counters[&type_inf] = openvino::itt::handle(type_inf.name);
-                }
-
-            private:
-                using key = ::ngraph::Node::type_info_t const*;
-                using value = openvino::itt::handle_t;
-                using counters_map = std::unordered_map<key, value>;
-
-                std::mutex m_mutex;
-                counters_map m_counters;
-            };
-
             PerfCounters& perf_counters()
             {
                 static PerfCounters counters;
@@ -83,9 +46,7 @@ pass::Manager::Manager()
 {
 }
 
-pass::Manager::~Manager()
-{
-}
+pass::Manager::~Manager() {}
 
 pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
     : m_pass_config(std::move(pass_config))

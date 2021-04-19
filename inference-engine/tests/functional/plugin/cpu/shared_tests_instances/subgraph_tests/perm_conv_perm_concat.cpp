@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/perm_conv_perm_concat.hpp"
 #include "common_test_utils/test_constants.hpp"

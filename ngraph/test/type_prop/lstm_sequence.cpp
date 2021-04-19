@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -332,7 +320,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension)
 
     // Validate invalid rank0 tensor for all inputs: X, initial_hidden_state, initial_cell_state W,
     // R, B
-    for (auto i = 0; i < lstm_sequence->get_input_size(); i++)
+    for (size_t i = 0; i < lstm_sequence->get_input_size(); i++)
     {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_rank0_tensor);
@@ -365,7 +353,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
 
     // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, initial_cell_state
     // W, R, B
-    for (auto i = 0; i < lstm_sequence->get_input_size(); i++)
+    for (size_t i = 0; i < lstm_sequence->get_input_size(); i++)
     {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_dynamic_tensor);

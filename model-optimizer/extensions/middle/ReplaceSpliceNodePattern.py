@@ -1,19 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+import numpy as np
 
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-from extensions.front.kaldi.replace_lstm_node_pattern import unique_id, create_zero_value_with_batch_from_input
+from extensions.front.kaldi.replace_lstm_node_pattern import unique_id
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -21,13 +11,14 @@ from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.assign import Assign
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 
 
 class ReplaceSpliceNodePattern(MiddleReplacementPattern):
-    """
+    r"""
        This pass decomposes Splice layer to the sequence Slice Concat and Memory layers
        For example:
            Let's suppose we have next graph:
@@ -105,8 +96,11 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
 
             # create separate splice construction for const_dim
             memory_pair_id = unique_id('memory_for_const_dim')
-            init_value_input_memory_const_dim = create_zero_value_with_batch_from_input(split.out_port(1),
-                                                                                        memory_size_constdim)
+            init_value_input_memory_const_dim = Const(graph, {'name': 'init_value_const_dim_in_memory',
+                                                              'value': np.zeros(int64_array([in_shape[0],
+                                                                                             memory_size_constdim])),
+                                                              'shape': int64_array([in_shape[0],
+                                                                                    memory_size_constdim])}).create_node()
             input_memory_const_dim = ReadValue(graph, {'name': 'const_dim_in_memory',
                                                        'variable_id': memory_pair_id}).create_node()
             init_value_input_memory_const_dim.out_port(0).connect(input_memory_const_dim.in_port(0))
@@ -141,14 +135,16 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
             concat_const.in_port(1).connect(crop_first.out_port(0))
             concat_const.in_port(0).connect(concat_node.out_port(0))
 
-            init_value_input_memory = create_zero_value_with_batch_from_input(split.out_port(0),
-                                                                              memory_size)
+            init_value_input_memory = Const(graph, {'name': 'init_value_' + node.name,
+                                                    'value': np.zeros(int64_array([in_shape[0], memory_size])),
+                                                    'shape': int64_array([in_shape[0], memory_size])}).create_node()
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(split.in_port(0))
             node.out_port(0).get_connection().set_source(concat_const.out_port(0))
         else:
-            init_value_input_memory = create_zero_value_with_batch_from_input(node.in_port(0).get_source(),
-                                                                              memory_size)
+            init_value_input_memory = Const(graph, {'name': 'init_value_' + node.name,
+                                                    'value': np.zeros(int64_array([in_shape[0], memory_size])),
+                                                    'shape': int64_array([in_shape[0], memory_size])}).create_node()
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(concat_node.in_port(1))
             node.out_port(0).get_connection().set_source(concat_node.out_port(0))

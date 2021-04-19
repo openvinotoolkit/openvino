@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,7 @@ namespace InferenceEngine {
  * @brief      This class describes an executable network thread safe asynchronous only implementation.
  * @ingroup    ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeAsyncOnly : public ExecutableNetworkInternal,
-                                             public std::enable_shared_from_this<ExecutableNetworkThreadSafeAsyncOnly> {
+class ExecutableNetworkThreadSafeAsyncOnly : public ExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeAsyncOnly object
@@ -39,9 +38,7 @@ public:
         auto asyncRequestImpl = this->CreateAsyncInferRequestImpl(_networkInputs, _networkOutputs);
         asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-        asyncRequest.reset(new InferRequestBase(asyncRequestImpl), [](IInferRequest* p) {
-            p->Release();
-        });
+        asyncRequest.reset(new InferRequestBase(asyncRequestImpl));
         asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
         return asyncRequest;
     }

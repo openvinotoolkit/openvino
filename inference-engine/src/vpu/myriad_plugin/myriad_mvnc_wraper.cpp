@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_mvnc_wraper.h"
-#include "details/ie_exception.hpp"
+
+#include <ie_common.h>
 
 using namespace vpu::MyriadPlugin;
 
@@ -14,7 +15,7 @@ using namespace vpu::MyriadPlugin;
 Mvnc::Mvnc() {
     WatchdogHndl_t* watchdogHndl = nullptr;
     if (watchdog_create(&watchdogHndl) != WD_ERRNO) {
-        THROW_IE_EXCEPTION << "Cannot create watchdog.";
+        IE_THROW() << "Cannot create watchdog.";
     }
 
     m_watcdogPtr = WatchdogUniquePtr(watchdogHndl, [](WatchdogHndl_t* watchdogHndl) {
@@ -26,7 +27,7 @@ std::vector<ncDeviceDescr_t> Mvnc::AvailableDevicesDesc() const {
     int deviceCount = 0;
     std::vector<ncDeviceDescr_t> availableDevices(NC_MAX_DEVICES);
     if (ncAvailableDevices(&availableDevices[0], NC_MAX_DEVICES, &deviceCount) != NC_OK) {
-        THROW_IE_EXCEPTION << "Cannot receive available devices.";
+        IE_THROW() << "Cannot receive available devices.";
     }
     availableDevices.resize(deviceCount);
 
