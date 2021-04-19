@@ -77,16 +77,16 @@ void op::v1::Gather::validate_and_infer_types()
     {
         std::vector<Dimension> result_dims(params_shape.rank().get_length() +
                                            indices_shape.rank().get_length() - 1);
-        uint64_t i = 0;
+        int64_t i = 0;
         for (; i < axis; i++)
         {
             result_dims[i] = params_shape[i];
         }
-        for (uint64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+        for (int64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = indices_shape[j];
         }
-        for (uint64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
+        for (int64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = params_shape[j];
         }
@@ -488,8 +488,8 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_gather(outputs, inputs);
 }
 
@@ -548,8 +548,8 @@ bool op::v7::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v7::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v7_Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_gather(outputs, inputs);
 }
 

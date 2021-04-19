@@ -13,15 +13,15 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char input_message[] = "Required. Path to image or folder with images";
+static const char input_message[] = "Required. Path to a folder with images or path to image files. Support ubyte files only.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to a .bin file with weights for the trained model.";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Specify the target device to infer on it . See the list of available devices below. " \
-                                            "The sample looks for a suitable plugin for the specified device. " \
-                                            "The default value is CPU.";
+static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown below). " \
+"Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify HETERO plugin. " \
+"Sample will look for a suitable plugin for device specified.";
 
 /// @brief message for top results number
 static const char ntop_message[] = "Number of top results. The default value is 10.";
@@ -30,7 +30,7 @@ static const char ntop_message[] = "Number of top results. The default value is 
 DEFINE_bool(h, false, help_message);
 
 /// \brief Define parameter for set weight file <br>
-/// It is a parameter
+/// It is a required parameter
 DEFINE_string(m, "", model_message);
 
 /// \brief Define parameter for set image file <br>
@@ -38,9 +38,11 @@ DEFINE_string(m, "", model_message);
 DEFINE_string(i, "", input_message);
 
 /// \brief device the target device to infer on <br>
+/// It is an optional parameter
 DEFINE_string(d, "CPU", target_device_message);
 
 /// @brief Top results number (default 10) <br>
+/// It is an optional parameter
 DEFINE_uint32(nt, 10, ntop_message);
 
 /**
