@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cctype>
 #include <ngraph/validation_util.hpp>
 #include <regex>
 #include <string>
@@ -27,15 +28,12 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
                                     std::string& output_subscript)
 {
     // remove extra white-spaces from the equation
-    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), isspace),
+    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace),
                      m_equation.end());
 
     // split equation to input subscripts and an output subscript
     auto pos_output_delimeter = m_equation.find("->");
-    if (pos_output_delimeter == std::string::npos)
-        return false;
     auto input_subscripts_str = m_equation.substr(0, pos_output_delimeter);
-    output_subscript = m_equation.substr(pos_output_delimeter + 2);
 
     // split the input subscripts into a vector of input subscripts
     input_subscripts.clear();
@@ -46,8 +44,8 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
         input_subscripts.push_back(input_subscript);
     }
 
-    // check that each subscript contains only lower case letter or ellipsis
-    const std::regex subscript_regex("[a-z]*|[a-z]*\\.\\.\\.[a-z]*");
+    // check that each input subscript contains only alphabetic letter or ellipsis
+    const std::regex subscript_regex("[A-Za-z]*|[A-Za-z]*\\.\\.\\.[A-Za-z]*");
     for (auto const& input_subscript : input_subscripts)
     {
         if (std::regex_match(input_subscript, subscript_regex) == false)
@@ -55,12 +53,8 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
             return false;
         }
     }
-    if (std::regex_match(output_subscript, subscript_regex) == false)
-    {
-        return false;
-    }
 
-    // check that ellipsis is encountered at most once
+    // figure out if ellipsis is met in input subscripts
     const std::regex ellipsis_regex("\\.\\.\\.");
     bool is_ellipsis_met = false;
     std::smatch ellipsis_match;
@@ -68,18 +62,47 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
     {
         if (std::regex_search(input_subscript, ellipsis_match, ellipsis_regex) == true)
         {
-            if (ellipsis_match.size() > 1)
-            {
-                return false;
-            }
             is_ellipsis_met = true;
+            break;
         }
     }
-    // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-    std::regex_search(output_subscript, ellipsis_match, ellipsis_regex);
-    if (is_ellipsis_met && ellipsis_match.size() != 1)
+
+    if (pos_output_delimeter == std::string::npos)
     {
-        return false;
+        // recover output subscript
+        output_subscript = "";
+        for (auto const& input_subscript : input_subscripts)
+        {
+            for (auto const& label : input_subscript)
+            {
+                if (std::isalpha(label) && output_subscript.find(label) == std::string::npos)
+                {
+                    output_subscript += label;
+                }
+            }
+        }
+        std::sort(output_subscript.begin(), output_subscript.end());
+        if (is_ellipsis_met)
+        {
+            output_subscript = "..." + output_subscript;
+        }
+    }
+    else
+    {
+        output_subscript = m_equation.substr(pos_output_delimeter + 2);
+
+        // check that the output subscript has the correct format
+        if (std::regex_match(output_subscript, subscript_regex) == false)
+        {
+            return false;
+        }
+
+        // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
+        std::regex_search(output_subscript, ellipsis_match, ellipsis_regex);
+        if (is_ellipsis_met && ellipsis_match.size() != 1)
+        {
+            return false;
+        }
     }
 
     return true;
@@ -89,9 +112,9 @@ void op::v7::Einsum::extract_labels(std::string const& subscript, std::vector<st
 {
     labels.clear();
     auto subscript_length = subscript.length();
-    for (auto ch_idx = 0; ch_idx < subscript_length;)
+    for (size_t ch_idx = 0; ch_idx < subscript_length;)
     {
-        if (islower(subscript[ch_idx]))
+        if (std::isalpha(subscript[ch_idx]))
         {
             labels.push_back(subscript.substr(ch_idx, 1));
         }
@@ -118,7 +141,7 @@ void op::v7::Einsum::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           input_type_0 == element::f16 || input_type_0 == element::f32,
                           "The input type for Einsum operation must be numeric.");
-    for (auto input_idx = 1; input_idx < num_inputs; ++input_idx)
+    for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx)
     {
         const auto& input_type_i = get_input_element_type(input_idx);
         NODE_VALIDATION_CHECK(this,
@@ -126,12 +149,12 @@ void op::v7::Einsum::validate_and_infer_types()
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    // check that equation has correct format, meaning it is defined in explicit mode
+    // check that equation has correct format and extract input and output subscripts
     std::vector<std::string> input_subscripts;
     std::string output_subscript;
     NODE_VALIDATION_CHECK(this,
                           parse_equation(input_subscripts, output_subscript) == true,
-                          "Equation must be strictly in explicit mode.");
+                          "Equation must be strictly in explicit or implicit mode.");
     NODE_VALIDATION_CHECK(
         this,
         input_subscripts.size() == num_inputs,
@@ -142,7 +165,7 @@ void op::v7::Einsum::validate_and_infer_types()
     unordered_map<string, PartialShape> label_to_shape;
     label_to_shape.clear();
 
-    for (auto input_idx = 0; input_idx < num_inputs; ++input_idx)
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx)
     {
         const auto& pshape = get_input_partial_shape(input_idx);
         std::vector<std::string> labels;
@@ -157,15 +180,15 @@ void op::v7::Einsum::validate_and_infer_types()
                                   "Input rank must be equal to a number of labels in the "
                                   "corresponding input subscript.");
 
-            for (auto label_ind = 0, dim_ind = 0;
-                 label_ind < labels.size() && dim_ind < pshape.rank().get_length();
+            for (size_t label_ind = 0, dim_ind = 0;
+                 label_ind < labels.size() && dim_ind < input_rank;
                  ++label_ind)
             {
                 auto const& label = labels[label_ind];
                 if (label.compare("...") == 0)
                 {
                     size_t num_broadcasted_dims = input_rank - labels.size() + 1;
-                    auto& current_sub_pshape = PartialShape(std::vector<Dimension>(
+                    auto current_sub_pshape = PartialShape(std::vector<Dimension>(
                         pshape.begin() + dim_ind, pshape.begin() + dim_ind + num_broadcasted_dims));
                     if (label_to_shape.find(label) == label_to_shape.end())
                     {
@@ -182,13 +205,13 @@ void op::v7::Einsum::validate_and_infer_types()
                                               "Input dimensions labeled with ellipsis for Einsum "
                                               "must be broadcastable.");
                     }
-                    dim_ind += 3;
+                    dim_ind += num_broadcasted_dims;
                 }
                 else
                 {
                     if (label_to_shape.find(label) == label_to_shape.end())
                     {
-                        label_to_shape[label] = PartialShape{pshape[label_ind]};
+                        label_to_shape[label] = PartialShape{pshape[dim_ind]};
                     }
                     else
                     {
@@ -198,7 +221,7 @@ void op::v7::Einsum::validate_and_infer_types()
                             "Different input dimensions indicated by the same labels for Einsum "
                             "must be compatible.");
                         PartialShape::merge_into(label_to_shape[label],
-                                                 PartialShape{pshape[label_ind]});
+                                                 PartialShape{pshape[dim_ind]});
                     }
                     ++dim_ind;
                 }
