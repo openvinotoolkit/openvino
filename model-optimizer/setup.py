@@ -24,7 +24,7 @@ py_modules = []
 for name in os.listdir():
     if re.match(r'requirements(.*).txt', name):
         requirements_txt.append(name)
-    if re.match(r'mo(.*).py', name):
+    if re.match(r'mo(.*)\.py', name):
         py_modules.append(name.split('.')[0])
 
 # Minimal set of dependencies
