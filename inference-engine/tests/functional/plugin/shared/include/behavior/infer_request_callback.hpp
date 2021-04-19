@@ -46,7 +46,7 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
             });
 
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
     ASSERT_TRUE(isCalled);
@@ -87,7 +87,7 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
             });
     auto future = data.promise.get_future();
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ((int) InferenceEngine::StatusCode::OK, waitStatus);
     future.wait();
     auto callbackStatus = future.get();
@@ -128,6 +128,6 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     });
 
     ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
+    ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
 }  // namespace BehaviorTestsDefinitions

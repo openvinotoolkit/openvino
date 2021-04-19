@@ -28,7 +28,7 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
             req.SetBlob(i.first, rblob);
         }
         ASSERT_NO_THROW(req.StartAsync());
-        ASSERT_EQ(req.Wait(IInferRequest::RESULT_READY), StatusCode::OK);
+        ASSERT_EQ(req.Wait(InferRequest::RESULT_READY), StatusCode::OK);
 
     } else {
         ASSERT_THROW(exec_net.GetContext(), InferenceEngine::NotImplemented);

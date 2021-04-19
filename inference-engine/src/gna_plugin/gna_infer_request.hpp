@@ -41,7 +41,7 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
     }
     /**
      * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
+     * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     void InferImpl() override {
         // execute input pre-processing.

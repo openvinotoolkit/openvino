@@ -164,7 +164,7 @@ public:
     /**
      * @brief Waits for completion of all pipeline stages
      *        If the pipeline raises an exception it will be rethrown here
-     * @param millis_timeout A timeout is `ms` to wait or special enum value of IInferRequest::WaitMode
+     * @param millis_timeout A timeout is `ms` to wait or special enum value of InferRequest::WaitMode
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {

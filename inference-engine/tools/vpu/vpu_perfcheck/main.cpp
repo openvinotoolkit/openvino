@@ -394,7 +394,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         exeNetwork[n] = ie.LoadNetwork(cnnNetwork, deviceName, networkConfig);
     }
 
-    std::vector<InferenceEngine::IInferRequest::Ptr> request(num_requests);
+    std::vector<InferenceEngine::InferRequest::Ptr> request(num_requests);
     iter_start.resize(niter);
     iter_end.resize(niter);
     iter_time.resize(niter);

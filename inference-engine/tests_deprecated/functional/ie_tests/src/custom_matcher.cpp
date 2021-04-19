@@ -189,7 +189,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                             inferRequests[i].StartAsync();
                         }
                         for (int i = 0; i != requestProcessed; i++) {
-                            inferRequests[i].Wait(IInferRequest::RESULT_READY);
+                            inferRequests[i].Wait(InferRequest::RESULT_READY);
                         }
                         sts = OK;
                     }
