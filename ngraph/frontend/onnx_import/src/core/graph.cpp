@@ -53,7 +53,7 @@ namespace ngraph
         } // namespace detail
 
         Graph::Graph(std::unique_ptr<Model>&& model)
-            : Graph(std::move(model), std::unique_ptr<GraphCache>(new GraphCache()))
+            : Graph(std::move(model), common::make_unique<GraphCache>())
         {
             // Remove dangling Parameters
             for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
