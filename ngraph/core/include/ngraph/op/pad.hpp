@@ -18,8 +18,7 @@ namespace ngraph
             class NGRAPH_API Pad : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Pad", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a generic padding operation.
                 ///
                 /// \param arg The output producing input tensor to be padded.
