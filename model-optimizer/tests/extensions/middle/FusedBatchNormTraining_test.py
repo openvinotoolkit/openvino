@@ -9,8 +9,8 @@ from generator import generator, generate
 from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate import shape_inference
-from mo.middle.passes.eliminate_test import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': 'Parameter', 'kind': 'op',

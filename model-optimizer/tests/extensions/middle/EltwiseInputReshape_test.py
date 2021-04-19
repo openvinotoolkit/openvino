@@ -7,8 +7,8 @@ import numpy as np
 
 from extensions.middle.EltwiseInputReshape import normalize_eltwise_inputs
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate_test import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.

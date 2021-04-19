@@ -7,8 +7,8 @@ import numpy as np
 
 from extensions.front.caffe.eltwise_add_normalize import EltwiseAddNormalize
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate_test import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 input_shape = int64_array([1, 4, 10])
 const_1_value = np.array([2.0])
