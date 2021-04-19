@@ -281,7 +281,7 @@ namespace ngraph
                 std::vector<int64_t> detections_per_class(classes_num, 0);
                 int64_t total_detections_num = 0;
 
-                for (size_t class_idx = 1; class_idx < classes_num; ++class_idx)
+                for (int64_t class_idx = 1; class_idx < classes_num; ++class_idx)
                 {
                     nms_cf(&refined_scores[rois_num * class_idx],
                            &refined_boxes[rois_num * 4 * class_idx],
