@@ -92,6 +92,11 @@ setup(name='openvino-mo',
               'mo = mo.__main__:main',
            ],
       },
+      package_data={
+        'mo.extensions.front.mxnet': ['*.json'],
+        'mo.extensions.front.onnx': ['*.json'],
+        'mo.extensions.front.tf': ['*.json'],
+      },
       classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
