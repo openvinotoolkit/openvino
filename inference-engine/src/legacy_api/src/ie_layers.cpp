@@ -178,10 +178,10 @@ std::vector<int> CNNLayer::GetParamAsInts(const char* param) const {
 unsigned int CNNLayer::GetParamAsUInt(const char* param, unsigned int def) const {
     std::string val = GetParamAsString(param, std::to_string(def).c_str());
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
-                          ". Value " + val + " cannot be casted to int.";
+                          ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        int value = std::stoi(val);
-        if (value < 0) {
+        long value = std::stol(val);
+        if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
             IE_THROW() << message;
         }
         return static_cast<unsigned int>(value);
@@ -195,8 +195,8 @@ unsigned int CNNLayer::GetParamAsUInt(const char* param) const {
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
                           ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        int value = std::stoi(val);
-        if (value < 0) {
+        long value = std::stol(val);
+        if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
             IE_THROW() << message;
         }
         return static_cast<unsigned int>(value);
@@ -215,8 +215,8 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param, std::vect
     if (vals.empty()) return def;
     while (getline(stream, str, ',')) {
         try {
-            int value = std::stoi(str);
-            if (value < 0) {
+            long value = std::stol(str);
+            if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
                 IE_THROW() << message;
             }
             result.push_back(static_cast<unsigned int>(value));
@@ -233,11 +233,11 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param) const {
     std::istringstream stream(vals);
     std::string str;
     std::string message = "Cannot parse parameter " + std::string(param) + " " + str + " from IR for layer " +
-                          name + ". Value " + vals + " cannot be casted to int.";
+                          name + ". Value " + vals + " cannot be casted to unsigned int.";
     while (getline(stream, str, ',')) {
         try {
-            int value = std::stoi(str);
-            if (value < 0) {
+            long value = std::stol(str);
+            if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
                 IE_THROW() << message;
             }
             result.push_back(static_cast<unsigned int>(value));
@@ -246,6 +246,36 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param) const {
         }
     }
     return result;
+}
+
+size_t CNNLayer::GetParamAsSizeT(const char* param, size_t def) const {
+    std::string val = GetParamAsString(param, std::to_string(def).c_str());
+    std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
+                          ". Value " + val + " cannot be casted to size_t.";
+    try {
+        long long value = std::stoll(val);
+        if ((value < 0) || (static_cast<unsigned long long>(value) > std::numeric_limits<size_t>::max())) {
+            IE_THROW() << message;
+        }
+        return static_cast<size_t>(value);
+    } catch (...) {
+        IE_THROW() << message;
+    }
+}
+
+size_t CNNLayer::GetParamAsSizeT(const char* param) const {
+    std::string val = GetParamAsString(param);
+    std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
+                          ". Value " + val + " cannot be casted to size_t.";
+    try {
+        long long value = std::stoll(val);
+        if ((value < 0) || (static_cast<unsigned long long>(value) > std::numeric_limits<size_t>::max())) {
+            IE_THROW() << message;
+        }
+        return static_cast<size_t>(value);
+    } catch (...) {
+        IE_THROW() << message;
+    }
 }
 
 bool CNNLayer::GetParamAsBool(const char* param, bool def) const {

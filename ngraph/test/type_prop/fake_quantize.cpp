@@ -16,7 +16,7 @@ TEST(type_prop, fake_quantize)
     const auto input_high = make_shared<op::Parameter>(element::f32, Shape{});
     const auto output_low = make_shared<op::Parameter>(element::f32, Shape{});
     const auto output_high = make_shared<op::Parameter>(element::f32, Shape{});
-    const int levels = 5;
+    const size_t levels = 5;
 
     const auto fake_quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
@@ -31,7 +31,7 @@ TEST(type_prop, fake_quantize_autob)
     const auto input_high = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     const auto output_low = make_shared<op::Parameter>(element::f32, Shape{4});
     const auto output_high = make_shared<op::Parameter>(element::f32, Shape{});
-    const int levels = 5;
+    const size_t levels = 5;
 
     const auto fake_quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
@@ -46,7 +46,7 @@ TEST(type_prop, fake_quantize_invalid_autob)
     auto input_high = make_shared<op::Parameter>(element::f32, Shape{});
     auto output_low = make_shared<op::Parameter>(element::f32, Shape{});
     auto output_high = make_shared<op::Parameter>(element::f32, Shape{});
-    const int levels = 5;
+    const size_t levels = 5;
 
     try
     {
