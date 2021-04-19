@@ -72,7 +72,7 @@ struct CPUStreamsExecutor::Impl {
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
-            if (true/*ThreadBindingType::Hybrid== _impl->_config._threadBindingType*/) {
+            if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{
                     custom::task_arena::constraints{}
                         .set_core_type(custom::info::core_types().back())
