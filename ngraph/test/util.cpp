@@ -310,11 +310,14 @@ TEST(graph_util, clone_rt_info)
         ASSERT_TRUE(affinity.find(node->get_friendly_name()) != affinity.end());
         ASSERT_TRUE(affinity[node->get_friendly_name()] == value);
 
+        for (auto&& output : node->outputs())
+        {
             auto& outputInfo = output.get_rt_info();
             ASSERT_TRUE(outputInfo.count("affinity"));
         }
     }
 }
+
 TEST(util, round_up)
 {
     EXPECT_EQ(0, round_up(0, 4));

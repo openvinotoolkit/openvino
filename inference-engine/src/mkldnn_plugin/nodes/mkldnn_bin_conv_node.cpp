@@ -1301,11 +1301,7 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-<<<<<<< HEAD
-        THROW_IE_EXCEPTION << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
-=======
         IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
->>>>>>> upstream/master
 
     auto config = selectedPrimitiveDescriptor->getConfig();
 

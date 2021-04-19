@@ -1062,11 +1062,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-<<<<<<< HEAD
-        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
-=======
         IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
->>>>>>> upstream/master
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_block_desc = config.inConfs[0].desc.getBlockingDesc();
