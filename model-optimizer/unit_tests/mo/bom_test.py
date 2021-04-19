@@ -68,7 +68,6 @@ class TestBOMFile(unittest.TestCase):
     def test_bom_does_not_contain_unittest_files(self):
         for file_name in self.existing_files:
             self.assertFalse(file_name.endswith('_test.py'), 'BOM file contains test file {}'.format(file_name))
-                
 
     def test_deleted_files_still_stored_in_bom(self):
         deleted = list()

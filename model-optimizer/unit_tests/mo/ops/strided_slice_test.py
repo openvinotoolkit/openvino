@@ -8,9 +8,8 @@ import numpy.testing as npt
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.strided_slice import StridedSlice
-from unit_tests.utils.graph import build_graph
-from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, shaped_const_with_data, \
-    connect
+from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
+    shaped_const_with_data, connect
 
 
 class TestStridedSliceInfer(unittest.TestCase):

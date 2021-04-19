@@ -8,8 +8,7 @@ import numpy as np
 from extensions.ops.embedding_bag import EmbeddingBagOffsetsSum, EmbeddingBagPackedSum, EmbeddingSegmentsSum
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, \
-    connect
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
 
 nodes = {
     **valued_const_with_data('data', np.random.randn(3000, 8)),

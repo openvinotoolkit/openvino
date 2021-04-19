@@ -9,9 +9,8 @@ from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph
-from unit_tests.utils.graph import result, regular_op_with_empty_data, \
-    shaped_const_with_data, connect, regular_op
+from unit_tests.utils.graph import build_graph, result, regular_op_with_empty_data, shaped_const_with_data, connect, \
+    regular_op
 
 
 class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
@@ -24,7 +23,7 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
             **shaped_const_with_data('input', int64_array(inp_shape)),
             **regular_op_with_empty_data('shape', {'type': 'ShapeOf'}),
             **regular_op_with_empty_data('cast_to_float', {'type': 'Cast', 'dst_type': dst_type}),
-            **regular_op('mul_const',  {'op': 'Const'}),
+            **regular_op('mul_const', {'op': 'Const'}),
             **{'mul_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
             **regular_op_with_empty_data('mul', {'type': 'Mul'}),
             **regular_op_with_empty_data('cast_to_int', {'type': 'Cast', 'dst_type': np.int64}),
@@ -38,7 +37,7 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
             **regular_op_with_empty_data('cast_to_float', {'type': 'Cast', 'dst_type': dst_type,
                                                            'returns_shape_value': True}),
             **regular_op_with_empty_data('mul', {'type': 'Mul', 'returns_shape_value': True}),
-            **regular_op('mul_const',  {'op': 'Const', 'returns_shape_value': True}),
+            **regular_op('mul_const', {'op': 'Const', 'returns_shape_value': True}),
             **{'mul_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.]),
                                'correct_data_type': True}},
             **regular_op_with_empty_data('cast_to_int', {'type': 'Cast', 'dst_type': np.int64,
@@ -69,21 +68,20 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
 
     def test_run_with_const_input(self):
         inp_shape = (1, 3, 1000, 1000)
-        dst_type = np.float32
 
         nodes = {
             **shaped_const_with_data('input', int64_array(inp_shape)),
-            **regular_op('sizes_const',  {'op': 'Const'}),
+            **regular_op('sizes_const', {'op': 'Const'}),
             **{'sizes_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
-             **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
+            **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
             **result('res'),
         }
 
         nodes_ref = {
             **shaped_const_with_data('input', int64_array(inp_shape)),
-            **regular_op('sizes_const',  {'op': 'Const', 'returns_shape_value': True}),
+            **regular_op('sizes_const', {'op': 'Const', 'returns_shape_value': True}),
             **{'sizes_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
-              **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
+            **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
             **result('res'),
         }
 
