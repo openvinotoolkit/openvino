@@ -11,14 +11,15 @@ inner (or dot), outer and cross products; transpose; trace and diagonal extracti
 Also, a single *Einsum* operation can express complex combination of these common linear algebraic tensor operations on multiple operands,
 for example, a dot product of a diagonal, extracted from a tensor with shape `[5, 5]`, and 5D vector is performed by single Einsum operation.
 The Einstein summation convention on input tensors is defined by `equation`, which is a mandatory attribute of *Einsum* operation.
-The format of `equation` is described below.
+The operation supports `equation` in explicit and implicit modes. The formats of `equation` in both modes are described below.
 
 In explicit mode, the einsum `equation` has the output subscript separated from the input subscripts by `->`, and has the following format for `n` operands: 
 `<subscript for input1>, <subscript for input2>, ..., <subscript for inputn> -> <subscript for output>`.
-Each input subscript `<subscript for input1>` contains a sequence of labels (lowercase letters `['a',...,'z']`), where each label refers to a dimension of 
-the corresponsing operand. Labels do not need to appear in a subscript in alphabetical order. The subscript for a scalar input is empty.
-The input subscripts are separated with a comma `,`.
-The output subscript `<subscript for output>` represents a sequence of labels (lowercase letters `['a',...,'z']`).
+Each input subscript `<subscript for input1>` contains a sequence of labels (alphabetic letters `['A',...,'Z','a',...,'z']`), 
+where each label refers to a dimension of the corresponsing operand. Labels are case sensitive and capital letters precede lowercase letters in alphabetical sort.
+Labels do not need to appear in a subscript in alphabetical order. 
+The subscript for a scalar input is empty. The input subscripts are separated with a comma `,`.
+The output subscript `<subscript for output>` represents a sequence of labels (alphabetic letters `['A',...,'Z','a',...,'z']`).
 The length of an input subscript matches a rank of the input. The input subscript is empty for a scalar input.
 
 *Einsum* operation on multiple inputs can be treated as several consecutive *Einsum* operations. In the first step, *Einsum* applies the first two inputs. 
@@ -111,15 +112,15 @@ output = [[[1.0, 4.0, 7.0]],
           [[3.0, 6.0, 9.0]]]
 ```
 
-In addition to a lowercase label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
+In addition to an alphabetic label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
 Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript `a...bc` for five rank tensor covers 
 the second and third dimensions. In case input subscripts contain ellipsis for several operands, the dimensions covered by the ellipsis
 must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in
 [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
 If at least one input subscript contains an ellipsis, the output subscript must always contain one ellipsis.
-For example, *Einsum* operation on two inputs of shapes `[11, 1, 4, 3]` and `[3, 11, 7, 1]` with `equation="a...b,b...->a..."`
+For example, *Einsum* operation on two inputs of shapes `[9, 1, 4, 3]` and `[3, 11, 7, 1]` with `equation="a...b,b...->a..."`
 has ellipsis for both operands covering dimensions with sizes `[1, 4]` and `[11, 7, 1]` that are broadcasted to `[11, 7, 4]`.
-The resulted shape of *Einsum* operation will be `[11, 11, 7, 4]` since the dimension labeled with `a` is left with broadcasted dimensions.
+The resulted shape of *Einsum* operation will be `[9, 11, 7, 4]` since the dimension labeled with `a` is left with broadcasted dimensions.
 
 Example 6 shows how *Einsum* operates on the single input with an equation containing ellipsis:
 
@@ -128,7 +129,7 @@ A = [[1.0, 2.0, 3.0],
      [4.0, 5.0, 6.0],
      [7.0, 8.0, 9.0]]
 equation = "a...->..."
-output = [12.0, 15.0, 17.0]
+output = [12.0, 15.0, 18.0]
 ```
 
 Example 7 shows how *Einsum* operates with broadcasting two operands:
@@ -144,20 +145,33 @@ output = [[0.5, 1.0, 1.5],
           [3.5, 4.0, 4.5]]
 ```
 
-**NOTE**: Deep learning frameworks support implicit mode (a classical form of Einstein summation) where the equation does not have the output subscript 
-and has the following format: `<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`.
-The equation consists of only input subscripts for each operand.
+In implicit mode (a classical form of Einstein summation), the equation does not have the output subscript and has the following format: 
+`<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`.
+The equation in implicit mode consists of only input subscripts for each operand.
 The output subscript can be recovered as a sequence of alphabetically sorted labels that are not repeated in the left-hand side of the equation.
-For example, `equation = "dbbc,ca"` in implicit mode is the same as `equation = "dbbc,ca->ad"`.
-The equation in implicit mode can set up only subset of Einstein summation conventions, so this mode has limitations. For example,
-`equation = "kii->i"` cannot be represented in implicit mode. *Einsum* operation only supports explicit mode.
+For example, `equation = "dbbc,ca"` in implicit mode is equivalent to `equation = "dbbc,ca->ad"` in explicit mode.
+The equation in implicit mode can set up only subset of Einstein summation conventions. For example, `equation = "kii->i"` cannot be represented in implicit mode.
 In case ellipsis label is in the left-hand side of the equation in implicit mode, the ellipsis comes first in the output subscript for the recovery.
+
+Example 8 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
+`equation = "AbC"` that is the same as `equation = "AbC->ACb"`:
+
+```
+A = [[[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0]]]
+equation = "AbC"
+output = [[[1.0, 4.0],
+           [2.0, 5.0],
+           [3.0, 6.0]]]
+```
+
+**NOTE**: The equation in both modes can contain blank space characters (U+0020) at any positions that can be removed without losing equivalence.
 
 **Attributes**:
 
 * *equation*
 
-  * **Description**: it defines Einstein summation convention on input operands. The equation must be in explicit mode, meaning the output subscript must be in place.
+  * **Description**: it defines Einstein summation convention on input operands. The equation must be in either explicit or implicit mode.
   * **Range of values**: the equation format is described above
   * **Type**: string
   * **Required**: *yes*
