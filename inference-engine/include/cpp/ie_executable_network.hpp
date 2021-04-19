@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file that provides ExecutableNetwork class
- * 
+ *
  * @file ie_executable_network.hpp
  */
 
