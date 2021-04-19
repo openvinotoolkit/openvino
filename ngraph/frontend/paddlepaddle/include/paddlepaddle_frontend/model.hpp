@@ -44,6 +44,8 @@ public:
     void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
     void setDefaultShape (Place::Ptr place, const ngraph::Shape&) override;
     void setPartialShape (Place::Ptr place, const ngraph::PartialShape&) override;
+    void setElementType (Place::Ptr place, const ngraph::element::Type&) override;
+
 };
 
 } // namespace frontend
