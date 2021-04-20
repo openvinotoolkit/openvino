@@ -19,21 +19,6 @@ namespace
 {
     using namespace ONNX_NAMESPACE;
 
-    const std::map<element::Type_t, TensorProto_DataType> NG_2_ONNX_TYPES = {
-        {element::Type_t::bf16, TensorProto_DataType::TensorProto_DataType_BFLOAT16},
-        {element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
-        {element::Type_t::f32, TensorProto_DataType::TensorProto_DataType_FLOAT},
-        {element::Type_t::f64, TensorProto_DataType::TensorProto_DataType_DOUBLE},
-        {element::Type_t::i8, TensorProto_DataType::TensorProto_DataType_INT8},
-        {element::Type_t::i16, TensorProto_DataType::TensorProto_DataType_INT16},
-        {element::Type_t::i32, TensorProto_DataType::TensorProto_DataType_INT32},
-        {element::Type_t::i64, TensorProto_DataType::TensorProto_DataType_INT64},
-        {element::Type_t::u8, TensorProto_DataType::TensorProto_DataType_UINT8},
-        {element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
-        {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
-        {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
-    };
-
     ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name)
     {
         for (int i = 0; i < graph.input_size(); ++i)
@@ -80,15 +65,16 @@ namespace
         }
 
         auto* tensor_type = type_proto->mutable_tensor_type();
-        if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+
+        if (onnx_common::is_supported_ng_type(elem_type))
+        {
+            tensor_type->set_elem_type(onnx_common::ng_to_onnx_data_type(elem_type));
+        }
+        else
         {
             throw ngraph_error("The input type for input '" + onnx_input.name() +
                                "' cannot be set to: " + element::Type(elem_type).get_type_name() +
                                ". This type is not allowed in ONNX.");
-        }
-        else
-        {
-            tensor_type->set_elem_type(NG_2_ONNX_TYPES.at(elem_type));
         }
     }
 
@@ -160,7 +146,7 @@ namespace
                             ValueInfoProto* input)
     {
         const auto elem_type = values->get_element_type();
-        if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+        if (!onnx_common::is_supported_ng_type(elem_type))
         {
             throw ngraph_error("Initializer '" + name + "' type cannot be set to: " +
                                element::Type(elem_type).get_type_name() +
@@ -170,7 +156,7 @@ namespace
         initializer.Clear();
 
         initializer.set_name(name);
-        initializer.set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
+        initializer.set_data_type(onnx_common::ng_to_onnx_data_type(values->get_element_type()));
 
         for (const auto& dim : values->get_shape())
         {
@@ -186,7 +172,7 @@ namespace
         {
             auto tensor_type = input->mutable_type()->mutable_tensor_type();
             TensorShapeProto shape;
-            for (size_t i = 0; i < initializer.dims_size(); ++i)
+            for (int i = 0; i < initializer.dims_size(); ++i)
             {
                 shape.add_dim()->set_dim_value(initializer.dims(i));
             }

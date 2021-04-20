@@ -323,7 +323,9 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
+    backend/dft.in.cpp
     backend/divide.in.cpp
+    backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -339,6 +341,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
+    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
@@ -394,6 +397,8 @@ set(MULTI_TEST_SRC
     backend/softmax.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
+    backend/squared_difference.in.cpp
+    backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
@@ -447,12 +452,22 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 endforeach()
 
 # SOURCE FOR FRONTEND TESTING
-# TODO: try to find a way to move it out of common CMakeLists
-file(GLOB_RECURSE FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+
 # ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
 # --- END OF --DO_NOT_RELEASE--
+
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+# TODO: try to find a way to move it out of common CMakeLists
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+    set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+endif()
 #-----
 
 add_executable(unit-test ${SRC})
@@ -534,6 +549,8 @@ target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
-target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
-target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
+    target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+endif()
 ### END FRONTEND ###

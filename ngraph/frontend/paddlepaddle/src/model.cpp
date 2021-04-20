@@ -38,7 +38,8 @@ private:
     std::vector<std::vector<std::shared_ptr<OpPlacePDPD>>> m_op_places_blocks;
     std::vector<std::map<std::string, std::shared_ptr<TensorPlacePDPD>>> m_var_places_blocks;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
-    std::ifstream m_weights_stream;
+    // GCC 4.8 limitation: can't create 'm_weights_stream = std::ifstream(...)'
+    std::unique_ptr<std::ifstream> m_weights_stream;
     bool m_weights_composed = false;
     const InputModel& m_input_model;
     std::vector<Place::Ptr> m_inputs;
@@ -56,8 +57,8 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
     {
         m_weights_composed = true;
         auto weights_file = m_path.replace(m_path.size() - ext.size(), ext.size(), ".pdiparams");
-        m_weights_stream = std::ifstream(weights_file, std::ios::binary);
-        if (!m_weights_stream || !m_weights_stream.is_open())
+        m_weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
+        if (!m_weights_stream || !m_weights_stream->is_open())
         {
             std::cerr << "Model file cannot be opened" << std::endl;
         }
@@ -90,40 +91,48 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
             op_place_block.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
-                auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
-                op_place->addOutPort(out_port, output.parameter());
-                out_port->setOp(op_place);
                 for (const auto &var_name : output.arguments()) {
+                    auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
+
+                    // connect out_port and tensor
                     const auto& tensor = var_place_block.at(var_name);
                     tensor->addProducingPort(out_port);
-                    out_port->addTargetTensor(tensor);
+                    out_port->setTargetTensor(tensor);
+
+                    // connect out_port and op
+                    op_place->addOutPort(out_port, output.parameter());
+                    out_port->setOp(op_place);
                 }
             }
 
             for (const auto &input : op.inputs()) {
-                auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
-                op_place->addInPort(in_port, input.parameter());
-                in_port->setOp(op_place);
                 for (const auto &var_name : input.arguments()) {
+                    auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
+
+                    // connect in_port and tensor
                     const auto& tensor = var_place_block.at(var_name);
                     tensor->addConsumingPort(in_port);
-                    in_port->addSourceTensor(tensor);
+                    in_port->setSourceTensor(tensor);
+
+                    // connect in_port and op
+                    op_place->addInPort(in_port, input.parameter());
+                    in_port->setOp(op_place);
                 }
             }
 
             // Determine outputs and inputs
             if (op.type() == "feed") {
-                const auto& place = op_place->getOutputPortByName("Out")->getTargetTensor(0);
-                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place);
+                const auto& place = op_place->getOutputPortPDPD("Out", 0);
+                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place->getTargetTensorPDPD());
                 const auto& tensor_desc = var_place->getDesc()->type().lod_tensor().tensor();
                 const auto& dims = tensor_desc.dims();
 
                 var_place->setElementType(TYPE_MAP[tensor_desc.data_type()]);
                 var_place->setPartialShape(PartialShape(std::vector<Dimension>(dims.begin(), dims.end())));
-                m_inputs.push_back(place);
+                m_inputs.push_back(var_place);
             } else if (op.type() == "fetch") {
-                auto place = op_place->getInputPortByName("X")->getSourceTensor(0);
-                m_outputs.push_back(place);
+                auto place = op_place->getInputPortPDPD("X", 0);
+                m_outputs.push_back(place->getSourceTensorPDPD());
             }
         }
     }
@@ -133,17 +142,17 @@ template<typename T>
 std::vector<T> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::string& name, int64_t tensor_length) {
     std::vector<T> tensor_data(tensor_length, 0);
 
-    std::ifstream is;
+    std::unique_ptr<std::ifstream> is;
     std::ifstream* stream_ptr;
     if (m_weights_composed) {
-        stream_ptr = &m_weights_stream;
+        stream_ptr = m_weights_stream.get();
     } else {
-        is = std::ifstream(m_path + "/" + name, std::ios::in | std::ifstream::binary);
-        if (!is || !is.is_open())
+        is = std::unique_ptr<std::ifstream>(new std::ifstream(m_path + "/" + name, std::ios::in | std::ifstream::binary));
+        if (!is || !is->is_open())
         {
             std::cout << "File not opened" << std::endl;
         }
-        stream_ptr = &is;
+        stream_ptr = is.get();
     }
     // TODO: validate that this works for types other than FP32
     std::vector<char> header(16, 0);

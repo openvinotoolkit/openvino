@@ -115,8 +115,14 @@ public:
     /// For operation node returns reference to an input port with specified index
     virtual Ptr getInputPort (int inputPortIndex = -1) const;
 
+    /// For operation node returns reference to an input port with specified name and index
+    virtual Ptr getInputPort (const std::string& inputName, int inputPortIndex = -1) const;
+
     /// For operation node returns reference to an output port with specified index
     virtual Ptr getOutputPort (int outputPortIndex = -1) const;
+
+    /// For operation node returns reference to an output port with specified name and index
+    virtual Ptr getOutputPort (const std::string& outputName, int outputPortIndex = -1) const;
 
     /// Returns all input ports that consume data flows through this place
     virtual std::vector<Place::Ptr> getConsumingPorts () const;
@@ -273,7 +279,8 @@ class NGRAPH_API FrontEnd
 {
 public:
     typedef std::shared_ptr<FrontEnd> Ptr;
-    virtual ~FrontEnd() = default;
+    FrontEnd();
+    virtual ~FrontEnd();
 
     virtual InputModel::Ptr loadFromFile (const std::string& path) const;
     virtual InputModel::Ptr loadFromFiles (const std::vector<std::string>& paths) const;

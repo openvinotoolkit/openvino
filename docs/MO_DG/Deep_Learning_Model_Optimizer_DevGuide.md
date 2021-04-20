@@ -93,7 +93,11 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
         * [Converting Your ONNX* Model](prepare_model/convert_model/Convert_Model_From_ONNX.md)
             * [Converting Faster-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Faster_RCNN.md)
             * [Converting Mask-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Mask_RCNN.md)
-            * [Converting DLRM ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_DLRM.md)
+            * [Converting GPT2 ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_GPT2.md)
+        * [Converting Your PyTorch* Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md)
+            * [Converting F3Net PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_F3Net.md)
+            * [Converting QuartzNet PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_QuartzNet.md)
+            * [Converting YOLACT PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_YOLACT.md)
         * [Model Optimizations Techniques](prepare_model/Model_Optimization_Techniques.md)
         * [Cutting parts of the model](prepare_model/convert_model/Cutting_Model.md)
         * [Sub-graph Replacement in Model Optimizer](prepare_model/customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
@@ -111,3 +115,22 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 * [Known Issues](Known_Issues_Limitations.md)
 
 **Typical Next Step:** [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
+
+## Video: Model Optimizer Concept
+
+[![](https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg)](https://www.youtube.com/watch?v=Kl1ptVb7aI8)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
+## Video: Model Optimizer Basic Operation
+[![](https://img.youtube.com/vi/BBt1rseDcy0/0.jpg)](https://www.youtube.com/watch?v=BBt1rseDcy0)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
+## Video: Choosing the Right Precision
+[![](https://img.youtube.com/vi/RF8ypHyiKrY/0.jpg)](https://www.youtube.com/watch?v=RF8ypHyiKrY)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly

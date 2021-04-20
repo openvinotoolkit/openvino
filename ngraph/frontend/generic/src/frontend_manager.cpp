@@ -28,8 +28,9 @@
 #endif
 
 #include "frontend_manager/frontend_manager.hpp"
+#ifdef NGRAPH_PDPD_FRONTEND_ENABLE
 #include "paddlepaddle_frontend/frontend.hpp"
-
+#endif
 
 namespace ngraph
 {
@@ -196,7 +197,17 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(getInputPort);
         }
 
+        Place::Ptr Place::getInputPort (const std::string& intputName, int inputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getInputPort);
+        }
+
         Place::Ptr Place::getOutputPort (int outputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getOutputPort);
+        }
+
+        Place::Ptr Place::getOutputPort (const std::string& outputName, int outputPortIndex) const
         {
             FRONT_END_NOT_IMPLEMENTED(getOutputPort);
         }
@@ -386,6 +397,10 @@ namespace ngraph
             }
         };
 #endif
+
+        FrontEnd::FrontEnd() = default;
+        FrontEnd::~FrontEnd() = default;
+
         InputModel::Ptr FrontEnd::loadFromFile (const std::string& paths) const
         {
             FRONT_END_NOT_IMPLEMENTED(loadFromFile);
@@ -450,7 +465,9 @@ namespace ngraph
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE) && defined(NGRAPH_ONNX_EDITOR_ENABLE)
                 registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
 #endif
+#ifdef NGRAPH_PDPD_FRONTEND_ENABLE
                 registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+#endif
 #ifdef NGRAPH_TF_FRONTEND_ENABLE
                 registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
 #endif

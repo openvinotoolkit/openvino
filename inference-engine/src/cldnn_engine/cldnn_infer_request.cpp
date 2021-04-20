@@ -12,6 +12,8 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_itt.h"
+#include <ie_algorithm.hpp>
+#include <debug.h>
 
 using namespace InferenceEngine;
 
@@ -21,6 +23,7 @@ const char CLDNNInferRequest::fp32_suffix[] = "_fp32";
 const char str_not_allocated[] = "Input data was not allocated.";
 const char cannot_set_compound[] = "cannot set compound blob: supported only for input pre-processing";
 const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
+const char unsupported_batched_blob[] = "Batched input blob is expected to contain nv12 blobs";
 
 Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::createInputBlob");
@@ -322,6 +325,27 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     }
 }
 
+void checkInputBlobNV12(const NV12Blob *nv12_ptr) {
+    auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
+
+    // if the blobs are not remote, check their size
+    if (!y_ptr) {
+        if (nv12_ptr->y()->buffer() == nullptr) IE_THROW(NotAllocated) << str_not_allocated;
+    }
+
+    auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
+    if (!uv_ptr) {
+        if (nv12_ptr->uv()->buffer() == nullptr) IE_THROW(NotAllocated) << str_not_allocated;
+    }
+}
+
+NV12Blob *getNV12BlobOrException(BatchedBlob *batched_ptr, int idx) {
+    auto nv12_ptr = batched_ptr->getBlob(idx)->as<NV12Blob>();
+    if (nv12_ptr == nullptr)
+        IE_THROW(NotImplemented) << unsupported_batched_blob;
+    return nv12_ptr;
+}
+
 void checkInputBlob(const Blob::Ptr &blob,
     const std::string &name,
     const InputInfo::Ptr foundInput,
@@ -334,23 +358,17 @@ void checkInputBlob(const Blob::Ptr &blob,
 
     if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
         nv12_two_inputs) {
-        auto nv12_ptr = blob->as<NV12Blob>();
-
-        if (nv12_ptr == nullptr) {
+        if (auto nv12_ptr = blob->as<NV12Blob>()) {
+            checkInputBlobNV12(nv12_ptr);
+        } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
+            for (auto i = 0; i < batched_ptr->size(); i++) {
+                auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
+                checkInputBlobNV12(nv12_ptr);
+            }
+        } else {
             IE_THROW(ParameterMismatch) << wrong_nv12_blob;
         }
 
-        auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
-
-        // if the blobs are not remote, check their size
-        if (!y_ptr) {
-            if (nv12_ptr->y()->buffer() == nullptr) IE_THROW() << str_not_allocated;
-        }
-
-        auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
-        if (!uv_ptr) {
-            if (nv12_ptr->uv()->buffer() == nullptr) IE_THROW() << str_not_allocated;
-        }
     } else {
         SizeVector dims = foundInput->getTensorDesc().getDims();
 
@@ -498,25 +516,33 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
                 // and put them into appropriate network inputs
                 // that should then go into biplanar NV12 reorder
                 auto nv12_ptr = data->as<NV12Blob>();
+                auto batched_ptr = data->as<BatchedBlob>();
 
-                if (nv12_ptr == nullptr) {
+                if (nv12_ptr != nullptr || batched_ptr != nullptr) {
+                    int num_blobs = batched_ptr != nullptr ? batched_ptr->size() : 1;
+
+                    for (auto i = 0; i < num_blobs; i++) {
+                        if (batched_ptr != nullptr)
+                            nv12_ptr = getNV12BlobOrException(batched_ptr, i);
+
+                        auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
+                        if (y_ptr) {
+                            auto y_impl = getBlobImpl(y_ptr);
+                            y_impl->allocate_if_needed();
+                            input_attach(internalName + "_Y" + std::to_string(i), y_impl->getMemory());
+                            is_remote = true;
+                        }
+
+                        auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
+                        if (uv_ptr) {
+                            auto uv_impl = getBlobImpl(uv_ptr);
+                            uv_impl->allocate_if_needed();
+                            input_attach(internalName + "_UV" + std::to_string(i), uv_impl->getMemory());
+                            is_remote = true;
+                        }
+                    }
+                } else {
                     IE_THROW(ParameterMismatch) << wrong_nv12_blob;
-                }
-
-                auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
-                if (y_ptr) {
-                    auto y_impl = getBlobImpl(y_ptr);
-                    y_impl->allocate_if_needed();
-                    input_attach(internalName + "_Y", y_impl->getMemory());
-                    is_remote = true;
-                }
-
-                auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
-                if (uv_ptr) {
-                    auto uv_impl = getBlobImpl(uv_ptr);
-                    uv_impl->allocate_if_needed();
-                    input_attach(internalName + "_UV", uv_impl->getMemory());
-                    is_remote = true;
                 }
 
                 if (is_remote) _inputs[name] = data;
@@ -582,28 +608,33 @@ void CLDNNInferRequest::AllocateInputs() {
 
         if (ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
             m_graph->getConfig().nv12_two_inputs) {
-            cldnn::primitive_id YName(name + "_Y");
-            cldnn::primitive_id UVName(name + "_UV");
+            std::vector<Blob::Ptr> blobs;
+            for (auto i = 0; i < desc.getDims()[0]; i++) {
+                cldnn::primitive_id YName(name + "_Y" + std::to_string(i));
+                cldnn::primitive_id UVName(name + "_UV" + std::to_string(i));
 
-            if (inputLayouts.find(YName) == inputLayouts.end()) {
-                IE_THROW() << "Input layout for " << YName << " is not found";
+                if (inputLayouts.find(YName) == inputLayouts.end()) {
+                    IE_THROW(ParameterMismatch) << "Input layout for " << YName << " is not found";
+                }
+                if (inputLayouts.find(UVName) == inputLayouts.end()) {
+                    IE_THROW(ParameterMismatch) << "Input layout for " << YName << " is not found";
+                }
+                input_alloc(YName, inputLayouts.at(YName));
+                input_alloc(UVName, inputLayouts.at(UVName));
+
+                size_t height = desc.getDims()[2], width = desc.getDims()[3];
+                cldnn::pointer<uint8_t> input_mem_ptr_Y = inputsMemory.at(YName).pointer<uint8_t>();
+                TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
+                auto blobY = createInputBlob(ydesc, input_mem_ptr_Y.data());
+
+                cldnn::pointer<uint8_t> input_mem_ptr_UV = inputsMemory.at(UVName).pointer<uint8_t>();
+                TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
+                auto blobUV = createInputBlob(uvdesc, input_mem_ptr_UV.data());
+
+                blobs.push_back(make_shared_blob<NV12Blob>(blobY, blobUV));
             }
-            if (inputLayouts.find(UVName) == inputLayouts.end()) {
-                IE_THROW() << "Input layout for " << UVName << " is not found";
-            }
-            input_alloc(YName, inputLayouts.at(YName));
-            input_alloc(UVName, inputLayouts.at(UVName));
+            _inputs[name] = desc.getDims()[0] == 1 ? blobs[0] : make_shared_blob<BatchedBlob>(blobs);
 
-            size_t height = desc.getDims()[2], width = desc.getDims()[3];
-            cldnn::pointer<uint8_t> input_mem_ptr_Y = inputsMemory.at(YName).pointer<uint8_t>();
-            TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
-            auto blobY = createInputBlob(ydesc, input_mem_ptr_Y.data());
-
-            cldnn::pointer<uint8_t> input_mem_ptr_UV = inputsMemory.at(UVName).pointer<uint8_t>();
-            TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
-            auto blobUV = createInputBlob(uvdesc, input_mem_ptr_UV.data());
-
-            _inputs[name] = make_shared_blob<NV12Blob>(blobY, blobUV);
         } else {
             if (inputLayouts.find(name) == inputLayouts.end()) {
                 IE_THROW() << "Input layout for " << name << " is not found";
@@ -783,7 +814,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : InferRequestInternal(networkInputs, networkOutputs)
+        : IInferRequestInternal(networkInputs, networkOutputs)
         , m_useProfiling(false)
         , m_useStreams(false) {
     IE_ASSERT(nullptr != execNetwork);
@@ -868,14 +899,21 @@ void CLDNNInferRequest::InferImpl() {
             PrepareInputDyn(name, *inputBlob);
         } else {
             auto nv12_ptr = inputBlob->as<NV12Blob>();
+            auto batched_ptr = inputBlob->as<BatchedBlob>();
 
-            if (nv12_ptr == nullptr) {
+            if (nv12_ptr != nullptr || batched_ptr != nullptr) {
+                // special case for NV12 input blob
+                int num_blobs = batched_ptr != nullptr ? batched_ptr->size() : 1;
+                for (auto i = 0; i < num_blobs; i++) {
+                    if (batched_ptr != nullptr)
+                        nv12_ptr = getNV12BlobOrException(batched_ptr, i);
+
+                    PrepareInput(name + "_Y" + std::to_string(i), *nv12_ptr->y());
+                    PrepareInput(name + "_UV" + std::to_string(i), *nv12_ptr->uv());
+                }
+            } else {
                 // regular blob
                 PrepareInput(name, *inputBlob);
-            } else {
-                // special case for NV12 input blob
-                PrepareInput(name + "_Y", *nv12_ptr->y());
-                PrepareInput(name + "_UV", *nv12_ptr->uv());
             }
         }
     }

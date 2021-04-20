@@ -179,7 +179,7 @@ namespace ngraph
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
 
-                        for (size_t box_idx = 0; box_idx < num_boxes; box_idx++)
+                        for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++)
                         {
                             if (scoresPtr[box_idx] > score_threshold)
                             {
