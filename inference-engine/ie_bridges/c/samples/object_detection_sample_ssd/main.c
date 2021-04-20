@@ -17,7 +17,7 @@
 #include <dirent.h>
 #endif
 
-#define MAX_IMAGE 20
+#define MAX_IMAGES 20
 
 static const char *img_msg = NULL;
 static const char *input_model = NULL;
@@ -167,7 +167,7 @@ void parseInputFilesArguments(int argc, char **argv) {
         readInputFilesArgument(argv[i]);
     }
 
-    if (file_num) {
+    if (file_num < MAX_IMAGES) {
         printf("%sFiles were added: %d\n", info, file_num);
         for (i = 0; i < file_num; ++i) {
             printf("%s    %s\n", info, file_paths[i]);
