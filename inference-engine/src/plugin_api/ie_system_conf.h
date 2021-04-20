@@ -39,7 +39,7 @@ INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableNUMANodes();
 /**
  * @brief      Returns available CPU cores types (on Linux, and Windows) and ONLY with TBB, single core type is assumed otherwise
  * @ingroup    ie_dev_api_system_conf
- * @return     NUMA nodes
+ * @return     Vector of core types
  */
 INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableCoresTypes();
 
