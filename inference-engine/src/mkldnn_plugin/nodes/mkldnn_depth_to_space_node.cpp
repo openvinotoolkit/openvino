@@ -147,7 +147,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
-    PermuteUtils::PermuteParams params;
+    PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
     params.order.resize(reshapedRank, 0);
     params.src_block_dims.resize(reshapedRank);

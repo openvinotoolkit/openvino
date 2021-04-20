@@ -118,7 +118,7 @@ void MKLDNNPermuteNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    PermuteUtils::PermuteParams params;
+    PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
     params.order = order;
 

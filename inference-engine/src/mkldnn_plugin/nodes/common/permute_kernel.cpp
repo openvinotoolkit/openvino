@@ -15,7 +15,6 @@
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
-using namespace MKLDNNPlugin::PermuteUtils;
 using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -306,7 +305,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
         return;
     }
 
-    commonExecute(src_data, dst_data, mb);
+    referenceExecute(src_data, dst_data, mb);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -378,7 +377,7 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
     }
 }
 
-void PermuteKernel::commonExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
     SizeVector dst_dims = params.dst_block_dims;
     const SizeVector dst_strides = params.dst_block_strides;
     const SizeVector src_strides = params.src_block_strides;
