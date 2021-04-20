@@ -24,7 +24,7 @@
 
 namespace InferenceEngine {
 
-IE_SUPPRESS_DEPRECATED_START_WIN
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief Executable network `noexcept` wrapper which accepts IExecutableNetworkInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_exec_network_api
@@ -110,6 +110,6 @@ public:
         return _impl;
     }
 };
-IE_SUPPRESS_DEPRECATED_END_WIN
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
