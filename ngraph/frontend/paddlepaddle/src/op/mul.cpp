@@ -26,9 +26,9 @@ namespace op {
 OutputVector mul (const NodeContext& node) {
     auto x = node.get_ng_input("X");
     auto y = node.get_ng_input("Y");
-    MY_ASSERT(x.get_partial_shape().rank().is_static(), "matmul: X rank must be static!");
+    PDPD_ASSERT(x.get_partial_shape().rank().is_static(), "matmul: X rank must be static!");
     int64_t x_rank = x.get_partial_shape().rank().get_length();
-    MY_ASSERT(y.get_partial_shape().rank().is_static() &&
+    PDPD_ASSERT(y.get_partial_shape().rank().is_static() &&
               y.get_partial_shape().rank().get_length() == 2, "matmul: Y rank must be static, and 2!");
     if (x_rank > 2) {
         auto shape = std::make_shared<ngraph::opset6::ShapeOf>(x);
