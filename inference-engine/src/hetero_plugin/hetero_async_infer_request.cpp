@@ -9,9 +9,9 @@
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
 
-HeteroAsyncInferRequest::HeteroAsyncInferRequest(const InferRequestInternal::Ptr& request,
-                                                 const ITaskExecutor::Ptr&        taskExecutor,
-                                                 const ITaskExecutor::Ptr&        callbackExecutor) :
+HeteroAsyncInferRequest::HeteroAsyncInferRequest(const IInferRequestInternal::Ptr&  request,
+                                                 const ITaskExecutor::Ptr&          taskExecutor,
+                                                 const ITaskExecutor::Ptr&          callbackExecutor) :
     AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor),
     _heteroInferRequest(std::static_pointer_cast<HeteroInferRequest>(request)),
     _statusCodes{_heteroInferRequest->_inferRequests.size(), StatusCode::OK} {
