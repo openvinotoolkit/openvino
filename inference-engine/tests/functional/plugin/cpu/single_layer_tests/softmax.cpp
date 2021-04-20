@@ -3,6 +3,8 @@
 //
 
 #include <ngraph_functions/builders.hpp>
+#include <transformations/common_optimizations/tiling.hpp>
+#include <transformations/serialize.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -64,9 +66,12 @@ protected:
         const auto paramOuts =
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), config.axis);
+        // const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), config.axis);
+        auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), ngPrc, {2, 2}, {config.axis, config.axis}, {0, 0},
+                                                                {0, 0}, {1, 1}, ngraph::op::PadType::VALID, 6);
 
-        function = makeNgraphFunction(ngPrc, params, softMax, "SoftMax");
+        function = makeNgraphFunction(ngPrc, params, convolutionNode, "Convolution");
+        function->add_sinks()
     }
 };
 
@@ -82,27 +87,10 @@ namespace {
 const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {}, "ref_any"};
 
 const std::vector<SoftMaxConfig> optimizedConfigsFP32 {
-        {InferenceEngine::SizeVector{1, 100}, 1},
-        {InferenceEngine::SizeVector{10, 10}, 1},
-        {InferenceEngine::SizeVector{100, 1}, 0},
-        {InferenceEngine::SizeVector{100, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 1, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 1}, 4},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 4},
+        {InferenceEngine::SizeVector{1, 3, 64, 64}, 1},
+        {InferenceEngine::SizeVector{1, 3, 64, 64}, 2},
+        {InferenceEngine::SizeVector{1, 3, 64, 64}, 3},
+        {InferenceEngine::SizeVector{1, 3, 64, 64}, 4},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
@@ -113,7 +101,7 @@ const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
 };
 
 const auto OptimizedParams = testing::Combine(
-        testing::Values(Precision::FP32, Precision::BF16),
+        testing::Values(Precision::FP32),
         testing::ValuesIn(optimizedConfigsFP32),
         testing::Values(CommonTestUtils::DEVICE_CPU),
         testing::Values(emptyCPUSpec));

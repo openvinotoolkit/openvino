@@ -9,6 +9,8 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
+#include <transformations/common_optimizations/tiling.hpp>
+#include <transformations/serialize.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -119,6 +121,12 @@ protected:
             padEnd, dilation, padType, convOutChannels);
 
         function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::Tiling>();
+        m.register_pass<ngraph::pass::Serialize>("/tmp/out.xml", "/tmp/out.bin");
+        m.run_passes(function);
+        std::cout << "HERE";
     }
 };
 
@@ -185,13 +193,11 @@ const SizeVector numOutChannels_Gemm = {6 };
 const SizeVector numOutChannels = { 64, 63 };
 
 /* ============= Convolution params (2D) ============= */
-const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
-const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
+const std::vector<SizeVector> kernels2d = { {1, 1} };
+const std::vector<SizeVector> strides2d = { {1, 1} };
+const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
-const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
-const std::vector<SizeVector> inputShapes2d = { {1, 64, 7, 7}, {1, 67, 7, 7} };
-const std::vector<SizeVector> inputShapesPlain2Blocked2d = { {1, 1, 7, 7}, {1, 2, 7, 7},  {1, 3, 7, 7} };
+const std::vector<SizeVector> dilations2d = { {1, 1} };
 
 /* ============= Convolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -229,7 +235,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::Values(std::vector<size_t >({ 1, 3, 64, 64 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
         ::testing::ValuesIn(fusingParamsSet),

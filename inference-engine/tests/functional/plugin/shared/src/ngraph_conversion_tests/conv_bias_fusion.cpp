@@ -5,6 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "ngraph_conversion_tests/conv_bias_fusion.hpp"
 #include <ngraph/variant.hpp>
+#include <transformations/common_optimizations/tiling.hpp>
 
 namespace NGraphConversionTestsDefinitions {
 
