@@ -63,8 +63,6 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
-        update_extractors_with_extensions(tf_op_extractors)
-
         try:
             protobuf2nx(graph, graph_def)
         except Exception as e:
@@ -98,7 +96,6 @@ class TFLoader(Loader):
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
-        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
 
 
 class TFExtractor(Loader):
