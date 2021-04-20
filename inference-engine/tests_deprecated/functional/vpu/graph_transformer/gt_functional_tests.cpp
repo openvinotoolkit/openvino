@@ -50,6 +50,7 @@
 #include <vpu/configuration/options/enable_force_reset.hpp>
 #include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -127,6 +128,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<MemoryTypeOption>();
     _configuration.registerOption<EnableForceResetOption>();
     _configuration.registerOption<CheckPreprocessingInsideModelOption>();
+    _configuration.registerOption<EnableEarlyEltwiseReluFusionOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

@@ -15,8 +15,6 @@
 namespace vpu {
 
 struct CompilationConfig {
-    bool enableEarlyEltwiseReLUFusion = true;
-
     //
     // Debug options
     //

@@ -62,6 +62,7 @@
 #include <vpu/configuration/options/enable_force_reset.hpp>
 #include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 
 #include "myriad_plugin.h"
 
@@ -226,6 +227,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<MemoryTypeOption>();
     _parsedConfig.registerOption<EnableForceResetOption>();
     _parsedConfig.registerOption<CheckPreprocessingInsideModelOption>();
+    _parsedConfig.registerOption<EnableEarlyEltwiseReluFusionOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

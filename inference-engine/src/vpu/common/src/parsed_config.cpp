@@ -27,7 +27,6 @@ IE_SUPPRESS_DEPRECATED_START
         //
 
         ie::MYRIAD_COPY_OPTIMIZATION,
-        ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
         ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
 
         //
@@ -92,7 +91,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     ParsedConfigBase::parse(config);
 
-    setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);

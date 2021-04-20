@@ -20,6 +20,7 @@
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 
 namespace vpu {
 
@@ -270,7 +271,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
-    if (env.config.compileConfig().enableEarlyEltwiseReLUFusion) {
+    if (env.config.get<EnableEarlyEltwiseReluFusionOption>()) {
         ADD_PASS(mergeEltwiseAndReLUDynamic);
         ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
     }
