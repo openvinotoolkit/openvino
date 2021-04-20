@@ -18,9 +18,9 @@
 #include "ie_iinfer_request.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_blob.h"
-#include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
+
 namespace details {
 class SharedObjectLoader;
 }
