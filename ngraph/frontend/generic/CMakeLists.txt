@@ -63,7 +63,10 @@ if (NGRAPH_TF_FRONTEND_ENABLE)
     target_compile_definitions(frontend_manager PRIVATE NGRAPH_TF_FRONTEND_ENABLE)
 endif()
 
-target_link_libraries(frontend_manager PRIVATE paddlepaddle_frontend PUBLIC ngraph)
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_link_libraries(frontend_manager PRIVATE paddlepaddle_frontend PUBLIC ngraph)
+    target_compile_definitions(frontend_manager PRIVATE NGRAPH_PDPD_FRONTEND_ENABLE)
+endif()
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>

@@ -67,6 +67,11 @@ function(build_ngraph)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
     ngraph_set(NGRAPH_TF_FRONTEND_ENABLE OFF)
+    if(NOT (ANDROID OR WIN32 OR ARM OR AARCH64) )
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON) #TODO: make it OFF by default
+    else()
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
+    endif()
 
     if(TREAT_WARNING_AS_ERROR)
         ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
