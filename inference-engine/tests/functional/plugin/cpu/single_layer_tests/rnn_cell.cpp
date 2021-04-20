@@ -66,8 +66,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            inPrc  = netPrecision;
-            outPrc = Precision::BF16;
+            inPrc = outPrc = Precision::BF16;
         } else {
             inPrc = outPrc = netPrecision;
         }
@@ -75,7 +74,7 @@ protected:
         selectedType += "_";
         selectedType += outPrc.name();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
         auto rnn_cell = ngraph::builder::makeRNN(
@@ -98,7 +97,7 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-std::vector<CPUSpecificParams> cpuParams = {{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
+CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};
 std::vector<bool> should_decompose{false};
 std::vector<size_t> batch{1, 5};
 std::vector<size_t> hidden_size{1, 10};
@@ -118,7 +117,7 @@ INSTANTIATE_TEST_CASE_P(smoke_RNNCellCPU,
                                                               ::testing::ValuesIn(clip),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::Values(cpuParams),
                                            ::testing::ValuesIn(additionalConfig)),
                         RNNCellCPUTest::getTestCaseName);
 } // namespace

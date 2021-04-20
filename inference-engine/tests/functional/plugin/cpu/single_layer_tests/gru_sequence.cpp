@@ -75,8 +75,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            inPrc  = netPrecision;
-            outPrc = Precision::BF16;
+            inPrc = outPrc = Precision::BF16;
         } else {
             inPrc = outPrc = netPrecision;
         }
@@ -85,7 +84,7 @@ protected:
         selectedType += outPrc.name();
 
         m_max_seq_len = seq_lenghts;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
             || m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
@@ -152,8 +151,8 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-std::vector<CPUSpecificParams> cpuParams = {{{ntc, nc}, {ntc, nc}, {"ref_any"}, "ref_any"}};
-std::vector<CPUSpecificParams> cpuParamsBatchSizeOne = {{{tnc, nc}, {tnc, nc}, {"ref_any"}, "ref_any"}};
+CPUSpecificParams cpuParams{{ntc, nc}, {ntc, nc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, nc}, {tnc, nc}, {"ref_any"}, "ref_any"};;
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lenghts = 2
@@ -180,7 +179,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GRUSequenceCPU,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::Values(cpuParams),
                                            ::testing::ValuesIn(additionalConfig)),
                         GRUSequenceCPUTest::getTestCaseName);
 
@@ -196,7 +195,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GRUSequenceCPUBatchSizeOne,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParamsBatchSizeOne),
+                                           ::testing::Values(cpuParamsBatchSizeOne),
                                            ::testing::ValuesIn(additionalConfig)),
                         GRUSequenceCPUTest::getTestCaseName);
 } // namespace

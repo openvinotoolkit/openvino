@@ -77,8 +77,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            inPrc  = netPrecision;
-            outPrc = Precision::BF16;
+            inPrc = outPrc = Precision::BF16;
         } else {
             inPrc = outPrc = netPrecision;
         }
@@ -86,7 +85,7 @@ protected:
         selectedType += "_";
         selectedType += outPrc.name();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
             || m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
@@ -155,8 +154,8 @@ std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-std::vector<CPUSpecificParams> cpuParams = {{{ntc, nc, nc}, {ntc, nc, nc}, {"ref_any"}, "ref_any"}};
-std::vector<CPUSpecificParams> cpuParamsBatchSizeOne = {{{{tnc, nc, nc}, {tnc, nc, nc}, {"ref_any"}, "ref_any"}}};
+CPUSpecificParams cpuParams{{ntc, nc, nc}, {ntc, nc, nc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, nc, nc}, {tnc, nc, nc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 std::vector<size_t> seq_lengths_zero_clip{2};
@@ -183,7 +182,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::Values(cpuParams),
                                            ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 
@@ -199,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPUbatchSizeOne,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParamsBatchSizeOne),
+                                           ::testing::Values(cpuParamsBatchSizeOne),
                                            ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 } // namespace

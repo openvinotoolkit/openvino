@@ -68,8 +68,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            inPrc  = Precision::BF16;
-            outPrc = Precision::BF16;
+            inPrc = outPrc = Precision::BF16;
         } else {
             inPrc = outPrc = netPrecision;
         }
@@ -104,7 +103,7 @@ std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}},
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}};
 
-std::vector<CPUSpecificParams> cpuParams = {{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
+CPUSpecificParams cpuParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"};
 
 std::vector<bool> should_decompose{false};
 std::vector<size_t> batch{5};
@@ -126,7 +125,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCPU,
                                                               ::testing::ValuesIn(clip),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::Values(cpuParams),
                                            ::testing::ValuesIn(additionalConfig)),
                         LSTMCellLayerCPUTest::getTestCaseName);
 } // namespace
