@@ -19,6 +19,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <numeric>
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
@@ -328,12 +329,29 @@ namespace ngraph
                 float* output_rois_features,
                 float* output_rois)
             {
+                std::cout << "Input shapes: ";
+                for (const auto& s : input_shapes)
+                {
+                    std::cout << s << " ";
+                }
+                std::cout << "\n";
                 const int64_t output_dim = attrs.output_size;
                 const int64_t pooled_height = output_dim;
                 const int64_t pooled_width = output_dim;
                 const auto& pyramid_scales = attrs.pyramid_scales;
                 const int64_t sampling_ratio = attrs.sampling_ratio;
                 const bool aligned = attrs.aligned;
+                std::cout << "output_dim:      " << output_dim << "\n";
+                std::cout << "pooled_height:   " << pooled_height << "\n";
+                std::cout << "pooled_width:    " << pooled_width << "\n";
+                std::cout << "sampling_ratio:  " << sampling_ratio << "\n";
+                std::cout << "aligned:         " << (aligned ? "true" : "false") << "\n";
+                std::cout << "pyramid_scales: [";
+                for (auto s : pyramid_scales)
+                {
+                    std::cout << " " << s;
+                }
+                std::cout << " ]\n";
 
                 const int64_t levels_num =
                     static_cast<int64_t>(inputs.size() - input_features_start);
@@ -341,6 +359,10 @@ namespace ngraph
                 const int64_t channels_num =
                     static_cast<int64_t>(input_shapes[input_features_start][1]);
                 const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
+                std::cout << "levels_num:      " << levels_num << "\n";
+                std::cout << "num_rois:        " << num_rois << "\n";
+                std::cout << "channels_num:    " << channels_num << "\n";
+                std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n";
 
                 const float* input_rois = inputs[input_rois_port];
                 std::vector<int64_t> level_ids(num_rois, 0);
