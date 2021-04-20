@@ -19,7 +19,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
@@ -233,7 +235,7 @@ namespace
             const T* offset_bottom_rois = bottom_rois + n * roi_cols;
             int64_t roi_batch_ind = 0;
 
-            T offset = aligned ? (T)0.5 : (T)0.0;
+            T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
             // Do not using rounding; this implementation detail is critical
             T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
             T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
@@ -241,8 +243,8 @@ namespace
             T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
             // Force malformed ROIs to be 1x1
-            T roi_width = std::max(roi_end_w - roi_start_w, (T)1.0);
-            T roi_height = std::max(roi_end_h - roi_start_h, (T)1.0);
+            T roi_width = std::max(roi_end_w - roi_start_w, static_cast<T>(1.0));
+            T roi_height = std::max(roi_end_h - roi_start_h, static_cast<T>(1.0));
             T bin_size_h = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
@@ -404,8 +406,8 @@ namespace ngraph
                     std::cout << " " << r;
                 }
                 std::cout << " ]\n";
-                std::cout << std::string(80, '*') << "\n\n";
 
+                std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
                 for (int64_t i = 0; i < levels_num; ++i)
                 {
@@ -413,13 +415,13 @@ namespace ngraph
                     const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
                     if (level_rois_num > 0)
                     {
-                        const float* featuremap = inputs[1 + i];
+                        const float* featuremap = inputs[input_features_start + i];
                         const int64_t featuremap_height =
-                            static_cast<int64_t>(input_shapes[1 + i][2]);
+                            static_cast<int64_t>(input_shapes[input_features_start + i][2]);
                         const int64_t featuremap_width =
-                            static_cast<int64_t>(input_shapes[1 + i][3]);
+                            static_cast<int64_t>(input_shapes[input_features_start + i][3]);
                         ROIAlignForward_kernel<float>(
-                            level_rois_num,
+                            feaxels_per_roi * level_rois_num,
                             featuremap,
                             1.0f / pyramid_scales[i],
                             channels_num,
@@ -428,11 +430,18 @@ namespace ngraph
                             pooled_height,
                             pooled_width,
                             sampling_ratio,
-                            &reordered_rois[4 * level_rois_offset],
+                            reordered_rois.data() + 4 * level_rois_offset,
                             aligned,
-                            &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+                            output_rois_features_temp.data() + feaxels_per_roi * level_rois_offset);
                     }
                 }
+                std::cout << "output_rois_features_temp: [";
+                for (auto r : output_rois_features_temp)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << std::string(80, '*') << "\n\n";
 
                 std::vector<int64_t> dummy_mapping(num_rois, 0);
                 reorder(output_rois_features_temp.data(),
