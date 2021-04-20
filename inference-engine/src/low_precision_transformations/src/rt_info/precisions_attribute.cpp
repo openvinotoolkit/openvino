@@ -11,8 +11,6 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
