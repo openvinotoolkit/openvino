@@ -37,17 +37,15 @@ def common_mxnet_fields(node: Node):
     }
 
 
-def mxnet_op_extractor(node: Node, lowered_keys_map: dict):
+def mxnet_op_extractor(node: Node, name_to_extractor_map: dict):
     result = common_mxnet_fields(node)
     node.graph.node[node.id].update(result)
 
     supported = False
-    op = result['op'].lower()
-    if op in lowered_keys_map:
-        op = lowered_keys_map[op]
-        assert op in mxnet_op_extractors
-        result_attr = mxnet_op_extractors[op](node)
+    op = result['op']
+    if op in name_to_extractor_map:
+        result_attr = name_to_extractor_map[op](node)
         if result_attr is not None:
             result.update(result_attr)
-            supported = True
+        supported = True
     return supported, result
