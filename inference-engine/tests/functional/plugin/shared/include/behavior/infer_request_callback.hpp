@@ -122,20 +122,12 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::IInferRequest::Ptr req = static_cast<InferenceEngine::IInferRequest::Ptr &>(execNet.CreateInferRequest());
-    req->SetCompletionCallback(
-            [](InferenceEngine::IInferRequest::Ptr, InferenceEngine::StatusCode status) {
-                IE_THROW() << "returnGeneralErrorIfCallbackThrowException";
-            });
+    auto req = execNet.CreateInferRequest();
+    req.SetCompletionCallback([] {
+        IE_THROW(GeneralError);
+    });
 
-    InferenceEngine::ResponseDesc resp;
-    req->StartAsync(&resp);
-    InferenceEngine::StatusCode waitStatus = InferenceEngine::StatusCode::INFER_NOT_STARTED;
-    while (InferenceEngine::StatusCode::RESULT_NOT_READY == waitStatus ||
-           InferenceEngine::StatusCode::INFER_NOT_STARTED == waitStatus) {
-        waitStatus = req->Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY, &resp);
-    }
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
-    ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
 }  // namespace BehaviorTestsDefinitions
