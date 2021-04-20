@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include <ngraph/opsets/opset7.hpp>
-#include "split.h"
+#include "split.hpp"
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph {
@@ -35,10 +35,10 @@ namespace op {
         NamedOutputs named_outputs;
         const auto& split_outputs = std::make_shared<Split>(data, axis, num_or_sections)->outputs();
         const auto& out_names = node.get_output_names();
-        MY_ASSERT(out_names.size() == 1, "Unexpected number of outputs");
+        PDPD_ASSERT(out_names.size() == 1, "Unexpected number of outputs");
 
         auto it = std::find(out_names.begin(), out_names.end(), "Out");
-        MY_ASSERT(it != out_names.end(), "Expected output not found");
+        PDPD_ASSERT(it != out_names.end(), "Expected output not found");
         for (const auto& split_output : split_outputs) {
             named_outputs[*it].push_back(split_output);
         }

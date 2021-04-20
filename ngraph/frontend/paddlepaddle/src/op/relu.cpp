@@ -23,7 +23,7 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs relu (const NodeContext& node) {
-    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))});
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
 }
 
 }}}}

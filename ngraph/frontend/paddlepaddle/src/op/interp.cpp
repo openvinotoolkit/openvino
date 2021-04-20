@@ -56,7 +56,7 @@ NamedOutputs nearest_interp_v2 (const NodeContext& node) {
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
 
-    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Interpolate>(x, target_spatial_shape, scales, axes, attrs)});
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Interpolate>(x, target_spatial_shape, scales, axes, attrs)}, {"Out"});
 }
 
 }}}}

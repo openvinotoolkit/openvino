@@ -34,7 +34,7 @@ NamedOutputs transpose2 (const NodeContext& node) {
     PDPD_ASSERT(perm.size() == rank, "transpose2: axis size must equal to data rank!");
 
     auto input_order = ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
-    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Transpose>(data, input_order)});
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
 }
 
 }}}}

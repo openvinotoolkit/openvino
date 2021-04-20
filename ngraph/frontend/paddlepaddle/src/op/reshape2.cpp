@@ -29,7 +29,7 @@ NamedOutputs reshape2(const NodeContext& node) {
     {
         auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
         auto shape_node = ngraph::opset6::Constant::create(ngraph::element::i32, {shape_attr.size()}, shape_attr);
-        return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)});
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)}, {"Out"});
     } else {
         NOT_IMPLEMENTED("reshape2 with shape as input");
     }

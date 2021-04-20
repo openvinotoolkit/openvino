@@ -30,7 +30,7 @@
 #include "op/concat.hpp"
 #include "op/cast.hpp"
 #include "op/softmax.hpp"
-#include "op/split.h"
+#include "op/split.hpp"
 
 #include "op_table.hpp"
 

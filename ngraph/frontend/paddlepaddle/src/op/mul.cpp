@@ -50,9 +50,9 @@ NamedOutputs mul (const NodeContext& node) {
         auto out_shape = std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{first_dim, second_dim},
                                                                   0);
         auto x_reshaped = std::make_shared<ngraph::opset6::Reshape>(x, out_shape, false);
-        return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::MatMul>(x_reshaped, y)});
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::MatMul>(x_reshaped, y)}, {"Out"});
     }
-    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::MatMul>(x, y)});
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::MatMul>(x, y)}, {"Out"});
 
 }
 

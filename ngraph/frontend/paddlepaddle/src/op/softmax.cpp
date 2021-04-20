@@ -31,7 +31,7 @@ namespace op {
             auto data_rank = data.get_partial_shape().rank().get_length();
             axis = data_rank + axis;
         }
-        return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Softmax>(data, axis)});
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Softmax>(data, axis)}, {"Out"});
     }
 } // namespace op
 } // namespace pdpd
