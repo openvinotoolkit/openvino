@@ -44,6 +44,7 @@ declared in `namespace opset7`.
 * [DetectionOutput](detection/DetectionOutput_1.md)
 * [DFT](signals/DFT_7.md)
 * [Divide](arithmetic/Divide_1.md)
+* [Einsum](matrix/Einsum_7.md)
 * [Elu](activation/Elu_1.md)
 * [EmbeddingBagOffsetsSum](sparse/EmbeddingBagOffsetsSum_3.md)
 * [EmbeddingBagPackedSum](sparse/EmbeddingBagPackedSum_3.md)
