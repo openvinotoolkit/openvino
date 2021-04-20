@@ -9,7 +9,7 @@
 #include <limits>
 #include <memory>
 #include <samples/args_helper.hpp>
-#include <samples/classification_results.h>
+#include <samples/classification_results.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <string>

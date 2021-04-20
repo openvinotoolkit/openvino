@@ -12,7 +12,7 @@
 
 #include <inference_engine.hpp>
 
-#include <samples/classification_results.h>
+#include <samples/classification_results.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 

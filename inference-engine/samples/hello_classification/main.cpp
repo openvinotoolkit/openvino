@@ -11,7 +11,7 @@
 #include <inference_engine.hpp>
 #include <samples/ocv_common.hpp>
 
-#include <samples/classification_results.h>
+#include <samples/classification_results.hpp>
 
 using namespace InferenceEngine;
 
