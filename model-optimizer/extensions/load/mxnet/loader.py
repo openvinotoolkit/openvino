@@ -59,7 +59,7 @@ class MxNetExtractor(Loader):
 
     def load(self, graph: Graph):
         update_extractors_with_extensions(mxnet_op_extractors)
-        extract_node_attrs(graph, lambda node: mxnet_op_extractor(node, check_for_duplicates(mxnet_op_extractors)))
+        extract_node_attrs(graph, mxnet_op_extractor)
 
 
 class MxNetPrivateExtractor(Loader):
