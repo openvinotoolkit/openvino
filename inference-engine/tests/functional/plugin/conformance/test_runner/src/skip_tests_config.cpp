@@ -46,7 +46,58 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CTCGreedyDecoderSeqLen_271798.*)", R"(.*MVN_276196.*)", R"(.*MVN_274454.*)",
         };
     } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_GPU) {
-
+        return {
+            // TODO: Issue: 53062
+            R"(.*TensorIterator_1195103.*)",
+            R"(.*TensorIterator_1195129.*)",
+            R"(.*TensorIterator_1653010.*)",
+            R"(.*TensorIterator_199835.*)",
+            R"(.*TensorIterator_303641.*)",
+            R"(.*TensorIterator_303667.*)",
+            R"(.*TensorIterator_337260.*)",
+            R"(.*TensorIterator_362846.*)",
+            R"(.*TensorIterator_362869.*)",
+            R"(.*TensorIterator_362906.*)",
+            R"(.*TensorIterator_362929.*)",
+            R"(.*TensorIterator_365496.*)",
+            R"(.*TensorIterator_365522.*)",
+            R"(.*TensorIterator_365556.*)",
+            R"(.*TensorIterator_365579.*)",
+            R"(.*TensorIterator_616544.*)",
+            R"(.*TensorIterator_616570.*)",
+            R"(.*TensorIterator_864978.*)",
+            R"(.*TensorIterator_865004.*)",
+            R"(.*TensorIterator_865030.*)",
+            R"(.*TensorIterator_865056.*)",
+            R"(.*TensorIterator_865082.*)",
+            R"(.*TensorIterator_865108.*)",
+            R"(.*TensorIterator_972832.*)",
+            R"(.*TensorIterator_972858.*)",
+            R"(.*TensorIterator_972884.*)",
+            R"(.*TensorIterator_972910.*)",
+            R"(.*TensorIterator_972936.*)",
+            R"(.*TensorIterator_972962.*)",
+            R"(.*TensorIterator_972988.*)",
+            R"(.*TensorIterator_973014.*)",
+            // Hung:
+            R"(.*AvgPool_1199829.*)",
+        };
+    } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_CPU) {
+        return {
+            // Hung:
+            R"(.*AvgPool_1199829.*)",
+            R"(.*AvgPool_1201153.*)",
+            R"(.*ROIPooling_1199827.*)",
+        };
+    } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_GNA) {
+        return {
+            // Lost results
+            R"(.*Add_1087636.*)",
+            R"(.*Add_2868.*)",
+            R"(.*Add_2979.*)",
+            R"(.*Add_53543.*)",
+        };
+    } else {
+        return {};
     }
-    return {};
 }
