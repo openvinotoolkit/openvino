@@ -14,13 +14,6 @@
 
 namespace vpu {
 
-struct CompilationConfig {
-    //
-    // Deprecated options
-    //
-
-    float inputScale = 1.0f;
-    float inputBias = 0.0f;
-};
+struct CompilationConfig {};
 
 }  // namespace vpu
