@@ -151,7 +151,7 @@ namespace ngraph
 
                                 T sub_bins_val_sum = 0;
                                 size_t legit_sub_bin_count = 0;
-                                for (size_t sub_bin_h_idx = 0; sub_bin_h_idx < spatial_bins_y;
+                                for (int sub_bin_h_idx = 0; sub_bin_h_idx < spatial_bins_y;
                                      ++sub_bin_h_idx)
                                 {
                                     float sub_bin_y1_idx =
@@ -159,7 +159,7 @@ namespace ngraph
                                     if (sub_bin_y1_idx < -0.5 || sub_bin_y1_idx > height_in - 0.5)
                                         continue;
 
-                                    for (size_t sub_bin_w_idx = 0; sub_bin_w_idx < spatial_bins_x;
+                                    for (int sub_bin_w_idx = 0; sub_bin_w_idx < spatial_bins_x;
                                          ++sub_bin_w_idx)
                                     {
                                         float sub_bin_x1_idx =
