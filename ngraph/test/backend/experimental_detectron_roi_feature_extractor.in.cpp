@@ -23,6 +23,7 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
+#include <iostream>
 #include <numeric>
 #include <vector>
 #include "gtest/gtest.h"
@@ -67,9 +68,21 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
 
     std::vector<float> rois(shape_size(Shape{2, 4}));
     std::iota(rois.begin(), rois.end(), 0);
+    std::cout << "input rois: [";
+    for (auto r : rois)
+    {
+        std::cout << " " << r;
+    }
+    std::cout << " ]\n";
 
     std::vector<float> featmap(shape_size(Shape{1, 2, 2, 3}));
     std::iota(featmap.begin(), featmap.end(), 0);
+    std::cout << "featmap: [";
+    for (auto r : featmap)
+    {
+        std::cout << " " << r;
+    }
+    std::cout << " ]\n";
 
     const auto output_features_shape = Shape{2, 2, 3, 3};
     const auto output_rois_shape = Shape{2, 4};

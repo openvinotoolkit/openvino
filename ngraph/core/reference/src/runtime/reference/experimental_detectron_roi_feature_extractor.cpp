@@ -368,8 +368,8 @@ namespace ngraph
                 const float* input_rois = inputs[input_rois_port];
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
-                std::cout << "redistribute_rois: [";
-                for (auto r : redistribute_rois)
+                std::cout << "level_ids:      [";
+                for (auto r : level_ids)
                 {
                     std::cout << " " << r;
                 }
