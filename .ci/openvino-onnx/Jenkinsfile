@@ -130,7 +130,7 @@ def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        configuration.name = "${configuration.name}"
+        println "getConfigurationsMap: ${configuration.name}"
         configurationsMap[configuration.name] = {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
