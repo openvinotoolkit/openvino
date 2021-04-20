@@ -53,11 +53,7 @@ ngraph::pass::SwapInputMatMul::SwapInputMatMul() {
             if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
                 return false;
             }
-            auto new_input_a = create_transpose(input_a, matmul->get_friendly_name() + "/transpose_a");
-            new_ops.push_back(new_input_a);
-            auto new_input_b = create_transpose(input_b, matmul->get_friendly_name() + "/transpose_b");
-            new_ops.push_back(new_input_b);
-            auto new_matmul = std::make_shared<ngraph::opset1::MatMul>(new_input_b, new_input_a, matmul->get_transpose_b(), matmul->get_transpose_b());
+            auto new_matmul = std::make_shared<ngraph::opset1::MatMul>(input_b, input_a, !matmul->get_transpose_b(), !matmul->get_transpose_b());
             new_matmul->set_friendly_name(matmul->get_friendly_name() + "/swap_inputs");
             new_ops.push_back(new_matmul);
             auto traspose_output = create_transpose(new_matmul,  matmul->get_friendly_name() + "/transpose_output");

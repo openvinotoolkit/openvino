@@ -1212,24 +1212,13 @@ public:
         auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
         quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-        if (quantParams0->_dst_quant.IsStatsSet()) {
-            auto getScale = [&quantParams0](size_t i) {
-                return (quantParams0->_dst_quant.GetLevels() - 1) /
-                       (quantParams0->_dst_quant.GetMaxValues(false)[i] - quantParams0->_dst_quant.GetMinValues(false)[i]);
-            };
-            float min_channel_scale = getScale(0);
-            auto multiplier = 1.0f;
-            if (quantParams0->_dst_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-                // GNA supports additional multiplier for only 8bit weights.
-                // The multipler is used to extend dynamic range.
-                multiplier = MAX_OUT_MULTIPLIER;
-            }
-            quantData->_src_quant.SetScale(min_channel_scale * multiplier);
-        }
         if (LayerInfo(func_layer).isEltwise()) {
-            if (func_layer->insData[0].lock() == func_layer->insData[1].lock())
-            quantData->_dst_quant.SetScale(
-                    quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale() * 0.5);
+            if (func_layer->insData[0].lock() == func_layer->insData[1].lock()) {
+                quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
+                quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
+                quantData->_dst_quant.SetScale(
+                        quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale() * 0.9);
+            }
         } else {
             quantData->_dst_quant.SetScale(
                     quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
