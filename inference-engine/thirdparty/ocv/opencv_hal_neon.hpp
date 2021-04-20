@@ -2606,6 +2606,24 @@ CV_ALWAYS_INLINE v_uint8x16 v_interleave_high(const v_uint8x16& a, const v_uint8
     return v_uint8x16(v);
 }
 
+CV_ALWAYS_INLINE void v_interleave(const v_int16x8& a, const v_int16x8& b,
+                                   v_int16x8& v1, v_int16x8& v2)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
+}
+
+CV_ALWAYS_INLINE void v_interleave(const v_int32x4& a, const v_int32x4& b,
+                                   v_int32x4& v1, v_int32x4& v2)
+{
+    int32x4x2_t p = vzipq_s32(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
+}
+
 template<int shift>
 CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(const v_uint8x16& a)
 {
