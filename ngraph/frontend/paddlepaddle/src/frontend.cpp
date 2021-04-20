@@ -75,10 +75,21 @@ bool endsWith(const std::string &str, const std::string &suffix) {
     return false;
 }
 
+template<typename T>
+std::vector<T> reinterpret_vector(const std::vector<uint8_t>& a) {
+    PDPD_ASSERT(a.size() % sizeof(T) == 0);
+    std::vector<T> res;
+    res.reserve(a.size() / sizeof(T));
+    for (size_t i = 0; i < a.size(); i += sizeof(T)) {
+        res.push_back(*reinterpret_cast<const T*>(&a[i]));
+    }
+    return res;
+}
+
 } // namespace pdpd
 
-std::shared_ptr<Constant> FrontEndPDPD::make_const_node(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
-                const std::shared_ptr<InputModelPDPD>& model)
+std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
+                                                    const std::shared_ptr<InputModelPDPD>& model)
 {
     const auto& var_desc = tensor_place->getDesc();
     std::cout << "Reading tensor " << var_desc->name() << std::endl;
@@ -86,22 +97,21 @@ std::shared_ptr<Constant> FrontEndPDPD::make_const_node(const std::shared_ptr<Te
     const auto& tensor = var_desc->type().lod_tensor().tensor();
     const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
-    std::vector<size_t> shape(tensor.dims().cbegin(), tensor.dims().cend());
+    Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
     const auto& type = TYPE_MAP[tensor.data_type()];
     switch (type) {
         case element::f32:
         {
-            auto tensor_data = model->readWeight<float>(var_desc->name(), tensor_length);    
-            return Constant::create(element::f32, Shape(shape), tensor_data);
+            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(float));    
+            return Constant::create(element::f32, shape, pdpd::reinterpret_vector<float>(tensor_data));
         }
         break;
         case element::i32:
         {
-            auto tensor_data = model->readWeight<int32_t>(var_desc->name(), tensor_length);    
-            return Constant::create(element::i32, Shape(shape), tensor_data);
+            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int32_t));    
+            return Constant::create(element::i32, shape, pdpd::reinterpret_vector<int32_t>(tensor_data));
         }
         break;
-
     }
 }
 
