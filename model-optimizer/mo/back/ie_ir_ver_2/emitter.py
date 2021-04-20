@@ -247,7 +247,7 @@ def serialize_node_attributes(
         unsupported):
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
     # model-optimizer/extensions/back/TopKNormalizer.py
-    if isinstance(node, Node) and node.soft_get('result' == 'Result') and node.has_and_set('remove_from_xml'):
+    if isinstance(node, Node) and node.soft_get('type') == 'Result' and node.has_and_set('keep_output_port'):
         return
     try:
         for s in schema:

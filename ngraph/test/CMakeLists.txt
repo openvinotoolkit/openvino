@@ -323,7 +323,9 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
+    backend/dft.in.cpp
     backend/divide.in.cpp
+    backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -339,6 +341,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
+    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
@@ -394,6 +397,8 @@ set(MULTI_TEST_SRC
     backend/softmax.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
+    backend/squared_difference.in.cpp
+    backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
@@ -417,13 +422,16 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp
-            onnx/onnx_test_utils.in.cpp)
+            onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_editor.cpp
             onnx/onnx_tensor_names.cpp)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    list(APPEND SRC onnx/onnx_editor.cpp)
+    list(APPEND MULTI_TEST_SRC onnx/onnx_test_utils.in.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
@@ -499,7 +507,11 @@ endif()
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
+    target_link_libraries(unit-test PRIVATE onnx_importer)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

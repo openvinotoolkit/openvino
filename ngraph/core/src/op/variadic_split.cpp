@@ -67,7 +67,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 
             auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
-            size_t sum_of_splits = 0;
+            int64_t sum_of_splits = 0;
             int64_t negative_one = -1;
             for (size_t i = 0; i < split_lengths.size(); i++)
             {
@@ -110,7 +110,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
                                       data_shape[axis]);
             }
 
-            for (size_t output{0}; output < num_outputs; ++output)
+            for (int64_t output{0}; output < num_outputs; ++output)
             {
                 auto output_split_dim = split_lengths.at(output) == -1 ? Dimension::dynamic()
                                                                        : split_lengths.at(output);
@@ -121,7 +121,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
         }
         else
         {
-            for (size_t output{0}; output < num_outputs; ++output)
+            for (int64_t output{0}; output < num_outputs; ++output)
             {
                 set_output_type(output, data_type, PartialShape::dynamic());
             }
@@ -189,7 +189,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     std::vector<size_t> upper_bounds = data_shape;
     upper_bounds.at(axis) = split_lengths[0];
 
-    int64_t split_pos = 0;
+    size_t split_pos = 0;
     for (const auto& output : outputs)
     {
         output_shape.at(axis) = split_lengths[split_pos++];

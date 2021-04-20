@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <ie_iexecutable_network.hpp>
 #include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/base/ie_variable_state_base.hpp>
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
@@ -19,6 +20,7 @@
 #include <vector>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 
 namespace InferenceEngine {
 
@@ -52,7 +54,7 @@ public:
     }
 
     StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
-        TO_STATUS(req = _impl->CreateInferRequest());
+        TO_STATUS(req = std::make_shared<InferRequestBase>(_impl->CreateInferRequest()));
     }
 
     StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {
@@ -103,23 +105,11 @@ public:
     StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
         TO_STATUS(pContext = _impl->GetContext());
     }
+
+    std::shared_ptr<IExecutableNetworkInternal> GetImpl() const {
+        return _impl;
+    }
 };
 IE_SUPPRESS_DEPRECATED_END_WIN
-
-/**
- * @brief Create an execuable network public C++ object wrapper based on internal inplementation
- * @ingroup ie_dev_api_exec_network_api
- * @param impl An internal implementation for executable network
- * @tparam T A type of internal implementation
- * @return C++ wrapper for executable network
- */
-template <class T>
-inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
-    // to suppress warning about deprecated QueryState
-    IE_SUPPRESS_DEPRECATED_START
-    typename ExecutableNetworkBase::Ptr net(new ExecutableNetworkBase(impl));
-    IE_SUPPRESS_DEPRECATED_END
-    return InferenceEngine::ExecutableNetwork(net);
-}
 
 }  // namespace InferenceEngine

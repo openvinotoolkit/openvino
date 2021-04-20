@@ -97,9 +97,9 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
 
         # check that all Parameters have the same batch
         for p in params:
-            assert(p.shape[0] == batch,
-                   "Parameter {} have batch different from the {}".format(p.soft_get('name', p.id),
-                                                                          params[0].soft_get('name', params[0].id)))
+            assert p.shape[0] == batch, \
+                   "Parameter {} has batch different from the {}".format(p.soft_get('name', p.id),
+                                                                          params[0].soft_get('name', params[0].id))
 
         # make constants for initialization of ReadValue reshapable
         for read in graph.get_op_nodes(op='ReadValue'):

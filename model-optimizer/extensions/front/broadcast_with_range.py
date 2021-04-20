@@ -13,7 +13,7 @@ from mo.ops.unsqueeze import Unsqueeze
 
 
 class ExpandRangeConstant(FrontReplacementSubgraph):
-    """
+    r"""
     Searches for Constant operations filled with range values starting from 0 and replaces it with Range operation
     Faced in ONNX BERT -- replacing it makes model reshape-able by sequence length
 
