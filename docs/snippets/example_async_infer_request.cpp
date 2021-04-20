@@ -8,7 +8,7 @@
 
 using namespace InferenceEngine;
 
-class AcceleratorSyncRequest : public InferRequestInternal {
+class AcceleratorSyncRequest : public IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<AcceleratorSyncRequest>;
 
