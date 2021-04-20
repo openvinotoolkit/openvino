@@ -19,6 +19,8 @@
 #include <ie_memcpy.h>
 #include <precision_utils.h>
 
+#include <ie_ngraph_utils.hpp>
+
 #include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
@@ -79,41 +81,16 @@ static void AllocateImplSingle(
     auto& precision = blobData.second->getTensorDesc().getPrecision();
     auto layout = blobData.second->getTensorDesc().getLayout();
     Blob::Ptr blob;
-    switch (precision) {
-        case Precision::U8: {
-            blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
-        } break;
-        case Precision::FP32 : {
-            blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
-        } break;
-        case Precision::I32 : {
-            blob = InferenceEngine::make_shared_blob<std::int32_t>({precision, dims, layout});
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
-    }
+    blob = make_blob_with_precision({precision, dims, layout});
     blob->allocate();
     blobMap[blobData.first] = blob;
 
     auto networkPresion = GetNetworkPrecision(blobData.first);
     Blob::Ptr networkBlob;
-    switch (networkPresion) {
-        case ngraph::element::Type_t::f32 : {
-            if (precision == Precision::FP32) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
-            }
-        } break;
-        case ngraph::element::Type_t::i32 : {
-            if (precision == Precision::I32) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<std::int32_t>({Precision::I32, dims, layout});
-            }
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
-    }
-    if (blob != networkBlob) {
+    if (InferenceEngine::details::convertPrecision(precision) == networkPresion) {
+        networkBlob = blob;
+    } else {
+        networkBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPresion), dims, layout});
         networkBlob->allocate();
     }
     networkBlobMap[blobData.first] = networkBlob;
