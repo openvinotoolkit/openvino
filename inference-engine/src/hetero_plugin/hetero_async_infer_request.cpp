@@ -18,7 +18,7 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const IInferRequestInternal::Pt
     _pipeline.clear();
     for (std::size_t requestId = 0; requestId < _heteroInferRequest->_inferRequests.size(); ++requestId) {
         struct RequestExecutor : ITaskExecutor {
-            explicit RequestExecutor(InferRequest & inferRequest) : _inferRequest{inferRequest} {
+            explicit RequestExecutor(InferRequest & inferRequest) : _inferRequest(inferRequest) {
                 _inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
                 [this] (InferRequest, StatusCode sts) mutable {
                     _status = sts;
