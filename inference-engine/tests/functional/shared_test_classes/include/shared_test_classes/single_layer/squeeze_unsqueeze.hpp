@@ -13,10 +13,10 @@
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
-using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
+using ShapeAxesVec = std::vector<std::vector<int64_t>>;
 
 typedef std::tuple<
-        ShapeAxesTuple,                 // InputShape, Squeeze indexes
+        ShapeAxesVec,                   // InputShape (required), Squeeze indexes (optional)
         ngraph::helpers::SqueezeOpType, // OpType
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
