@@ -397,6 +397,10 @@ namespace ngraph
             }
         };
 #endif
+
+        FrontEnd::FrontEnd() = default;
+        FrontEnd::~FrontEnd() = default;
+
         InputModel::Ptr FrontEnd::loadFromFile (const std::string& paths) const
         {
             FRONT_END_NOT_IMPLEMENTED(loadFromFile);
