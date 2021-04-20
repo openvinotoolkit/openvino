@@ -562,10 +562,7 @@ namespace ngraph
                          const dataType* _armLocation,
                          dataType* result)
                 {
-                    for (size_t i = 0; i < outTotalSize; i++)
-                    {
-                        result[i] = dataType(0);
-                    }
+                    std::fill(result, result + outTotalSize, dataType{0});
                     bool withAddBoxPred = _armConfidence != nullptr && _armLocation != nullptr;
                     std::vector<LabelBBox> armLocPreds;
                     if (withAddBoxPred)
