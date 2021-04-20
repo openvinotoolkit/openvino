@@ -12,7 +12,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_MYRIAD) {
+    if (std::string(ConformanceTests::targetDevice) == CommonTestUtils::DEVICE_MYRIAD) {
         return {
             // TODO: Issue: 53061
             R"(.*ReduceMean_334003.*)", R"(.*ReduceMean_334702.*)", R"(.*Select_1172002.*)", R"(.*Select_1178458.*)",
@@ -45,7 +45,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Crashes: Should be handled
             R"(.*CTCGreedyDecoderSeqLen_271798.*)", R"(.*MVN_276196.*)", R"(.*MVN_274454.*)",
         };
-    } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_GPU) {
+    } else if (std::string(ConformanceTests::targetDevice) == CommonTestUtils::DEVICE_GPU) {
         return {
             // TODO: Issue: 53062
             R"(.*TensorIterator_1195103.*)",
@@ -82,14 +82,14 @@ std::vector<std::string> disabledTestPatterns() {
             // Hung:
             R"(.*AvgPool_1199829.*)",
         };
-    } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_CPU) {
+    } else if (std::string(ConformanceTests::targetDevice) == CommonTestUtils::DEVICE_CPU) {
         return {
             // Hung:
             R"(.*AvgPool_1199829.*)",
             R"(.*AvgPool_1201153.*)",
             R"(.*ROIPooling_1199827.*)",
         };
-    } else if (ConformanceTests::targetDevice == CommonTestUtils::DEVICE_GNA) {
+    } else if (std::string(ConformanceTests::targetDevice) == CommonTestUtils::DEVICE_GNA) {
         return {
             // Lost results
             R"(.*Add_1087636.*)",
