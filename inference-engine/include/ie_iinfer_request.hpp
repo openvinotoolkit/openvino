@@ -21,6 +21,8 @@
 
 namespace InferenceEngine {
 
+_IE_SUPPRESS_DEPRECATED_START_GCC_4
+
 /**
  * @brief This is an interface of asynchronous infer request
  *
@@ -211,5 +213,7 @@ public:
 protected:
     ~IInferRequest() = default;
 };
+
+_IE_SUPPRESS_DEPRECATED_END_GCC_4
 
 }  // namespace InferenceEngine
