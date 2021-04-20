@@ -42,9 +42,10 @@ static PartShape getTestShape_conv2d_relu() {
 INSTANTIATE_TEST_CASE_P(PDPDPartialShapeTest, FrontEndPartialShapeTest,
                         ::testing::Combine(
                                 ::testing::Values(BaseFEParam { PDPD, PATH_TO_MODELS }),
-                                ::testing::ValuesIn({ getTestShape_2in_2out(),
-                                                      getTestShape_conv2d_relu(),
-                                                      getTestShape_conv2d()
+                                ::testing::ValuesIn(std::vector<PartShape> {
+                                    getTestShape_2in_2out(),
+                                    getTestShape_conv2d_relu(),
+                                    getTestShape_conv2d()
                                 })
                                 ),
                         FrontEndPartialShapeTest::getTestCaseName);

@@ -5,6 +5,7 @@
 #include <regex>
 #include <algorithm>
 #include "../include/cut_specific_model.hpp"
+#include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -20,9 +21,7 @@ std::string FrontEndCutModelTest::getTestCaseName(const testing::TestParamInfo<C
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;
     res += "I" + joinStrings(obj.param.m_oldInputs) + joinStrings(obj.param.m_newInputs);
     res += "O" + joinStrings(obj.param.m_oldOutputs) + joinStrings(obj.param.m_newOutputs);
-    // need to replace special characters to create valid test case name
-    res = std::regex_replace(res, std::regex("[/\\.]"), "_");
-    return res;
+    return FrontEndTestUtils::fileToTestName(res);
 }
 
 void FrontEndCutModelTest::SetUp() {

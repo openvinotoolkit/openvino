@@ -142,6 +142,7 @@ from ngraph.opset7 import rnn_cell
 from ngraph.opset7 import rnn_sequence
 from ngraph.opset7 import roi_align
 from ngraph.opset7 import roi_pooling
+from ngraph.opset7 import roll
 from ngraph.opset7 import round
 from ngraph.opset7 import scatter_elements_update
 from ngraph.opset7 import scatter_update
