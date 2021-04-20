@@ -53,28 +53,7 @@
 </layer>
 ```
 
-*Example 2: input_order in not specified*
-
-```xml
-<layer ... type="Transpose">
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>4</dim>
-        </port>
-    </input>
-    <output>         <!-- input_order = [2, 1, 0] if input_order is not set -->
-        <port id="1">
-            <dim>4</dim>
-            <dim>3</dim>
-            <dim>2</dim>
-        </port>
-    </output>
-</layer>
-```
-
-*Example 3: input_order = empty_list []*
+*Example 2: input_order = empty 1D tensor of Shape[0]
 
 ```xml
 <layer ... type="Transpose">
@@ -85,7 +64,7 @@
             <dim>4</dim>
         </port>
         <port id="1">
-            <dim>0</dim> <!-- input_order = [2, 1, 0] if input_order is empty list -->
+            <dim>0</dim> <!-- input_order is an empty 1D tensor -->
         </port>
     </input>
     <output>         
