@@ -51,7 +51,7 @@ public:
     /// Returns exactly one input with a given name; throws if there is no inputs or there are more than one input
     Output<Node> get_ng_input (const std::string& name) const
     {
-        MY_ASSERT(name_map.at(name).size() == 1);
+        PDPD_ASSERT(name_map.at(name).size() == 1);
         return name_map.at(name).at(0);
     }
 

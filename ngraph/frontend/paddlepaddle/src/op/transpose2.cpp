@@ -31,7 +31,7 @@ NamedOutputs transpose2 (const NodeContext& node) {
     std::cout << perm.size() << std::endl; 
     std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
 
-    MY_ASSERT(perm.size() == rank, "transpose2: axis size must equal to data rank!");
+    PDPD_ASSERT(perm.size() == rank, "transpose2: axis size must equal to data rank!");
 
     auto input_order = ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
     return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Transpose>(data, input_order)});

@@ -27,7 +27,7 @@ namespace op {
         auto axis = node.get_attribute<int32_t>("axis");
         if (axis < 0)
         {
-            MY_ASSERT(data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
+            PDPD_ASSERT(data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
             auto data_rank = data.get_partial_shape().rank().get_length();
             axis = data_rank + axis;
         }

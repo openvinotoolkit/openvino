@@ -51,8 +51,8 @@ NamedOutputs make_ng_node(std::map<std::string, Output<Node>>& nodes,
     const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
-    MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
-    NamedInputs named_inputs;
+    PDPD_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
+    std::map<std::string, OutputVector> named_inputs;
     const auto& input_ports = op_place->getInputPorts();
     for (const auto& name_to_ports : input_ports) {
         for (const auto& port : name_to_ports.second) {
@@ -81,7 +81,7 @@ std::shared_ptr<Constant> FrontEndPDPD::read_tensor(const std::shared_ptr<Tensor
 {
     const auto& var_desc = tensor_place->getDesc();
     std::cout << "Reading tensor " << var_desc->name() << std::endl;
-    MY_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+    PDPD_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
     const auto& tensor = var_desc->type().lod_tensor().tensor();
     const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
