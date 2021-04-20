@@ -5,8 +5,8 @@
 
 set -e
 
-# provide ONNX Model Zoo commit hash ID to update:
-ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
+# default ONNX Model Zoo commit hash ID
+#ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
@@ -20,6 +20,7 @@ function print_help {
     echo "    -d <DIR> set location of the models (for onnx model ZOO and MSFT models)"
     printf "    By default the models location is: %s\n" "$HOME/.onnx/model_zoo"
     echo "    -o update Onnx Model Zoo models"
+    echo "    -s Onnx Model Zoo commit SHA"
     echo "    -m update MSFT models"
     echo "    -f force update of a chosen model"
 }
@@ -41,6 +42,10 @@ while getopts ":homfd:" opt; do
         o )
             ENABLE_ONNX_MODELS_ZOO=true
             ;;
+        s )
+            ONNX_SHA="$OPTARG"
+            ;;
+
         m )
             ENABLE_MSFT_MODELS=true
             ;;
