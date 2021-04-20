@@ -137,7 +137,7 @@ void Config::updateProperties() {
             break;
             case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
                 _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE});
-                break;
+            break;
         }
         if (collectPerfCounters == true)
             _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });

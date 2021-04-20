@@ -5,7 +5,7 @@
 /**
  * @brief Contains declarations and custom threading interfaces based on TBB info and task_arena APIs.
  *
- * @file ie_parallel_custom_arena.hpp
+ * @file ie_parallel_custom.hpp
  */
 
 #pragma once

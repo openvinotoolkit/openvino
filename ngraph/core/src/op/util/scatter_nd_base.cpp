@@ -85,7 +85,7 @@ void op::util::ScatterNDBase::validate_and_infer_types()
                     "updates_shape[0:indices_rank-1] shape must be indices_shape[:-1]");
             }
             size_t j = indices_shape[static_indices_rank - 1].get_length();
-            for (size_t i = static_indices_rank - 1; i < expected_updates_rank; i++, j++)
+            for (int64_t i = static_indices_rank - 1; i < expected_updates_rank; i++, j++)
             {
                 compatible = compatible && updates_shape[i].same_scheme(inputs_shape[j]);
                 NODE_VALIDATION_CHECK(

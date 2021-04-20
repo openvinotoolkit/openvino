@@ -4,7 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-message(STATUS "--- THREADING ${THREADING}")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4)
 endif()
@@ -14,6 +13,7 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
