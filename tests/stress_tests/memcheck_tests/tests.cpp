@@ -108,71 +108,51 @@ INSTANTIATE_TEST_CASE_P(MemCheckTests, MemCheckTestSuite,
                         getTestCaseName);
 
 TEST_P(MemCheckTestSuite, inference_with_streams) {
-    const auto nstreams = "2";
+    const auto nstreams = 2;
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" with precision: \"" << precision
                                                           << "\" for device: \"" << device << "\""
-                                                          << "\" with strems: \"" << nstreams);
-    auto test_pipeline = [&]{
+                                                          << "\" with streams: \"" << nstreams);
+    auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
 
         Core ie;
         ie.GetVersions(device);
-        std::map<std::string, std::map<std::string, std::string>> config;
+        std::map<std::string, std::string> config;
 
-        if (!config.count(device)) 
-            config[device] = {};
+        const std::string key = device + "_THROUGHPUT_STREAMS";
+        config[key] = std::to_string(nstreams);
 
-        std::map<std::string, std::string>& device_config = config.at(device);
+        if ((device != "CPU") && (device != "GPU"))
+            throw std::invalid_argument("This device is not supported");
 
-        auto setThroughputStreams = [&] () {
-            const std::string key = device + "_THROUGHPUT_STREAMS";
-            // set to user defined value
-            std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) == supported_config_keys.end()) {
-                throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
-                                        "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>" +
-                                        " or via configuration file.");
-            }
-            device_config[key] = nstreams;
-        };
+        ie.SetConfig(config, device);
 
-    if (device == "CPU") {  
-        // CPU supports few special performance-oriented keys
-        // for CPU execution, more throughput-oriented execution via streams
-        setThroughputStreams();
-    } else if (device == ("GPU")) {
-        // for GPU execution, more throughput-oriented execution via streams
-        setThroughputStreams();
-    } else {
-        throw std::invalid_argument("This device is not supported");
-    }
+        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
 
-    for (auto&& item : config) {
-        ie.SetConfig(item.second, item.first);
-    }
+        InferRequest inferRequest;
 
-    CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-    ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-    InferRequest inferRequest = exeNetwork.CreateInferRequest();
+        for (int counter = 0; counter < nstreams; counter++) {
+            inferRequest = exeNetwork.CreateInferRequest();
+            fillBlobs(inferRequest, inputsInfo, batchSize);
 
-    auto batchSize = cnnNetwork.getBatchSize();
-    batchSize = batchSize != 0 ? batchSize : 1;
-    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-    fillBlobs(inferRequest, inputsInfo, batchSize);
+            inferRequest.Infer();
+            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+            for (auto &output : output_info)
+                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        }
 
-    inferRequest.Infer();
-    OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-    for (auto &output : output_info)
-        Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        log_info("Memory consumption after Inference:");
+        memCheckPipeline.record_measures(test_name);
 
-    log_info("Memory consumption after Inference:");
-    memCheckPipeline.record_measures(test_name);
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+        return memCheckPipeline.measure();
 
-    log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
-    return memCheckPipeline.measure();
-
-    };      
+    };
 
     TestResult res = common_test_pipeline(test_pipeline, test_refs.references);
     EXPECT_EQ(res.first, TestStatus::TEST_OK) << res.second;
