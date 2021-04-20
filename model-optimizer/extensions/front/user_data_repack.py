@@ -30,10 +30,3 @@ class UserDataRepack(FrontReplacementPattern):
         inputs = list(packed_user_shapes.keys()) \
             if packed_user_shapes is not None and isinstance(packed_user_shapes, dict) else None
         graph.graph['inputs'] = inputs  # save user defined inputs for other extensions
-
-        print('---------- Inputs/outpus -----------')
-        print(packed_user_shapes)
-        print(packed_outputs)
-        print(freeze_placeholder)
-        print(inputs)
-        print('------------------------------------')

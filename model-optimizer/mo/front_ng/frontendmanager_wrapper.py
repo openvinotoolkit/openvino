@@ -6,15 +6,15 @@
 import os
 import sys
 
-def create_fem():
 
+def create_fem():
     fem = None
     try:
-        from ngraph import FrontEndManager # pylint: disable=import-error
+        from ngraph import FrontEndManager # pylint: disable=no-name-in-module,import-error
         fem = FrontEndManager()
-    except:
+    except Exception:
+        print("nGraph FrontEndManager is not initialized")
         pass
-
     return fem
 
 

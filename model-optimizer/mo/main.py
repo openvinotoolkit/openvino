@@ -247,35 +247,32 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
+    graph = None
+    ngraphFunction = None
     if argv.feManager is None or argv.framework not in new_front_ends or argv.use_legacy_frontend:
         graph = unified_pipeline(argv)
     else:
-        from mo.pipeline.unified import moc_pipeline
-        graph = moc_pipeline(argv)
-    return graph
+        from mo.front_ng.pipeline import moc_pipeline
+        ngraphFunction = moc_pipeline(argv)
+    return graph, ngraphFunction
 
 
-def emit_ir(graph, argv: argparse.Namespace):
-    if 'network' not in graph.graph:
-        NormalizeTI().find_and_replace_pattern(graph)
-        for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
-        for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+def emit_ir(graph: Graph, argv: argparse.Namespace):
+    NormalizeTI().find_and_replace_pattern(graph)
+    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-        prepare_emit_ir(graph=graph,
-                        data_type=graph.graph['cmd_params'].data_type,
-                        output_dir=argv.output_dir,
-                        output_model_name=argv.model_name,
-                        mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                        input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                        meta_info=get_meta_info(argv))
+    prepare_emit_ir(graph=graph,
+                    data_type=graph.graph['cmd_params'].data_type,
+                    output_dir=argv.output_dir,
+                    output_model_name=argv.model_name,
+                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
+                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
+                    meta_info=get_meta_info(argv))
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
-        if 'network' in graph.graph:
-            graph.graph['network'].serialize(orig_model_name + ".xml", orig_model_name + ".bin")
-            print('[ SUCCESS ] Converted with nGraph Serializer')
 
         return_code = "not executed"
         # This try-except is additional reinsurance that the IE
@@ -313,7 +310,12 @@ def driver(argv: argparse.Namespace):
 
     start_time = datetime.datetime.now()
 
-    ret_res = emit_ir(prepare_ir(argv), argv)
+    graph, nGraphFunction = prepare_ir(argv)
+    if graph is not None:
+        ret_res = emit_ir(graph, argv)
+    else:
+        from mo.front_ng.serialize import ngraph_emit_ir
+        ret_res = ngraph_emit_ir(nGraphFunction, argv)
 
     if ret_res != 0:
         return ret_res
