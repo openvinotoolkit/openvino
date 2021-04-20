@@ -192,7 +192,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
 TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newInputs, newOutputs;
-    ASSERT_NO_THROW(newInputs = constructNewOutputs());
+    ASSERT_NO_THROW(newInputs = constructNewInputs());
     ASSERT_NO_THROW(newOutputs = constructNewOutputs());
     ASSERT_NO_THROW(m_inputModel->extractSubgraph(newInputs, newOutputs));
 
