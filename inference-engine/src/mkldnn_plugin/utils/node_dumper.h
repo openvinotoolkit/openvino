@@ -25,13 +25,11 @@ public:
         setup();
     }
 
-    void setup();
-
     void dumpInputBlobs(const MKLDNNNodePtr &node) const;
-
     void dumpOutputBlobs(const MKLDNNNodePtr &node) const;
 
 private:
+    void setup();
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
     bool shouldBeDumped(const MKLDNNNodePtr &node) const;
 
