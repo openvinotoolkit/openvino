@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "ngraph/op/util/gather_base.hpp"
 
 namespace ngraph
 {
@@ -13,12 +13,10 @@ namespace ngraph
         namespace v1
         {
             /// \brief Gather slices from axis of params according to indices
-            class NGRAPH_API Gather : public Op
+            class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:
-                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
-                static constexpr NodeTypeInfo type_info{"Gather", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Gather() = default;
                 /// \param params The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
@@ -28,35 +26,16 @@ namespace ngraph
                        const Output<Node>& axis);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                int64_t get_axis() const;
 
-                void validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool evaluate_lower(const HostTensorVector& outputs) const override;
-                bool evaluate_upper(const HostTensorVector& outputs) const override;
-
-                bool constant_fold(OutputVector& output_values,
-                                   const OutputVector& inputs_values) override;
-
-            private:
-                static const int PARAMS;
-                static const int INDICES;
-                static const int AXIS;
-
-                bool evaluate_gather(const HostTensorVector& outputs,
-                                     const HostTensorVector& inputs) const;
             };
         } // namespace v1
 
         namespace v7
         {
             /// \brief Gather slices from axis of params according to indices
-            class NGRAPH_API Gather : public Op
+            class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -76,23 +55,6 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                int64_t get_batch_dims() const;
-                int64_t get_axis() const;
-                bool is_axis_set() const;
-
-                bool evaluate_gather(const HostTensorVector& outputs,
-                                     const HostTensorVector& inputs) const;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool evaluate_lower(const HostTensorVector& outputs) const override;
-                bool evaluate_upper(const HostTensorVector& outputs) const override;
-
-                bool constant_fold(OutputVector& output_values,
-                                   const OutputVector& inputs_values) override;
-
-            private:
-                int64_t m_batch_dims = 0;
             };
         } // namespace v7
     }     // namespace op
