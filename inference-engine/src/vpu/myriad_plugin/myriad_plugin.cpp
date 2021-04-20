@@ -64,6 +64,7 @@
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
+#include <vpu/configuration/options/none_layers.hpp>
 
 #include "myriad_plugin.h"
 
@@ -230,6 +231,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<CheckPreprocessingInsideModelOption>();
     _parsedConfig.registerOption<EnableEarlyEltwiseReluFusionOption>();
     _parsedConfig.registerOption<EnableCustomReshapeParamOption>();
+    _parsedConfig.registerOption<NoneLayersOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

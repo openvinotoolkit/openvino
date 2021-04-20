@@ -55,6 +55,7 @@
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
+#include <vpu/utils/skip_layers.hpp>
 
 namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
@@ -570,7 +571,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (env.config.compileConfig().skipAllLayers() || env.config.compileConfig().skipLayerType(layer->type)) {
+        if (skipAllLayers(env.config) || skipLayerType(env.config, layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;

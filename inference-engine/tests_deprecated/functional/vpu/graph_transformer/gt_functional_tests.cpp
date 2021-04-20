@@ -52,6 +52,7 @@
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
+#include <vpu/configuration/options/none_layers.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -131,6 +132,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<CheckPreprocessingInsideModelOption>();
     _configuration.registerOption<EnableEarlyEltwiseReluFusionOption>();
     _configuration.registerOption<EnableCustomReshapeParamOption>();
+    _configuration.registerOption<NoneLayersOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

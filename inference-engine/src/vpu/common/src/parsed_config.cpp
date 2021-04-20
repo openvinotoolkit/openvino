@@ -27,12 +27,6 @@ IE_SUPPRESS_DEPRECATED_START
         //
 
         ie::MYRIAD_COPY_OPTIMIZATION,
-
-        //
-        // Debug options
-        //
-
-        ie::MYRIAD_NONE_LAYERS,
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -56,59 +50,7 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
-    static const auto parseStrides = [](const std::string& src) {
-        auto configStrides = src;
-        configStrides.pop_back();
-
-        const auto inputs = ie::details::split(configStrides, "],");
-
-        std::map<std::string, std::vector<int>> stridesMap;
-
-        for (const auto& input : inputs) {
-            std::vector<int> strides;
-
-            const auto pair = ie::details::split(input, "[");
-            IE_ASSERT(pair.size() == 2)
-                    << "Invalid config value \"" << input << "\" "
-                    << "for VPU_TENSOR_STRIDES, does not match the pattern: tensor_name[strides]";
-
-            const auto strideValues = ie::details::split(pair.at(1), ",");
-
-            for (const auto& stride : strideValues) {
-                strides.insert(strides.begin(), std::stoi(stride));
-            }
-
-            stridesMap.insert({pair.at(0), strides});
-        }
-
-        return stridesMap;
-    };
-
-    const auto parseStringSet = [](const std::string& value) {
-        return splitStringList<ie::details::caseless_set<std::string>>(value, ',');
-    };
-
     ParsedConfigBase::parse(config);
-
-    setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
-
-    auto isPositive = [](int value) {
-        return value >= 0;
-    };
-
-    auto isDefaultValue = [](int value) {
-        return value == -1;
-    };
-
-    auto preprocessCompileOption = [&](const std::string& src) {
-        int value = parseInt(src);
-
-        if (isPositive(value) || isDefaultValue(value)) {
-            return value;
-        }
-
-        throw std::invalid_argument("Value must be positive or default(-1).");
-    };
 }
 
 }  // namespace vpu

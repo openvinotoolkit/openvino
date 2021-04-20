@@ -16,24 +16,6 @@ namespace vpu {
 
 struct CompilationConfig {
     //
-    // Debug options
-    //
-
-    InferenceEngine::details::caseless_set<std::string> noneLayers;
-
-    bool skipAllLayers() const {
-        if (noneLayers.size() == 1) {
-            const auto& val = *noneLayers.begin();
-            return val == "*";
-        }
-        return false;
-    }
-
-    bool skipLayerType(const std::string& layerType) const {
-        return noneLayers.count(layerType) != 0;
-    }
-
-    //
     // Deprecated options
     //
 
