@@ -27,6 +27,15 @@ op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation)
 bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
                                     std::string& output_subscript)
 {
+    NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
+
+    // create regular expression to match subscript that consists of either alphabetical letters
+    // only or alphabetical letters with one ellisis
+    const std::regex subscript_regex("[A-Za-z]*|[A-Za-z]*\\.\\.\\.[A-Za-z]*");
+
+    // create regular expression to match ellipsis label
+    const std::regex ellipsis_regex("\\.\\.\\.");
+
     // remove extra white-spaces from the equation
     m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace),
                      m_equation.end());
@@ -36,35 +45,25 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
     auto input_subscripts_str = m_equation.substr(0, pos_output_delimeter);
 
     // split the input subscripts into a vector of input subscripts
+    bool is_ellipsis_met = false;
+    std::smatch ellipsis_match;
     input_subscripts.clear();
     std::istringstream input;
     input.str(input_subscripts_str);
     for (std::string input_subscript; std::getline(input, input_subscript, ',');)
     {
-        input_subscripts.push_back(input_subscript);
-    }
-
-    // check that each input subscript contains only alphabetic letter or ellipsis
-    const std::regex subscript_regex("[A-Za-z]*|[A-Za-z]*\\.\\.\\.[A-Za-z]*");
-    for (auto const& input_subscript : input_subscripts)
-    {
+        // check that input subscript contains only alphabetic letter or ellipsis
         if (std::regex_match(input_subscript, subscript_regex) == false)
         {
             return false;
         }
-    }
 
-    // figure out if ellipsis is met in input subscripts
-    const std::regex ellipsis_regex("\\.\\.\\.");
-    bool is_ellipsis_met = false;
-    std::smatch ellipsis_match;
-    for (auto const& input_subscript : input_subscripts)
-    {
+        // figure out if ellipsis is met in input subscript
         if (std::regex_search(input_subscript, ellipsis_match, ellipsis_regex) == true)
         {
             is_ellipsis_met = true;
-            break;
         }
+        input_subscripts.push_back(input_subscript);
     }
 
     if (pos_output_delimeter == std::string::npos)
@@ -110,9 +109,11 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
 
 void op::v7::Einsum::extract_labels(std::string const& subscript, std::vector<std::string>& labels)
 {
+    NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
+
     labels.clear();
     auto subscript_length = subscript.length();
-    for (size_t ch_idx = 0; ch_idx < subscript_length;)
+    for (size_t ch_idx = 0; ch_idx < subscript_length; ++ch_idx)
     {
         if (std::isalpha(subscript[ch_idx]))
         {
@@ -122,9 +123,9 @@ void op::v7::Einsum::extract_labels(std::string const& subscript, std::vector<st
                  (subscript.substr(ch_idx, 3).compare("...") == 0))
         {
             labels.push_back("...");
+            // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         }
-        ++ch_idx;
     }
 }
 
@@ -139,7 +140,7 @@ void op::v7::Einsum::validate_and_infer_types()
     // check that all inputs have the same type and the type is numeric
     const auto& input_type_0 = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_type_0 == element::f16 || input_type_0 == element::f32,
+                          input_type_0.is_real() || input_type_0.is_integral_number(),
                           "The input type for Einsum operation must be numeric.");
     for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx)
     {
