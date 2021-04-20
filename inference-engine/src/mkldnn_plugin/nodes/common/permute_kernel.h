@@ -11,12 +11,10 @@
 namespace MKLDNNPlugin {
 
 struct PermuteParams {
-    InferenceEngine::SizeVector src_dims;
     InferenceEngine::SizeVector src_block_dims;
     InferenceEngine::SizeVector src_block_order;
     InferenceEngine::SizeVector src_block_strides;
 
-    InferenceEngine::SizeVector dst_dims;
     InferenceEngine::SizeVector dst_block_dims;
     InferenceEngine::SizeVector dst_block_order;
     InferenceEngine::SizeVector dst_block_strides;
@@ -70,6 +68,7 @@ private:
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
     void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
+    jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
     PermuteParams params;
 };

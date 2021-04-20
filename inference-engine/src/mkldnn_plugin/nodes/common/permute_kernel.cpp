@@ -174,8 +174,6 @@ void PermuteKernel::prepareDefaultParams() {
 }
 
 void PermuteKernel::prepareParamsForOptimizedExecute() {
-    jit_permute_config_params jcp;
-
     SizeVector tmp_order;
     for (size_t i = 0; i < params.dst_block_order.size(); i++) {
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
@@ -263,7 +261,7 @@ void PermuteKernel::prepareParamsForOptimizedExecute() {
         }
     }
 
-    int max_threads = dnnl_get_max_threads();
+    int max_threads = parallel_get_max_threads();
     const int n_max = 3;    //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];
@@ -290,13 +288,8 @@ void PermuteKernel::prepareParamsForOptimizedExecute() {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
     }
 
-    if (permute_kernel) {
+    if (permute_kernel)
         permute_kernel->create_ker();
-    } else {
-        params.src_block_strides = sorted_src_strides;
-        params.dst_block_strides = sorted_dst_strides;
-        params.dst_block_dims = sorted_dst_dims;
-    }
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -309,8 +302,6 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
-    const auto &jcp = (*permute_kernel).jcp;
-
     SizeVector dst_dims = jcp.dst_block_dims;
     const SizeVector dst_strides = jcp.dst_strides;
     const SizeVector src_strides = jcp.src_strides;
@@ -378,10 +369,10 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
 }
 
 void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
-    SizeVector dst_dims = params.dst_block_dims;
-    const SizeVector dst_strides = params.dst_block_strides;
-    const SizeVector src_strides = params.src_block_strides;
-    const size_t data_size = params.data_size;
+    SizeVector dst_dims = jcp.dst_block_dims;
+    const SizeVector dst_strides = jcp.dst_strides;
+    const SizeVector src_strides = jcp.src_strides;
+    const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
     if (dst_dims[0] != mb)

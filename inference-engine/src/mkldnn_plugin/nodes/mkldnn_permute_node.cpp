@@ -123,13 +123,11 @@ void MKLDNNPermuteNode::createPrimitive() {
     params.order = order;
 
     auto srcDesc = getParentEdgeAt(0)->getDesc();
-    params.src_dims = srcDesc.getDims();
     params.src_block_dims = srcDesc.getBlockingDesc().getBlockDims();
     params.src_block_order = srcDesc.getBlockingDesc().getOrder();
     params.src_block_strides = srcDesc.getBlockingDesc().getStrides();
 
     auto dstDesc = getChildEdgeAt(0)->getDesc();
-    params.dst_dims = dstDesc.getDims();
     params.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
     params.dst_block_order = dstDesc.getBlockingDesc().getOrder();
     params.dst_block_strides = dstDesc.getBlockingDesc().getStrides();
