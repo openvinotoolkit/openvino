@@ -71,9 +71,10 @@ namespace ngraph
                                                                  ng_inputs.end()};
 
                     std::map<std::size_t, element::Type_t> subgraph_inputs_types_map;
-                    for (std::size_t i = 2; i < ng_inputs.size(); i++)
+                    for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++)
                     {
-                        subgraph_inputs_types_map[i] = ng_inputs[i].get_element_type();
+                        subgraph_inputs_types_map[i + 2] =
+                            loop_carried_dependencies[i].get_element_type();
                     }
 
                     const Subgraph& body_graph{
