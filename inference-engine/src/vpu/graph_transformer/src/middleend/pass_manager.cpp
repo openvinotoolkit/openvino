@@ -21,6 +21,7 @@
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
+#include <vpu/configuration/options/enable_custom_reshape_param.hpp>
 
 namespace vpu {
 
@@ -184,7 +185,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
         // for convolution in order to provide that information to "hwConvTiling" pass.
         // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
-        if (env.config.compileConfig().enableCustomReshapeParam) {
+        if (env.config.get<EnableCustomReshapeParamOption>()) {
             ADD_PASS(reshapeBeforeConvTiling);
             ADD_DUMP_PASS("reshapeBeforeConvTiling");
         }

@@ -33,8 +33,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    bool enableCustomReshapeParam = false;
-
     //
     // Deprecated options
     //

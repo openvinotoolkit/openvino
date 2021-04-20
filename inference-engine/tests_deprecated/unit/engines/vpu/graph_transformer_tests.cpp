@@ -52,6 +52,7 @@
 #include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
+#include <vpu/configuration/options/enable_custom_reshape_param.hpp>
 
 namespace vpu {
 
@@ -245,6 +246,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableForceResetOption>();
     configuration.registerOption<CheckPreprocessingInsideModelOption>();
     configuration.registerOption<EnableEarlyEltwiseReluFusionOption>();
+    configuration.registerOption<EnableCustomReshapeParamOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
