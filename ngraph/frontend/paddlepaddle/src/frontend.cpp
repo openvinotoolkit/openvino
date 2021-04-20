@@ -141,12 +141,13 @@ std::shared_ptr<Function>
                 node->set_friendly_name(first_output_var->name());
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
 
-                for (const auto& name_to_ports : op_place->getOutputPorts()) {
-                    for (size_t idx = 0; idx < name_to_ports.second.size(); ++idx) {
-                        const auto& var = name_to_ports.second[idx]->getTargetTensorPDPD()->getDesc();
-                        const auto& node_output = named_outputs.at(name_to_ports.first)[idx];
-                        node_output.get_tensor().set_names({var->name()});
-                        nodes_dict[var->name()] = node_output;
+                const auto& out_ports = op_place->getOutputPorts();
+                for (const auto& name_to_outputs : named_outputs) {
+                    const auto& ports = out_ports.at(name_to_outputs.first);
+                    for (size_t idx = 0; idx < ports.size(); ++idx) {
+                        const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
+                        name_to_outputs.second[idx].get_tensor().set_names({var->name()});
+                        nodes_dict[var->name()] = name_to_outputs.second[idx];
                     }
                 }
             }
