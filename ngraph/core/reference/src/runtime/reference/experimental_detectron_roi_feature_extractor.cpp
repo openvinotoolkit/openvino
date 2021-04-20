@@ -310,6 +310,9 @@ namespace
             }         // for c
         }
     }
+
+    constexpr size_t input_rois_port = 0;
+    constexpr size_t input_features_start = 1;
 }
 
 namespace ngraph
@@ -332,12 +335,14 @@ namespace ngraph
                 const int64_t sampling_ratio = attrs.sampling_ratio;
                 const bool aligned = attrs.aligned;
 
-                const int64_t levels_num = static_cast<int64_t>(inputs.size() - 1);
-                const int64_t num_rois = static_cast<int64_t>(input_shapes[0][0]);
-                const int64_t channels_num = static_cast<int64_t>(input_shapes[1][1]);
+                const int64_t levels_num =
+                    static_cast<int64_t>(inputs.size() - input_features_start);
+                const int64_t num_rois = static_cast<int64_t>(input_shapes[input_rois_port][0]);
+                const int64_t channels_num =
+                    static_cast<int64_t>(input_shapes[input_features_start][1]);
                 const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
 
-                const float* input_rois = inputs[0];
+                const float* input_rois = inputs[input_rois_port];
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
 
