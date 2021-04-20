@@ -62,16 +62,3 @@ class CaffeExtractor(Loader):
         )
         extract_node_attrs(graph, lambda node: caffe_extractor(node, check_for_duplicates(caffe_type_extractors)))
 
-
-class CaffePrivateExtractor(Loader):
-    id = 'CaffePrivateExtractor'
-    enabled = False
-
-    def run_after(self):
-        return [CaffeLoader]
-
-    def load(self, graph: Graph):
-        extract_node_attrs(graph, lambda node: caffe_extractor(node, {}))
-        for node in graph.get_op_nodes():
-            if node['op'].lower() in ['input']:
-                node['shape'] = dim_to_shape(node.pb.input_param.shape[0].dim)

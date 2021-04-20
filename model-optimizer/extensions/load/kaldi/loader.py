@@ -36,19 +36,3 @@ class KaldiExtractor(Loader):
     def load(self, graph: Graph):
         update_extractors_with_extensions(kaldi_type_extractors)
         extract_node_attrs(graph, lambda node: kaldi_extractor(node, kaldi_type_extractors))
-
-
-class KaldiPrivateExtractor(Loader):
-    id = 'KaldiPrivateExtractor'
-    enabled = False
-
-    def run_after(self):
-        return [KaldiLoader]
-
-    def load(self, graph: Graph):
-        extract_node_attrs(graph, lambda node: kaldi_extractor(node, {}))
-        for node in graph.get_op_nodes():
-            if node.has('value'):
-                node['shape'] = node['value'].shape
-                node['data_type'] = node.value.dtype
-                node['value'] = True

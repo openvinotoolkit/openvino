@@ -75,38 +75,3 @@ class ONNXExtractor(Loader):
         update_extractors_with_extensions(onnx_op_extractors)
         extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
 
-
-class ONNXPrivateExtractor(Loader):
-    id = 'ONNXPrivateExtractor'
-    enabled = False
-
-    def run_after(self):
-        return [ONNXLoader]
-
-    def load(self, graph: Graph):
-        extract_node_attrs(graph, lambda node: onnx_op_extractor(node, {}))
-        for node in graph.get_op_nodes():
-            # for Const
-            if node.has('pb_init'):
-                value = to_array(node.pb_init)
-                node['shape'] = int64_array(value.shape)
-                node['data_type'] = value.dtype
-                node['value'] = True
-            # for Constant
-            try:
-                pb_value = onnx_attr(node, 'value', 't')
-                if pb_value is not None:
-                    value = to_array(pb_value)
-                    node['shape'] = int64_array(value.shape)
-                    node['data_type'] = value.dtype
-                    node['value'] = True
-            except:
-                pass
-            # for Input (Parameter)
-            if node.has('pb'):
-                try:
-                    t_type = node.pb.type.tensor_type
-                    node['shape'] = int64_array([d.dim_value for d in t_type.shape.dim])
-                    node['data_type'] = TENSOR_TYPE_TO_NP_TYPE[t_type.elem_type]
-                except:
-                    pass

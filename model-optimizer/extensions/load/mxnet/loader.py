@@ -61,19 +61,3 @@ class MxNetExtractor(Loader):
         update_extractors_with_extensions(mxnet_op_extractors)
         extract_node_attrs(graph, lambda node: mxnet_op_extractor(node, mxnet_op_extractors))
 
-
-class MxNetPrivateExtractor(Loader):
-    id = 'MxNetPrivateExtractor'
-    enabled = False
-
-    def run_after(self):
-        return [MxNetLoader]
-
-    def load(self, graph: Graph):
-        extract_node_attrs(graph, lambda node: mxnet_op_extractor(node, {}))
-        for node in graph.get_op_nodes():
-            if node.soft_get('op') == 'null':
-                if node.has('symbol_dict') and 'value' in node.symbol_dict:
-                    node['value'] = True
-                    node['shape'] = node.symbol_dict['value'].shape
-                    node['data_type'] = node.symbol_dict['value'].dtype
