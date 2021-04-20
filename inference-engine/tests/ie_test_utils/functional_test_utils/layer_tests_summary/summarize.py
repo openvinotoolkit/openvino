@@ -99,7 +99,8 @@ verified_operations = [
     'Swish-4',
     'Tile-0',
     'TopK-1',
-    'TopK-3'
+    'TopK-3',
+    'Transpose-1'
 ]
 pass_rate_avg = dict()
 general_pass_rate = dict()
