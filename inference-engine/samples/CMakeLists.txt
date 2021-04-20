@@ -212,7 +212,7 @@ macro(ie_add_sample)
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
     source_group("src" FILES ${IE_SAMPLE_SOURCES})
-    if(IE_SAMPLES_HEADERS)
+    if(IE_SAMPLE_HEADERS)
         source_group("include" FILES ${IE_SAMPLE_HEADERS})
     endif()
 
@@ -257,7 +257,9 @@ macro(ie_add_sample)
     endif()
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
         add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES})
-        add_clang_format_target(${IE_SAMPLE_NAME}_headers_clang FOR_SOURCES ${IE_SAMPLE_HEADERS})
+        if(IE_SAMPLE_HEADERS)
+            add_clang_format_target(${IE_SAMPLE_NAME}_headers_clang FOR_SOURCES ${IE_SAMPLE_HEADERS})
+        endif()
     endif()
 endmacro()
 
