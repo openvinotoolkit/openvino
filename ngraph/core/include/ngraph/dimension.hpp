@@ -64,8 +64,6 @@ namespace ngraph
 
         /// \brief Return the dimension name
         const std::string& get_name() const { return m_name; }
-        /// \brief Return the dimension name
-        bool has_constant_name() const { return is_static() && m_name.empty(); }
         /// \brief Check whether this dimension represents the same scheme as the argument (both
         ///        dynamic, or equal).
         /// \param dim The other dimension to compare this dimension to.

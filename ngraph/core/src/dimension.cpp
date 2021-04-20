@@ -43,25 +43,25 @@ Dimension::Dimension(value_type min_dimension, value_type max_dimension, std::st
 
 Dimension Dimension::operator+(const Dimension& dim) const
 {
-    if (dim.m_dimension == 0 && dim.has_constant_name())
+    if (dim.m_dimension == 0 && dim.get_name().empty())
         return *this;
-    else if (m_dimension == 0 && has_constant_name())
+    else if (m_dimension == 0 && get_name().empty())
         return dim;
     return Dimension(m_dimension + dim.m_dimension);
 }
 
 Dimension Dimension::operator-(const Dimension& dim) const
 {
-    if (dim.m_dimension == 0 && dim.has_constant_name())
+    if (dim.m_dimension == 0 && dim.get_name().empty())
         return *this;
     return Dimension(m_dimension - dim.m_dimension);
 }
 
 Dimension Dimension::operator*(const Dimension& dim) const
 {
-    if (dim.m_dimension == 1 && dim.has_constant_name())
+    if (dim.m_dimension == 1 && dim.get_name().empty())
         return *this;
-    else if (m_dimension == 1 && has_constant_name())
+    else if (m_dimension == 1 && get_name().empty())
         return dim;
     return Dimension(m_dimension * dim.m_dimension);
 }
@@ -119,16 +119,10 @@ std::string broadcast_dimensions_name(const Dimension& d1, const Dimension& d2)
     {
         const auto& name_1 = d1.get_name();
         const auto& name_2 = d2.get_name();
-        if (name_1 == name_2 || (name_2.empty() && !d1.has_constant_name()))
+        if (name_1 == name_2 || (!name_1.empty() && name_2.empty()))
             name = name_1;
-        else if (name_1.empty() && !d2.has_constant_name())
+        else if (name_1.empty() && !name_2.empty())
             name = name_2;
-        else if (d1.has_constant_name() && d2.has_constant_name())
-            name = name_1; // + '&' + name_2;
-        else if (d1.has_constant_name() && !d2.has_constant_name())
-            name = name_2;
-        else if (!d1.has_constant_name() && d2.has_constant_name())
-            name = name_1;
         return name;
     }
 

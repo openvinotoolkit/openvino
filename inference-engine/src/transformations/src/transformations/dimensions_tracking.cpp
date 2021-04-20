@@ -23,7 +23,7 @@ void mark_batch(ngraph::opset1::Parameter* parameter, const std::set<std::string
         auto dim_name = dim.get_name();
         if (batches.count(dim_name)) {
             dim_name = "BATCH_" + dim_name;
-        } else if (dim_name.find("BATCH_") != std::string::npos && batches.count(dim_name.substr(dim_name.find("BATCH_")))) { // already marked as batch
+        } else if (dim_name.rfind("BATCH_", 0) == 0 && !batches.count(dim_name.substr(6))) { // skip dims already marked as batch
             dim_name = "";
         }
         dim = ngraph::Dimension(dim.get_min_length(), dim.get_max_length(), dim_name);
@@ -51,8 +51,7 @@ void mark_layout_independent_batch(ngraph::opset1::Parameter* parameter, ngraph:
 void mark_no_batch(ngraph::op::Parameter* parameter) {
     auto &shape = parameter->get_partial_shape();
     for (auto &dim : shape) {
-        const auto &dim_name = dim.get_name();
-        dim = ngraph::Dimension(dim.get_min_length(), dim.get_max_length(), "NOT_A_BATCH_" + dim_name);
+        dim = ngraph::Dimension(dim.get_min_length(), dim.get_max_length(), "");
     }
     parameter->set_partial_shape(shape);
 }

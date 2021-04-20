@@ -140,3 +140,27 @@ TEST(TransformationTests, BatchForSplittedNetwork_2) {
     ASSERT_TRUE(data->get_partial_shape()[2].get_name().empty()) << data->get_partial_shape();
     ASSERT_TRUE(data->get_partial_shape()[3].get_name().empty()) << data->get_partial_shape();
 }
+
+TEST(TransformationTests, BatchForTwoConvNetwork) {
+    const auto& data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
+
+    const auto& filters = std::make_shared<opset6::Constant>(element::f32, Shape{1, 4, 3, 3});
+    const auto& conv_0 = std::make_shared<opset6::Convolution>(
+            data, filters, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+
+    const auto& conv_1 = std::make_shared<opset6::Convolution>(
+            data, filters, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+
+    const auto& f = std::make_shared<Function>(NodeVector{conv_0, conv_1}, ParameterVector{data});
+
+    pass::Manager m;
+    m.register_pass<pass::InitNodeInfo>();
+    m.register_pass<pass::FindBatch>();
+    m.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+
+    ASSERT_TRUE(data->get_partial_shape()[0].get_name() == "BATCH_DIM_0") << data->get_partial_shape();
+    ASSERT_TRUE(data->get_partial_shape()[1].get_name().empty()) << data->get_partial_shape();
+    ASSERT_TRUE(data->get_partial_shape()[2].get_name().empty()) << data->get_partial_shape();
+    ASSERT_TRUE(data->get_partial_shape()[3].get_name().empty()) << data->get_partial_shape();
+}
