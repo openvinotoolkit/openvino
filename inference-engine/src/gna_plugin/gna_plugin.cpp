@@ -709,7 +709,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<InsertIdentityToLSTMCellPass>();
+        // passes->registerPass<InsertIdentityToLSTMCellPass>();
         passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
