@@ -138,60 +138,36 @@ private:
     Xbyak::Xmm xmm = Xbyak::Xmm(0);
 };
 
-PermuteKernel::PermuteKernel(const PermuteParams& params, const bool areDefault) : params(params) {
-    if (!areDefault)
-        prepareDefaultParams();
-
-    prepareParamsForOptimizedExecute();
+PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
+    prepareParams();
 }
 
-void PermuteKernel::prepareDefaultParams() {
-    const size_t nDims = params.src_block_dims.size();
-    if (nDims != params.order.size())
-        IE_THROW() << "SrcBlockDims and order must have the same size for permutation preparing params";
+void PermuteKernel::prepareParams() {
+    SizeVector src_block_strides(params.src_block_dims.size(), 1);
+    SizeVector dst_block_strides(params.dst_block_dims.size(), 1);
+    for (int i = params.src_block_dims.size() - 2; i >= 0; i--)
+        src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
+    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
+        dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
 
-    params.dst_block_dims.resize(nDims);
-    for (size_t i = 0; i < nDims; i++)
-        params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
+    SizeVector new_dst_block_strides = dst_block_strides;
+    SizeVector new_dst_block_order = params.dst_block_order;
+    SizeVector new_dst_block_dims = params.dst_block_dims;
+    SizeVector new_src_block_strides(dst_block_strides.size());
+    SizeVector mask(dst_block_strides.size());
 
-    params.src_block_order.resize(nDims);
-    params.dst_block_order.resize(nDims);
-    for (size_t i = 0; i < nDims; i++) {
-        params.src_block_order[i] = i;
-        params.dst_block_order[i] = i;
-    }
-
-    params.src_block_strides.resize(nDims);
-    params.dst_block_strides.resize(nDims);
-    params.src_block_strides[nDims - 1] = 1;
-    params.dst_block_strides[nDims - 1] = 1;
-    for (int i = nDims - 2; i >= 0; i--) {
-        params.src_block_strides[i] =
-                params.src_block_strides[i + 1] * params.src_block_dims[i + 1];
-        params.dst_block_strides[i] =
-                params.dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
-    }
-}
-
-void PermuteKernel::prepareParamsForOptimizedExecute() {
     SizeVector tmp_order;
     for (size_t i = 0; i < params.dst_block_order.size(); i++) {
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
     }
 
-    SizeVector new_dst_block_strides = params.dst_block_strides;
-    SizeVector new_dst_block_order = params.dst_block_order;
-    SizeVector new_dst_block_dims = params.dst_block_dims;
-    SizeVector new_src_block_strides(params.dst_block_strides.size());
-    SizeVector mask(params.dst_block_strides.size());
-
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
         int pos = std::distance(std::find(
                 params.src_block_order.rbegin(), params.src_block_order.rend(), tmp_order[i]), params.src_block_order.rend() - 1);
         if (pos != -1) {
-            new_src_block_strides[i] = params.src_block_strides[pos];
+            new_src_block_strides[i] = src_block_strides[pos];
             params.src_block_order.erase(params.src_block_order.begin() + pos);
-            params.src_block_strides.erase(params.src_block_strides.begin() + pos);
+            src_block_strides.erase(src_block_strides.begin() + pos);
             mask[i] = 0;
         } else {
             new_src_block_strides[i] = new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
@@ -202,7 +178,7 @@ void PermuteKernel::prepareParamsForOptimizedExecute() {
     if (!params.src_block_order.empty()) {
         int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), params.src_block_order[0]));
         new_src_block_strides.insert(new_src_block_strides.begin() + pos,
-                                     params.src_block_strides[0]);
+                                     src_block_strides[0]);
         new_dst_block_strides.insert(new_dst_block_strides.begin() + pos,
                                   new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
         new_dst_block_order.insert(new_dst_block_order.begin() + pos,
@@ -210,8 +186,6 @@ void PermuteKernel::prepareParamsForOptimizedExecute() {
         new_dst_block_dims.insert(new_dst_block_dims.begin() + pos + 1,
                                   params.src_block_dims[params.src_block_dims.size() - 1]);
         new_dst_block_dims[pos] = div_up(new_dst_block_dims[pos], new_dst_block_dims[pos + 1]);
-        params.src_block_order.erase(params.src_block_order.begin());
-        params.src_block_strides.erase(params.src_block_strides.begin());
         mask.insert(mask.begin() + pos + 1, 1);
         mask[pos] = 1;
     }

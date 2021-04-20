@@ -150,6 +150,9 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
     params.order.resize(reshapedRank, 0);
+    params.src_block_order.resize(nDims);
+    params.dst_block_order.resize(nDims);
+    params.dst_block_dims.resize(nDims);
     params.src_block_dims.resize(reshapedRank);
     params.src_block_dims[0] = srcDims[0];
 
@@ -221,7 +224,12 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
         reshapeAndSetPermOrder(nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, srcDims);
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params, false));
+    std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
+    std::iota(params.dst_block_order.begin(), params.dst_block_order.end(), 0);
+    for (size_t i = 0; i < nDims; i++)
+        params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
+
+    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
 void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
