@@ -5,6 +5,7 @@
 #include <regex>
 #include <algorithm>
 #include "../include/partial_shape.hpp"
+#include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -17,10 +18,7 @@ std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamIn
     for (auto s : part.m_newPartialShape) {
         res += "_" + std::to_string(s);
     }
-    // need to replace special characters to create valid test case name
-    // GCC 4.8 limitation, need to use std::string("_")
-    res = std::regex_replace(res, std::regex("[/\\.]"), std::string("_"));
-    return res;
+    return FrontEndTestUtils::fileToTestName(res);
 }
 
 void FrontEndPartialShapeTest::SetUp() {
