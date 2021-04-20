@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,29 +9,12 @@
 #include <tuple>
 #include <vector>
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/batch_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 
-using batchToSpaceParamsTuple = typename std::tuple<
-        std::vector<size_t>,               // block shape
-        std::vector<size_t>,               // crops begin
-        std::vector<size_t>,               // crops end
-        std::vector<size_t>,               // Input shapes
-        InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        std::string>;                      // Device name>;
-
-class BatchToSpaceLayerTest : public testing::WithParamInterface<batchToSpaceParamsTuple>,
-                              virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj);
-
-protected:
-    void SetUp() override;
+TEST_P(BatchToSpaceLayerTest, CompareWithRefs) {
+    Run();
 };
 
 }  // namespace LayerTestsDefinitions

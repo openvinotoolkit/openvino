@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,3 +13,7 @@ add_library(
     ${SRC_FILES})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+if(ENABLE_FUZZING)
+    target_compile_definitions(${TARGET_NAME} PRIVATE WITH_LIBFUZZER)
+endif()

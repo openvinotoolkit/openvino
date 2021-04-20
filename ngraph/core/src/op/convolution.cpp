@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/convolution.hpp"
+#include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -46,6 +35,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
 
 bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Convolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -56,26 +46,11 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Convolution::validate_and_infer_types()
 {
-    const PartialShape& data_batch_shape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
+    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& filters_shape = get_input_partial_shape(1);
+    const PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
-
-    PartialShape result_shape = PartialShape::dynamic();
-    if (data_batch_shape.rank().is_static())
-    {
-        result_shape =
-            std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
-
-        if (data_batch_shape.rank().get_length() > 1)
-        {
-            result_shape[0] = data_batch_shape[0]; // batch size
-        }
-        if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
-        {
-            result_shape[1] = filters_shape[0]; // filter channel size
-        }
-    }
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(
@@ -87,64 +62,26 @@ void op::v1::Convolution::validate_and_infer_types()
         filters_et,
         ").");
 
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element types must be numeric. Got: ",
+                          result_et);
 
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_begin = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_end = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        bool auto_padding_applied = false;
-        if (filters_shape.is_static())
-        {
-            m_pads_begin.clear();
-            m_pads_end.clear();
-            auto filter_shape = filters_shape.to_shape();
-            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
-                                                          filter_shape,
-                                                          m_strides,
-                                                          m_dilations,
-                                                          m_auto_pad,
-                                                          m_pads_end,
-                                                          m_pads_begin);
-        }
-        if (!auto_padding_applied)
-        {
-            set_output_type(0, result_et, result_shape);
-            return;
-        }
-    }
-
-    result_shape = infer_convolution_forward(this,
-                                             data_batch_shape,
-                                             Strides(m_strides.size(), 1), // dummy data dilations
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             filters_shape,
-                                             m_strides,
-                                             m_dilations);
-
+    PartialShape result_shape =
+        validate_and_infer_convolution_forward_output_shape(this,
+                                                            data_batch_pshape,
+                                                            filters_pshape,
+                                                            m_auto_pad,
+                                                            m_strides,
+                                                            m_dilations,
+                                                            m_pads_begin,
+                                                            m_pads_end);
     set_output_type(0, result_et, result_shape);
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Convolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Convolution>(new_args.at(0),
                                         new_args.at(1),
@@ -183,6 +120,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
 
 bool op::v1::ConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -216,7 +154,7 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic)
     {
-        return !is_type<op::Constant>(input_value(2).get_node());
+        return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
 }
@@ -237,7 +175,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
+        if (auto const_op = get_constant_from_source(input_value(2)))
         {
             shape = const_op->get_shape_val();
         }
@@ -291,6 +229,7 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
 
 void op::v1::ConvolutionBackpropData::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
     auto data_pshape = get_input_partial_shape(0);
     element::Type delta_et = get_input_element_type(0);
     const PartialShape& filters_pshape = get_input_partial_shape(1);
@@ -335,15 +274,15 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         const auto num_spatial_dims = data_pshape.rank().get_length() - 2;
 
         NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_strides.size()) == num_spatial_dims,
                               "Strides should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
-                              m_dilations.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_dilations.size()) == num_spatial_dims,
                               "Dilations should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
-                              m_output_padding.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_output_padding.size()) == num_spatial_dims,
                               "Output padding should be defined for all and only "
                               "spatial features.");
     }
@@ -432,6 +371,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
 shared_ptr<Node>
     op::v1::ConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3)
     {

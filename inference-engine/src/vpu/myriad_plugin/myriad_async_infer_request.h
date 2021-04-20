@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
                                 const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult);
 
-    ~MyriadAsyncInferRequest() override;
+    ~MyriadAsyncInferRequest();
 private:
     MyriadInferRequest::Ptr _request;
     InferenceEngine::ITaskExecutor::Ptr _taskExecutorGetResult;

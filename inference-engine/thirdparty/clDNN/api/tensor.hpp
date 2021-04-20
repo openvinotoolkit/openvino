@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -120,8 +108,10 @@ struct format {
 
         // Weights formats
         oiyx,                                         ///< the most common format for 2D weights
+        ioyx,                                         ///< 2D weights format for deconvolutions
         yxio,                                         ///< format used 2D weights
         oizyx,                                        ///< the most common format for 3D convolution
+        iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         os_iyx_osv16,                                 ///< format used only for convolution weights:
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
@@ -160,6 +150,8 @@ struct format {
                                                       ///< convolution, F(6,3) -- filter 3x3 with stride 1
         os_is_yx_isa8_osv8_isv4,                      ///< format for weights for MMAD convolution
         os_is_zyx_isa8_osv8_isv4,                     ///< format for weights for MMAD convolution
+        os_is_yx_isa8_osv16_isv4,                     ///< format for weights for fully connected MMAD
+        os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
         os_is_yx_isa8_osv8_isv4_swizzled_by_4,        ///< format for weights for MMAD convolution
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
@@ -183,9 +175,11 @@ struct format {
         os_i_yxs_osv4_yxsv4,
 
         goiyx,                                        ///< format used for weights for 2D convolution
+        gioyx,                                        ///< format used for weights for 2D deconvolution
         yxiog,                                        ///< format used for weights for 2D convolution
         gyxio,                                        ///< format used for weights for 2D convolution
         goizyx,                                       ///< format used for weights for 3D convolution
+        giozyx,                                       ///< format used for weights for 3D deconvolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
@@ -251,9 +245,11 @@ struct format {
                 { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
                 { oiyx,                                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {}}},
+                { ioyx,                                        { 1, 1, 2, 0, 0, "ioyx",   "oixy",       {}}},
                 { iyxo,                                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {}}},
                 { yxio,                                        { 1, 1, 2, 0, 0, "yxio",   "oixy?",      {}}},
                 { oizyx,                                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {}}},
+                { iozyx,                                       { 1, 1, 3, 0, 0, "iozyx",  "oixyz",      {}}},
                 { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
                 { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 16}}}},
                 { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}}}},
@@ -267,8 +263,10 @@ struct format {
                 { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {}}},
                 { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv16_isv4,                    { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
+                { os_is_zyx_isa8_osv16_isv4,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 4}}}},
                 { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
                 { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {{1, 32}}}},
@@ -298,7 +296,9 @@ struct format {
                 { os_i_yxs_osv4_yxsv4,                         { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 4}}}},
 
                 { goiyx,                                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {}}},
+                { gioyx,                                       { 1, 1, 2, 0, 1, "gioyx",  "oixy????g",  {}}},
                 { goizyx,                                      { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {}}},
+                { giozyx,                                      { 1, 1, 3, 0, 1, "giozyx", "oixyz???g",  {}}},
                 { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 16}}}},
                 { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}}}},
                 { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
@@ -323,9 +323,12 @@ struct format {
                 { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
                 { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
                 { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{0, 16}}}},
-                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
-                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
+                { giy_xs_os_xsv2_osv8__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
+                { giy_xs_os_xsv2_osv16__ao32,                  { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
         };
+        if (traits.find(fmt) == traits.end()) {
+            throw std::runtime_error("[clDNN] Format description is missing in fmt traits");
+        }
         return traits.at(fmt);
     }
 
@@ -374,6 +377,12 @@ struct format {
             }
         }
         return false;
+    }
+    /// @brief Checks if @p format is simple data format
+    static bool is_simple_data_format(type fmt) {
+        return (fmt == yxfb || fmt == byxf ||
+                fmt == bfyx || fmt == fyxb ||
+                fmt == bfzyx || fmt == bfwzyx);
     }
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
@@ -600,13 +609,13 @@ public:
      *
      * @endcode
      */
-    tensor(value_type batch_num, value_type feature_num, value_type width, value_type height)
+    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y)
         : tensor(1) {
         _sizes[0] = batch_num;
         _sizes[tensor_batch_dim_max] = feature_num;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = width;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = height;
-        if (batch_num == 0 && feature_num == 0 && width == 0 && height == 0)
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = y;
+        if (batch_num == 0 && feature_num == 0 && x == 0 && y == 0)
             _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 2] = 0;
     }
 
@@ -614,7 +623,7 @@ public:
     /// @details Example:
     /*! @code
     *
-    tensor my_tensor( 2, 3, 4, 5, 6 );   // b=2, f=3, x=4, y=5, z =6
+    tensor my_tensor( 2, 3, 4, 5, 6 );   // b=2, f=3, x=4, y=5, z=6
     cout << my_tensor.batch[0] << endl;           // 2
     cout << my_tensor.feature[0] << endl;         // 3
     cout << "x=" << my_tensor.spatial[0] << endl; // x=4
@@ -623,38 +632,37 @@ public:
     *
     * @endcode
     */
-    tensor(value_type batch_num, value_type feature_num, value_type width, value_type height, value_type depth)
+    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y, value_type z)
         : tensor(1) {
         _sizes[0] = batch_num;
         _sizes[tensor_batch_dim_max] = feature_num;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = width;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = height;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 2] = depth;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = y;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 2] = z;
     }
 
     /// @brief Constructs @p tensor.
     /// @details Example:
     /*! @code
     *
-    tensor my_tensor( 2, 3, 4, 5, 6, 7 );   // b=2, f=3, x=4, y=5, lx= 6, ly =7
+    tensor my_tensor( 2, 3, 4, 5, 6, 7 );   // b=2, f=3, x=4, y=5, z=6, w=7
     cout << my_tensor.batch[0] << endl;           // 2
     cout << my_tensor.feature[0] << endl;         // 3
     cout << "x=" << my_tensor.spatial[0] << endl; // x=4
     cout << "y=" << my_tensor.spatial[1] << endl; // y=5
-    cout << "local x=" << my_tensor.local[0] << endl; // local x=6
-    cout << "loxal y=" << my_tensor.local[1] << endl; // local y=7
+    cout << "z=" << my_tensor.spatial[2] << endl; // z=6
+    cout << "w=" << my_tensor.spatial[3] << endl; // w=7
     *
     * @endcode
     */
-    tensor(value_type batch_num, value_type feature_num, value_type width,
-           value_type height, value_type local_x, value_type local_y)
+    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y, value_type z, value_type w)
         : tensor(1) {
         _sizes[0] = batch_num;
         _sizes[tensor_batch_dim_max] = feature_num;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = width;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = height;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max] = local_x;
-        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + 1] = local_y;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = y;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 2] = z;
+        _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 3] = w;
     }
 
     /// @brief Constructs @p tensor using vector of sizes.
@@ -983,6 +991,13 @@ public:
             my_sizes[0] = align_to(my_sizes[0], 8);
             my_sizes[1] = align_to(my_sizes[1], 32);
             adjusted_coords[0] = align_to(adjusted_coords[0], 8);
+            adjusted_coords[1] = align_to(adjusted_coords[1], 32);
+        } else if (fmt == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
+                   !(is_aligned_to(my_sizes[0], 16)) &&
+                   !(is_aligned_to(my_sizes[1], 32))) {
+            my_sizes[0] = align_to(my_sizes[0], 16);
+            my_sizes[1] = align_to(my_sizes[1], 32);
+            adjusted_coords[0] = align_to(adjusted_coords[0], 16);
             adjusted_coords[1] = align_to(adjusted_coords[1], 32);
         } else if (fmt == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(my_sizes[0], 32)) && !(is_aligned_to(my_sizes[1], 32))) {
             my_sizes[0] = align_to(my_sizes[0], 32);

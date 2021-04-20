@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@
 #include <future>
 #include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <ie_core.hpp>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -122,20 +122,12 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::IInferRequest::Ptr req = static_cast<InferenceEngine::IInferRequest::Ptr &>(execNet.CreateInferRequest());
-    req->SetCompletionCallback(
-            [](InferenceEngine::IInferRequest::Ptr, InferenceEngine::StatusCode status) {
-                THROW_IE_EXCEPTION << "returnGeneralErrorIfCallbackThrowException";
-            });
+    auto req = execNet.CreateInferRequest();
+    req.SetCompletionCallback([] {
+        IE_THROW(GeneralError);
+    });
 
-    InferenceEngine::ResponseDesc resp;
-    req->StartAsync(&resp);
-    InferenceEngine::StatusCode waitStatus = InferenceEngine::StatusCode::INFER_NOT_STARTED;
-    while (InferenceEngine::StatusCode::RESULT_NOT_READY == waitStatus ||
-           InferenceEngine::StatusCode::INFER_NOT_STARTED == waitStatus) {
-        waitStatus = req->Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY, &resp);
-    }
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
-    ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
 }  // namespace BehaviorTestsDefinitions

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,11 @@ public:
     explicit PriorBoxImpl(const CNNLayer *layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
                     layer->insData[1].lock()->getTensorDesc().getDims().size() != 4)
-                THROW_IE_EXCEPTION << "PriorBox supports only 4D blobs!";
+                IE_THROW() << "PriorBox supports only 4D blobs!";
 
             _offset = layer->GetParamAsFloat("offset");
             _step = layer->GetParamAsFloat("step", 0);
@@ -55,7 +55,7 @@ public:
                 exist = false;
 
                 if (std::fabs(aspect_ratio) < std::numeric_limits<float>::epsilon()) {
-                    THROW_IE_EXCEPTION << "aspect_ratio param can't be equal to zero";
+                    IE_THROW() << "aspect_ratio param can't be equal to zero";
                 }
 
                 for (float _aspect_ratio : _aspect_ratios) {
@@ -105,7 +105,7 @@ public:
             if (variance.size() == 1 || variance.size() == 4) {
                 for (float i : variance) {
                     if (i < 0) {
-                        THROW_IE_EXCEPTION << "Variance must be > 0.";
+                        IE_THROW() << "Variance must be > 0.";
                     }
 
                     _variance.push_back(i);
@@ -113,11 +113,11 @@ public:
             } else if (variance.empty()) {
                 _variance.push_back(0.1f);
             } else {
-                THROW_IE_EXCEPTION << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
+                IE_THROW() << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
             }
 
-            addConfig(layer, {{ConfLayout::ANY, true}, {ConfLayout::ANY, true}}, {{ConfLayout::PLN, true}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(layer, {{ConfLayout::ANY, true}, {ConfLayout::ANY, true}}, {{ConfLayout::PLN, true, -1, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@
 #include <low_precision/transpose.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/transpose_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/transpose_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -105,6 +105,30 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { {128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true },
+                {0.1f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { {128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true },
+                {0.1f}
+            }
+        }
+    },
+    // U8: per-tensor quantization
+    {
+        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 0, 1, 3, 2},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
             {{ngraph::element::f32}, {128}, {0.1f}}
         },
         {
@@ -179,7 +203,7 @@ TEST_P(TransposeTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     TransposeTransformation,
     ::testing::ValuesIn(testValues),
     TransposeTransformation::getTestCaseName);

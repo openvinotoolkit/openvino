@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <string>
@@ -23,8 +11,6 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -69,7 +55,7 @@ TEST(copy, acos)
 
 TEST(copy, add)
 {
-    ASSERT_TRUE(check_binary<op::Add>());
+    ASSERT_TRUE(check_binary<op::v1::Add>());
 }
 
 TEST(copy, asin)
@@ -121,7 +107,7 @@ TEST(copy, concat)
     auto arg1 = make_shared<op::Parameter>(element::f32, shape);
     OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
                           make_shared<op::Parameter>(element::f32, shape)};
-    size_t axis = 0;
+    int64_t axis = 0;
     auto node = make_shared<op::Concat>(NodeVector{arg0, arg1}, axis);
     auto new_node = node->clone_with_new_inputs(new_args);
     auto node_cast = as_type_ptr<op::Concat>(new_node);
@@ -177,17 +163,12 @@ TEST(copy, cosh)
 
 TEST(copy, divide)
 {
-    ASSERT_TRUE(check_binary<op::Divide>());
-}
-
-TEST(copy, dot)
-{
-    ASSERT_TRUE(check_binary<op::Dot>());
+    ASSERT_TRUE(check_binary<op::v1::Divide>());
 }
 
 TEST(copy, equal)
 {
-    ASSERT_TRUE(check_binary<op::Equal>());
+    ASSERT_TRUE(check_binary<op::v1::Equal>());
 }
 
 TEST(copy, exp)
@@ -202,22 +183,22 @@ TEST(copy, floor)
 
 TEST(copy, greater_eq)
 {
-    ASSERT_TRUE(check_binary<op::GreaterEq>());
+    ASSERT_TRUE(check_binary<op::v1::GreaterEqual>());
 }
 
 TEST(copy, greater)
 {
-    ASSERT_TRUE(check_binary<op::Greater>());
+    ASSERT_TRUE(check_binary<op::v1::Greater>());
 }
 
 TEST(copy, less_eq)
 {
-    ASSERT_TRUE(check_binary<op::LessEq>());
+    ASSERT_TRUE(check_binary<op::v1::LessEqual>());
 }
 
 TEST(copy, less)
 {
-    ASSERT_TRUE(check_binary<op::Less>());
+    ASSERT_TRUE(check_binary<op::v1::Less>());
 }
 
 TEST(copy, log)
@@ -227,17 +208,17 @@ TEST(copy, log)
 
 TEST(copy, maximum)
 {
-    ASSERT_TRUE(check_binary<op::Maximum>());
+    ASSERT_TRUE(check_binary<op::v1::Maximum>());
 }
 
 TEST(copy, minimum)
 {
-    ASSERT_TRUE(check_binary<op::Minimum>());
+    ASSERT_TRUE(check_binary<op::v1::Minimum>());
 }
 
 TEST(copy, multiply)
 {
-    ASSERT_TRUE(check_binary<op::Multiply>());
+    ASSERT_TRUE(check_binary<op::v1::Multiply>());
 }
 
 TEST(copy, negative)
@@ -247,7 +228,7 @@ TEST(copy, negative)
 
 TEST(copy, not_equal)
 {
-    ASSERT_TRUE(check_binary<op::NotEqual>());
+    ASSERT_TRUE(check_binary<op::v1::NotEqual>());
 }
 
 TEST(copy, parameter)
@@ -265,26 +246,46 @@ TEST(copy, parameter)
 
 TEST(copy, power)
 {
-    ASSERT_TRUE(check_binary<op::Power>());
+    ASSERT_TRUE(check_binary<op::v1::Power>());
+}
+
+TEST(copy, reduce_sum)
+{
+    Shape shape{4, 3};
+    AxisSet axes{1};
+    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
+
+    auto axes_node = op::Constant::create(element::i64, {axes.size()}, axes.to_vector());
+    auto node = make_shared<op::v1::ReduceSum>(arg0, axes_node, true);
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
+                          op::Constant::create(element::i64, {axes.size()}, axes.to_vector())};
+    auto new_node = node->clone_with_new_inputs(new_args);
+    auto node_cast = as_type_ptr<op::v1::ReduceSum>(new_node);
+    ASSERT_NE(node_cast, nullptr);
+
+    ASSERT_TRUE(nullptr != new_node);
+    ASSERT_TRUE(new_args == new_node->input_values());
+    ASSERT_TRUE(axes == node_cast->get_reduction_axes());
+    ASSERT_TRUE(true == node_cast->get_keep_dims());
 }
 
 TEST(copy, reshape)
 {
     Shape shape_in{2, 3, 4};
-    AxisVector axes{0, 1, 2};
     Shape shape_out{6, 4};
 
     auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in),
+                          op::Constant::create(element::u64, {shape_out.size()}, shape_out)};
 
-    auto node = make_shared<op::Reshape>(arg0, axes, shape_out);
+    auto shape_pattern = op::Constant::create(element::u64, {shape_out.size()}, shape_out);
+    auto node = make_shared<op::v1::Reshape>(arg0, shape_pattern, false);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Reshape>(new_node);
+    auto node_cast = as_type_ptr<op::v1::Reshape>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(axes == node_cast->get_input_order());
     ASSERT_TRUE(shape_out == node_cast->get_output_shape(0));
 }
 
@@ -298,9 +299,9 @@ TEST(copy, select)
                           make_shared<op::Parameter>(element::f32, shape),
                           make_shared<op::Parameter>(element::f32, shape)};
 
-    auto node = make_shared<op::Select>(arg0, arg1, arg2);
+    auto node = make_shared<op::v1::Select>(arg0, arg1, arg2);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Select>(new_node);
+    auto node_cast = as_type_ptr<op::v1::Select>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -322,7 +323,7 @@ TEST(copy, sinh)
     ASSERT_TRUE(check_unary<op::Sinh>());
 }
 
-TEST(copy, slice)
+TEST(copy, strided_slice)
 {
     Shape shape_in{2, 3, 4};
     Coordinate lower{0, 0, 0};
@@ -330,41 +331,44 @@ TEST(copy, slice)
     Strides strides{1, 1, 1};
 
     auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in),
+                          op::Constant::create(element::u64, {lower.size()}, lower),
+                          op::Constant::create(element::u64, {upper.size()}, upper),
+                          op::Constant::create(element::i64, {strides.size()}, strides)};
 
-    auto node = make_shared<op::Slice>(arg0, lower, upper, strides);
+    auto begin_node = op::Constant::create(element::i64, {lower.size()}, lower);
+    auto end_node = op::Constant::create(element::i64, {upper.size()}, upper);
+    auto strides_node = op::Constant::create(element::i64, {strides.size()}, strides);
+    auto node = make_shared<op::v1::StridedSlice>(arg0,
+                                                  begin_node,
+                                                  end_node,
+                                                  strides_node,
+                                                  std::vector<int64_t>{0, 0, 1},
+                                                  std::vector<int64_t>{1, 0, 0},
+                                                  std::vector<int64_t>{0, 1, 0},
+                                                  std::vector<int64_t>{0, 0, 1},
+                                                  std::vector<int64_t>{1, 0, 0});
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Slice>(new_node);
+    auto node_cast = as_type_ptr<op::v1::StridedSlice>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(lower == node_cast->get_lower_bounds());
-    ASSERT_TRUE(upper == node_cast->get_upper_bounds());
-    ASSERT_TRUE(strides == node_cast->get_strides());
+    std::vector<int64_t> expected_begin_mask{0, 0, 1};
+    std::vector<int64_t> expected_end_mask{1, 0, 0};
+    std::vector<int64_t> expected_new_axis_mask{0, 1, 0};
+    std::vector<int64_t> expected_shrink_axis_mask{0, 0, 1};
+    std::vector<int64_t> expected_ellipsis_mask{1, 0, 0};
+    ASSERT_TRUE(expected_begin_mask == node_cast->get_begin_mask());
+    ASSERT_TRUE(expected_end_mask == node_cast->get_end_mask());
+    ASSERT_TRUE(expected_new_axis_mask == node_cast->get_new_axis_mask());
+    ASSERT_TRUE(expected_shrink_axis_mask == node_cast->get_shrink_axis_mask());
+    ASSERT_TRUE(expected_ellipsis_mask == node_cast->get_ellipsis_mask());
 }
 
 TEST(copy, subtract)
 {
-    ASSERT_TRUE(check_binary<op::Subtract>());
-}
-
-TEST(copy, sum)
-{
-    Shape shape{4, 3};
-    AxisSet axes{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-
-    auto node = make_shared<op::Sum>(arg0, axes);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
-                          node->input_value(1).get_node_shared_ptr()};
-    auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Sum>(new_node);
-    ASSERT_NE(node_cast, nullptr);
-
-    ASSERT_TRUE(nullptr != new_node);
-    ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(axes == node_cast->get_reduction_axes());
+    ASSERT_TRUE(check_binary<op::v1::Subtract>());
 }
 
 TEST(copy, tan)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
     explicit BucketizeImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
             }
 
             // check one attribute
@@ -30,40 +30,37 @@ public:
 
             auto input = layer->insData[INPUT_TENSOR_PORT].lock();
             if (!input) {
-                THROW_IE_EXCEPTION << "Missing input for " << layer->name << " layer";
+                IE_THROW() << "Missing input for " << layer->name << " layer";
             }
             auto boundaries = layer->insData[INPUT_BINS_PORT].lock();
             if (!boundaries) {
-                THROW_IE_EXCEPTION << "Missing boundaries input for " << layer->name << " layer";
+                IE_THROW() << "Missing boundaries input for " << layer->name << " layer";
             }
 
             // check precisions for input and output tensors
             input_precision = input->getTensorDesc().getPrecision();
             if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
                 input_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect input precision of the input. Only FP32, I32 and I64 are supported!";
+                input_precision = Precision::FP32;
             }
             boundaries_precision = boundaries->getTensorDesc().getPrecision();
             if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
                 boundaries_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect input precision of the boundaries tensor. Only FP32, I32 and I64 are supported!";
+                boundaries_precision = Precision::FP32;
             }
             output_precision = layer->outData[OUTPUT_TENSOR_PORT]->getTensorDesc().getPrecision();
             if (output_precision != Precision::I32 && output_precision != Precision::I64) {
-                THROW_IE_EXCEPTION << layer->name
-                    << " Incorrect precision of the output tensor. Only I32 and I64 are supported!";
+                output_precision = Precision::I32;
             }
 
             // check dimensions of input tensors
             SizeVector input_tensor_dims = input->getTensorDesc().getDims();
             if (input_tensor_dims.size() < 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions of the input.";
+                IE_THROW() << layer->name << " Incorrect dimensions of the input.";
             }
             SizeVector input_bin_dims = boundaries->getTensorDesc().getDims();
             if (input_bin_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions of the boundaries tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions of the boundaries tensor.";
             }
             if (input_bin_dims[0] != 0) {
                 with_bins = true;
@@ -73,10 +70,10 @@ public:
             num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), 1, std::multiplies<size_t>());
 
             addConfig(layer,
-            { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-            { DataConfigurator(ConfLayout::PLN) });
+            { DataConfigurator(ConfLayout::PLN, input_precision), DataConfigurator(ConfLayout::PLN, boundaries_precision) },
+            { DataConfigurator(ConfLayout::PLN, output_precision) });
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

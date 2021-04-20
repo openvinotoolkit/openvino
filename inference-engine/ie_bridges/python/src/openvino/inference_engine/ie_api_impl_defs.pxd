@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from libc.stddef cimport size_t
 from libcpp cimport bool
 from libcpp.string cimport string
@@ -175,6 +178,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
+        string getOVNameForTensor(const string &) except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
@@ -197,6 +201,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IENetwork readNetwork(const string& modelPath, const string& binPath) except +
         IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
+                                              const map[string, string] & config, int num_requests) except +
+        unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
                                               const map[string, string] & config, int num_requests) except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +

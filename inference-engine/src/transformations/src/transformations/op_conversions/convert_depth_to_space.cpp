@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 
 #include <memory>
@@ -14,9 +15,10 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
 
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
+    MATCHER_SCOPE(ConvertDepthToSpace);
     auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
@@ -100,6 +102,6 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, "ConvertDepthToSpace");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, matcher_name);
     this->register_matcher(m, callback);
 }

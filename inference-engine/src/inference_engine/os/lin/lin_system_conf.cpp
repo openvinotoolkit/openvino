@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <sched.h>
 #include "ie_system_conf.h"
 #include "ie_parallel.hpp"
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
 #include <numeric>
 
 
@@ -72,7 +72,7 @@ int getNumberOfCPUCores() {
 
     sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
 
-    for (int processorId = 0; processorId < numberOfProcessors; processorId++) {
+    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
         if (CPU_ISSET(processorId, &currentCpuSet)) {
             unsigned coreId = processorId % totalNumberOfCpuCores;
             if (!CPU_ISSET(coreId, &usedCoreSet)) {

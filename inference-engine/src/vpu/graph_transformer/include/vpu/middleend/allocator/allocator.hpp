@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,6 +125,8 @@ private:
     DataSet _allocatedIntermData;
 
     DataMap<allocator::MemChunk*> _memChunksPerData;
+
+    std::map<std::pair<DimVector, DimValues>, int> _staticShapeOffsets;
 
     int _blobMemOffset = 0;
     int _inputMemOffset = 0;

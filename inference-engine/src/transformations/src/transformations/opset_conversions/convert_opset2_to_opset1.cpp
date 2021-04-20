@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
-#include "transformations/itt.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,14 +16,17 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet2ToOpSet1, "ConvertOpSet2ToOpSet1", 0);
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet2ToOpSet1");
-
-    ngraph::pass::Manager manager;
+    RUN_ON_FUNCTION_SCOPE(ConvertOpSet2ToOpSet1);
+    ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
     manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
 
-    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
-    return true;
+
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

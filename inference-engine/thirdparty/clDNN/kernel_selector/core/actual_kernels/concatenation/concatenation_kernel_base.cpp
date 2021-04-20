@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include <iostream>
 #include "tensor_type.h"
@@ -91,7 +80,6 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
 
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -106,11 +94,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
-
         auto newParams = orgParams;
         newParams.inputs.resize(1);
         newParams.inputs[0] = input;
@@ -138,10 +124,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        efficiency = std::max(efficiency, dispatchData.efficiency);
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

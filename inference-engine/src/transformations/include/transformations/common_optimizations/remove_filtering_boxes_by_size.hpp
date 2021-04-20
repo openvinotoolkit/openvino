@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::RemoveFilteringBoxesBySize: public ngraph::pass::GraphRewrite {
+class ngraph::pass::RemoveFilteringBoxesBySize: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    RemoveFilteringBoxesBySize() : GraphRewrite() {
-        remove_filtering_boxes_by_size();
-    }
-
-private:
-    void remove_filtering_boxes_by_size();
+    RemoveFilteringBoxesBySize();
 };

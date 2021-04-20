@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,7 @@ struct CompilationConfig final {
     bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
+    bool enableEarlyEltwiseReLUFusion = true;
 
     std::map<std::string, std::vector<int>> ioStrides;
 
@@ -111,6 +112,8 @@ struct CompilationConfig final {
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;
+    bool checkPreprocessingInsideModel = true;
+    bool enableCustomReshapeParam = false;
 
     //
     // Deprecated options
@@ -163,16 +166,16 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
     const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(const ie::ICNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
     const ie::ICore* core);
 
 //

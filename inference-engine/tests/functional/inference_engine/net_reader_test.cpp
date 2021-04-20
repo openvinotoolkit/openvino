@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ using NetReaderNoParamTest = CommonTestUtils::TestsCommon;
 
 TEST_F(NetReaderNoParamTest, IncorrectModel) {
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.ReadNetwork("incorrectFilePath"), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(ie.ReadNetwork("incorrectFilePath"), InferenceEngine::Exception);
 }
 
 using NetReaderTestParams = std::tuple<InferenceEngine::SizeVector, InferenceEngine::Precision>;
@@ -63,7 +63,7 @@ protected:
         IE_SUPPRESS_DEPRECATED_START
         auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
         ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
-                InferenceEngine::details::CNNNetSortTopologically(*convertedNetwork),
+                InferenceEngine::details::CNNNetSortTopologically(InferenceEngine::CNNNetwork(convertedNetwork)),
                 refLayersVec, false));
         IE_SUPPRESS_DEPRECATED_END
     }
@@ -100,12 +100,16 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
     InferenceEngine::CNNNetwork network2;
     read(_modelPath, _weightsPath, ie, network2);
 
+    IE_SUPPRESS_DEPRECATED_START
+
     auto& icnn = static_cast<InferenceEngine::ICNNNetwork &>(network);
     auto& icnn2 = static_cast<InferenceEngine::ICNNNetwork &>(network2);
 
     ASSERT_NE(&icnn,
               &icnn2);
     ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(network, network2));
+
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
@@ -137,7 +141,7 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             CommonTestUtils::removeFile(weightsPath);
             GTEST_COUT << "OK" << std::endl;
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e_next) {
+        catch (const InferenceEngine::Exception &e_next) {
             CommonTestUtils::removeFile(modelPath);
             CommonTestUtils::removeFile(weightsPath);
             FAIL() << e_next.what();
@@ -163,7 +167,7 @@ TEST(NetReaderTest, IRSupportModelDetection) {
                 </port>
             </output>
         </layer>
-        <layer name="Abs" id="1" type="Abs" version="experimental">
+        <layer name="Abs" id="1" type="Abs" version="opset1">
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>

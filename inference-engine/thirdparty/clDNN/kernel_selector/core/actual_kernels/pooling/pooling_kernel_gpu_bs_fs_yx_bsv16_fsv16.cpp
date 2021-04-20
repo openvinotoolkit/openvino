@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "pooling_kernel_gpu_bs_fs_yx_bsv16_fsv16.h"
 #include "kernel_selector_utils.h"
@@ -59,9 +49,12 @@ PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDef
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = SIMD_SIZE;
-    dispatchData.efficiency = FORCE_PRIORITY_1;
 
     return dispatchData;
+}
+
+KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
@@ -77,7 +70,7 @@ JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const poo
 }
 
 KernelsData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
 }
 
 bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params, const optional_params& options) const {

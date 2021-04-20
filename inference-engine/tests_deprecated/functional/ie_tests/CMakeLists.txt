@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,4 +32,5 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${EXPORT_DEPENDENCIES} ieTestHelpers_s)
+openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                  TARGETS ${TARGET_NAME} ${EXPORT_DEPENDENCIES} ieTestHelpers_s)

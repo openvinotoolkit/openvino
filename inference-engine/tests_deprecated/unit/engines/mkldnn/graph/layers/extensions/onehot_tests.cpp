@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,9 @@ class OneHotOnly1dTest: public TestsCommon,
                        public WithParamInterface<one_hot_test_params> {
 
     std::string model_t = R"V0G0N(
-<net name="OneHot_Only" version="2" precision="FP32" batch="1">
+<net name="OneHot_Only" version="2" precision="I32" batch="1">
     <layers>
-        <layer id="1" name="input" precision="FP32" type="Input">
+        <layer id="1" name="input" precision="I32" type="Input">
             <output>
                 <port id="0">
                     <dim>1</dim>
@@ -108,7 +108,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -148,7 +148,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -160,9 +160,9 @@ class OneHotOnly2dTest: public TestsCommon,
                        public WithParamInterface<one_hot_test_params> {
 
     std::string model_t = R"V0G0N(
-<net name="OneHot_Only" version="2" precision="FP32" batch="1">
+<net name="OneHot_Only" version="2" precision="I32" batch="1">
     <layers>
-        <layer id="1" name="input" precision="FP32" type="Input">
+        <layer id="1" name="input" precision="I32" type="Input">
             <output>
                 <port id="0">
                     <dim>_IW_</dim>
@@ -247,7 +247,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -292,7 +292,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -303,9 +303,9 @@ class OneHotOnly3dTest: public TestsCommon,
                        public WithParamInterface<one_hot_test_params> {
 
     std::string model_t = R"V0G0N(
-<net name="OneHot_Only" version="2" precision="FP32" batch="1">
+<net name="OneHot_Only" version="2" precision="I32" batch="1">
     <layers>
-        <layer id="1" name="input" precision="FP32" type="Input">
+        <layer id="1" name="input" precision="I32" type="Input">
             <output>
                 <port id="0">
                     <dim>_IH_</dim>
@@ -399,7 +399,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -424,7 +424,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h};
+            SizeVector dims_src = {p.in.h, p.in.w};
             TBlob<float> src({Precision::FP32, dims_src, Layout::HW});
             src.allocate();
             float * s = src.buffer().as<float*>();
@@ -444,7 +444,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -454,9 +454,9 @@ class OneHotOnly4dTest: public TestsCommon,
                        public WithParamInterface<one_hot_test_params> {
 
     std::string model_t = R"V0G0N(
-<net name="OneHot_Only" version="2" precision="FP32" batch="1">
+<net name="OneHot_Only" version="2" precision="I32" batch="1">
     <layers>
-        <layer id="1" name="input" precision="FP32" type="Input">
+        <layer id="1" name="input" precision="I32" type="Input">
             <output>
                 <port id="0">
                     <dim>_IC_</dim>
@@ -557,7 +557,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -582,7 +582,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h, p.in.c};
+            SizeVector dims_src = {p.in.c, p.in.h, p.in.w};
 
             TBlob<float> src({Precision::FP32, dims_src, Layout::CHW});
             src.allocate();
@@ -604,7 +604,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -615,9 +615,9 @@ class OneHotOnly5dTest: public TestsCommon,
                        public WithParamInterface<one_hot_test_params> {
 
     std::string model_t = R"V0G0N(
-<net name="OneHot_Only" version="2" precision="FP32" batch="1">
+<net name="OneHot_Only" version="2" precision="I32" batch="1">
     <layers>
-        <layer id="1" name="input" precision="FP32" type="Input">
+        <layer id="1" name="input" precision="I32" type="Input">
             <output>
                 <port id="0">
                     <dim>_IN_</dim>
@@ -729,7 +729,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -754,7 +754,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h, p.in.c, p.in.n};
+            SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
             TBlob<float> src({Precision::FP32, dims_src, Layout::NCHW});
             src.allocate();
@@ -777,7 +777,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

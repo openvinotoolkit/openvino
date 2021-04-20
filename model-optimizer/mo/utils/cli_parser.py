@@ -1,23 +1,12 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import argparse
 import ast
 import logging as log
 import os
 import re
+import sys
 from collections import OrderedDict
 from itertools import zip_longest
 
@@ -439,13 +428,13 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.path.pardir, 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir,
-                                                  'extensions', 'front', 'caffe', 'CustomLayersMapping.xml'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
+                                                  'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
                              help='Mean image to be used for the input. Should be a binaryproto file',
@@ -916,44 +905,35 @@ def parse_tuple_pairs(argv_values: str):
     if not argv_values:
         return res
 
-    data_str = argv_values
-    while True:
-        tuples_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', data_str, re.IGNORECASE)
-        if not tuples_matches :
-            raise Error(
-                "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" +
-                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
-                refer_to_faq_msg(101), argv_values)
-        tuple_value = tuples_matches[0]
-        matches = data_str.split(tuple_value)
+    matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-        input_name = matches[0][:-1]
-        if not input_name:
-            res = []
-            # check that other values are specified w/o names
-            words_reg = r'([a-zA-Z]+)'
-            for i in range(0, len(matches)):
-                if re.search(words_reg, matches[i]) is not None:
-                    # error - tuple with name is also specified
-                    raise Error(
-                        "Mean/scale values should either contain names of input layers: data(1,2,3),info(2,3,4)" +
-                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4)." +
-                        refer_to_faq_msg(101), argv_values)
-            for match in tuples_matches:
-                res.append(np.fromstring(match, dtype=float, sep=','))
-            break
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+                'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
+                'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
+    if not matches:
+        raise Error(error_msg, argv_values)
 
-        res[input_name] = np.fromstring(tuple_value, dtype=float, sep=',')
+    name_start_idx = 0
+    name_was_present = False
+    for idx, match in enumerate(matches):
+        input_name = argv_values[name_start_idx:match.start(0)]
+        name_start_idx = match.end(0) + 1
+        tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
 
-        parenthesis = matches[0][-1]
-        sibling = ')' if parenthesis == '(' else ']'
-        pair = '{}{}{}{}'.format(input_name, parenthesis, tuple_value, sibling)
-        idx_substr = data_str.index(pair)
-        data_str = data_str[idx_substr + len(pair) + 1:]
+        if idx != 0 and (name_was_present ^ bool(input_name)):
+            # if node name firstly was specified and then subsequently not or vice versa
+            # e.g. (255),input[127] or input(255),[127]
+            raise Error(error_msg, argv_values)
 
-        if not data_str:
-            break
+        name_was_present = True if input_name != "" else False
+        if name_was_present:
+            res[input_name] = tuple_value
+        else:
+            res[idx] = tuple_value
 
+    if not name_was_present:
+        # return a list instead of a dictionary
+        res = sorted(res.values(), key=lambda v: v[0])
     return res
 
 
@@ -1182,4 +1162,3 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
-

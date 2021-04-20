@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,5 +90,5 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-bool AreLayersSupported(InferenceEngine::ICNNNetwork& network, std::string& errMessage);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
 }  // namespace GNAPluginNS

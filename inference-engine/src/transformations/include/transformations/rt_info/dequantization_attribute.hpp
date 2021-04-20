@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ public:
 
 /**
  * @ingroup ie_runtime_attr_api
- * @brief getPrimitivesPriority return string with dequantization value
+ * @brief getDequantization return string with dequantization value
  * @param[in] node The node will be used to get Dequantization attribute
  */
 TRANSFORMATIONS_API std::string getDequantization(const std::shared_ptr<ngraph::Node>& node);

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "lstm_gemm_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -50,7 +38,6 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
 
     KernelData kd = KernelData::Default<lstm_gemm_params>(params, orgParams.inputs.size());
 
-    float efficiency = FORCE_PRIORITY_9;
     const auto& input = orgParams.inputs[0];
 
     auto newParams = orgParams;
@@ -75,8 +62,6 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
     if (orgParams.hasBias) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

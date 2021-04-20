@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,7 @@
 namespace FormatReader {
 class ReaderPtr {
 public:
-    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName),
-                                                [](Reader *p) {
-                                                p->Release();
-                                           }) {}
+    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName)) {}
     /**
      * @brief dereference operator overload
      * @return Reader
@@ -40,6 +37,6 @@ public:
     }
 
 protected:
-    std::unique_ptr<Reader, std::function<void(Reader *)>> reader;
+    std::unique_ptr<Reader> reader;
 };
 }  // namespace FormatReader

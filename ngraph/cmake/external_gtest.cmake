@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 # Enable ExternalProject CMake module
 include(ExternalProject)
@@ -30,6 +18,7 @@ set(GTEST_OUTPUT_DIR ${GMOCK_OUTPUT_DIR}/gtest)
 if(WIN32)
     list(APPEND GTEST_CMAKE_ARGS
         -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE=${GTEST_OUTPUT_DIR}
+        -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO=${GTEST_OUTPUT_DIR}
         -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG=${GTEST_OUTPUT_DIR}
         -Dgtest_force_shared_crt=TRUE
     )
@@ -42,15 +31,7 @@ if(CMAKE_BUILD_TYPE)
     )
 endif()
 
-if(UNIX)
-    # workaround for compile error
-    # related: https://github.com/intel/mkl-dnn/issues/55
-    set(GTEST_CXX_FLAGS "-Wno-unused-result ${CMAKE_ORIGINAL_CXX_FLAGS} -Wno-undef")
-else()
-    set(GTEST_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
-endif()
-
-#Build for ninja
+# Build for ninja
 SET(GTEST_PATHS ${GTEST_OUTPUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}gtestd${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${GMOCK_OUTPUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}gmockd${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${GTEST_OUTPUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}

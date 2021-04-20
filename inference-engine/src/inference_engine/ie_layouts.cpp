@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const
         return;
     }
     if (dims.size() != *std::max_element(blockDesc.getOrder().begin(), blockDesc.getOrder().end()) + 1)
-        THROW_IE_EXCEPTION << "Cannot create TensorDesc! Blocked dims are inconsistent with original dims.";
+        IE_THROW() << "Cannot create TensorDesc! Blocked dims are inconsistent with original dims.";
 
     layout = Layout::BLOCKED;
     if (dims.size() == blockingDesc.getBlockDims().size()) {
@@ -43,6 +43,8 @@ TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const
         case 3:
             if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2) {
                 layout = Layout::CHW;
+            } else if (blockingDesc.getOrder()[0] == 1 && blockingDesc.getOrder()[1] == 2 && blockingDesc.getOrder()[2] == 0) {
+                layout = Layout::HWC;
             }
             break;
         case 4:
@@ -88,7 +90,7 @@ void TensorDesc::setDims(const SizeVector& dims) {
         blockingDesc = BlockingDesc(newDims, newOrder);
     } else {
         if (layout == Layout::SCALAR && (dims.size() > 1 || (dims.size() == 1 && dims[0] != 1)))
-            THROW_IE_EXCEPTION << "Cannot set dimensions for SCALAR layout!";
+            IE_THROW() << "Cannot set dimensions for SCALAR layout!";
         blockingDesc = BlockingDesc(dims, layout);
     }
     if (layout != Layout::SCALAR) this->dims = dims;
@@ -123,6 +125,7 @@ void TensorDesc::setLayout(Layout l) {
         inconsistentLayout = dims.size() != 4;
         break;
     case Layout::CHW:
+    case Layout::HWC:
         inconsistentLayout = dims.size() != 3;
         break;
     case Layout::CN:
@@ -135,7 +138,7 @@ void TensorDesc::setLayout(Layout l) {
     }
 
     if (inconsistentLayout) {
-        THROW_IE_EXCEPTION << "Size of dims(" << std::to_string(dims.size()) << ") and format(" << l
+        IE_THROW() << "Size of dims(" << std::to_string(dims.size()) << ") and format(" << l
                            << ") are inconsistent.";
     }
 
@@ -178,7 +181,7 @@ Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
 }
 
 size_t TensorDesc::offset(const SizeVector& v) const {
-    if (layout == Layout::ANY) THROW_IE_EXCEPTION << "Cannot calculate offset for any format!";
+    if (layout == Layout::ANY) IE_THROW() << "Cannot calculate offset for any format!";
 
     if (layout == Layout::SCALAR) return blockingDesc.getOffsetPadding();
 
@@ -189,7 +192,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
 
     size_t n_blocked_dims = order.size();
     if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
-        THROW_IE_EXCEPTION << "Cannot calculate offset. Incorrect primitive descriptor!";
+        IE_THROW() << "Cannot calculate offset. Incorrect primitive descriptor!";
     }
     SizeVector blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {
@@ -197,7 +200,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
         off_v[order[n_blocked_dims - i]] /= blockedDims[n_blocked_dims - i];
     }
     size_t offset = blockingDesc.getOffsetPadding();
-    for (int d = 0; d < n_blocked_dims; ++d) {
+    for (size_t d = 0; d < n_blocked_dims; ++d) {
         const size_t p = blockedShift[d] + blockingDesc.getOffsetPaddingToData()[d];
         offset += p * strides[d];
     }
@@ -207,7 +210,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
 size_t TensorDesc::offset(size_t l) const {
     size_t n_dims = dims.size();
     SizeVector pos(n_dims);
-    for (int rd = 1; rd <= n_dims; ++rd) {
+    for (size_t rd = 1; rd <= n_dims; ++rd) {
         const size_t d = n_dims - rd;
         const size_t cur_dim = dims[d];
         pos[d] = l % cur_dim;
@@ -218,7 +221,7 @@ size_t TensorDesc::offset(size_t l) const {
 
 void TensorDesc::reshape(const SizeVector& dims, Layout layout) {
     for (auto& padd : blockingDesc.getOffsetPaddingToData()) {
-        if (padd) THROW_IE_EXCEPTION << "Cannot reshape a non-packaged blob!";
+        if (padd) IE_THROW() << "Cannot reshape a non-packaged blob!";
     }
     if (layout != Layout::ANY) {
         blockingDesc = BlockingDesc(dims, layout);
@@ -253,7 +256,7 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != dimOffsets.size())
-        THROW_IE_EXCEPTION << "Offsets are not initialized for all dimensions.";
+        IE_THROW() << "Offsets are not initialized for all dimensions.";
     this->offsetPaddingToData = dimOffsets;
 }
 
@@ -261,10 +264,10 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
                            const SizeVector& dimOffsets, const SizeVector& strides)
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
-    if (blocked_dims.size() != strides.size()) THROW_IE_EXCEPTION << "Strides are not initialized for all dimensions.";
+    if (blocked_dims.size() != strides.size()) IE_THROW() << "Strides are not initialized for all dimensions.";
     this->strides = strides;
     if (blocked_dims.size() != dimOffsets.size())
-        THROW_IE_EXCEPTION << "Offsets are not initialized for all dimensions.";
+        IE_THROW() << "Offsets are not initialized for all dimensions.";
     this->offsetPaddingToData = dimOffsets;
 }
 
@@ -273,7 +276,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
 
     offsetPadding = 0;
     auto checkDims = [](size_t r_size, size_t e_size) {
-        if (r_size != e_size) THROW_IE_EXCEPTION << "Dims and format are inconsistent.";
+        if (r_size != e_size) IE_THROW() << "Dims and format are inconsistent.";
     };
     SizeVector l_order;
     SizeVector l_dims;
@@ -319,6 +322,11 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
         l_order = {0, 1, 2};
         l_dims = dims;
         break;
+    case Layout::HWC:
+        checkDims(dims.size(), 3);
+        l_order = {1, 2, 0};
+        l_dims = {dims[1], dims[2], dims[0]};
+        break;
     case Layout::CN:
         checkDims(dims.size(), 2);
         l_order = {1, 0};
@@ -342,9 +350,9 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
 
 void BlockingDesc::fillDesc(const SizeVector& blocked_dims, const SizeVector& order) {
     if (order.size() != blocked_dims.size())
-        THROW_IE_EXCEPTION << "Cannot fill descriptor. Size of dimensions and order vector don't match.";
+        IE_THROW() << "Cannot fill descriptor. Size of dimensions and order vector don't match.";
     if (blocked_dims.empty() || order.empty())
-        THROW_IE_EXCEPTION << "Cannot fill descriptor. Dimensions and order vector are empty.";
+        IE_THROW() << "Cannot fill descriptor. Dimensions and order vector are empty.";
     this->order = order;
     this->blockedDims = blocked_dims;
     offsetPadding = 0;
@@ -390,7 +398,7 @@ void checkROI(
     const auto numDims = origDesc.getDims().size();
 
     if (roi.size() != numDims) {
-        THROW_IE_EXCEPTION
+        IE_THROW()
             << "ROI num dims " << roi.size() <<
             " differs from original num dims " << numDims;
     }
@@ -403,7 +411,7 @@ void checkROI(
         const auto endInd = roiSlice.startInd + roiSlice.size;
 
         if (endInd > fullSize) {
-            THROW_IE_EXCEPTION
+            IE_THROW()
                 << "ROI [" << roiSlice.startInd << ", " << endInd << ")"
                 << " is out of range " << fullSize
                 << " for dimension " << dimInd;
@@ -461,7 +469,7 @@ TensorSlice make_roi_slice(
         const ROI& roi) {
     const auto layout = origDesc.getLayout();
     if (layout != Layout::NCHW && layout != Layout::NHWC) {
-        THROW_IE_EXCEPTION
+        IE_THROW()
             << "Unsupported layout " << layout;
     }
 

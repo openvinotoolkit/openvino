@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-#include "details/ie_exception.hpp"
 #include <legacy/ie_layers.h>
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"
@@ -35,14 +34,14 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
     auto * conLayer = dynamic_cast<ConcatLayer*>(getCnnLayer().get());
 
     if (conLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert concat layer.";
+        IE_THROW() << "Cannot convert concat layer.";
 
     axis = conLayer->_axis;
 
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
     auto& firstParentDims = getParentEdgeAt(0)->getDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         auto& dims = getParentEdgeAt(i)->getDims();
@@ -56,7 +55,7 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.ndims() == 0) {
-            THROW_IE_EXCEPTION << "Incorrect input dimensions for concat node " << getName();
+            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
         }
     }
 }
@@ -101,10 +100,10 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format::nc :
-                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format::nhwc :
-                                                                                                                               memory::format::ndhwc
-                                                                                        : memory::format::any;
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format_tag::nc :
+                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format_tag::nhwc :
+                                                                                                                               memory::format_tag::ndhwc
+                                                                                        : memory::format_tag::any;
 
         dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, fmt));
         config.inConfs.push_back(dataConfig);
@@ -116,9 +115,9 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1) {
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format::nc :
-                                                                                          dims.ndims() == 4 ? memory::format::nhwc :
-                                                                                                              memory::format::ndhwc
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format_tag::nc :
+                                                                                          dims.ndims() == 4 ? memory::format_tag::nhwc :
+                                                                                                              memory::format_tag::ndhwc
                                                                                         : MKLDNNMemory::GetPlainFormat(dims);
 
         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(dims, outputDataType, fmt));
@@ -128,25 +127,25 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             if (dims.ndims() == 4) {
                 if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw8c);
+                            MKLDNNMemoryDesc(dims, outputDataType, memory::format_tag::nChw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, memory::format_tag::nChw8c);
 
                     if (dims[1] % 16 == 0) {
                         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw16c);
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nChw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nChw16c);
                     }
                 }
             } else if (dims.ndims() == 5) {
                 if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw8c);
+                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw8c);
 
                     if (dims[1] % 16 == 0) {
                         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw16c);
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw16c);
                     }
                 }
             }
@@ -197,7 +196,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                     {blkDims, order, offset, offsets, strides});
             }
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nhwc);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nhwc);
 
             return;
         } else if (numOfDim == 5) {
@@ -231,7 +230,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                     {blkDims, order, offset, offsets, strides});
             }
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::ndhwc);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::ndhwc);
 
             return;
         }
@@ -303,8 +302,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                      {blkDims, order, offset, offsets, strides});
             }
             if (canInplace) {
-                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::nChw8c : mkldnn::memory::nChw16c
-                                                 : sizeS == 8lu ? mkldnn::memory::nCdhw8c : mkldnn::memory::nCdhw16c;
+                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::format_tag::nChw8c : mkldnn::memory::format_tag::nChw16c
+                                                 : sizeS == 8lu ? mkldnn::memory::format_tag::nCdhw8c : mkldnn::memory::format_tag::nCdhw16c;
                 supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, dstFormat);
             }
         }
@@ -312,9 +311,6 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-
     bool hasUnknown = false;
     std::vector<size_t> canSelectPrimitive;
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
@@ -382,48 +378,45 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         canOptimize = false;
     }
 
-    std::map<mkldnn::memory::format, size_t> formatFrequency;
+    std::map<PartialBlkDesc, size_t> formatFrequency;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
 
-        if (parent->getSelectedPrimitiveDescriptor() == nullptr)
+        auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
+        if (parent_pdesc == nullptr)
             continue;
 
-        int outputIndex = parentEdge->getOutputNum();
-        if (outputIndex < 0)
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
-        if (outputIndex >= parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size())
-            outputIndex = 0;
-        auto outDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIndex].desc);
-        if (!outDesc)
+        const auto &parent_config = parent_pdesc->getConfig();
+        int outputIndex = parentEdge->getInputNum();
+        if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
+            IE_THROW() << "Cannot find index of output node";
+        const auto &port_desc = parent_config.outConfs[outputIndex].desc;
+        if (port_desc.getLayout() == Layout::ANY)
             continue;
-        if (formatFrequency.find(outDesc.getFormat()) != formatFrequency.end())
-            formatFrequency[outDesc.getFormat()] += 1;
-        else
-            formatFrequency[outDesc.getFormat()] = 1;
+        auto partial_format_desc = PartialBlkDesc::extractFrom(port_desc);
+        formatFrequency[partial_format_desc] += 1;
     }
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
-        if (child->getSelectedPrimitiveDescriptor() == nullptr)
+        const auto *prim_desc = child->getSelectedPrimitiveDescriptor();
+        if (prim_desc == nullptr)
             continue;
+
+        const auto &config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0)
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
-        if (inputIndex >= child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size())
-            inputIndex = 0;
-        auto outDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIndex].desc);
-        if (!outDesc)
+        if (inputIndex < 0 || inputIndex >= config.inConfs.size())
+            IE_THROW() << "Cannot find index of output node";
+        const auto &port_desc = config.inConfs[inputIndex].desc;
+        if (port_desc.getLayout() == Layout::ANY)
             continue;
-        if (formatFrequency.find(outDesc.getFormat()) != formatFrequency.end())
-            formatFrequency[outDesc.getFormat()] += 1;
-        else
-            formatFrequency[outDesc.getFormat()] = 1;
+        auto partial_format_desc = PartialBlkDesc::extractFrom(port_desc);
+        formatFrequency[partial_format_desc] += 1;
     }
 
     size_t maxCount = 0;
-    mkldnn::memory::format convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
+    auto convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
     for (auto &it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;
@@ -431,15 +424,15 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    if (canOptimize && MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, convertTo).blocksExtended())
-        convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
+    if (canOptimize && convertTo.isAutoExtendedWith(getChildEdgeAt(0)->getDims().ToSizeVector()))
+        convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
     for (size_t i = 0; canOptimize && i < getParentEdges().size(); i++) {
-        if (MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, convertTo).blocksExtended())
-            convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
+        if (convertTo.isAutoExtendedWith(getParentEdgeAt(i)->getDims().ToSizeVector()))
+            convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
     }
 
     for (auto supportedPdIndex : canSelectPrimitive) {
-        if (MKLDNNMemoryDesc(supportedPrimitiveDescriptors[supportedPdIndex].getConfig().inConfs[0].desc).getFormat() == convertTo) {
+        if (PartialBlkDesc::extractFrom(supportedPrimitiveDescriptors[supportedPdIndex].getConfig().inConfs[0].desc) == convertTo) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(supportedPdIndex));
             return;
         }
@@ -449,10 +442,10 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         auto &primDescInfo = supportedPrimitiveDescriptors[i];
         if (primDescInfo.getImplementationType() == impl_desc_type::unknown)
             continue;
-        if (convertTo == MKLDNNMemoryDesc(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc).getFormat()) {
+        if (convertTo == PartialBlkDesc::extractFrom(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc)) {
             size_t num = 0;
             for (num = 0; num < getParentEdges().size(); num++) {
-                if (MKLDNNMemoryDesc(getParentEdgeAt(num)->getDims(), inputDataType, convertTo).blocksExtended())
+                if (convertTo.isAutoExtendedWith(getParentEdgeAt(num)->getDims().ToSizeVector()))
                     break;
             }
             if (num == getParentEdges().size()) {
@@ -478,18 +471,17 @@ void MKLDNNConcatNode::createPrimitive() {
 
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    std::vector<memory::primitive_desc> srcs_pd;
-    std::vector<primitive::at> srcs_p;
+    std::vector<memory::desc> srcs_d;
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            THROW_IE_EXCEPTION << "Source memory from " << parent->getName() << " didn't allocate for node "
+            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
                                << getName() << ".";
         }
 
@@ -499,20 +491,18 @@ void MKLDNNConcatNode::createPrimitive() {
             desc.data.dims[j] = dims[j];
         }
 
-        srcs_pd.emplace_back(desc, srcMemPtr->GetPrimitiveDescriptor().get_engine());
-        srcs_p.emplace_back(srcMemPtr->GetPrimitive());
+        srcs_d.emplace_back(desc);
     }
 
     auto desc = getChildEdgeAt(0)->getMemory().GetDescriptor();
     auto dims = getChildEdgeAt(0)->getDims();
     for (size_t i = 0; i < dims.ndims(); i++) {
         desc.data.dims[i] = dims[i];
-        desc.data.layout_desc.blocking.padding_dims[i] = dims[i];
+        desc.data.padded_dims[i] = dims[i];
     }
 
-    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_pd);
-
-    prim.reset(new concat(primitive_desc, srcs_p, getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+    prim.reset(new concat(primitive_desc));
 }
 
 size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
@@ -527,7 +517,7 @@ size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
 void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     if (!isOptimized()) {
         auto config = selected_pd->getConfig();
@@ -617,13 +607,12 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
 
     const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
     const mkldnn::memory::data_type data_type = dst_memory.GetDataType();
+    const size_t num_src = getParentEdges().size();
 
     const bool isInt8 = (data_type == mkldnn_s8 || data_type == mkldnn_u8);
 
     if (isInt8) {
         uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
-
-        const size_t num_src = getParentEdges().size();
 
         std::vector<size_t> channels;
         size_t channels_size = 0;
@@ -649,8 +638,16 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
             }
         });
     } else {
-        MKLDNNNode::execute(strm);
+        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
+        for (int i = 0; i < num_src; i++)
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + i] = getParentEdgeAt(i)->getMemory().GetPrimitive();
+
+        (*prim).execute(strm, mem_ags);
     }
+}
+
+InferenceEngine::Precision MKLDNNConcatNode::getRuntimePrecision() const {
+    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConcatNode, Concatenation);

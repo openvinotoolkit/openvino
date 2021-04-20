@@ -1,23 +1,12 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "ocl_builder.h"
 #include "configuration.h"
 #include "include/to_string_utils.h"
+#include "api/device.hpp"
 #include <string>
 #include <vector>
 #include <list>
@@ -36,6 +25,49 @@ namespace cldnn {
 namespace gpu {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 
+static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
+    cl_uint maxSubDevices;
+    size_t maxSubDevicesSize;
+    const auto err = clGetDeviceInfo(rootDevice(),
+                                     CL_DEVICE_PARTITION_MAX_SUB_DEVICES,
+                                     sizeof(maxSubDevices),
+                                     &maxSubDevices, &maxSubDevicesSize);
+
+    if (err != CL_SUCCESS || maxSubDevicesSize != sizeof(maxSubDevices)) {
+        throw cl::Error(err, "clGetDeviceInfo(..., CL_DEVICE_PARTITION_MAX_SUB_DEVICES,...)");
+    }
+
+    if (maxSubDevices == 0) {
+        return {};
+    }
+
+    const auto partitionProperties = rootDevice.getInfo<CL_DEVICE_PARTITION_PROPERTIES>();
+    const auto partitionable = std::any_of(partitionProperties.begin(), partitionProperties.end(),
+                                            [](const decltype(partitionProperties)::value_type& prop) {
+                                                return prop == CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN;
+                                            });
+
+    if (!partitionable) {
+        return {};
+    }
+
+    const auto partitionAffinityDomain = rootDevice.getInfo<CL_DEVICE_PARTITION_AFFINITY_DOMAIN>();
+    const decltype(partitionAffinityDomain) expectedFlags =
+        CL_DEVICE_AFFINITY_DOMAIN_NUMA | CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE;
+
+    if ((partitionAffinityDomain & expectedFlags) != expectedFlags) {
+        return {};
+    }
+
+    std::vector<cl::Device> subDevices;
+    cl_device_partition_property partitionProperty[] = {CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN,
+                                                        CL_DEVICE_AFFINITY_DOMAIN_NUMA, 0};
+
+    rootDevice.createSubDevices(partitionProperty, &subDevices);
+
+    return subDevices;
+}
+
 std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void* user_context, void* user_device) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
     std::vector<device_impl::ptr> dev_orig, dev_sorted;
@@ -49,15 +81,27 @@ std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void*
 
     std::map<std::string, device_impl::ptr> ret;
     for (auto& dptr : dev_orig) {
-        auto flag = dptr->get_device().getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-        if (flag != 0)
+        if (dptr->get_info().dev_type == cldnn::device_type::integrated_gpu)
             dev_sorted.insert(dev_sorted.begin(), dptr);
         else
             dev_sorted.push_back(dptr);
     }
     uint32_t idx = 0;
     for (auto& dptr : dev_sorted) {
-        ret[std::to_string(idx++)] = dptr;
+        auto map_id = std::to_string(idx++);
+        ret[map_id] = dptr;
+
+        auto rootDevice = dptr->get_device();
+        auto subDevices = getSubDevices(rootDevice);
+        if (!subDevices.empty()) {
+            uint32_t sub_idx = 0;
+            for (auto& subdevice : subDevices) {
+                auto subdPtr = device_impl::ptr(new device_impl(subdevice, cl::Context(subdevice),
+                                                                dptr->get_platform(),
+                                                                device_info_internal(subdevice)), false);
+                ret[map_id+"."+std::to_string(sub_idx++)] = subdPtr;
+            }
+        }
     }
     return ret;
 }
@@ -89,7 +133,7 @@ std::vector<device_impl::ptr> ocl_builder::build_device_list(bool out_out_order)
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
             ret.emplace_back(device_impl::ptr{ new device_impl(device, cl::Context(device),
-                                                            id, device_info_internal(device)), false});
+                                                        id, device_info_internal(device)), false});
         }
     }
     if (ret.empty()) {
@@ -139,7 +183,7 @@ std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_device(b
             continue;
 
         std::vector<cl::Device> devices;
-#ifdef WIN32
+#ifdef _WIN32
         platform.getDevices(CL_D3D11_DEVICE_KHR,
             user_device,
             CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
@@ -153,11 +197,11 @@ std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_device(b
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
             cl_context_properties props[] = {
-        #ifdef WIN32
+#ifdef _WIN32
                 CL_CONTEXT_D3D11_DEVICE_KHR,
-        #else
+#else
                 CL_CONTEXT_VA_API_DISPLAY_INTEL,
-        #endif
+#endif
                 (intptr_t)user_device,
                 CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
                 CL_CONTEXT_PLATFORM, (cl_context_properties)id,

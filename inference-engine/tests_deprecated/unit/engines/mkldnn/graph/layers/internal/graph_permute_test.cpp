@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,12 @@ using namespace mkldnn;
 using namespace InferenceEngine;
 using namespace Extensions;
 using namespace ::Cpu;
+
+namespace {
+
+OV_CC_DOMAINS(GraphPermuteTests);
+
+}   // namespace
 
 struct permute_test_params {
     Layout layout_in, layout_out;
@@ -40,7 +46,7 @@ public:
             block_dims = layer->GetParamAsInts("block_dims");
             order = layer->GetParamAsInts("order");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -54,7 +60,7 @@ public:
 
         // Fill tensor parameters into config
         auto fill_port = [&] (std::vector<DataConfig>& port, const DataPtr& data) {
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -255,10 +261,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);
@@ -305,7 +308,7 @@ protected:
             ref_permute(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -551,8 +554,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
@@ -560,10 +563,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             MKLDNNGraphTestClass graph;
@@ -598,7 +598,7 @@ protected:
             };
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkPermute);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkPermute);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

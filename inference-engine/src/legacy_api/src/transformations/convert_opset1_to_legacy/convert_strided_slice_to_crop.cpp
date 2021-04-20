@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
-        if (!slice || m_transformation_callback(slice)) {
+        if (!slice || transformation_callback(slice)) {
             return false;
         }
 

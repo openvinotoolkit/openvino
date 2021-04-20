@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,9 @@ public:
     virtual ~PortMapHelper() = default;
     virtual void execute(mkldnn::stream strm, int n_iter = -1) = 0;
 protected:
-    std::vector<mkldnn::reorder> reorders;
-    std::vector<mkldnn::memory> mem_holder;
+    mkldnn::reorder reorder;
+    mkldnn::memory mem_holder_src;
+    mkldnn::memory mem_holder_dst;
 };
 
 
@@ -38,7 +39,7 @@ public:
     virtual ~PortChecker() = default;
     virtual int getStatus() = 0;
 protected:
-    std::vector<mkldnn::memory> mem_holder;
+    mkldnn::memory mem_holder;
 };
 
 

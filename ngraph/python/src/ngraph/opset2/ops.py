@@ -1,20 +1,7 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-"""! Factory functions for all ngraph ops."""
+"""Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -66,7 +53,7 @@ def batch_to_space(
     crops_end: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform BatchToSpace operation on the input tensor.
+    """Perform BatchToSpace operation on the input tensor.
 
     BatchToSpace permutes data from the batch dimension of the data tensor into spatial dimensions.
 
@@ -84,14 +71,13 @@ def batch_to_space(
 
 @unary_op
 def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
-    r"""! Perform Gaussian Error Linear Unit operation element-wise on data from input node.
+    r"""Perform Gaussian Error Linear Unit operation element-wise on data from input node.
 
     Computes GELU function:
 
     \f[ f(x) = 0.5\cdot x\cdot(1 + erf( \dfrac{x}{\sqrt{2}}) \f]
 
-    For more information refer to:
-    `Gaussian Error Linear Unit (GELU) <https://arxiv.org/pdf/1606.08415.pdf>`_
+    For more information refer to [Gaussian Error Linear Unit (GELU)](https://arxiv.org/pdf/1606.08415.pdf>)
 
     @param node: Input tensor. One of: input node, array or scalar.
     @param name: Optional output node name.
@@ -108,7 +94,7 @@ def mvn(
     eps: float = 1e-9,
     name: str = None,
 ) -> Node:
-    r"""! Perform Mean Variance Normalization operation on data from input node.
+    r"""Perform Mean Variance Normalization operation on data from input node.
 
     Computes MVN on the input tensor `data` (called `X`) using formula:
 
@@ -131,7 +117,7 @@ def mvn(
 
 @nameable_op
 def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
-    """! Return a node which produces the ReorgYolo operation.
+    """Return a node which produces the ReorgYolo operation.
 
     @param input:   Input data
     @param stride:  Stride to reorganize input by
@@ -150,7 +136,7 @@ def roi_pooling(
     method: str,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which produces an ROIPooling operation.
+    """Return a node which produces an ROIPooling operation.
 
     @param input:          Input feature map {N, C, ...}
     @param coords:         Coordinates of bounding boxes
@@ -175,7 +161,7 @@ def space_to_batch(
     pads_end: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform SpaceToBatch operation on the input tensor.
+    """Perform SpaceToBatch operation on the input tensor.
 
     SpaceToBatch permutes data tensor blocks of spatial data into batch dimension.
     The operator returns a copy of the input tensor where values from spatial blocks dimensions

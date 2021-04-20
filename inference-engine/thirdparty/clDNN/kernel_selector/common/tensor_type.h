@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #pragma once
 
@@ -69,6 +58,7 @@ enum WeightsLayout {
     oi = 0,
     io,
     oiyx,
+    ioyx,
     oyxi,
     iyxo,
     yxio,
@@ -106,6 +96,8 @@ enum WeightsLayout {
     dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
     os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
+    os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
+    os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                  // 1,5...
     os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -122,11 +114,14 @@ enum WeightsLayout {
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
+    iozyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     goiyx,
+    gioyx,
     goizyx,
+    giozyx,
     gyxio,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
@@ -195,10 +190,12 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oi:
         case WeightsLayout::io:
         case WeightsLayout::oiyx:
+        case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::iozyx:
         case WeightsLayout::dlstm_dir_io:
             return true;
         default:

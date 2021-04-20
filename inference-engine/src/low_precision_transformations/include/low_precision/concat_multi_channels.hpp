@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,17 +27,21 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 private:
-    static void fillDequantization(
-        std::shared_ptr<ngraph::Node> layer,
-        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
-        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate);
+    // Go through the parent elements of the layer and fill dequantization collection
+    // with Dq operations that should be inserted before the layer.
+    void fillDequantization(
+        const std::shared_ptr<ngraph::Node> layer,
+        const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
+        std::vector<FakeQuantizeDequantization>& dequantization) const;
 
-    static void fillQuantization(const std::shared_ptr<ngraph::Node> layer, std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes);
+    FakeQuantizeDequantization getConcatenatedDequantization(
+        const std::shared_ptr<ngraph::opset1::Concat> concat,
+        const std::vector<FakeQuantizeDequantization>& dequantization) const;
 
-    static void updateDequantizationShapesIfNecessary(
-        std::shared_ptr<ngraph::Node> layer,
-        std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes,
-        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize);
+    static FakeQuantizeDequantization getFoldedDequantization(
+        const std::shared_ptr<ngraph::Node> operation,
+        const FakeQuantizeDequantization& dequantization,
+        const size_t sourceOutputIdx);
 
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 5e-2;
+        threshold = 9e-2;
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters

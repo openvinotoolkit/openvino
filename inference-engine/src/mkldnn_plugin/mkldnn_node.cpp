@@ -1,19 +1,21 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
+#include "mkldnn_itt.h"
 
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
 #include <cstdint>
+#include <unordered_map>
 
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
-#include <nodes/mkldnn_crop_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
 #include <nodes/mkldnn_gemm_node.h>
@@ -24,28 +26,26 @@
 #include <nodes/mkldnn_pooling_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 #include <nodes/mkldnn_reshape_node.h>
-#include <nodes/mkldnn_roi_pooling_node.h>
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
+#include <nodes/mkldnn_pad_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
-#include <nodes/mkldnn_rnn.h>
-#include <nodes/mkldnn_quantize_node.h>
-#include <nodes/mkldnn_bin_conv_node.h>
-#include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
-#include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
+#include <nodes/mkldnn_strided_slice_node.h>
 #include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
 
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -93,14 +93,16 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Eltwise", Eltwise },
         { "Mod", Eltwise },
         { "Power", Eltwise },
-        { "Crop", Crop },
         { "Reshape", Reshape },
         { "Tile", Tile },
         { "SimplerNMS", SimplerNMS },
+        { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
         { "Flatten", Flatten },
+        { "Pad", Pad },
         { "Permute", Permute },
+        { "StridedSlice", StridedSlice },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
         { "GRUCell", RNNCell },
@@ -118,7 +120,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
         { "MVN", MVN},
-        { "Resample", Resample},
         { "Normalize", Normalize},
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
@@ -136,6 +137,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceProd", ReduceProd},
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
+        { "Erf", Eltwise },
 };
 
 Type TypeFromName(const std::string type) {
@@ -149,8 +151,8 @@ Type TypeFromName(const std::string type) {
 
 }  //  namespace MKLDNNPlugin
 
-MKLDNNNode::Factory & MKLDNNNode::factory() {
-    static Factory factoryInstance;
+MKLDNNNode::NodesFactory & MKLDNNNode::factory() {
+    static NodesFactory factoryInstance;
     return factoryInstance;
 }
 
@@ -158,7 +160,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
+          type(TypeFromName(layer->type)), profiling(layer->name) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());
@@ -167,8 +169,9 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         if (!(CaselessEq<std::string>()(layer->type, "memory") ||
             CaselessEq<std::string>()(layer->type, "memoryinput") ||
             CaselessEq<std::string>()(layer->type, "output") ||
-            CaselessEq<std::string>()(layer->type, "reorder"))) {
-            THROW_IE_EXCEPTION << "Inappropriate layer type: " << layer->type << " name: " << layer->name;
+            CaselessEq<std::string>()(layer->type, "reorder") ||
+            CaselessEq<std::string>()(layer->type, "convert"))) {
+            IE_THROW() << "Inappropriate layer type: " << layer->type << " name: " << layer->name;
         }
     }
 
@@ -184,25 +187,32 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
             implPriorities.push_back(parse_impl_name(str));
             if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
                     str != "cpu:unknown")
-                THROW_IE_EXCEPTION << "Unsupported CPU implementation " << str << " for node " << getName();
+                IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
     }
-    if (layer->params.find("InputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["InputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+    auto ngraphNode = layer->getNode();
+    if (ngraphNode != nullptr) {
+        std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(ngraphNode);
+        if (!inputMemoryFormats.empty()) {
+            std::istringstream stream(inputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
-    }
-    if (layer->params.find("OutputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["OutputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+        std::string outputMemoryFormats = ngraph::getMLKDNNOutputMemoryFormats(ngraphNode);
+        if (!outputMemoryFormats.empty()) {
+            std::istringstream stream(outputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
     }
 }
@@ -307,7 +317,7 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
     }
 
     if (getSupportedPrimitiveDescriptors().empty())
-        THROW_IE_EXCEPTION << "Supported primitive descriptors list is empty for node: " << getName();
+        IE_THROW() << "Supported primitive descriptors list is empty for node: " << getName();
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
 }
@@ -336,7 +346,7 @@ bool MKLDNNNode::canBeInPlace() const {
 void MKLDNNNode::resolveNotAllocatedEdges() {
     const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
-        THROW_IE_EXCEPTION << "Cannot find selected primitive descriptor for node: " << getName();
+        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
     for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
 
@@ -431,31 +441,31 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
 
 const MKLDNNEdgePtr MKLDNNNode::getParentEdgeAt(size_t idx) const {
     if (idx >= parentEdges.size())
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains less parent edges than " << idx;
+        IE_THROW() << "Node " << getName() << " contains less parent edges than " << idx;
     auto parentEdgePtr = parentEdges[idx].lock();
     if (!parentEdgePtr)
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains empty parent edge for index " << idx;
+        IE_THROW() << "Node " << getName() << " contains empty parent edge for index " << idx;
     return parentEdgePtr;
 }
 
 const MKLDNNEdgePtr MKLDNNNode::getChildEdgeAt(size_t idx) const {
     if (idx >= childEdges.size())
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains less child edges than " << idx;
+        IE_THROW() << "Node " << getName() << " contains less child edges than " << idx;
     auto childEdgePtr = childEdges[idx].lock();
     if (!childEdgePtr)
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains empty child edge for index " << idx;
+        IE_THROW() << "Node " << getName() << " contains empty child edge for index " << idx;
     return childEdgePtr;
 }
 
 const std::vector<MKLDNNEdgePtr> MKLDNNNode::getParentEdgesAtPort(size_t idx) const {
     if (idx >= inDims.size())
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains less input ports than " << idx;
+        IE_THROW() << "Node " << getName() << " contains less input ports than " << idx;
 
     std::vector<MKLDNNEdgePtr> res;
     for (auto &edge_w : parentEdges) {
         auto edge = edge_w.lock();
         if (!edge)
-            THROW_IE_EXCEPTION << "Node " << getName() << " contains dead weak ptr";
+            IE_THROW() << "Node " << getName() << " contains dead weak ptr";
         if (edge->getOutputNum() == idx) res.push_back(edge);
     }
     return res;
@@ -463,38 +473,38 @@ const std::vector<MKLDNNEdgePtr> MKLDNNNode::getParentEdgesAtPort(size_t idx) co
 
 const std::vector<MKLDNNEdgePtr> MKLDNNNode::getChildEdgesAtPort(size_t idx) const {
     if (idx >= outDims.size())
-        THROW_IE_EXCEPTION << "Node " << getName() << " contains less output ports than " << idx;
+        IE_THROW() << "Node " << getName() << " contains less output ports than " << idx;
 
     std::vector<MKLDNNEdgePtr> res;
     for (auto &edge_w : childEdges) {
         auto edge = edge_w.lock();
         if (!edge)
-            THROW_IE_EXCEPTION << "Node " << getName() << " contains dead weak ptr";
+            IE_THROW() << "Node " << getName() << " contains dead weak ptr";
         if (edge->getInputNum() == idx) res.push_back(edge);
     }
     return res;
 }
 
 
-std::vector<memory::format> MKLDNNNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
+std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
     if (dims.ndims() == 0)
-        return {memory::format::x};
+        return {memory::format_tag::x};
     else if (dims.ndims() == 1)
-        return {memory::format::x};
+        return {memory::format_tag::x};
     else if (dims.ndims() == 2)
-        return {memory::format::nc};
+        return {memory::format_tag::nc};
     else if (dims.ndims() == 3)
-        return {memory::format::tnc, memory::format::ntc};
+        return {memory::format_tag::tnc, memory::format_tag::ntc};
     else if (dims.ndims() == 4)
-        return {memory::format::nchw, memory::format::nChw8c, memory::format::nChw16c};
+        return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
     else if (dims.ndims() == 5)
-        return {memory::format::ncdhw, memory::format::nCdhw8c, memory::format::nCdhw16c};
-    return {memory::format::any};
+        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c};
+    return {memory::format_tag::any};
 }
 
 void MKLDNNNode::execute(mkldnn::stream strm) {
     if (prim) {
-        strm.submit({*prim});
+        (*prim).execute(strm, primArgs);
     }
 }
 
@@ -504,7 +514,8 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto itpd = desc.createPrimitiveDescriptorIterator(engine);
-        while (itpd.is_not_end()) {
+
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
@@ -515,50 +526,50 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<mkldnn::memory::format> outFormats;
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
-
-                auto primDesc = itpd.fetch();
-                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
-                if (dstPrimDesc) {
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
-                } else {
-                    // This path is needed to correctly handle Deconvolution node
-                    auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
-                    if (diffSrcPrimDesc) {
-                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
-                    }
-                }
             }
-            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            itpd++;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
         }
     }
 }
 
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
+    // Compare by partial layout descriptor (without particular strides values)
+    auto areCompatible = [](const TensorDesc& tdesc, mkldnn::memory::format_tag fmt) {
+        TensorDesc fmt_tdesc = MKLDNNMemoryDesc{
+            MKLDNNDims(tdesc.getDims()),
+            MKLDNNExtensionUtils::IEPrecisionToDataType(tdesc.getPrecision()),
+            fmt};
+
+        auto tmp_partial_tdesc = PartialBlkDesc::extractFrom(fmt_tdesc);
+        auto actual_partial_tdesc = PartialBlkDesc::extractFrom(tdesc);
+        return tmp_partial_tdesc == actual_partial_tdesc;
+    };
+
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
         auto itpd = supportedPrimitiveDescriptors.begin();
         while (itpd != supportedPrimitiveDescriptors.end()) {
             const auto &config = itpd->getConfig();
             if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
-                THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats";
+                IE_THROW() << "Incorrect number of input or output memory formats";
 
             bool isSuitableDesc = true;
             for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                if (inputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.inConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = areCompatible(config.inConfs[i].desc, inputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                if (outputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = areCompatible(config.outConfs[i].desc, outputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
                 itpd = supportedPrimitiveDescriptors.erase(itpd);
@@ -588,20 +599,20 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         const auto &desc = descs[j];
-        std::shared_ptr<primitive_desc_iterator> itpd;
+        primitive_desc_iterator itpd;
         if (attr == nullptr) {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine));
+            itpd = desc.createPrimitiveDescriptorIterator(engine);
         } else {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine, *(attr.get())));
+            itpd = desc.createPrimitiveDescriptorIterator(engine, *(attr.get()));
         }
-        while (itpd->is_not_end()) {
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig cfg;
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(*itpd, i);
+                dataConfig.desc = getSrcMemDesc(itpd, i);
                 cfg.inConfs.push_back(dataConfig);
             }
 
@@ -609,13 +620,13 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(*itpd, i);
+                dataConfig.desc = getDstMemDesc(itpd, i);
                 cfg.outConfs.push_back(dataConfig);
             }
-            impl_desc_type impl_type = parse_impl_name(itpd->get_impl_info_str().c_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
-                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
+                    IE_THROW() << "Cannot get the original layer configuration!";
                 }
                 rightConfig = cfg;
             }
@@ -625,7 +636,8 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 }
             }
             selected_count++;
-            (*itpd)++;
+            if (!itpd.next_impl())
+                break;
         }
     }
 
@@ -637,13 +649,13 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
             if (selectedConfig.inConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.inConfs[i].desc, config.inConfs[i].desc))
-                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
             if (selectedConfig.outConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.outConfs[i].desc, config.outConfs[i].desc))
-                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;
     }
@@ -654,17 +666,17 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
 InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool isGrouped) {
     auto checkSize = [](size_t dst_size, size_t src_size) {
         if (dst_size < src_size) {
-            THROW_IE_EXCEPTION << "Cannot create internal buffer. Buffer can be overrun.";
+            IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
         }
     };
     auto * wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(getCnnLayer().get());
     if (wLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get weightable layer for node " << getName() << ".";
+        IE_THROW() << "Cannot get weightable layer for node " << getName() << ".";
 
     InferenceEngine::Blob::Ptr blb = weights ? wLayer->_weights : wLayer->_biases;
 
     if (blb == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
+        IE_THROW() << "Cannot get internal blob layer for node " << getName() << ".";
 
     auto intLayout = getWeightsLayoutByDims(dims, isGrouped);
 
@@ -678,12 +690,12 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
         for (const auto &merged : getMergeWith()) {
             wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(merged->getCnnLayer().get());
             if (wLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot convert merged weightable layer for node "
+                IE_THROW() << "Cannot convert merged weightable layer for node "
                                    << getName() << ".";
             blb = weights ? wLayer->_weights : wLayer->_biases;
 
             if (blb == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
+                IE_THROW() << "Cannot get internal blob layer for node " << getName() << ".";
             offset += blb->byteSize();
             checkSize(intBuffSize, offset);
             cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
@@ -716,13 +728,13 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Destination memory didn't allocate for node " << getName()
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Destination memory didn't allocate for node " << getName()
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
     std::vector<MKLDNNMemoryDesc> intDescs;
@@ -735,16 +747,9 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 
         auto create = [&] () {
             auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
-            auto newFormat = newDesc.getFormat();
-            if (newFormat == mkldnn::memory::ncdhw) {
-                newFormat = mkldnn::memory::goihw;
-            }
-            if (newFormat == mkldnn::memory::nchw) {
-                newFormat = mkldnn::memory::oihw;
-            }
 
             MKLDNNMemory memory{ engine };
-            memory.Create(MKLDNNMemoryDesc(newDesc.getDims(), newDesc.getDataType(), newFormat), internalBlob->buffer());
+            memory.Create(newDesc, internalBlob->buffer());
 
             MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
             _ptr->Create(intDescs[i]);
@@ -762,7 +767,7 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
                                             + "_" + std::to_string(internalBlob->byteSize())
                                             + "_" + std::to_string(data_hash);
 
-            ptr = weightCache->findOrCreate(string_hash, create);
+            ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
             ptr = create();
         }
@@ -774,7 +779,7 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 bool MKLDNNNode::isInplace() const {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
 
     for (auto &in : config.inConfs) if (in.inPlace >= 0) return true;
@@ -906,7 +911,7 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredInputDesc(const InferenceEn
     int num = getParentEdgeAt(idx)->getInputNum();
     auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        THROW_IE_EXCEPTION << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
 
     if (selectedPD->getConfig().outConfs.size() <= num)
         num = 0;
@@ -956,7 +961,7 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceE
     int num = getChildEdgeAt(idx)->getOutputNum();
     auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        THROW_IE_EXCEPTION << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
 
     if (selectedPD->getConfig().inConfs.size() <= num)
         num = 0;
@@ -1001,7 +1006,7 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceE
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (!isInitConfig(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
@@ -1033,7 +1038,7 @@ bool MKLDNNNode::isInitConfig(const InferenceEngine::LayerConfig& config) const 
 }
 
 MKLDNNMemoryDesc MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
                                                             getParentEdgeAt(idx)->getDims().ToSizeVector(),
@@ -1045,7 +1050,7 @@ MKLDNNMemoryDesc MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &prim
 }
 
 MKLDNNMemoryDesc MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
                                                             getChildEdgeAt(idx)->getDims().ToSizeVector(),
@@ -1079,8 +1084,25 @@ int MKLDNNNode::getMaxBatch() {
 
 void MKLDNNNode::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
-    if (prim) {
-        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
+
+    auto setDynamicBatch = [this](int argType, int newBatch) {
+        auto param = primArgs.find(argType);
+        if (param != primArgs.end()) {
+            auto oldMem = param->second;
+            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+            newMemDesc.data.dims[0] = newBatch;
+            newMemDesc.data.padded_dims[0] = newBatch;
+            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            primArgs.at(argType) = newMem;
+        }
+    };
+
+    if (!primArgs.empty()) {
+        int newBatch = batchToProcess();
+        setDynamicBatch(DNNL_ARG_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DST, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
     }
 }
 
@@ -1115,46 +1137,71 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
 }
 
 void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
-    THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
+    IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
-MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+std::vector<InferenceEngine::Precision> MKLDNNNode::getInputPrecisions() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+    return inputPrecisions;
+}
+
+std::vector<InferenceEngine::Precision> MKLDNNNode::getOutputPrecisions() const {
+    std::vector<InferenceEngine::Precision> outputPrecisions;
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        if (childEdge && childEdge->getStatus() == MKLDNNEdge::Status::Validated) {
+            outputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+    return outputPrecisions;
+}
+
+InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
+    // Base implementation consider precision only on data path and
+    // assumes it is placed on 0-th port (which is true for almost all layers)
+    InferenceEngine::Precision runtimePrecision = Precision::UNSPECIFIED;
+    auto inputPrecisions = getInputPrecisions();
+    if (!inputPrecisions.empty()) {
+        runtimePrecision = inputPrecisions[0];
+    } else {
+        auto outputPrecisions = getOutputPrecisions();
+        if (!outputPrecisions.empty()) {
+            runtimePrecision = outputPrecisions[0];
+        }
+    }
+
+    return runtimePrecision;
+}
+
+MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                                             const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
 
-    auto builder = builders.find(Generic);
+    std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, layer, eng, w_cache));
+    if (ol != nullptr && ol->created(extMgr))
+        newNode = ol.release();
 
-    if (builder != builders.end()) {
-        std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
+    if (newNode == nullptr) {
+        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, TypeFromName(layer->type), layer, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     }
 
-    if (newNode == nullptr) {
-        builder = builders.find(TypeFromName(layer->type));
-
-        if (builder != builders.end()) {
-            std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
-                newNode = ol.release();
-        }
-    }
-
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-#if defined (COMPILED_CPU_MKLDNN_TENSORITERATOR_NODE)
     MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
     if (ti != nullptr)
         ti->setExtManager(extMgr);
-#endif
     //  WA-end
 
     if (!newNode)
-        THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
+        IE_THROW() << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
 
     return newNode;
-}
-
-void MKLDNNNode::Factory::registerNode(Type type, builder_t builder) {
-    builders[type] = builder;
 }

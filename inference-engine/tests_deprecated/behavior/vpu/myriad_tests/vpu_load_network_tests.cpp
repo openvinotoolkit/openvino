@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_SimpleLoading) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 
     ASSERT_TRUE(!IsDeviceAvailable(device_to_load));
@@ -37,12 +37,12 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_LoadingAtTheSameDevice) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 
     ASSERT_TRUE(!IsDeviceAvailable(device_to_load));
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
 
@@ -52,7 +52,7 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenNameIsInvalid) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_ANY_THROW(ExeNetworkPtr exe_network =
+    ASSERT_ANY_THROW(ExeNetwork exe_network =
         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
 
@@ -76,6 +76,6 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenPlatformConflictWithPr
         {KEY_VPU_MYRIAD_PLATFORM, wrong_platform},
     };
 
-    ASSERT_ANY_THROW(ExeNetworkPtr exe_network =
+    ASSERT_ANY_THROW(ExeNetwork exe_network =
         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }

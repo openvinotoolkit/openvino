@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 #include "blob_factory.hpp"
 #include "mkldnn_memory.h"
 
-// It's so bad to include by relative path :-(
-#include "../../thirdparty/mkl-dnn/src/common/memory_desc_wrapper.hpp"
+#include "common/memory_desc_wrapper.hpp"
 
 #include <fstream>
 
@@ -51,7 +50,7 @@ static IEB_HEADER prepare_header(const TensorDesc& desc) {
     header.precision = desc.getPrecision();
 
     if (desc.getDims().size() > 7)
-        THROW_IE_EXCEPTION << "Dumper support max 7D blobs";
+        IE_THROW() << "Dumper support max 7D blobs";
 
     header.ndims = desc.getDims().size();
     for (int i = 0; i < header.ndims; i++)
@@ -67,11 +66,11 @@ static TensorDesc parse_header(IEB_HEADER &header) {
         header.magic[1] != IEB_MAGIC[1] ||
         header.magic[2] != IEB_MAGIC[2] ||
         header.magic[3] != IEB_MAGIC[3])
-        THROW_IE_EXCEPTION << "Dumper cannot parse file. Wrong format.";
+        IE_THROW() << "Dumper cannot parse file. Wrong format.";
 
     if (header.ver[0] != 0 ||
         header.ver[1] != 1)
-        THROW_IE_EXCEPTION << "Dumper cannot parse file. Unsupported IEB format version.";
+        IE_THROW() << "Dumper cannot parse file. Unsupported IEB format version.";
 
     Precision prc = Precision(static_cast<Precision::ePrecision>(header.precision));
     SizeVector dims(header.ndims);
@@ -138,7 +137,7 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Dumper. Unsupported precision";
+            IE_THROW() << "Dumper. Unsupported precision";
     }
 
     return pln_blob;
@@ -146,10 +145,10 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
 
 void BlobDumper::dump(std::ostream &stream) {
     if (!_blob)
-        THROW_IE_EXCEPTION << "Dumper cannot dump empty Blob";
+        IE_THROW() << "Dumper cannot dump empty Blob";
 
     if (_blob->buffer().as<float*>() == nullptr)
-        THROW_IE_EXCEPTION << "Dumper cannot dump. Blob is not allocated.";
+        IE_THROW() << "Dumper cannot dump. Blob is not allocated.";
 
     IEB_HEADER header = prepare_header(_blob->getTensorDesc());
     Blob::Ptr pln_blob = prepare_plain_data(_blob);
@@ -175,10 +174,10 @@ void BlobDumper::dump(std::ostream &stream) {
 
 void BlobDumper::dumpAsTxt(std::ostream &stream) {
     if (!_blob)
-        THROW_IE_EXCEPTION << "Dumper cannot dump empty Blob";
+        IE_THROW() << "Dumper cannot dump empty Blob";
 
     if (_blob->buffer().as<float*>() == nullptr)
-        THROW_IE_EXCEPTION << "Dumper cannot dump. Blob is not allocated.";
+        IE_THROW() << "Dumper cannot dump. Blob is not allocated.";
 
     SizeVector dims = _blob->getTensorDesc().getDims();
 
@@ -245,7 +244,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) {
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Dumper. Unsupported precision";
+            IE_THROW() << "Dumper. Unsupported precision";
     }
 }
 
@@ -265,7 +264,7 @@ BlobDumper BlobDumper::read(std::istream &stream) {
     // Parse scales fields.
     if (header.scaling_axis != NO_SCALES) {
         if (header.scaling_axis != 1)
-            THROW_IE_EXCEPTION << "Dumper support scaling only for channel dims.";
+            IE_THROW() << "Dumper support scaling only for channel dims.";
 
         size_t scl_size = header.scaling_data_size / sizeof(float);
         auto scl = make_blob_with_precision({Precision::FP32, {scl_size}, C});
@@ -283,7 +282,7 @@ BlobDumper BlobDumper::read(const std::string &file_path) {
     std::ifstream file;
     file.open(file_path);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "Dumper cannot open file " << file_path;
+        IE_THROW() << "Dumper cannot open file " << file_path;
 
     auto res = read(file);
     file.close();
@@ -294,7 +293,7 @@ void BlobDumper::dump(const std::string &dump_path) {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
-        THROW_IE_EXCEPTION << "Dumper cannot create dump file";
+        IE_THROW() << "Dumper cannot create dump file";
 
     dump(dump_file);
     dump_file.close();
@@ -304,7 +303,7 @@ void BlobDumper::dumpAsTxt(const std::string dump_path) {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
-        THROW_IE_EXCEPTION << "Dumper cannot create dump file";
+        IE_THROW() << "Dumper cannot create dump file";
 
     dumpAsTxt(dump_file);
     dump_file.close();
@@ -351,7 +350,7 @@ Blob::Ptr BlobDumper::getRealValue() {
         case Precision::U8: plain_copy<uint8_t>(_blob, _scales, res); break;
         case Precision::FP32: plain_copy<float>(_blob, _scales, res); break;
         case Precision::I8: plain_copy<int8_t >(_blob, _scales, res); break;
-        default: THROW_IE_EXCEPTION << "Unsupported precesion for getRealValue method.";
+        default: IE_THROW() << "Unsupported precesion for getRealValue method.";
     }
 
     return res;
@@ -363,7 +362,7 @@ BlobDumper& BlobDumper::withScales(InferenceEngine::Blob::Ptr scales) {
         scales->getTensorDesc().getDims().size() != 1 ||
         scales->getTensorDesc().getDims()[0] != _blob->getTensorDesc().getDims()[1] ||
         scales->getTensorDesc().getPrecision() != Precision::FP32)
-        THROW_IE_EXCEPTION << "Dumper cannot use passed scales. Blob has incompatible shape.";
+        IE_THROW() << "Dumper cannot use passed scales. Blob has incompatible shape.";
 
     _scales = scales;
     return *this;

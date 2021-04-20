@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -280,7 +280,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -449,7 +449,7 @@ protected:
             //  Check results
             if (memcmp((*output).data(), &p.ref[0], output->byteSize()) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -668,7 +668,7 @@ protected:
             if (memcmp(&((float*)(*output).data())[12], &p.ref[8], 8 * sizeof(float)) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -680,5 +680,5 @@ INSTANTIATE_TEST_CASE_P(
     TestsGather, MKLDNNCPUExtGatherHolesTests,
     ::testing::Values(
         // Params: dct_dim, dct, in_dim, in, axis, ref_dim, ref
-        gatherTF_test_params{ { 1, 3, 2, 2 }, dict,{ 1, 5, 2, 2 },{ 0, 1, 2, 1 }, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
+        gatherTF_test_params{ { 3, 2, 2 }, dict,{ 1, 5, 2, 2 },{ 0, 1, 2, 1 }, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
 

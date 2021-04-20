@@ -1,16 +1,6 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/common.cl"
 #include "include/data_types.cl"
@@ -43,14 +33,25 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int x = zyx % OUTPUT_SIZE_X;
     const int y = (zyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
     const int z = (zyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y;
+#elif OUTPUT_DIMS == 6
+    const int wzyx = get_global_id(GWS_YX);
+    const int x = wzyx % OUTPUT_SIZE_X;
+    const int y = (wzyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
+    const int z = ((wzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z;
+    const int w = ((wzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z;
 #endif
 
-#if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 6
+    const int input_offset = INPUT0_GET_INDEX(b, of, w, z, y, x);
+#elif INPUT0_DIMS == 5
     const int input_offset = INPUT0_GET_INDEX(b, of, z, y, x);
 #elif INPUT0_DIMS <= 4
     const int input_offset = INPUT0_GET_INDEX(b, of, y, x);
 #endif
-#if OUTPUT_DIMS == 5
+
+#if OUTPUT_DIMS == 6
+    const int output_offset = OUTPUT_GET_INDEX(b, of, w, z, y, x);
+#elif OUTPUT_DIMS == 5
     const int output_offset = OUTPUT_GET_INDEX(b, of, z, y, x);
 #elif OUTPUT_DIMS <= 4
     const int output_offset = OUTPUT_GET_INDEX(b, of, y, x);
@@ -61,6 +62,8 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, y, x);
 #elif INPUT1_DIMS == 5
     const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT1_DIMS == 6
+    const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, w, z, y, x);
 #endif
 #endif
 
@@ -68,6 +71,8 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, y, x);
 #elif INPUT7_DIMS == 5
     const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT7_DIMS == 6
+    const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, w, z, y, x);
 #endif
 
 #if PER_TENSOR_INPUT_SCALE

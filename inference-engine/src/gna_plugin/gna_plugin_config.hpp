@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "descriptions/gna_flags.hpp"
 #include <vector>
 #include <map>
+#include <mutex>
 
 namespace GNAPluginNS {
 
@@ -21,12 +22,34 @@ struct Config {
     Config() {
         AdjustKeyMapValues();
     }
+    Config(const Config& r) {
+        Copy(r);
+    }
+    Config& operator=(const Config& r) {
+        Copy(r);
+        return *this;
+    }
+    void Copy(const Config& r) {
+        gnaPrecision = r.gnaPrecision;
+        dumpXNNPath = r.dumpXNNPath;
+        dumpXNNGeneration = r.dumpXNNGeneration;
+#if GNA_LIB_VER == 1
+        gna_proc_type = r.gna_proc_type;
+#else
+        pluginGna2AccMode = r.pluginGna2AccMode;
+        pluginGna2DeviceConsistent = r.pluginGna2DeviceConsistent;
+#endif
+        inputScaleFactors = r.inputScaleFactors;
+        gnaFlags = r.gnaFlags;
+        std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
+        keyConfigMap = r.keyConfigMap;
+    }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void AdjustKeyMapValues();
     std::string GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;
 
-    // precision of GNA hardware model
+    // default precision of GNA hardware model (see QuantI16 quantizer struct)
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     std::string dumpXNNPath;
@@ -42,7 +65,8 @@ struct Config {
     std::vector<float> inputScaleFactors;
     GNAFlags gnaFlags;
 
-    std::map<std::string, std::string> key_config_map;
+    mutable std::mutex mtx4keyConfigMap;
+    std::map<std::string, std::string> keyConfigMap;
 };
 
 }  // namespace GNAPluginNS

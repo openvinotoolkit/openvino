@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,18 @@
 #include <unordered_set>
 
 #include <legacy/ie_layers.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 using namespace InferenceEngine;
 
 IE_SUPPRESS_DEPRECATED_START
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network) {
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network) {
     std::vector<CNNLayerPtr> ordered;
     std::unordered_set<std::string> used;
 
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
-
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+    OutputsDataMap outputs = network.getOutputsInfo();
+    InputsDataMap inputs = network.getInputsInfo();
 
     auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
         std::vector<CNNLayerPtr> consumers;
@@ -47,7 +44,7 @@ std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine:
             for (const auto & input : node->insData) {
                 auto locked_input = input.lock();
                 if (!locked_input) {
-                    THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                    IE_THROW() << "insData for " << node->name << " is not valid.";
                 }
                 if (auto next_node = getCreatorLayer(locked_input).lock()) {
                     if (!used.count(next_node->name)) {

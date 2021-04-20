@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@
 
 /**
  * @struct c_mat
- * @brief OpenCV Mat Wraper
+ * @brief OpenCV Mat Wrapper
  */
 typedef struct c_mat {
     unsigned char *mat_data;

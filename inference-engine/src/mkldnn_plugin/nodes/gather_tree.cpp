@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,37 +22,36 @@ public:
     explicit GatherTreeImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges.";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges.";
 
             if (layer->insData.size() != 4)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges.";
+                IE_THROW() << layer->name << " Incorrect number of input edges.";
             if (layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges.";
+                IE_THROW() << layer->name << " Incorrect number of output edges.";
 
             precision = layer->insData[GATHER_TREE_STEP_IDX].lock()->getTensorDesc().getPrecision();
-
             if (precision != Precision::FP32 && precision != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect data tensor precision. Only I32 or FP32 are supported.";
+                precision = Precision::FP32;
 
             if (layer->insData[GATHER_TREE_PARENT_IDX].lock()->getTensorDesc().getPrecision() != precision ||
                 layer->insData[GATHER_TREE_MAX_SEQ_LEN].lock()->getTensorDesc().getPrecision() != precision ||
                 layer->insData[GATHER_TREE_END_TOKEN].lock()->getTensorDesc().getPrecision() != precision ||
                 layer->outData[0]->getTensorDesc().getPrecision() != precision)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input/output data tensor precision. Should be the same.";
+                IE_THROW() << layer->name << " Incorrect input/output data tensor precision. Should be the same.";
 
             if (layer->insData[GATHER_TREE_STEP_IDX].lock()->getTensorDesc().getDims().size() != 3)
-                THROW_IE_EXCEPTION << layer->name << " step_idx vector should be 3 dimension";
+                IE_THROW() << layer->name << " step_idx vector should be 3 dimension";
             if (layer->insData[GATHER_TREE_PARENT_IDX].lock()->getTensorDesc().getDims().size() != 3)
-                THROW_IE_EXCEPTION << layer->name << " parent_idx vector should be 3 dimension";
+                IE_THROW() << layer->name << " parent_idx vector should be 3 dimension";
             if (layer->insData[GATHER_TREE_MAX_SEQ_LEN].lock()->getTensorDesc().getDims().size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " max_seq_len vector should be 1 dimension";
+                IE_THROW() << layer->name << " max_seq_len vector should be 1 dimension";
             if (layer->insData[GATHER_TREE_END_TOKEN].lock()->getTensorDesc().getDims().size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " end_token should be 1 dimension";
+                IE_THROW() << layer->name << " end_token should be 1 dimension";
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                               DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                             { DataConfigurator(ConfLayout::PLN) });
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(layer, { DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision),
+                               DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision) },
+                             { DataConfigurator(ConfLayout::PLN, precision) });
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

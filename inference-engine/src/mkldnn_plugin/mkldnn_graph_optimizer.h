@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
@@ -27,31 +26,26 @@ private:
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
-#if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
     void FuseConvolutionAndQuantize(MKLDNNGraph &graph);
     void FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph);
     void FusePoolingAndQuantize(MKLDNNGraph &graph);
-#endif
     void FuseBatchNormWithScale(MKLDNNGraph& graph);
-#if defined(COMPILED_CPU_MKLDNN_ELTWISE_NODE)
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
-#endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
     void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
-#endif
+    void AddConvertToReorder(MKLDNNGraph &graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
     void FuseClampAndQuantize(MKLDNNGraph &graph);
+    void MergePermuteAndReorder(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
     bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);

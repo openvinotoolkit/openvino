@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,9 @@ MKLDNN_EXTENSION_NODE(MathImpl, Asinh);
 MKLDNN_EXTENSION_NODE(MathImpl, Atan);
 MKLDNN_EXTENSION_NODE(MathImpl, Atanh);
 MKLDNN_EXTENSION_NODE(MathImpl, Ceil);
+MKLDNN_EXTENSION_NODE(MathImpl, Ceiling);
 MKLDNN_EXTENSION_NODE(MathImpl, Cos);
 MKLDNN_EXTENSION_NODE(MathImpl, Cosh);
-MKLDNN_EXTENSION_NODE(MathImpl, Erf);
 MKLDNN_EXTENSION_NODE(MathImpl, Floor);
 MKLDNN_EXTENSION_NODE(MathImpl, HardSigmoid);
 MKLDNN_EXTENSION_NODE(MathImpl, Log);
@@ -41,13 +41,11 @@ MKLDNN_EXTENSION_NODE(ReverseSequenceImpl, ReverseSequence);
 MKLDNN_EXTENSION_NODE(DetectionOutputImpl, DetectionOutput);
 MKLDNN_EXTENSION_NODE(ArgMaxImpl, ArgMax);
 MKLDNN_EXTENSION_NODE(UnsqueezeImpl, Unsqueeze);
-MKLDNN_EXTENSION_NODE(StridedSliceImpl, StridedSlice);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronDetectionOutputImpl, ExperimentalDetectronDetectionOutput);
 MKLDNN_EXTENSION_NODE(RegionYoloImpl, RegionYolo);
 MKLDNN_EXTENSION_NODE(LogSoftmaxImpl, LogSoftmax);
 MKLDNN_EXTENSION_NODE(ReorgYoloImpl, ReorgYolo);
 MKLDNN_EXTENSION_NODE(SqueezeImpl, Squeeze);
-MKLDNN_EXTENSION_NODE(ConvertImpl, Convert);
 MKLDNN_EXTENSION_NODE(FillImpl, Fill);
 MKLDNN_EXTENSION_NODE(UniqueImpl, Unique);
 MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);
@@ -63,16 +61,16 @@ MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
 MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 MKLDNN_EXTENSION_NODE(SpaceToDepthImpl, SpaceToDepth);
 MKLDNN_EXTENSION_NODE(PowerFileImpl, PowerFile);
-MKLDNN_EXTENSION_NODE(InterpImpl, Interp);
 MKLDNN_EXTENSION_NODE(BatchToSpaceImpl, BatchToSpace);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 MKLDNN_EXTENSION_NODE(SimplerNMSImpl, SimplerNMS);
-MKLDNN_EXTENSION_NODE(PadImpl, Pad);
 MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
 MKLDNN_EXTENSION_NODE(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 MKLDNN_EXTENSION_NODE(BucketizeImpl, Bucketize);
 MKLDNN_EXTENSION_NODE(CTCGreedyDecoderImpl, CTCGreedyDecoder);
+MKLDNN_EXTENSION_NODE(CTCGreedyDecoderSeqLenImpl, CTCGreedyDecoderSeqLen);
 MKLDNN_EXTENSION_NODE(GatherImpl, Gather);
+MKLDNN_EXTENSION_NODE(GatherElementsImpl, GatherElements);
 MKLDNN_EXTENSION_NODE(GatherNDImpl, GatherND);
 MKLDNN_EXTENSION_NODE(ProposalImpl, Proposal);
 MKLDNN_EXTENSION_NODE(RangeImpl, Range);

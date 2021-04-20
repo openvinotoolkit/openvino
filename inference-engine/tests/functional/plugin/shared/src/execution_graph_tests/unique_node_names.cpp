@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,15 +16,15 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/unique_node_names.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
     InferenceEngine::Precision inputPrecision, netPrecision;
@@ -110,4 +110,4 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     fnPtr.reset();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

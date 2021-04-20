@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import mxnet as mx
 import numpy as np
@@ -114,21 +101,26 @@ class AttrDictionary(object):
 
 def get_mxnet_node_edges(node: dict, node_id: [int, str], nodes_list: list, index_node_key: dict):
     edge_list = []
+    used_indices = set()
     for in_port, src_node_id in enumerate(node['inputs']):
-        src_node = src_node_id[0]
-        dest_port = src_node_id[1]
-        edge_attrs = {
-            'in': in_port,
-            'out': dest_port,
-            # debug anchor for name of tensor consumed at this input port
-            'fw_tensor_debug_info': [(nodes_list[src_node]['name'], src_node_id[1])],
-            'in_attrs': ['in'],
-            'out_attrs': ['out'],
-            'data_attrs': ['fw_tensor_debug_info']
-        }
-        edge = (index_node_key[src_node], index_node_key[node_id], edge_attrs)
+        edge = create_mxnet_edge(index_node_key[src_node_id[0]], index_node_key[node_id], in_port, src_node_id[1],
+                                 nodes_list[src_node_id[0]]['name'])
         edge_list.append(edge)
-    return edge_list
+        used_indices.add(src_node_id[0])
+    return edge_list, used_indices
+
+
+def create_mxnet_edge(src_node_id: str, dst_node_id: str, src_port: int, dst_port: int, framework_name: str):
+    edge_attrs = {
+        'in': src_port,
+        'out': dst_port,
+        # debug anchor for framework name, out port and tensor name
+        'fw_tensor_debug_info': [(framework_name, dst_port, framework_name)],
+        'in_attrs': ['in'],
+        'out_attrs': ['out'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    return src_node_id, dst_node_id, edge_attrs
 
 
 def get_mxnet_layer_attrs(json_dic: dict):

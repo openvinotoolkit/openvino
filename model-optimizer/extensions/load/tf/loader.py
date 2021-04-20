@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 try:
     import tensorflow.compat.v1 as tf_v1
+
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
 except ImportError:
@@ -31,9 +19,8 @@ import logging as log
 from extensions.load.loader import Loader
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
-from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
-from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
-from mo.front.tf.extractors.utils import tf_tensor_shape, tf_dtype_extractor
+from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs, add_outputs_identity
+from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
@@ -43,6 +30,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 class TFLoader(Loader):
     enabled = True
+    run_not_recursively = True
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']
@@ -74,6 +62,8 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
+        update_extractors_with_extensions(tf_op_extractors)
+
         try:
             protobuf2nx(graph, graph_def)
         except Exception as e:
@@ -94,42 +84,17 @@ class TFLoader(Loader):
         graph.graph['variables_values'] = variables_values
         del variables_values
 
-        restore_edges(graph, get_tf_edges)
+        used_tensors = restore_edges(graph, get_tf_edges)
+
+        # Tensor names information corresponding to a node is stored on outgoing edges.
+        # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+        # for each output Identity node is added, and tensor name for the output is kept
+        # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+        # are deleted from graph.
+        add_outputs_identity(graph, graph.nodes - used_tensors, lambda g, output, fake_node_name: g.add_edges_from([
+            create_tf_edge(output, fake_node_name, 0)]))
+
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
-
-
-class TFExtractor(Loader):
-    id = "TFExtractor"
-    enabled = True
-
-    def run_after(self):
-        return [TFLoader]
-
-    def load(self, graph: Graph):
-        update_extractors_with_extensions(tf_op_extractors)
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
-
-
-class TFPrivateExtractor(Loader):
-    id = "TFPrivateExtractor"
-    enabled = False
-
-    def run_after(self):
-        return [TFLoader]
-
-    def load(self, graph: Graph):
-        extract_node_attrs(graph, lambda node: tf_op_extractor(node, {}))
-        for node in graph.get_op_nodes():
-            if node.has('pb') and 'shape' in node.pb.attr:
-                node['shape'] = tf_tensor_shape(node.pb.attr["shape"].shape)
-            if node.has('pb') and 'shapes' in node.pb.attr:
-                shapes = node.pb.attr['shapes'].list.shape
-                node['shapes'] = [tf_tensor_shape(shape) for shape in shapes]
-            if node.has('pb') and 'data_type' in node.pb.attr:
-                node['data_type'] = tf_dtype_extractor(node.pb.attr["dtype"].type)
-            if node.has('pb') and 'value' in node.pb.attr:
-                node['value'] = True
-                node['shape'] = tf_tensor_shape(node.pb.attr["value"].tensor.tensor_shape)
-                node['data_type'] = tf_dtype_extractor(node.pb.attr["value"].tensor.dtype)

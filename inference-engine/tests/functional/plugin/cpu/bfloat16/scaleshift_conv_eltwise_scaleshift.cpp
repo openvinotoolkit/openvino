@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,6 @@ protected:
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["ADD_2"] = "FP32";
         expectedPrecisions["ELT_1"] = "ndef";
     }
 };

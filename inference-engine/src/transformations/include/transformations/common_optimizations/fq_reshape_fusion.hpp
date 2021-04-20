@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,5 +28,6 @@ class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
 
 class ngraph::pass::FakeQuantizeReshapeFusion : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     FakeQuantizeReshapeFusion();
 };

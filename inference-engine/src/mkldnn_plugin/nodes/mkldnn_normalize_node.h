@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ref_eltwise.hpp"
-#include "ref_depthwise.hpp"
+#include <mkldnn_node.h>
+#include <mkldnn.hpp>
+#include <cassert>
+
+#include <cpu/ref_eltwise.hpp>
+#include <cpu/ref_depthwise_injector.hpp>
 
 using namespace InferenceEngine;
 
@@ -47,6 +51,8 @@ struct jit_uni_normalize_modulo_kernel {
     jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_normalize_modulo_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_normalize_config_params jcp_;
 };
 
@@ -60,6 +66,8 @@ struct jit_uni_normalize_kernel {
 
     explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_normalize_kernel() {}
+
+    virtual void create_ker() = 0;
 
     jit_normalize_config_params jcp_;
     const mkldnn_primitive_attr &attr_;
@@ -80,6 +88,9 @@ public:
     }
 
 private:
+    template<typename T>
+    struct NormalizeExecute;
+
     template <typename in_data_t, typename out_data_t>
     void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
@@ -115,6 +126,8 @@ private:
 
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+
+    jit_normalize_config_params jcp = {};
 };
 
 }  // namespace MKLDNNPlugin

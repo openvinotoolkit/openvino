@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,10 +19,9 @@
 class MockInferencePluginInternal2 : public InferenceEngine::InferencePluginInternal {
 public:
     MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>(
-            const InferenceEngine::ICNNNetwork &, const std::map<std::string, std::string> &));
-    MOCK_METHOD3(LoadNetwork, void(
-            InferenceEngine::IExecutableNetwork::Ptr &,
-            const InferenceEngine::ICNNNetwork &,
+            const InferenceEngine::CNNNetwork &, const std::map<std::string, std::string> &));
+    MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
+            const InferenceEngine::CNNNetwork &,
             const std::map<std::string, std::string> &));
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));
@@ -31,13 +30,13 @@ public:
 class MockInferencePluginInternal : public InferenceEngine::InferencePluginInternal {
 public:
     MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>(
-            const InferenceEngine::ICNNNetwork &, const std::map<std::string, std::string> &));
+            const InferenceEngine::CNNNetwork &, const std::map<std::string, std::string> &));
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
-    ExecutableNetwork ImportNetworkImpl(std::istream& stream, const std::map <std::string, std::string>&) {
+    ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& stream, const std::map <std::string, std::string>&) {
         std::getline(stream, importedString);
         return {};
     }
@@ -48,7 +47,7 @@ public:
 class MockInferencePluginInternal3 : public InferenceEngine::InferencePluginInternal {
 public:
     MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>(
-            const InferenceEngine::ICNNNetwork &, const std::map<std::string, std::string> &));
+            const InferenceEngine::CNNNetwork &, const std::map<std::string, std::string> &));
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));
 };

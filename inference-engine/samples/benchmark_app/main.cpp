@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_m.empty()) {
+        showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
@@ -66,6 +67,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
+    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision using compile_tool");
+
+        throw std::logic_error(err);
+    }
     return true;
 }
 
@@ -87,7 +96,7 @@ static void next_step(const std::string additional_info = "") {
 
     step_id++;
     if (step_names.count(step_id) == 0)
-        THROW_IE_EXCEPTION << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -164,7 +173,7 @@ int main(int argc, char *argv[]) {
         Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
-            const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
@@ -230,9 +239,10 @@ int main(int argc, char *argv[]) {
                     device_config[key] = device_nstreams.at(device);
                 } else if (!device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
-                          "Although the automatic selection usually provides a reasonable performance,"
+                          "Although the automatic selection usually provides a reasonable performance, "
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
-                    device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                    if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
+                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
@@ -275,6 +285,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
@@ -317,6 +328,8 @@ int main(int argc, char *argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
+        benchmark_app::InputsInfo app_inputs_info;
+        std::string output_name;
         if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
             next_step();
@@ -342,15 +355,12 @@ int main(int argc, char *argv[]) {
             next_step();
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
-            InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
             bool reshape = false;
-            if (!FLAGS_shape.empty()) {
-                reshape |= updateShapes(shapes, FLAGS_shape, inputInfo);
-            }
-            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
-                reshape |= adjustShapesBatch(shapes, FLAGS_b, inputInfo);
-            }
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
             if (reshape) {
+                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                for (auto& item : app_inputs_info)
+                    shapes[item.first] = item.second.shape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
@@ -362,19 +372,29 @@ int main(int argc, char *argv[]) {
                                                     {"reshape network time (ms)", duration_ms}
                                             });
             }
-            batchSize = cnnNetwork.getBatchSize();
+            // use batch size according to provided layout and shapes
+            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
+
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
-            // ----------------- 6. Configuring input ----------------------------------------------------------------------
+            // ----------------- 6. Configuring inputs and outputs ----------------------------------------------------------------------
             next_step();
 
-            for (auto& item : inputInfo) {
-                if (isImage(item.second)) {
-                    /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
-                    item.second->setPrecision(Precision::U8);
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : cnnNetwork.getInputsInfo()) {
+                // if precision for input set by user, then set it to app_inputs
+                // if it an image, set U8
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
+                    app_inputs_info.at(item.first).precision = item.second->getPrecision();
+                } else if (app_inputs_info.at(item.first).isImage()) {
+                    app_inputs_info.at(item.first).precision = Precision::U8;
+                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
+
+
+            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();
@@ -404,6 +424,7 @@ int main(int argc, char *argv[]) {
                                           {
                                                   {"import network time (ms)", duration_ms}
                                           });
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -426,8 +447,8 @@ int main(int argc, char *argv[]) {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
                     nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-                } catch (const details::InferenceEngineException& ex) {
-                    THROW_IE_EXCEPTION
+                } catch (const std::exception& ex) {
+                    IE_THROW()
                             << "Every device used with the benchmark_app should "
                             << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                             << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
@@ -482,8 +503,7 @@ int main(int argc, char *argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        const InferenceEngine::ConstInputsDataMap info(exeNetwork.GetInputsInfo());
-        fillBlobs(inputFiles, batchSize, info, inferRequestsQueue.requests);
+        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
 
         // ----------------- 10. Measuring performance ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -491,7 +511,7 @@ int main(int argc, char *argv[]) {
         size_t iteration = 0;
 
         std::stringstream ss;
-        ss << "Start inference " << FLAGS_api << "ronously";
+        ss << "Start inference " << FLAGS_api << "hronously";
         if (FLAGS_api == "async") {
             if (!ss.str().empty()) {
                 ss << ", ";
@@ -526,7 +546,7 @@ int main(int argc, char *argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
-            THROW_IE_EXCEPTION << "No idle Infer Requests!";
+            IE_THROW() << "No idle Infer Requests!";
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -555,7 +575,7 @@ int main(int argc, char *argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
-                THROW_IE_EXCEPTION << "No idle Infer Requests!";
+                IE_THROW() << "No idle Infer Requests!";
             }
 
             if (FLAGS_api == "sync") {
@@ -639,7 +659,7 @@ int main(int argc, char *argv[]) {
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
                 if (FLAGS_pc) {
-                    slog::info << "Pefrormance counts for " << ireq << "-th infer request:" << slog::endl;
+                    slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(ie, FLAGS_d), false);
                 }
                 perfCounts.push_back(reqPerfCounts);

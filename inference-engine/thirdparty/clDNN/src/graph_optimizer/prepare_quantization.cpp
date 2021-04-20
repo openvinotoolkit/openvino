@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -455,6 +443,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
             if (node.get_dependencies().size() != 2 || prim->mode != eltwise_mode::sub)
                 return false;
 
+            if (node.get_users().size() != 1)
+                return false;
+
             auto in0_layout = node.get_dependency(0).get_output_layout();
             auto in1_layout = node.get_dependency(1).get_output_layout();
 
@@ -655,6 +646,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
                         old_conv_prim->input_offset,
                         old_conv_prim->dilation,
                         output_size,
+                        old_conv_prim->grouped_weights_shape,
                         old_conv_prim->output_padding);
 
             auto& new_conv_node = p.get_or_create(new_conv_prim);
@@ -729,19 +721,23 @@ void prepare_quantization::prepare_dequantize_merge(program_impl &p) {
         if (node->is_output())
             continue;
 
-        program_helpers::do_for_types<scale>(*node, [&p](scale_node& node) {
+        program_helpers::do_for_types<eltwise>(*node, [&p](eltwise_node& node) {
             for (size_t i = 1; i < node.get_dependencies().size(); i++) {
                 if (!node.get_dependency(i).is_type<data>()) {
                     return;
                 }
             }
 
-            auto get_scale_shift_mem = [](const scale_node& scale, size_t dep_id) -> memory_impl& {
-                if (dep_id >= scale.get_dependencies().size())
-                    CLDNN_ERROR_MESSAGE(scale.id(), "Invalid dependency id in dequantize optimization");
+            auto get_scale_shift_mem = [](const eltwise_node& eltw, size_t dep_id) -> memory_impl& {
+                if (dep_id >= eltw.get_dependencies().size())
+                    CLDNN_ERROR_MESSAGE(eltw.id(), "Invalid dependency id in dequantize optimization");
 
-                return scale.get_dependency(dep_id).as<data>().get_attached_memory();
+                return eltw.get_dependency(dep_id).as<data>().get_attached_memory();
             };
+
+            auto eltw_mode = node.get_primitive()->mode;
+            if (eltw_mode != eltwise_mode::sum && eltw_mode != eltwise_mode::prod)
+                return;
 
             auto& input = node.input();
 
@@ -749,13 +745,16 @@ void prepare_quantization::prepare_dequantize_merge(program_impl &p) {
                 if (user == &node)
                     continue;
 
-                if (!user->is_type<scale>() || user->get_dependencies().size() != node.get_dependencies().size())
+                if (!user->is_type<eltwise>() || user->get_dependencies().size() != node.get_dependencies().size())
                     continue;
 
-                auto& scale_dep = user->as<scale>();
+                auto& eltwise_dep = user->as<eltwise>();
+                if (eltwise_dep.get_primitive()->mode != node.get_primitive()->mode)
+                    continue;
+
                 bool valid_scale_node = true;
-                for (size_t i = 1; i < scale_dep.get_dependencies().size(); i++) {
-                    if (!scale_dep.get_dependency(i).is_type<data>()) {
+                for (size_t i = 1; i < eltwise_dep.get_dependencies().size(); i++) {
+                    if (!eltwise_dep.get_dependency(i).is_type<data>()) {
                         valid_scale_node = false;
                     }
                 }
@@ -765,7 +764,7 @@ void prepare_quantization::prepare_dequantize_merge(program_impl &p) {
 
                 bool same_params = true;
                 for (size_t i = 1; i < node.get_dependencies().size(); i++) {
-                    auto& mem0 = get_scale_shift_mem(user->as<scale>(), i);
+                    auto& mem0 = get_scale_shift_mem(eltwise_dep, i);
                     auto& mem1 = get_scale_shift_mem(node, i);
 
                     auto ptr0 = static_cast<uint8_t*>(mem0.lock());

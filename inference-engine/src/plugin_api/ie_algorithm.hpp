@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ static Set Intersection(const Set& lhs, const Set& rhs) {
     const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
     const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
     for (auto&& val : minSizeSet) {
-        if (contains(maxSizeSet, val)) {
+        if (InferenceEngine::details::contains(maxSizeSet, val)) {
             result.insert(val);
         }
     }
@@ -112,7 +112,7 @@ static bool Intersects(const Set& lhs, const Set& rhs) {
     const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
     const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
     for (auto&& val : minSizeSet) {
-        if (contains(maxSizeSet, val)) {
+        if (InferenceEngine::details::contains(maxSizeSet, val)) {
             return true;
         }
     }

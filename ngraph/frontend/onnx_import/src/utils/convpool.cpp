@@ -1,26 +1,14 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <unordered_map>
 
-#include "convpool.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/exceptions.hpp"
+#include "utils/convpool.hpp"
 
 namespace ngraph
 {
@@ -97,6 +85,12 @@ namespace ngraph
             Strides get_dilations(const Node& node, const std::size_t kernel_rank)
             {
                 return detail::get_attribute_value(node, "dilations", kernel_rank);
+            }
+
+            ngraph::op::RoundingType get_rounding_type(const Node& node)
+            {
+                return static_cast<ngraph::op::RoundingType>(
+                    node.get_attribute_value<std::int64_t>("ceil_mode", 0));
             }
 
             ngraph::op::PadType get_auto_pad(const Node& node)

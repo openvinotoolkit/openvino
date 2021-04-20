@@ -1,27 +1,17 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
+#include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph
@@ -75,6 +65,7 @@ namespace ngraph
             }
             virtual operator HostTensorPtr&() { NGRAPH_CHECK(false, "Invalid type access"); }
             uint64_t get_index() { return m_index; }
+
         protected:
             uint64_t m_index{0};
         };
@@ -89,6 +80,7 @@ namespace ngraph
                 m_index = index;
             }
             operator T&() override { return m_value; }
+
         protected:
             T m_value;
         };
@@ -160,7 +152,16 @@ namespace ngraph
             }
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    auto& data = m_values.get<HostTensorPtr>(name);
+                    data->read(a->get()->get_ptr(), a->get()->size());
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
@@ -255,7 +256,18 @@ namespace ngraph
 
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    HostTensorPtr data =
+                        std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
+                    data->write(a->get()->get_ptr(), a->get()->size());
+                    m_values.insert(name, data);
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
@@ -367,12 +379,30 @@ namespace ngraph
             // Does not validate, since inputs aren't set
             std::shared_ptr<Node> create()
             {
-                std::shared_ptr<Node> node(FactoryRegistry<Node>::get().create(m_node_type_info));
+                std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
                 node->visit_attributes(*this);
                 return node;
             }
             AttributeVisitor& get_node_saver() { return m_serializer; }
             AttributeVisitor& get_node_loader() { return *this; }
+            static FactoryRegistry<Node>& get_ops()
+            {
+                static std::shared_ptr<FactoryRegistry<Node>> registry;
+                static std::mutex init_guard;
+                if (!registry)
+                {
+                    std::lock_guard<std::mutex> guard(init_guard);
+                    if (!registry)
+                    {
+                        registry = std::make_shared<FactoryRegistry<Node>>();
+#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry->register_factory<NAMESPACE::NAME>();
+#include "op_version_tbl.hpp"
+#undef NGRAPH_OP
+                    }
+                }
+                return *registry;
+            }
+
         protected:
             Node::type_info_t m_node_type_info;
             SerializeAttributeVisitor m_serializer;

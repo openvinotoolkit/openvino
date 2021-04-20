@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@
 #include "legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
@@ -45,8 +44,7 @@
 
 #include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <transformations/op_conversions/convert_convolutions.hpp>
-
-#include "ie_legacy_itt.hpp"
+#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -59,9 +57,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::IELegacy, "ngraph::pass::ConvertOpSet1ToLegacy");
-
-    ngraph::pass::Manager manager;
+    ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -85,12 +81,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
-    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
-    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -132,8 +123,10 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
     anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS1ToNMS5>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS3ToNMS5>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS4ToNMS5>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
@@ -141,14 +134,21 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     // List of final conversion transformations that must to be executed
     // after previous group of transformations
-    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+
+    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(f)) {
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    }
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
-    return true;
+
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

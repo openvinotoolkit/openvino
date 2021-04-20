@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,21 +27,25 @@ public:
     explicit SelectImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != numOfInputs || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has incorrect number of input/output edges!";
+                IE_THROW() << "Select layer with name '" << layer->name << "' has incorrect number of input/output edges!";
 
             broadcast = layer->GetParamAsString("auto_broadcast", "numpy");
 
-            if (layer->insData[THEN].lock()->getTensorDesc().getPrecision() != layer->insData[ELSE].lock()->getTensorDesc().getPrecision())
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has different precisions on 'Then' and 'Else' inputs";
+            auto inputPrecision = layer->insData[THEN].lock()->getTensorDesc().getPrecision();
+            if (inputPrecision == Precision::BF16 || layer->insData[ELSE].lock()->getTensorDesc().getPrecision() == Precision::BF16) {
+                inputPrecision = Precision::BF16;
+            } else if (layer->insData[THEN].lock()->getTensorDesc().getPrecision() != layer->insData[ELSE].lock()->getTensorDesc().getPrecision()) {
+                IE_THROW() << "Select layer with name '" << layer->name << "' has different precisions on 'Then' and 'Else' inputs ";
+            }
 
             const auto& conditionPrecision = layer->insData[CONDITION].lock()->getTensorDesc().getPrecision();
             if (conditionPrecision != Precision::BOOL && conditionPrecision != Precision::I32  && conditionPrecision != Precision::U8)
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has unsupported precision: " << conditionPrecision
+                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported precision: " << conditionPrecision
                                                                                                                 << " on 'Condition' input";
 
             const auto& inputPrecisionSize = layer->insData[THEN].lock()->getTensorDesc().getPrecision().size();
             if (inputPrecisionSize != 1 && inputPrecisionSize != 2 && inputPrecisionSize != 4 && inputPrecisionSize != 8)
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has unsupported precision: " <<
+                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported precision: " <<
                                                         layer->insData[THEN].lock()->getTensorDesc().getPrecision() << " on 'Then' and 'Else' inputs";
 
             const auto &conditionShapes = layer->insData[CONDITION].lock()->getTensorDesc().getDims();
@@ -50,29 +54,29 @@ public:
             const auto &outputShapes = layer->outData[0]->getTensorDesc().getDims();
 
             if (broadcast != "none" && broadcast != "numpy")
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has unsupported broadcast type: " << broadcast;
+                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported broadcast type: " << broadcast;
 
             if (broadcast == "none" && ((conditionShapes != outputShapes) || (thenShapes != outputShapes) || (elseShapes != outputShapes)))
-                THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' and auto_broadcast='none' has input shapes mismatch";
+                IE_THROW() << "Select layer with name '" << layer->name << "' and auto_broadcast='none' has input shapes mismatch";
 
             if (broadcast == "numpy") {
                 if (outputShapes.size() < conditionShapes.size() || outputShapes.size() < thenShapes.size() || outputShapes.size() < elseShapes.size())
-                    THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' and auto_broadcast='numpy' has incompatible input and output shapes";
+                    IE_THROW() << "Select layer with name '" << layer->name << "' and auto_broadcast='numpy' has incompatible input and output shapes";
 
                 for (int condIt = conditionShapes.size() - 1, outIt = outputShapes.size() - 1; condIt >= 0; condIt--, outIt--)
                         if (conditionShapes[condIt] != outputShapes[outIt] && conditionShapes[condIt] != 1)
-                            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name
+                            IE_THROW() << "Select layer with name '" << layer->name
                                                                         << "' and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
 
                 for (int thenIt = thenShapes.size() - 1, outIt = outputShapes.size() - 1; thenIt >= 0; thenIt--, outIt--)
                         if (thenShapes[thenIt] != outputShapes[outIt] && thenShapes[thenIt] != 1)
-                            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name
+                            IE_THROW() << "Select layer with name '" << layer->name
                                                                             << "' and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
 
 
                 for (int elseIt = elseShapes.size() - 1, outIt = outputShapes.size() - 1; elseIt >= 0; elseIt--, outIt--)
                         if (elseShapes[elseIt] != outputShapes[outIt] && elseShapes[elseIt] != 1)
-                            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name
+                            IE_THROW() << "Select layer with name '" << layer->name
                                                                              << "' and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
             }
 
@@ -100,7 +104,7 @@ public:
                 inConfig.inPlace = -1;
                 inConfig.constant = false;
 
-                Precision inPrecision = layer->insData[i].lock()->getTensorDesc().getPrecision();
+                Precision inPrecision = i == CONDITION ? conditionPrecision : inputPrecision;
                 const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
 
@@ -110,14 +114,13 @@ public:
             DataConfig outConfig;
             outConfig.inPlace = -1;
             outConfig.constant = false;
-            Precision outPrecision = layer->insData[1].lock()->getTensorDesc().getPrecision();
             const SizeVector& outDims = layer->outData[0]->getTensorDesc().getDims();
-            outConfig.desc = TensorDesc(outPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
+            outConfig.desc = TensorDesc(inputPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
             config.outConfs.push_back(outConfig);
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

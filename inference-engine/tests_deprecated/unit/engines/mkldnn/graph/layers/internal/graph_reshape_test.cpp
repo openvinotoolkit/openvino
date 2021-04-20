@@ -1,7 +1,6 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include "test_graph.hpp"
 
@@ -130,7 +129,8 @@ protected:
                 }
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.in, InferenceEngine::ANY});
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.in,
+                                                                                       InferenceEngine::TensorDesc::getLayoutByDims(p.in)});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -161,7 +161,7 @@ protected:
             ref_reshape(*srcPtr, dst_ref);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

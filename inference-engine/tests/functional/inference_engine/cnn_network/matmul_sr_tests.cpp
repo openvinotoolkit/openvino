@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,6 @@ struct ReshapeMatMulTestCase {
 class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
 public:
     void SetUp() override {
-        const auto& parameters = GetParam();
         const auto& test_case = std::get<0>(GetParam());
 
         std::shared_ptr<ngraph::Function> ngraph;

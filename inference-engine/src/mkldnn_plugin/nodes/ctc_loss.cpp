@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
         _logPrefix = std::string("CTCLoss layer with name '") + layer->name + "'";
 
         if (layer->insData.size() != 4 && layer->insData.size() != 5)
-            THROW_IE_EXCEPTION << _logPrefix << " has invalid inputs number.";
+            IE_THROW() << _logPrefix << " has invalid inputs number.";
 
         _ctcMergeRepeated = layer->GetParamAsBool("ctc_merge_repeated", true);
         _preprocessCollapseRepeated = layer->GetParamAsBool("preprocess_collapse_repeated", false);
@@ -26,21 +26,18 @@ public:
 
         auto logitsData = layer->insData[0].lock();
         if (logitsData == nullptr)
-            THROW_IE_EXCEPTION << _logPrefix << " has nullable logits data";
-        auto logitsPrecision = logitsData->getTensorDesc().getPrecision();
-        if (logitsPrecision == Precision::BF16)
-            logitsPrecision = Precision::FP32;
+            IE_THROW() << _logPrefix << " has nullable logits data";
 
         LayerConfig config;
         config.inConfs.resize(layer->insData.size());
-        config.inConfs[0].desc = TensorDesc(logitsPrecision,
+        config.inConfs[0].desc = TensorDesc(Precision::FP32,
             logitsData->getTensorDesc().getDims(),
             TensorDesc::getLayoutByDims(logitsData->getTensorDesc().getDims()));
         auto intPrecision = Precision::I32;
         for (int i = 1; i < layer->insData.size(); i++) {
             auto data = layer->insData[i].lock();
             if (data == nullptr)
-                THROW_IE_EXCEPTION << _logPrefix << " has nullable input data at " << i;
+                IE_THROW() << _logPrefix << " has nullable input data at " << i;
             config.inConfs[i].desc = TensorDesc(intPrecision,
                 data->getTensorDesc().getDims(),
                 TensorDesc::getLayoutByDims(data->getTensorDesc().getDims()));
@@ -48,7 +45,7 @@ public:
 
         DataConfig outConfig;
         auto& outDims = layer->outData[0]->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(logitsPrecision,
+        outConfig.desc = TensorDesc(Precision::FP32,
             outDims,
             TensorDesc::getLayoutByDims(outDims));
         config.outConfs.push_back(outConfig);
@@ -86,7 +83,6 @@ public:
         std::vector<int> decodedTargetLenB(batchNum, 0);
         std::vector<std::vector<int>> targetDB(batchNum);
         std::vector<std::vector<std::vector<float>>> logProbabilitiesB(batchNum);
-        size_t workAmount2 = 0lu;
         std::vector<std::string> errorMsgB(parallel_get_max_threads());
 
         auto threadBody_1 = [&](const int ithr, const int nthr) {
@@ -152,7 +148,6 @@ public:
                 for (size_t ll = 0; ll < actualLogitLen; ll++) {
                     logProbabilities[ll].resize(decodedTargetLen);
                 }
-                workAmount2 += actualLogitLen;
             } // for batch
         }; // threadBody_1
 
@@ -168,6 +163,11 @@ public:
         }
 
         const size_t TC = maxTime * classesNum;
+
+        size_t workAmount2 = 0lu;
+        for (size_t b = 0; b < batchNum; b++) {
+            workAmount2 += logitsLength[b];
+        }
 
         auto threadBody_2 = [&](const int ithr, const int nthr) {
             size_t start(0lu), end(0lu);

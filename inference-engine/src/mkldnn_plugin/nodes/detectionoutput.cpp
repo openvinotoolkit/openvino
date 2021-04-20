@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,9 @@ public:
     explicit DetectionOutputImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 3 && layer->insData.size() != 5)
-                THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name;
+                IE_THROW() << "Incorrect number of input edges for layer " << layer->name;
             if (layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name;
+                IE_THROW() << "Incorrect number of output edges for layer " << layer->name;
 
             _num_classes = layer->GetParamAsInt("num_classes");
             _background_label_id = layer->GetParamAsInt("background_label_id", 0);
@@ -61,15 +61,15 @@ public:
             _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
 
             if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
-                THROW_IE_EXCEPTION << "Number of priors must match number of location predictions ("
+                IE_THROW() << "Number of priors must match number of location predictions ("
                                    << _num_priors * _num_loc_classes * 4 << " vs "
                                    << layer->insData[idx_location].lock()->getDims()[1] << ")";
 
             if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
-                THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
+                IE_THROW() << "Number of priors must match number of confidence predictions.";
 
             if (_decrease_label_id && _background_label_id != 0)
-                THROW_IE_EXCEPTION << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
+                IE_THROW() << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
             _num = static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims()[0]);
 
@@ -112,9 +112,9 @@ public:
             _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::I32, num_priors_actual_size, C});
             _num_priors_actual->allocate();
 
-            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN));
-            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
+            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -278,17 +278,23 @@ public:
             }
         }
 
+        const int num_results = outputs[0]->getTensorDesc().getDims()[2];
         const int DETECTION_SIZE = outputs[0]->getTensorDesc().getDims()[3];
         if (DETECTION_SIZE != 7) {
             return NOT_IMPLEMENTED;
         }
 
-        auto dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
+        int dst_data_size = 0;
+        if (_keep_top_k > 0)
+            dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
+        else if (_top_k > 0)
+            dst_data_size = N * _top_k * _num_classes * DETECTION_SIZE * sizeof(float);
+        else
+            dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
 
         if (dst_data_size > outputs[0]->byteSize()) {
             return OUT_OF_BOUNDS;
         }
-
         memset(dst_data, 0, dst_data_size);
 
         int count = 0;
@@ -331,7 +337,7 @@ public:
             }
         }
 
-        if (count < N*_keep_top_k) {
+        if (count < num_results) {
             // marker at end of boxes list
             dst_data[count * DETECTION_SIZE + 0] = -1;
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,8 @@
 namespace ngraph {
 namespace pass {
 
+class TRANSFORMATIONS_API BidirectionalSequenceDecomposition;
+
 class TRANSFORMATIONS_API BidirectionalLSTMSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalGRUSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
@@ -30,6 +32,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 class ngraph::pass::BidirectionalLSTMSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalLSTMSequenceDecomposition();
 };
 
@@ -41,6 +44,7 @@ public:
 
 class ngraph::pass::BidirectionalGRUSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalGRUSequenceDecomposition();
 };
 
@@ -52,5 +56,22 @@ public:
 
 class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalRNNSequenceDecomposition();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Container for all types of sequences decomposition.
+ *
+ */
+
+class ngraph::pass::BidirectionalSequenceDecomposition : public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    BidirectionalSequenceDecomposition() {
+        add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+        add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+        add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+    }
 };

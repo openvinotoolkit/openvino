@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -430,16 +430,11 @@ bool checkHWRestrictions(
         int kernelSizeX, int kernelSizeY,
         int kernelStride,
         HwOpMode mode, HwOpType type) {
-    // Workaround for HW ops failure if too wide input:
-    // Looks like HW operations (primarily Pooling) can
-    // use only part of available CMX, up to 1014 * 128
-    // bits (i.e. 1014 * 16 bytes)
-    // Provided HwOpMode is 16x16, this means HW needs
-    // to read up to 16 lines of input tensor, so each
-    // line mustn't exceed 1014 bytes or 507 pixels if
-    // precision is FP16
+    // Workaround for HW ops failure if too wide input
+    // widht and  small height
     // More details available with the ticket #-33366
-    if (inTileWidth > 507) {
+
+    if (inTileWidth > 507 && inTileHeight > 1 && inTileHeight < 64 && type != HwOpType::POOL && inTileChannels != 3) {
         return false;
     }
 

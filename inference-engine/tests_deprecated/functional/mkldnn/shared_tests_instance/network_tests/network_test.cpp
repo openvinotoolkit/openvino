@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,10 @@
 
 TEST_P(ModelTransformationsTest, LPT) {}
 
-static void checkLayerInputPrecision(const ICNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
+static void checkLayerInputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
     CNNLayerPtr layer = getLayer(network, layerName);
     if (layer == nullptr) {
-        THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
+        IE_THROW() << "layer '" << layerName << "' was not found";
     }
     for (size_t index = 0ul; index < layer->insData.size(); ++index) {
         if ((inputIndex != -1) && (index != inputIndex)) {
@@ -95,9 +95,9 @@ std::map<std::string, ModelParams> modelParams = {
                         };
 
                         for (const std::pair<std::string, std::string> item : fakeQuantizeAndConcolutionItems) {
-                            TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, item.first, Precision::U8);
+                            TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, item.first, Precision::U8);
                             if (!item.second.empty()) {
-                                checkLayerInputPrecision(*usedNetwork, item.second, Precision::U8, 0);
+                                checkLayerInputPrecision(usedNetwork, item.second, Precision::U8, 0);
                             }
                         }
                     }
@@ -115,17 +115,17 @@ std::map<std::string, ModelParams> modelParams = {
                  { 217, 10.1224 },
                  { 152, 9.60148 }},
                 {},
-                [](const TransformationsParams& transformationsParam, CNNNetworkImplPtr usedNetwork) {
+                [](const TransformationsParams& transformationsParam, CNNNetwork usedNetwork) {
                     if (transformationsParam.transformationsInTestEnabled && transformationsParam.params.updatePrecisions) {
                         const Precision originalPrecision = Precision::FP32;
                         const Precision targetPrecision = Precision::U8;
 
                         //Eltwise CPU/GPU specific
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
 
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
                     }
                 })
         },
@@ -133,7 +133,7 @@ std::map<std::string, ModelParams> modelParams = {
 
     const auto it = modelParams.find(modelName);
     if (it == modelParams.end()) {
-        THROW_IE_EXCEPTION << "parameters for model '" << modelName << "' were not found";
+        IE_THROW() << "parameters for model '" << modelName << "' were not found";
     }
     return it->second;
 }

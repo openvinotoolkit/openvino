@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ public:
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const InferenceEngine::LayerConfig &config) override;

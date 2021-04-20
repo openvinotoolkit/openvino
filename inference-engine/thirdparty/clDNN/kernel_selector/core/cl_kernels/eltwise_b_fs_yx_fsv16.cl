@@ -1,27 +1,16 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "include/include_all.cl"
 #include "include/common.cl"
 #include "include/data_types.cl"
 
 #define FEATURE_SLICE_SIZE 16
+#define unroll_for  __attribute__((opencl_unroll_hint())) for
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
-#define TO_OUTPUT_TYPE_BLOCK(val)       CAT(convert_, OUTPUT_TYPE_BLOCK)(val)
+#define TO_TYPE(type, val)              CAT(convert_, type)(val)
 
 #if BLOCK_SIZE != 1
     #define READ_FUNC(ptr, offset) CAT(DT_INPUT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
@@ -29,6 +18,12 @@
 #else
     #define READ_FUNC(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
     #define WRITE_FUNC(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
+#endif
+
+#if ELTWISE_BROADCAST
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
+#else
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
 __attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
@@ -68,10 +63,10 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE_BLOCK out = TO_OUTPUT_TYPE_BLOCK(FUSED_OPS_RESULT);
+    OUTPUT_TYPE_BLOCK out = TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE), FUSED_OPS_RESULT);
 #else
 #if BLOCK_SIZE != 1
-    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_OUTPUT_TYPE_BLOCK(res), ACTIVATION_PARAMS_TYPED);
+    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE), res), ACTIVATION_PARAMS_TYPED);
 #else
     OUTPUT_TYPE out = ACTIVATION_TYPED(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif
@@ -96,3 +91,11 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
     }
 
 }
+
+#undef FEATURE_SLICE_SIZE
+#undef unroll_for
+#undef OUTPUT_TYPE_BLOCK
+#undef TO_TYPE
+#undef READ_FUNC
+#undef WRITE_FUNC
+#undef GET_INDEX

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     * @param deviceName Name of device load executable network on
      * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -85,7 +85,7 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**

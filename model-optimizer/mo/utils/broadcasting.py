@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 import numpy as np
 
@@ -134,7 +122,10 @@ def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_ma
     :return: broadcasted value
     """
     res_shape, normalized_axes_mapping = explicit_shape_broadcasting(input_value.shape, target_shape, axes_mapping)
+    #TODO: Function 'expand_dims' should be replaced with 'numpy.expand_dims' if numpy version will be >=18.x in requirements.
     expand_dim_axis = set(np.arange(len(target_shape))) - set(normalized_axes_mapping)
-
-    input_expanded = np.expand_dims(input_value.copy(), axis=list(expand_dim_axis))
+    input_expanded = input_value.copy()
+    
+    for axis in sorted(list(expand_dim_axis)):
+        input_expanded = np.expand_dims(input_expanded, axis)
     return np.broadcast_to(input_expanded, res_shape)

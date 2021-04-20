@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #pragma once
 
@@ -12,7 +11,6 @@
 #include <unordered_map>
 
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <threading/ie_itask_executor.hpp>
 #include <openvino/itt.hpp>
@@ -28,17 +26,17 @@ namespace TemplatePlugin {
 class ExecutableNetwork;
 
 // ! [infer_request:header]
-class TemplateInferRequest : public InferenceEngine::InferRequestInternal {
+class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
     TemplateInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
                          const InferenceEngine::OutputsDataMap&    networkOutputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
-    ~TemplateInferRequest() override;
+    ~TemplateInferRequest();
 
     void InferImpl() override;
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
     void inferPreprocess();
@@ -63,7 +61,6 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
 
-    InferenceEngine::BlobMap                                _networkInputBlobs;
     InferenceEngine::BlobMap                                _networkOutputBlobs;
     ngraph::ParameterVector                                 _parameters;
     ngraph::ResultVector                                    _results;

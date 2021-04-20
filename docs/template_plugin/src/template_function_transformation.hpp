@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ class MyFunctionTransformation;
 // template_function_transformation.hpp
 class ngraph::pass::MyFunctionTransformation: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 // ! [function_pass:template_transformation_hpp]

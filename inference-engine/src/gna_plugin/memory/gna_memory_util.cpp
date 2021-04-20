@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gna_memory_util.hpp"
 
 #include <cstdint>
-#include <details/ie_exception.hpp>
 #include "gna_plugin_log.hpp"
 
 int32_t GNAPluginNS::memory::MemoryOffset(void *ptr_target, void *ptr_base) {

@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
@@ -31,7 +19,8 @@ class Conv2DFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 3)
         attrs.update({'op': __class__.op,
-                      'get_group': lambda node: 1,
+                      'get_group': lambda node: node.group if 'group' in node and node.group is not None else
+                      node.in_node(0).shape[node.channel_dims] // node.kernel_shape[node.input_feature_channel],
                       'get_output_feature_dim': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 2, 0, 1]),
                                                                       inv=int64_array([2, 3, 1, 0]))

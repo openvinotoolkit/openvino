@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +13,7 @@ endif()
 
 addIeTarget(
         NAME myriadTestData
-        DEVELOPER_PACKAGE
+        DEVELOPER_PACKAGE inference_engine_tests
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/test_data
         LINK_LIBRARIES
@@ -27,7 +26,7 @@ addIeTarget(
 
 addIeTarget(
     NAME VPUCommonTests
-    DEVELOPER_PACKAGE
+    DEVELOPER_PACKAGE inference_engine_tests
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/common
     ADDITIONAL_SOURCE_DIRS
@@ -40,8 +39,6 @@ addIeTarget(
         IESharedTests
         vpu_graph_transformer
         vpu_custom_kernels
-    EXPORT_DEPENDENCIES
-        vpu_custom_kernels
 )
 
 target_include_directories(VPUCommonTests INTERFACE
@@ -50,7 +47,8 @@ target_include_directories(VPUCommonTests INTERFACE
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-ie_developer_export_targets(vpu_custom_kernels)
+openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS vpu_custom_kernels)
+
 addIeTargetTest(
     NAME MyriadFunctionalTests
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests

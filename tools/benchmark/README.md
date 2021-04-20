@@ -103,17 +103,24 @@ Options:
   -progress [PROGRESS]  Optional. Show progress bar (can affect performance
                         measurement). Default values is "False".
   -shape SHAPE          Optional. Set shape for input. For example,
-                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in
-                        case of one input size.
+                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]"
+                        in case of one input size.
+  -layout LAYOUT        Optional. Prompts how network layouts should be
+                        treated by application. For example,
+                        "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
+                        input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                       Optional. Number of streams to use for inference on the CPU/GPU in throughput mode
-                       (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                       Default value is determined automatically for a device. 
-                       Please note that although the automatic selection usually provides a reasonable performance, 
-                       it still may be non-optimal for some cases, especially for very small networks.
-  -enforcebf16 [ENFORCE_BFLOAT16], --enforce_bfloat16 [ENFORCE_BFLOAT16]
-                        Optional. Enforcing of floating point operations
-                        execution in bfloat16 precision where it is acceptable.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD
+                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                        Default value is determined automatically for a device.
+                        Please note that although the automatic selection usually provides a reasonable performance,
+                        it still may be non-optimal for some cases, especially for very small networks.
+                        Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
+                        estimations the number of streams should be set to 1.
+  -enforcebf16 [{true,false}], --enforce_bfloat16 [{true,false}]
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+                        'true'  - enable  bfloat16 regardless of platform support
+                        'false' - disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
@@ -144,7 +151,7 @@ If a model has only image input(s), please a provide folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the demo, you can use public or pre-trained models. To download the pre-trained models, use the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
@@ -161,7 +168,7 @@ Additionally, if you set the `-pc` parameter, the application outputs performanc
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
 ```
-[Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+[Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
 Progress: |................................| 100.00%
 
 [Step 9/9] Dumping statistics report

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -23,11 +10,22 @@ from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
+"""
+Packed data of custom types are stored in numpy uint8 data type.
+To distinguish true uint8 and custom data we introduce this class not to store,
+but to have unique data type in SUPPORTED_DATA_TYPES map
+"""
+
 
 class packed_U1(np.generic):
-    # packed U1 and U8 types of data are stored in numpy uint8 data type
-    # to distinguish true uint8 and u1 data we introduce this class not to store,
-    # but to have unique data type in SUPPORTED_DATA_TYPES map
+       pass
+
+
+class packed_U4(np.generic):
+    pass
+
+
+class packed_I4(np.generic):
     pass
 
 
@@ -39,11 +37,18 @@ SUPPORTED_DATA_TYPES = {
     'FP16': (np.float16, 'FP16', 'f16'),
     'I32': (np.int32, 'I32', 'i32'),
     'I64': (np.int64, 'I64', 'i64'),
+    'int8': (np.int8, 'I8', 'i8'),
     'uint8': (np.uint8, 'U8', 'u8'),
     'int32': (np.int32, 'I32', 'i32'),
     'int64': (np.int64, 'I64', 'i64'),
     'bool': (np.bool, 'BOOL', 'boolean'),
+
+    # custom types
     'U1': (packed_U1, 'U1', 'u1'),
+    'int4': (packed_I4, 'I4', 'i4'),
+    'uint4': (packed_U4, 'U4', 'u4'),
+    'I4': (packed_I4, 'I4', 'i4'),
+    'U4': (packed_U4, 'U4', 'u4'),
 }
 
 

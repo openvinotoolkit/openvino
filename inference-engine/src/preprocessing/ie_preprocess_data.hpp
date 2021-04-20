@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <memory>
 
 #include <ie_blob.h>
-#include <ie_profiling.hpp>
 #include <file_utils.h>
 #include <ie_preprocess.hpp>
 
@@ -32,18 +31,20 @@ namespace InferenceEngine {
 /**
  * @brief This class stores pre-process information for exact input
  */
-class IPreProcessData : public details::IRelease {
+class IPreProcessData : public std::enable_shared_from_this<IPreProcessData> {
 public:
     /**
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
      * @param blob ROI blob.
      */
+    //FIXME: rename to setUserBlob
     virtual void setRoiBlob(const Blob::Ptr &blob) = 0;
 
     /**
      * @brief Gets pointer to the ROI blob used for a given input.
      * @return Blob pointer.
      */
+    //FIXME: rename to getUserBlob
     virtual Blob::Ptr getRoiBlob() const = 0;
 
     /**
@@ -53,12 +54,16 @@ public:
      * @param serial disable OpenMP threading if the value set to true.
      * @param batchSize batch size for pre-processing.
      */
-    virtual void execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
+    virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
 
+    //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
+
+protected:
+    ~IPreProcessData() = default;
 };
 
-INFERENCE_PRERPOC_PLUGIN_API(StatusCode) CreatePreProcessData(IPreProcessData *& data, ResponseDesc *resp) noexcept;
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
 namespace details {
 
@@ -84,52 +89,14 @@ using PreProcessDataPtr = InferenceEngine::details::SOPointer<IPreProcessData>;
 
 inline PreProcessDataPtr CreatePreprocDataHelper() {
     FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
-    FileUtils::FilePath preprocLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+    FileUtils::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
     if (!FileUtils::fileExist(preprocLibraryPath)) {
-        THROW_IE_EXCEPTION << "Please, make sure that pre-processing library "
-            << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
+        IE_THROW() << "Please, make sure that pre-processing library "
+            << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }
     return PreProcessDataPtr(preprocLibraryPath);
 }
-
-//----------------------------------------------------------------------
-//
-// Implementation-internal types and functions and macros
-//
-//----------------------------------------------------------------------
-
-namespace Resize {
-
-static inline uint8_t saturateU32toU8(uint32_t v) {
-    return static_cast<uint8_t>(v > UINT8_MAX ? UINT8_MAX : v);
-}
-
-void resize_bilinear_u8(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer);
-
-void resize_area_u8_downscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer);
-
-int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale);
-
-void computeResizeAreaTab(int src_go, int dst_go, int ssize, int dsize, float scale,
-                          uint16_t* si, uint16_t* alpha, int max_count);
-
-void generate_alpha_and_id_arrays(int x_max_count, int dcols, const uint16_t* xalpha, uint16_t* xsi,
-                                  uint16_t** alpha, uint16_t** sxid);
-
-enum BorderType {
-    BORDER_CONSTANT  =  0,
-    BORDER_REPLICATE =  1,
-};
-
-struct Border {
-    BorderType  type;
-    int32_t     value;
-};
-
-}  // namespace Resize
-
-//----------------------------------------------------------------------
 
 }  // namespace InferenceEngine

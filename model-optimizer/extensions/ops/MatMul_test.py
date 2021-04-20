@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
@@ -46,10 +33,14 @@ class TestMatMul(unittest.TestCase):
     ]
 
     @generate(*[
-        ([1024], [1024, 1000], [1, 1000], False, False),
+        ([1024], [1024, 1000], [1000], False, False),
+        ([1024], [1024, 1000], [1000], True, False),
+        ([1024], [1000, 1024], [1000], True, True),
         ([1, 1024], [1024, 1000], [1, 1000], False, False),
         ([1, 1024], [1000, 1024], [1, 1000], False, True),
-        ([1024], [1024, 1000], [1, 1000], False, False),
+        ([1024, 1000], [1000], [1024], False, False),
+        ([1024, 1000], [1000], [1024], False, True),
+        ([1000, 1024], [1000], [1024], True, True),
         ([10, 1024], [1024, 1000], [10, 1000], False, False),
         ([5, 10, 1024], [1024, 1000], [5, 10, 1000], False, False),
         ([5, 10, 1024], [5, 1024, 1000], [5, 10, 1000], False, False),
@@ -67,8 +58,8 @@ class TestMatMul(unittest.TestCase):
         node = Node(graph, 'mat_mul')
         MatMul.infer(node)
 
-        msg = "MatMul infer failed for case: A_shape={}, B_shape={}, transpose_a={}, transpose_b={}" \
-              "expexted_shape={}, actual_shape={}"
+        msg = "MatMul infer failed for case: A_shape={}, B_shape={}, transpose_a={}, transpose_b={} " \
+              "expected_shape={}, actual_shape={}"
 
         self.assertTrue(np.array_equal(graph.node['mat_mul_d']['shape'], int64_array(C_shape)),
                         msg.format(A_shape, B_shape, transpose_a, transpose_b, C_shape,

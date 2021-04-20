@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,16 +16,19 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid,  {}},
-        {Tanh,     {}},
-        {Relu,     {}},
-        {Exp,      {}},
-        {Log,      {}},
-        {Gelu,     {}},
-        {Mish,     {}},
-        {SoftPlus, {}},
-        {Swish,    {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
-        {HSwish,   {}},
+        {Sigmoid,               {}},
+        {Tanh,                  {}},
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Gelu,                  {}},
+        {Mish,                  {}},
+        {SoftPlus,              {}},
+        {Swish,                 {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
+        {HSwish,                {}},
+        {Ceiling,               {}},
+        {RoundHalfToEven,       {}},
+        {RoundHalfAwayFromZero, {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {

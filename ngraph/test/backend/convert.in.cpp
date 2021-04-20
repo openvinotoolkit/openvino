@@ -1,21 +1,10 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
@@ -170,4 +159,22 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_float32)
                              0.5f,
                              1.5f}),
               read_vector<float>(result));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_fp16_float32)
+{
+    std::vector<float> f32vec = {-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
+    std::vector<float16> f16vec(std::begin(f32vec), std::end(f32vec));
+    std::vector<float> result(f32vec.size());
+    runtime::reference::convert(f16vec.data(), result.data(), f32vec.size());
+    EXPECT_EQ(result, f32vec);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_uint8_fp16)
+{
+    std::vector<uint8_t> u8vec = {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142};
+    std::vector<float16> f16vec(std::begin(u8vec), std::end(u8vec));
+    std::vector<float16> result(u8vec.size());
+    runtime::reference::convert(u8vec.data(), result.data(), u8vec.size());
+    EXPECT_EQ(result, f16vec);
 }

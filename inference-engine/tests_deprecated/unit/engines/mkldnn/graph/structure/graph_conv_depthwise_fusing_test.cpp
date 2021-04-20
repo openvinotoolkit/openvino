@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,9 @@
 using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
+
+constexpr auto depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
+constexpr auto depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
 
 struct conv_params {
     size_t krn_w;
@@ -304,7 +307,7 @@ protected:
             ref_conv_depthwise(*srcPtr, (const float *)weights->buffer(), dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

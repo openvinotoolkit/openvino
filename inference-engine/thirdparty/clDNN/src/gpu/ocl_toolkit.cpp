@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "ocl_toolkit.h"
@@ -41,37 +29,11 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-namespace {
-std::string ndrange_to_string(cl::NDRange const& range) {
-    std::string ret = "(";
-    for (cl::size_type i = 0; i < range.dimensions(); ++i) ret += (!i ? "" : ", ") + std::to_string(range.get()[i]);
-
-    ret += ")";
-    return ret;
-}
-
-std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
-    std::string ret = "(";
-    bool empty = true;
-    for (auto& ev : events) {
-        std::string id = "unk";
-        if (auto* ocl_ev = dynamic_cast<cldnn::gpu::base_event*>(ev.get()))
-            id = std::to_string(ocl_ev->get_queue_stamp());
-
-        ret += (empty ? "" : ", ") + id;
-        empty = false;
-    }
-
-    ret += ")";
-    return ret;
-}
-}  // namespace
-
 // static class memebers - pointers to dynamically obtained OpenCL extension functions
 cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
 cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;
 cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = NULL;
-#ifdef WIN32
+#ifdef _WIN32
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
 

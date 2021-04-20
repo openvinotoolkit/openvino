@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -161,6 +149,30 @@ struct data_type_traits {
                 return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
         }
     }
+
+    static data_types max_type(data_types dt1, data_types dt2) {
+        if (dt1 == data_types::bin)
+            return dt2;
+
+        if (dt2 == data_types::bin)
+            return dt1;
+
+        if (size_of(dt1) < size_of(dt2))
+            return dt2;
+
+        if (size_of(dt1) > size_of(dt2))
+            return dt1;
+
+        if (is_floating_point(dt2))
+            return dt2;
+
+        return dt1;
+    }
+
+    static bool is_quantized(data_types dt) {
+        return dt == data_types::u8 || dt == data_types::i8;
+    }
+
     template <typename T>
     static T max(data_types data_type) {
         switch (data_type) {
@@ -388,6 +400,9 @@ struct layout {
 
         if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 8);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && !(is_aligned_to(sizes[0], 16)) && !(is_aligned_to(sizes[1], 32))) {
+            sizes[0] = align_to(sizes[0], 16);
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 32);

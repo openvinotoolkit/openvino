@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +89,7 @@ void HeteroSyntheticTest::SetUp() {
         bool registred = true;
         try {
             PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
-        } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")
                 == std::string::npos) {
@@ -110,13 +109,14 @@ void HeteroSyntheticTest::SetUp() {
 }
 
 void HeteroSyntheticTest::TearDown() {
-    for (auto&& pluginName : _registredPlugins) {
-        PluginCache::get().ie()->UnregisterPlugin(pluginName);
+    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        for (auto&& pluginName : _registredPlugins) {
+            PluginCache::get().ie()->UnregisterPlugin(pluginName);
+        }
     }
 }
 
 std::string HeteroSyntheticTest::SetUpAffinity() {
-    int id = 0;
     auto& param = GetParam();
     std::string affinities;
     auto& pluginParameters = std::get<Plugin>(param);
@@ -144,7 +144,9 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    ASSERT_NE(nullptr, cnnNetwork.getFunction());
+    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        ASSERT_NE(nullptr, cnnNetwork.getFunction());
+    }
 }
 
 }  //  namespace HeteroTests

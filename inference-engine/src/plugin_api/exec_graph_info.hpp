@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,14 @@ public:
         return cloned;
     }
 
-    bool visit_attributes(ngraph::AttributeVisitor&) override {
+    /**
+     * @brief      Visits attributes of the node
+     *
+     * @param[in]  visitor  An attribute visitor
+     *
+     * @return     Returns `true` if an operation has completed successfully
+     */
+    bool visit_attributes(ngraph::AttributeVisitor& /*visitor*/) override {
         return true;
     }
 };

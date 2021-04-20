@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,11 +21,11 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " will be built without OPENCV support")
+    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} will be built without OPENCV support")
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ie_samples_utils)
     if(UNIX AND NOT APPLE)
         # Workaround issue that rpath-link is missing for PRIVATE dependencies
         # Fixed in cmake 3.16.0 https://gitlab.kitware.com/cmake/cmake/issues/19556

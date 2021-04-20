@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
      */
     Precision getPrecision() const {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getPrecision();
     }
@@ -57,7 +57,7 @@ public:
      */
     void setPrecision(Precision p) {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         _inputData->setPrecision(p);
     }
@@ -70,12 +70,13 @@ public:
      * NC - for 2-dimensional,
      * CHW - for 3-dimensional,
      * NCHW - for 4-dimensional
+     * NCDHW - for 5-dimensional
      * The default input layout might be changed preferred one using setLayout() function.
      * @return The precision used for input blob creation
      */
     Layout getLayout() {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getLayout();
     }
@@ -88,7 +89,7 @@ public:
      */
     void setLayout(Layout l) {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         _inputData->setLayout(l);
     }
@@ -99,6 +100,9 @@ public:
      * @return A string - the name of the input
      */
     const std::string& name() const {
+        if (!_inputData) {
+            IE_THROW() << "Data is empty!";
+        }
         return _inputData->getName();
     }
 
@@ -125,10 +129,11 @@ public:
 
     /**
      * @brief Returns the tensor descriptor
+     * @return A const reference to a tensor descriptor
      */
     const TensorDesc& getTensorDesc() const {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getTensorDesc();
     }

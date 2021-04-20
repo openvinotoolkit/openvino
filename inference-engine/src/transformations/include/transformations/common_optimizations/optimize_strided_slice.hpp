@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,12 +69,7 @@ public:
 class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
-        bool rewritten = UselessStridedSliceEraser().run_on_function(f);
-        rewritten |= SharedStridedSliceEraser().run_on_function(f);
-        rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
-        return rewritten;
-    }
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice);

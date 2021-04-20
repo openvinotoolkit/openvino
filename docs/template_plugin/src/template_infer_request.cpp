@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <utility>
 #include <algorithm>
@@ -34,7 +33,7 @@ using Time = std::chrono::high_resolution_clock;
 TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&                     networkInputs,
                                            const InferenceEngine::OutputsDataMap&                    networkOutputs,
                                            const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork) :
-    InferRequestInternal(networkInputs, networkOutputs),
+    IInferRequestInternal(networkInputs, networkOutputs),
     _executableNetwork(executableNetwork) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
@@ -70,49 +69,54 @@ void TemplateInferRequest::allocateDeviceBuffers() {
 }
 
 template<typename BlobDataMap, typename GetNetworkPrecisionF>
-static void AllocateImpl(const BlobDataMap& blobDataMap,
-                         BlobMap& blobMap,
-                         BlobMap& networkBlobMap,
+static void AllocateImpl(const BlobDataMap& userDataMap,
+                         BlobMap& userBlobMap,
+                         BlobMap& deviceBlobMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision) {
-    for (auto&& blobData : blobDataMap) {
-        auto& dims = blobData.second->getTensorDesc().getDims();
-        auto& precision = blobData.second->getTensorDesc().getPrecision();
-        auto layout = blobData.second->getTensorDesc().getLayout();
-        Blob::Ptr blob;
-        switch (precision) {
-        case Precision::U8: {
-            blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
-        } break;
-        case Precision::FP32 : {
-            blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
-        }
-        blob->allocate();
-        blobMap[blobData.first] = blob;
+    for (auto&& userData : userDataMap) {
+        auto& dims = userData.second->getTensorDesc().getDims();
+        const auto devicePrecision = Precision::FP32;
+        const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
+        auto userPrecision = userData.second->getTensorDesc().getPrecision();
+        auto userLayout = userData.second->getTensorDesc().getLayout();
 
-        auto networkPresion = GetNetworkPrecision(blobData.first);
-        Blob::Ptr networkBlob;
-        switch (networkPresion) {
-        case ngraph::element::Type_t::f32 : {
-            if (precision == Precision::FP32) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
-            }
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
+        Blob::Ptr userBlob;
+        switch (userPrecision) {
+            case Precision::U8: {
+                userBlob = InferenceEngine::make_shared_blob<std::uint8_t>({userPrecision, dims, userLayout});
+            } break;
+            case Precision::FP32 : {
+                userBlob = InferenceEngine::make_shared_blob<float>({userPrecision, dims, userLayout});
+            } break;
+            default: IE_THROW() << "Template Plugin: Unsupported Input/Output Precision";
         }
-        if (blob != networkBlob) {
-            networkBlob->allocate();
+        userBlob->allocate();
+        userBlobMap[userData.first] = userBlob;
+
+        auto networkPrecision = GetNetworkPrecision(userData.first);
+        Blob::Ptr deviceBlob;
+        switch (networkPrecision) {
+            case ngraph::element::Type_t::f32 : {
+                if (userPrecision == devicePrecision && userLayout == deviceLayout) {
+                    deviceBlob = userBlob;
+                } else {
+                    deviceBlob = InferenceEngine::make_shared_blob<float>({devicePrecision, dims, deviceLayout});
+                }
+            } break;
+            default: IE_THROW() << "Template Plugin: Unsupported network Input/Output Presision";
         }
-        networkBlobMap[blobData.first] = networkBlob;
+        // preprocessing converts user input blob to desired device input blob automatically
+        // NOTE: this is not supported for output user blobs yet
+        if (userBlob != deviceBlob) {
+            deviceBlob->allocate();
+        }
+        deviceBlobMap[userData.first] = deviceBlob;
     }
 }
 
 void TemplateInferRequest::allocateBlobs() {
     auto&& parameters = _executableNetwork->_function->get_parameters();
-    AllocateImpl(_networkInputs, _inputs, _networkInputBlobs, [&] (const std::string& blobName) {
+    AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&] (const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
     });
     auto&& results = _executableNetwork->_function->get_results();
@@ -147,7 +151,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
@@ -159,13 +163,13 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
         default : {
-            THROW_IE_EXCEPTION << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+            IE_THROW() << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
         }
     }
 }
@@ -174,23 +178,16 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 void TemplateInferRequest::inferPreprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
-    // NOTE: After InferRequestInternal::execDataPreprocessing call
+    // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    InferRequestInternal::execDataPreprocessing(_inputs);
-    for (auto&& input : _inputs) {
-        auto inputBlob = input.second;
-        auto networkInput = _networkInputBlobs[input.first];
-        if (inputBlob->getTensorDesc().getPrecision() == networkInput->getTensorDesc().getPrecision()) {
-            networkInput = inputBlob;
-        } else {
-            blobCopy(inputBlob, networkInput);
-        }
-        auto index = _executableNetwork->_inputIndex[input.first];
+    IInferRequestInternal::execDataPreprocessing(_deviceInputs);
+    for (auto&& networkInput : _deviceInputs) {
+        auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];
         const auto& parameterShape = parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput)->rmap().as<void*>());
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
@@ -244,7 +241,8 @@ void TemplateInferRequest::inferPostprocess() {
 // ! [infer_request:infer_postprocess]
 
 // ! [infer_request:get_performance_counts]
-void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
+    std::map<std::string, InferenceEngineProfileInfo> perfMap;
     InferenceEngineProfileInfo info;
     info.execution_index = 0;
     info.status = InferenceEngineProfileInfo::EXECUTED;
@@ -259,5 +257,6 @@ void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceE
     perfMap["4. output transfer from a device"] = info;
     info.cpu_uSec = info.realTime_uSec = _durations[Postprocess].count();
     perfMap["5. output postprocessing"] = info;
+    return perfMap;
 }
 // ! [infer_request:get_performance_counts]

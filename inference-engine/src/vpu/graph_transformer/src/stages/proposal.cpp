@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,7 +135,7 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     DataVector tempOutputs(2);
     tempOutputs[0] = outputs[0];
 
-    if (outputs.size() < 2)
+    if ((outputs.size() < 2) || !(outputs[1]))
         tempOutputs[1] = model->addFakeData();
     else
         tempOutputs[1] = outputs[1];

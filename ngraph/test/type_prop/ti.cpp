@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "util/type_prop.hpp"
@@ -43,15 +32,14 @@ TEST(type_prop, tensor_iterator_lstm)
     auto X = make_shared<op::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell = make_shared<opset5::LSTMCell>(
-        make_shared<op::Reshape>(X, AxisVector{0, 1, 2}, Shape{N, I}),
-        make_shared<op::Reshape>(H_t, AxisVector{0, 1, 2}, Shape{N, H}),
-        make_shared<op::Reshape>(C_t, AxisVector{0, 1, 2}, Shape{N, H}),
-        W_body,
-        R_body,
-        H);
-    auto H_o = make_shared<op::Reshape>(LSTM_cell->output(0), AxisVector{0, 1}, Shape{N, 1, H});
-    auto C_o = make_shared<op::Reshape>(LSTM_cell->output(1), AxisVector{0, 1}, Shape{N, 1, H});
+    auto LSTM_cell = make_shared<opset5::LSTMCell>(builder::opset1::reshape(X, Shape{N, I}),
+                                                   builder::opset1::reshape(H_t, Shape{N, H}),
+                                                   builder::opset1::reshape(C_t, Shape{N, H}),
+                                                   W_body,
+                                                   R_body,
+                                                   H);
+    auto H_o = builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
+    auto C_o = builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
     auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o},
                                               ParameterVector{X, H_t, C_t, W_body, R_body});
 
@@ -88,7 +76,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
     auto M_body = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
 
     // Body
-    auto Zo = (Xi + Yi) * M_body;
+    auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
@@ -106,7 +94,6 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
     // Output 1 is concat of Zos
     // start=0, stride=2, part_size=2, end=39, axis=1
     auto out1 = tensor_iterator->get_concatenated_slices(Zo, 0, 2, 2, 39, 1);
-
     auto result0 = make_shared<op::Result>(out0);
     auto result1 = make_shared<op::Result>(out1);
     Shape out0_shape{32, 2, 10};
@@ -132,7 +119,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
     auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
     // Body
-    auto Zo = (Xi + Yi) * M_body;
+    auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
@@ -189,7 +176,6 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<op::Result>(out0);
     auto result1 = make_shared<op::Result>(out1);
     Shape out0_shape{32, 2, 10};

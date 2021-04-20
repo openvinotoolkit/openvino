@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_lrn_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_extension_utils.h>
@@ -25,12 +25,12 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     auto * lrnLayer = dynamic_cast<NormLayer*>(getCnnLayer().get());
 
     if (lrnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert lrn layer.";
+        IE_THROW() << "Cannot convert lrn layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     isAcrossMaps = lrnLayer->_isAcrossMaps;
     alpha = lrnLayer->_alpha;
@@ -52,8 +52,11 @@ void MKLDNNLrnNode::createPrimitive() {
 
     auto prim_desc = createPrimitiveDescriptor<lrn_forward::primitive_desc, lrn_forward::desc>();
 
-    prim.reset(new lrn_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                               getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    prim.reset(new lrn_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNLrnNode::created() const {
@@ -63,7 +66,7 @@ bool MKLDNNLrnNode::created() const {
 void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
@@ -71,7 +74,7 @@ void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (!isUninitTensorDesc(config.inConfs[0].desc) &&
                     !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-        THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
+        IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;
@@ -86,7 +89,7 @@ void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
 
 void MKLDNNLrnNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
                                      const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    algorithm alg = (isAcrossMaps) ? lrn_across_channels : lrn_within_channel;
+    algorithm alg = (isAcrossMaps) ? algorithm::lrn_across_channels : algorithm::lrn_within_channel;
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNDescriptor desc(std::shared_ptr<lrn_forward::desc>(
             new lrn_forward::desc(prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));

@@ -1,13 +1,14 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "details/ie_exception.hpp"
+#include <debug.h>  // to allow putting vector into exception string stream
 #include <legacy/ie_layers_property.hpp>
 #include "ie_blob.h"
 

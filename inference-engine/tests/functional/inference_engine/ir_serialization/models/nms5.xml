@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<net name="Function_0" version="10">
+	<layers>
+		<layer id="0" name="Parameter_69" type="Parameter" version="opset1">
+			<data cacheable="false" shape="1,1,1000" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1000</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Parameter_68" type="Parameter" version="opset1">
+			<data cacheable="false" shape="1,1000,4" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Constant_70" type="Const" version="opset1">
+			<data element_type="i64" shape="" offset="0" size="8" />
+			<output>
+				<port id="0" precision="I64" />
+			</output>
+		</layer>
+		<layer id="3" name="Constant_71" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="8" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="4" name="Constant_72" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="12" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="5" name="NonMaxSuppression_73" type="NonMaxSuppression" version="opset5">
+			<data box_encoding="corner" sort_result_descending="true" output_type="i64" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1000</dim>
+				</port>
+				<port id="2" />
+				<port id="3" />
+				<port id="4" />
+			</input>
+			<output>
+				<port id="5" precision="I64">
+					<dim>10</dim>
+					<dim>3</dim>
+				</port>
+				<port id="6" precision="FP32">
+					<dim>10</dim>
+					<dim>3</dim>
+				</port>
+				<port id="7" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="Result_74" type="Result" version="opset1">
+			<data />
+			<input>
+				<port id="0">
+					<dim>10</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="5" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="5" to-port="0" />
+		<edge from-layer="2" from-port="0" to-layer="5" to-port="2" />
+		<edge from-layer="3" from-port="0" to-layer="5" to-port="3" />
+		<edge from-layer="4" from-port="0" to-layer="5" to-port="4" />
+		<edge from-layer="5" from-port="5" to-layer="6" to-port="0" />
+	</edges>
+</net>

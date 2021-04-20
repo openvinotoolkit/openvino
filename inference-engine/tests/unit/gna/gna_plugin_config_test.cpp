@@ -1,5 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
@@ -16,10 +17,11 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
-    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(YES)},
+    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
+    {GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "1.000000"},
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)}
@@ -34,7 +36,7 @@ protected:
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
         EXPECT_THROW(config.UpdateFromMap({{key, val}}),
-                     details::InferenceEngineException);
+                     Exception);
     }
     void SetAndCheckFlag(const std::string& key, bool& val, bool reverse = false) {
         const bool yes = reverse ? false : true;
@@ -51,7 +53,7 @@ protected:
 };
 
 TEST_F(GNAPluginConfigTest, GnaConfigDefaultConfigIsExpected) {
-    ASSERT_EQ(config.key_config_map, supportedConfigKeysWithDefaults);
+    ASSERT_EQ(config.keyConfigMap, supportedConfigKeysWithDefaults);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
@@ -151,6 +153,17 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
     SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
                     config.gnaFlags.uniformPwlDesign);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("0.100000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 0.1f);
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("1.000000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 1);
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("5.000000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 5);
+    ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "-1");
+    ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "100.1");
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {

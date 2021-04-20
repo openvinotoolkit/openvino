@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/deformable_convolution.hpp"
+#include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -50,6 +39,7 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 
 bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -62,12 +52,12 @@ bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::DeformableConvolution::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_validate_and_infer_types);
     const PartialShape& data_batch_shape = get_input_partial_shape(0);
     const PartialShape& deformable_values_shape = get_input_partial_shape(1);
     const PartialShape& filters_shape = get_input_partial_shape(2);
 
     element::Type data_batch_et = get_input_element_type(0);
-    element::Type deformable_values_et = get_input_element_type(1);
     element::Type filters_et = get_input_element_type(2);
 
     if (deformable_values_shape.rank().is_static())
@@ -101,14 +91,14 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
 
     if (m_deformable_group > 1 && deformable_values_shape[1].is_static())
     {
-        NODE_VALIDATION_CHECK(
-            this,
-            deformable_values_shape[1].get_length() % m_deformable_group == 0,
-            "The deformable values input must be evenly divisible by the 'deformable group' value "
-            "along the channels axis. Current input shape: ",
-            deformable_values_shape,
-            ", 'deformable group' attribute value: ",
-            m_deformable_group);
+        NODE_VALIDATION_CHECK(this,
+                              deformable_values_shape[1].get_length() % m_deformable_group == 0,
+                              "The deformable values input must be evenly divisible by the "
+                              "'deformable group' value "
+                              "along the channels axis. Current input shape: ",
+                              deformable_values_shape,
+                              ", 'deformable group' attribute value: ",
+                              m_deformable_group);
     }
 
     element::Type result_et;
@@ -181,13 +171,18 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             return;
         }
     }
-
+    // adjust filter shape to reuse regular infer_convolution_forward()
+    const auto new_filters_pshape = [&](int groups) {
+        auto new_shape(filters_shape);
+        new_shape[1] *= groups;
+        return new_shape;
+    }(m_group);
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,
                                              Strides(m_strides.size(), 1), // dummy data dilations
                                              m_pads_begin,
                                              m_pads_end,
-                                             filters_shape,
+                                             new_filters_pshape,
                                              m_strides,
                                              m_dilations);
 
@@ -197,6 +192,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
 shared_ptr<Node>
     op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::DeformableConvolution>(new_args.at(0),
                                                   new_args.at(1),

@@ -72,7 +72,7 @@ Glossary of terms used in the Inference Engine
 | <code>InferenceEngineProfileInfo</code> | Represents basic inference profiling information per layer |
 | Inference Engine | A C++ library with a set of classes that you can use in your application to infer input data (images) and get the result |
 | Inference Engine API | The basic default API for all supported devices, which allows you to load a model from Intermediate Representation, set input and output formats and execute the model on various devices |
-| Inference Engine <code>Core<code> | Inference Engine Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, MYRIAD, GNA, etc. |
+| Inference Engine <code>Core</code> | Inference Engine Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, MYRIAD, GNA, etc. |
 | Layer catalog or Operations specification | A list of supported layers or operations and its parameters. Sets of supported layers are different for different plugins, please check the documentation on plugins to verify if the Inference Engine supports certain layer on the dedicated hardware |
 | <code>Layout</code> | Image data layout refers to the representation of images batch. Layout shows a sequence of 4D or 5D tensor data in memory. A typical NCHW format represents pixel in horizontal direction, rows by vertical dimension, planes by channel and images into batch |
 | <code>OutputsDataMap</code> | Structure which contains information about output precisions and layouts |

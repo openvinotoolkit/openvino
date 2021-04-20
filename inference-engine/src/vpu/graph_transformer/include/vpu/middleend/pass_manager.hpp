@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,6 @@ public:
     // Model common adaptation
     //
 
-    Pass::Ptr decomposeSwish();
     Pass::Ptr eliminateConstConcat();
     Pass::Ptr splitGroupedConv();
     Pass::Ptr splitConv3DInto2D();
@@ -249,6 +248,8 @@ public:
     Pass::Ptr propagateDynamism();
 
     Pass::Ptr annotateMemoryTypes();
+
+    Pass::Ptr reshapeBeforeConvTiling();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

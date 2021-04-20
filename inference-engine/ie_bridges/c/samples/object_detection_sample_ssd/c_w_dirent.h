@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,14 @@
 # define _AMD64_
 #endif
 
+#if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM_
+#endif
+
+#if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
+# define _ARM64_
+#endif
+
 #include <string.h>
 #include <windef.h>
 #include <fileapi.h>
@@ -34,10 +42,18 @@
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 
+/// @brief structure to store directory names
 typedef struct dirent {
     char *d_name;
 }dirent;
 
+/**
+* @brief Add directory to directory names struct
+* @param int argc - count of args
+* @param char *argv[] - array values of args
+* @param char *opts - array of options
+* @return pointer to directory names struct
+*/
 static dirent *createDirent(const wchar_t *wsFilePath) {
     dirent *d = (dirent *)malloc(sizeof(dirent));
     size_t i;
@@ -47,6 +63,11 @@ static dirent *createDirent(const wchar_t *wsFilePath) {
     return d;
 }
 
+/**
+* @brief Free directory names struct
+* @param point to directory names structure
+* @return none
+*/
 static void freeDirent(dirent **d) {
     free((*d)->d_name);
     (*d)->d_name = NULL;
@@ -54,12 +75,19 @@ static void freeDirent(dirent **d) {
     *d = NULL;
 }
 
+/// @brief structure to store directory data (files meta)
 typedef struct DIR {
     WIN32_FIND_DATAA FindFileData;
     HANDLE hFind;
     dirent *next;
 }DIR;
 
+/**
+* @brief Compare two string, second string is the end of the first
+* @param string to compare
+* @param end string to find
+* @return status 1(success) or 0(fail)
+*/
 static int endsWith(const char *src, const char *with) {
     int wl = (int)(strlen(with));
     int so = (int)(strlen(with)) - wl;
@@ -69,6 +97,12 @@ static int endsWith(const char *src, const char *with) {
     else
         return 0;
 }
+
+/**
+* @brief Check file handler is valid
+* @param struct of directory data
+* @return status 1(success) or 0(fail)
+*/
 static int isValid(DIR* dp) {
     if (dp->hFind != INVALID_HANDLE_VALUE && dp->FindFileData.dwReserved0) {
         return 1;
@@ -76,6 +110,12 @@ static int isValid(DIR* dp) {
         return 0;
     }
 }
+
+/**
+* @brief Create directory data struct element
+* @param string directory path
+* @return pointer to directory data struct element
+*/
 static DIR *opendir(const char *dirPath) {
     DIR *dp = (DIR *)malloc(sizeof(DIR));
     dp->next = NULL;
@@ -95,6 +135,11 @@ static DIR *opendir(const char *dirPath) {
     return dp;
 }
 
+/**
+* @brief Walk throw directory data struct
+* @param pointer to directory data struct
+* @return pointer to directory data struct next element
+*/
 static struct dirent *readdir(DIR *dp) {
     if (dp->next != NULL) freeDirent(&(dp->next));
 
@@ -109,6 +154,11 @@ static struct dirent *readdir(DIR *dp) {
     return dp->next;
 }
 
+/**
+* @brief Remove directory data struct
+* @param pointer to struct directory data
+* @return none
+*/
 static void closedir(DIR *dp){
     if (dp->next) {
         freeDirent(&(dp->next));

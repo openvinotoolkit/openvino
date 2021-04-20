@@ -1,23 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cstddef>
 #include <functional>
 #include <set>
 
 #include "itt.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/unsqueeze.hpp"
@@ -28,25 +18,23 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
-op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
-    : FusedOp({data, axes})
+op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
+    : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Unsqueeze::pre_validate_and_infer_types()
+void op::v0::Unsqueeze::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
     const auto data_rank = data_partial_shape.rank();
 
-    const auto axes_node = input_value(1).get_node_shared_ptr();
-
-    if (data_rank.is_dynamic() || !op::is_constant(axes_node))
+    const auto axes_constant = get_constant_from_source(input_value(1));
+    if (data_rank.is_dynamic() || !axes_constant)
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
@@ -55,17 +43,13 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     uint64_t data_rank_value = data_partial_shape.rank().get_length();
 
     // Get value of axes from Constant
-    const auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
     const auto axes_values = axes_constant->cast_vector<int64_t>();
-    const auto expanded_rank = data_rank_value + axes_values.size();
-    auto axes = normalize_axes(this->description(), axes_values, expanded_rank);
+    const int64_t expanded_rank = data_rank_value + axes_values.size();
 
-    NODE_VALIDATION_CHECK(this, !axes.empty(), "'axes' input is mandatory.");
-    NODE_VALIDATION_CHECK(this,
-                          axes.size() == set<int64_t>(begin(axes), end(axes)).size(),
-                          "'axes' input has a duplicate axis.");
+    NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
 
-    sort(begin(axes), end(axes), less<int64_t>());
+    auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
+    set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
 
     vector<Dimension> output_shape{data_partial_shape};
     for (auto axis : axes)
@@ -78,26 +62,15 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-OutputVector op::Unsqueeze::decompose_op() const
+bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto output_shape = get_output_shape(0);
-    AxisVector input_order{ngraph::get_default_order(data_shape.size())};
-    return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
-}
-
-bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
-{
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes);
     return true;
 }
 
-shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -149,18 +122,12 @@ namespace unsqueeze
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -170,8 +137,24 @@ namespace unsqueeze
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+}
+
+bool op::v0::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,

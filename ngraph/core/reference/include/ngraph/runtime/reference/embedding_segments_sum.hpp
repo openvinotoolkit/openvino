@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,6 @@ namespace ngraph
             {
                 const size_t indices_len = indicesShape[0];
                 const size_t segments_num = outShape[0];
-                const size_t inDimsSize = outShape.size();
-                const size_t embDimsNum = outShape.size() - 1;
 
                 size_t embDepth = 1lu;
                 for (size_t i = 1; i < outShape.size(); i++)
@@ -64,7 +62,7 @@ namespace ngraph
                 if (defaultIndex != nullptr)
                 {
                     U defIndex = defaultIndex[0];
-                    if (defIndex < U(0) && defIndex >= embTableShape[0])
+                    if (defIndex < U(0) && static_cast<size_t>(defIndex) >= embTableShape[0])
                         throw ngraph_error(std::string("Invalid default index") +
                                            std::to_string(defIndex));
                     for (size_t obi = 0; obi < segments_num; obi++)
@@ -72,7 +70,7 @@ namespace ngraph
                         bool found = false;
                         for (size_t index = 0; index < indices_len; index++)
                         {
-                            if (segmentIds[index] == obi)
+                            if (static_cast<size_t>(segmentIds[index]) == obi)
                             {
                                 found = true;
                                 break;

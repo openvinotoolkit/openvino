@@ -1,18 +1,23 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <memory>
 #include <string>
+#include <iterator>
 #include <samples/common.hpp>
 
 #include <inference_engine.hpp>
 #include <samples/ocv_common.hpp>
+
 #include <samples/classification_results.h>
 
 using namespace InferenceEngine;
 
+/**
+ * @brief Define names based depends on Unicode path support
+ */
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 #define tcout std::wcout
 #define file_name_t std::wstring
@@ -26,6 +31,9 @@ using namespace InferenceEngine;
 #endif
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+/**
+ * @brief Realization cv::imread with support Unicode paths
+ */
 cv::Mat imreadW(std::wstring input_image_path) {
     cv::Mat image;
     std::ifstream input_image_stream;
@@ -34,12 +42,13 @@ cv::Mat imreadW(std::wstring input_image_path) {
         std::iostream::binary | std::ios_base::ate | std::ios_base::in);
     if (input_image_stream.is_open()) {
         if (input_image_stream.good()) {
+            input_image_stream.seekg(0, std::ios::end);
             std::size_t file_size = input_image_stream.tellg();
             input_image_stream.seekg(0, std::ios::beg);
             std::vector<char> buffer(0);
             std::copy(
-                std::istream_iterator<char>(input_image_stream),
-                std::istream_iterator<char>(),
+                std::istreambuf_iterator<char>(input_image_stream),
+                std::istreambuf_iterator<char>(),
                 std::back_inserter(buffer));
             image = cv::imdecode(cv::Mat(1, file_size, CV_8UC1, &buffer[0]), cv::IMREAD_COLOR);
         } else {
@@ -52,6 +61,11 @@ cv::Mat imreadW(std::wstring input_image_path) {
     return image;
 }
 
+/**
+ * @brief Convert wstring to string
+ * @param ref on wstring
+ * @return string
+ */
 std::string simpleConvert(const std::wstring & wstr) {
     std::string str;
     for (auto && wc : wstr)
@@ -59,15 +73,18 @@ std::string simpleConvert(const std::wstring & wstr) {
     return str;
 }
 
+/**
+ * @brief Main with support Unicode paths, wide strings
+ */
 int wmain(int argc, wchar_t *argv[]) {
 #else
 
 int main(int argc, char *argv[]) {
 #endif
     try {
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (argc != 4) {
-            tcout << "Usage : ./hello_classification <path_to_model> <path_to_image> <device_name>" << std::endl;
+            tcout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -80,16 +97,17 @@ int main(int argc, char *argv[]) {
 #endif
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine instance -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         Core ie;
         // -----------------------------------------------------------------------------------------------------
 
-        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
-        network.setBatchSize(1);
+        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
+        if (network.getInputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 input only");
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
+        // --------------------------- Step 3. Configure input & output ---------------------------------------------
         // --------------------------- Prepare input blobs -----------------------------------------------------
         InputInfo::Ptr input_info = network.getInputsInfo().begin()->second;
         std::string input_name = network.getInputsInfo().begin()->first;
@@ -102,33 +120,37 @@ int main(int argc, char *argv[]) {
         input_info->setPrecision(Precision::U8);
 
         // --------------------------- Prepare output blobs ----------------------------------------------------
+        if (network.getOutputsInfo().empty()) {
+            std::cerr << "Network outputs info is empty" << std::endl;
+            return EXIT_FAILURE;
+        }
         DataPtr output_info = network.getOutputsInfo().begin()->second;
         std::string output_name = network.getOutputsInfo().begin()->first;
 
         output_info->setPrecision(Precision::FP32);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading a model to the device ------------------------------------------
         ExecutableNetwork executable_network = ie.LoadNetwork(network, device_name);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create an infer request -------------------------------------------------
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         /* Read input image to a blob and set it to an infer request without resize and layout conversions. */
         cv::Mat image = imread_t(input_image_path);
         Blob::Ptr imgBlob = wrapMat2Blob(image);  // just wrap Mat data by Blob::Ptr without allocating of new memory
         infer_request.SetBlob(input_name, imgBlob);  // infer_request accepts input blob of any size
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Do inference --------------------------------------------------------
+        // --------------------------- Step 7. Do inference --------------------------------------------------------
         /* Running the request synchronously */
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Process output ------------------------------------------------------
+        // --------------------------- Step 8. Process output ------------------------------------------------------
         Blob::Ptr output = infer_request.GetBlob(output_name);
         // Print classification results
         ClassificationResult_t classificationResult(output, {input_image_path});

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 #include "low_precision/mvn.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/mvn_function.hpp"
+#include "lpt_ngraph_functions/mvn_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -47,6 +47,12 @@ public:
     Expected expected;
 };
 
+typedef std::tuple<
+    ngraph::element::Type,
+    MVNTransformationTestValues,
+    int
+> MVNTransformationParams;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
     os << "{ ";
@@ -60,45 +66,65 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-class MVNTransformation : public LayerTransformation, public testing::WithParamInterface<MVNTransformationTestValues> {
+class MVNTransformation : public LayerTransformation, public testing::WithParamInterface<MVNTransformationParams> {
 public:
     void SetUp() override {
-        const MVNTransformationTestValues testValues = GetParam();
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const MVNTransformationTestValues testValues = std::get<1>(GetParam());
+        const int opset_version = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MVNFunction::getOriginal(
+            precision,
             testValues.inputShape,
             testValues.reductionAxes,
             testValues.normalizeVariance,
             testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+            testValues.actual.dequantization,
+            opset_version);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MVNTransformation, ngraph::opset1::Interpolate>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MVNFunction::getReference(
+            precision,
             testValues.inputShape,
             testValues.reductionAxes,
             testValues.normalizeVariance,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            opset_version);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationTestValues> obj) {
-        const MVNTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
+        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const MVNTransformationTestValues testValues = std::get<1>(obj.param);
+        const int opset_version = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
+            precision << "_" <<
+            toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.reductionAxes << "_" <<
             testValues.normalizeVariance << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+            testValues.expected.dequantizationBefore << "_" <<
+            opset_version;
         return result.str();
     }
+};
+
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
+
+const std::vector<int> opset_version = {
+    2, 6
 };
 
 const std::vector<MVNTransformationTestValues> testValues = {
@@ -145,9 +171,9 @@ const std::vector<MVNTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {}},
+            {{ngraph::element::f32}, {127.f}, {0.45f}},
             ngraph::element::f32,
-            {{}, {}, {1.f}}
+            {{}, {}, {}}
         }
     },
     {
@@ -163,7 +189,7 @@ const std::vector<MVNTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, {12.5f}, {0.45f}},
             ngraph::element::f32,
-            {}
+            {{}, {}, {}}
         }
     },
     {
@@ -273,7 +299,10 @@ TEST_P(MVNTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MVNTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
     MVNTransformation::getTestCaseName);

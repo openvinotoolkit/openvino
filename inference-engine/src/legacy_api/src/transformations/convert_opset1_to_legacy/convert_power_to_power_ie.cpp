@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,11 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
         if (auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node)) {
             float value(0);
             if (!ngraph::op::util::get_single_value(const_node, value)) {
+                return false;
+            }
+
+            //check broadcast influence
+            if (ngraph::op::util::check_for_broadcast(power->input(0).get_shape(), node->get_shape())) {
                 return false;
             }
 

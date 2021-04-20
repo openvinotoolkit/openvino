@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "engine_impl.h"
@@ -93,7 +81,9 @@ gpu_toolkit_config convert_configuration(const engine_configuration conf) {
     result.priority_mode = conf.priority_mode;
     result.throttle_mode = conf.throttle_mode;
     result.queues_num = conf.n_streams;
+    result.kernels_cache_path = conf.kernels_cache_path;
     result.tuning_cache_path = conf.tuning_cache_path;
+    result.n_threads = conf.n_threads;
     return result;
 }
 

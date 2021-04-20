@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,12 @@ using namespace single_layer_tests;
 
 using namespace Extensions;
 using namespace ::Cpu;
+
+namespace {
+
+OV_CC_DOMAINS(MVNTests);
+
+}   // namespace
 
 struct mvn_test_params {
     vector<size_t> dims;
@@ -322,7 +328,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -333,32 +339,32 @@ TEST_P(MKLDNNCPUExtMVNTests, TestsMVN) {}
 INSTANTIATE_TEST_CASE_P(
         TestsMVN, MKLDNNCPUExtMVNTests,
         ::testing::Values(
-        /*0*/   mvn_test_params{{2, 64, 15, 15}, 0, 0, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2,  2, 33, 65}, 0, 0, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+        /*0*/   mvn_test_params{{2, 64, 15, 15}, 0, 0, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2,  2, 33, 65}, 0, 0, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 15, 15}, 1, 0, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2,  2, 33, 65}, 1, 0, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 15, 15}, 1, 1, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2,  2, 33, 65}, 1, 1, 0.00001, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 15, 15}, 0, 0, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-        /*9*/   mvn_test_params{{2,  2, 33, 65}, 0, 0, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 15, 15}, 1, 0, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2,  2, 33, 65}, 1, 0, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 15, 15}, 1, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2,  2, 33, 65}, 1, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 15, 15}, 0, 0, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
+        /*9*/   mvn_test_params{{2,  2, 33, 65}, 0, 0, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 15, 15}, 1, 0, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2,  2, 33, 65}, 1, 0, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-        /*14*/  mvn_test_params{{2,640, 15, 15}, 1, 1, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2,  2, 33, 65}, 1, 1, 0.00001, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 15, 15}, 1, 0, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2,  2, 33, 65}, 1, 0, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
+        /*14*/  mvn_test_params{{2,640, 15, 15}, 1, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2,  2, 33, 65}, 1, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
 
                 // 5D
-        /*16*/  mvn_test_params{{2, 64, 24, 32, 40}, 0, 0, 0.00001f, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+        /*16*/  mvn_test_params{{2, 64, 24, 32, 40}, 0, 0, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2, 64, 24, 32, 40}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 24, 32, 40}, 1, 0, 0.00001f, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 24, 32, 40}, 1, 1, 0.00001f, 2, false, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 24, 32, 40}, 0, 0, 0.00001f, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 24, 32, 40}, 1, 0, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 24, 32, 40}, 1, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 24, 32, 40}, 0, 0, 0.00001f, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{2, 64, 24, 32, 40}, 0, 1, 0.00001f, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
-                mvn_test_params{{2, 64, 24, 32, 40}, 1, 0, 0.00001f, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-        /*23*/  mvn_test_params{{2, 64, 24, 32, 40}, 1, 1, 0.00001f, 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                mvn_test_params{{2, 64, 24, 32, 40}, 1, 0, 0.00001f, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
+        /*23*/  mvn_test_params{{2, 64, 24, 32, 40}, 1, 1, 0.00001f, 3, true, MKLDNNPlugin::impl_desc_type::unknown },
                 mvn_test_params{{1, 64, 32, 32, 32}, 0, 1, 0.001f, 3, true, MKLDNNPlugin::impl_desc_type::unknown }
             ));
 
@@ -380,7 +386,7 @@ public:
         try {
             is_blocked = layer->GetParamAsBool("is_blocked");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -397,7 +403,7 @@ public:
                     return 0;
                 return (a + b - 1) / b;
             };
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -528,10 +534,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_MVN",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_MVN>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(MVNTests, FakeLayer_MVN, "FakeLayer_MVN", Cpu::ImplFactory<FakeLayerImpl_MVN>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);
@@ -598,7 +601,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -613,29 +616,29 @@ INSTANTIATE_TEST_CASE_P(
                         mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::FP32 },
                         mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::FP32 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
+                /*4*/   // mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::U8 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
+                /*7*/   // mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::U8 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
+                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::U8, Precision::FP32 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
+                /*13*/  // mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::I8 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
+                /*16*/  // mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::I8 },
 
-                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
-                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
-                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 1, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
+                        mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
+                        mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
+                        mvn_test_params{{2, 64, 8, 8, 8}, 0, 1, 0.00001f, 3, false, MKLDNNPlugin::impl_desc_type::unknown, Precision::I8, Precision::FP32 },
 
                         mvn_test_params{{2, 64, 15, 15}, 0, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::FP32 },
                         mvn_test_params{{2,  2, 33, 65}, 0, 1, 0.00001, 3, true, MKLDNNPlugin::impl_desc_type::unknown, Precision::FP32, Precision::FP32 },

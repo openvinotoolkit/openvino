@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 import numpy as np
@@ -37,75 +40,25 @@ def test_get_buffer():
     assert np.array_equal(blob.buffer, array)
 
 
-def test_write_to_buffer_fp32():
-    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.float32)
+@pytest.mark.parametrize("precision, numpy_precision", [
+    ("FP32", np.float32),
+    ("FP64", np.float64),
+    ("FP16", np.float16),
+    ("I8", np.int8),
+    ("U8", np.uint8),
+    ("I32", np.int32),
+    ("I16", np.int16),
+    ("U16", np.uint16),
+    ("I64", np.int64),
+    ("BOOL", np.uint8),
+    ("BIN", np.int8),
+    ("BF16", np.float16),
+])
+def test_write_to_buffer(precision, numpy_precision):
+    tensor_desc = TensorDesc(precision, [1, 3, 127, 127], "NCHW")
+    array = np.zeros(shape=(1, 3, 127, 127), dtype=numpy_precision)
     blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.float32)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-@pytest.mark.skip(reason="Need to figure out how to implement right conversion")
-def test_write_to_buffer_fp16():
-    tensor_desc = TensorDesc("FP16", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.float16)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.float16)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_int8():
-    tensor_desc = TensorDesc("I8", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.int8)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.int8)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_uint8():
-    tensor_desc = TensorDesc("U8", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.uint8)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.uint8)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_int32():
-    tensor_desc = TensorDesc("I32", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.int32)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.int32)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_int16():
-    tensor_desc = TensorDesc("I16", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.int16)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.int16)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_uint16():
-    tensor_desc = TensorDesc("U16", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.uint16)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.uint16)
-    blob.buffer[:] = ones_arr
-    assert np.array_equal(blob.buffer, ones_arr)
-
-
-def test_write_to_buffer_int64():
-    tensor_desc = TensorDesc("I64", [1, 3, 127, 127], "NCHW")
-    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.int64)
-    blob = Blob(tensor_desc, array)
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.int64)
+    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=numpy_precision)
     blob.buffer[:] = ones_arr
     assert np.array_equal(blob.buffer, ones_arr)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 #include "threading/ie_thread_affinity.hpp"
-#include "details/ie_exception.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include <openvino/itt.hpp>
 
@@ -47,7 +46,7 @@ struct CPUStreamsExecutor::Impl {
                 _offset{streamId * threadsPerStream  + threadBindingOffset} {
             }
             void on_scheduler_entry(bool) override {
-                PinThreadToVacantCore(_offset + tbb::task_arena::current_thread_index(), _threadBindingStep, _ncpus, _mask);
+                PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(), _threadBindingStep, _ncpus, _mask);
             }
             void on_scheduler_exit(bool) override {
                 PinCurrentThreadByMask(_ncpus, _mask);

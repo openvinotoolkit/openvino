@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import unittest
 
 from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
@@ -44,20 +32,8 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
         ref_graph = build_graph({'in_placeholder': {'kind': 'op', 'op': None},
                                  'in_node': {'kind': 'data', 'shape': [1, 13]},
 
-                                 'shape': {'kind': 'op', 'op': 'ShapeOf'},
-                                 'shape_data': {'kind': 'data'},
-                                 'crop_batch': {'kind': 'op', 'op': 'Crop', 'offset': int64_array([0])},
-                                 'crop_batch_data': {'kind': 'data'},
-                                 'crop_batch_dim': {'kind': 'op', 'op': 'Const', 'value': int64_array([1])},
-                                 'crop_batch_dim_data': {'kind': 'data'},
-                                 'second_dim': {'kind': 'op', 'op': 'Const', 'value': int64_array([143])},
-                                 'second_dim_data': {'kind': 'data'},
-                                 'gather_shape': {'kind': 'op', 'op': 'Concat'},
-                                 'gather_shape_data': {'kind': 'data'},
                                  'fill_value': {'kind': 'op', 'op': 'Const', 'value': int64_array([0])},
                                  'fill_value_data': {'kind': 'data'},
-                                 'broadcast': {'kind': 'op', 'op': 'Broadcast'},
-                                 'broadcast_data': {'kind': 'data'},
 
                                  'memory_in': {'kind': 'op', 'op': 'ReadValue'},
                                  'memory_in_data': {'kind': 'data'},
@@ -73,16 +49,7 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                 [
                                     ('in_placeholder', 'in_node'),
 
-                                    ('in_node', 'shape'), ('shape', 'shape_data'),
-                                    ('shape_data', 'crop_batch'), ('crop_batch', 'crop_batch_data'),
-                                    ('crop_batch_dim', 'crop_batch_dim_data'),
-                                    ('crop_batch_dim_data', 'crop_batch', {'in': 1}),
-                                    ('second_dim', 'second_dim_data'), ('second_dim_data', 'gather_shape', {'in': 1}),
-                                    ('crop_batch_data', 'gather_shape', {'in': 0}),
-                                    ('gather_shape', 'gather_shape_data'),
-                                    ('fill_value', 'fill_value_data'), ('fill_value_data', 'broadcast', {'in': 0}),
-                                    ('gather_shape_data', 'broadcast', {'in': 1}), ('broadcast', 'broadcast_data'),
-                                    ('broadcast_data', 'memory_in'),
+                                    ('fill_value', 'fill_value_data'), ('fill_value_data', 'memory_in'),
 
                                     ('memory_in', 'memory_in_data'),
                                     ('memory_in_data', 'crop_mem'),
@@ -116,20 +83,8 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                  'split_data_0': {'kind': 'data'},
                                  'split_data_1': {'kind': 'data'},
 
-                                 'shape': {'kind': 'op', 'op': 'ShapeOf'},
-                                 'shape_data': {'kind': 'data'},
-                                 'crop_batch': {'kind': 'op', 'op': 'Crop', 'offset': int64_array([0])},
-                                 'crop_batch_data': {'kind': 'data'},
-                                 'crop_batch_dim': {'kind': 'op', 'op': 'Const', 'value': int64_array([1])},
-                                 'crop_batch_dim_data': {'kind': 'data'},
-                                 'second_dim': {'kind': 'op', 'op': 'Const', 'value': int64_array([33])},
-                                 'second_dim_data': {'kind': 'data'},
-                                 'gather_shape': {'kind': 'op', 'op': 'Concat'},
-                                 'gather_shape_data': {'kind': 'data'},
                                  'fill_value': {'kind': 'op', 'op': 'Const', 'value': int64_array([0])},
                                  'fill_value_data': {'kind': 'data'},
-                                 'broadcast': {'kind': 'op', 'op': 'Broadcast'},
-                                 'broadcast_data': {'kind': 'data'},
 
                                  'memory_in': {'kind': 'op', 'op': 'ReadValue'},
                                  'memory_in_data': {'kind': 'data'},
@@ -141,21 +96,10 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                  'memory_out_data': {'kind': 'data'},
                                  'result': {'kind': 'op', 'op': 'Result'},
 
-                                 'shape_2': {'kind': 'op', 'op': 'ShapeOf'},
-                                 'shape_2_data': {'kind': 'data'},
-                                 'crop_batch_2': {'kind': 'op', 'op': 'Crop', 'offset': int64_array([0])},
-                                 'crop_batch_2_data': {'kind': 'data'},
-                                 'crop_batch_dim_2': {'kind': 'op', 'op': 'Const', 'value': int64_array([1])},
-                                 'crop_batch_dim_2_data': {'kind': 'data'},
-                                 'second_dim_2': {'kind': 'op', 'op': 'Const', 'value': int64_array([33])},
-                                 'second_dim_2_data': {'kind': 'data'},
-                                 'gather_shape_2': {'kind': 'op', 'op': 'Concat'},
-                                 'gather_shape_2_data': {'kind': 'data'},
+
                                  'fill_value_2': {'kind': 'op', 'op': 'Const', 'value': int64_array([0])},
                                  'fill_value_2_data': {'kind': 'data'},
-                                 'broadcast_2': {'kind': 'op', 'op': 'Broadcast'},
-                                 'broadcast_2_data': {'kind': 'data'},
-
+\
                                  'memory_in_constdims': {'kind': 'op', 'op': 'ReadValue'},
                                  'memory_in_constdims_data': {'kind': 'data'},
                                  'crop_mem_constdims': {'kind': 'op', 'op': 'Crop', 'offset': 10, 'dim': 100},
@@ -183,16 +127,7 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                     ('split', 'split_data_0', {'out': 0}),
                                     ('split', 'split_data_1', {'out': 1}),
 
-                                    ('split_data_0', 'shape'), ('shape', 'shape_data'),
-                                    ('shape_data', 'crop_batch'), ('crop_batch', 'crop_batch_data'),
-                                    ('crop_batch_dim', 'crop_batch_dim_data'),
-                                    ('crop_batch_dim_data', 'crop_batch', {'in': 1}),
-                                    ('second_dim', 'second_dim_data'), ('second_dim_data', 'gather_shape', {'in': 1}),
-                                    ('crop_batch_data', 'gather_shape', {'in': 0}),
-                                    ('gather_shape', 'gather_shape_data'),
-                                    ('fill_value', 'fill_value_data'), ('fill_value_data', 'broadcast', {'in': 0}),
-                                    ('gather_shape_data', 'broadcast', {'in': 1}), ('broadcast', 'broadcast_data'),
-                                    ('broadcast_data', 'memory_in'),
+                                    ('fill_value', 'fill_value_data'), ('fill_value_data', 'memory_in'),
 
                                     ('memory_in', 'memory_in_data'),
                                     ('memory_in_data', 'crop_mem'),
@@ -204,16 +139,7 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                     ('memory_out', 'memory_out_data'),
                                     ('memory_out_data', 'result'),
 
-                                    ('split_data_1', 'shape_2'), ('shape_2', 'shape_2_data'),
-                                    ('shape_2_data', 'crop_batch_2'), ('crop_batch_2', 'crop_batch_2_data'),
-                                    ('crop_batch_dim_2', 'crop_batch_dim_2_data'),
-                                    ('crop_batch_dim_2_data', 'crop_batch_2', {'in': 1}),
-                                    ('second_dim_2', 'second_dim_2_data'), ('second_dim_2_data', 'gather_shape_2', {'in': 1}),
-                                    ('crop_batch_2_data', 'gather_shape_2', {'in': 0}),
-                                    ('gather_shape_2', 'gather_shape_2_data'),
-                                    ('fill_value_2', 'fill_value_2_data'), ('fill_value_2_data', 'broadcast_2', {'in': 0}),
-                                    ('gather_shape_2_data', 'broadcast_2', {'in': 1}), ('broadcast_2', 'broadcast_2_data'),
-                                    ('broadcast_2_data', 'memory_in_constdims'),
+                                    ('fill_value_2', 'fill_value_2_data'), ('fill_value_2_data', 'memory_in_constdims'),
 
                                     ('memory_in_constdims', 'memory_in_constdims_data'),
                                     ('memory_in_constdims_data', 'crop_mem_constdims'),

@@ -1,22 +1,10 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from mo.front.common.partial_infer.utils import int64_array
@@ -64,6 +52,15 @@ nodes_attributes = {
     'reshape_to_orig': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_to_orig_data': {'value': None, 'shape': None, 'kind': 'data'},
 
+    'start': {'kind': 'op', 'op': 'Const'},
+    'start_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'stop': {'kind': 'op', 'op': 'Const'},
+    'stop_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'step': {'kind': 'op', 'op': 'Const'},
+    'step_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'mvn_axes': {'kind': 'op', 'op': 'Range'},
+    'mvn_axes_data': {'value': None, 'shape': None, 'kind': 'data'},
+
     'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3},
     'mvn_data': {'value': None, 'shape': None, 'kind': 'data'},
 
@@ -74,8 +71,12 @@ nodes_attributes = {
 }
 
 
+@generator
 class FusedBatchNormTrainingTest(unittest.TestCase):
-    def test_transformation(self):
+    @generate(*[
+        'FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
+    ])
+    def test_transformation(self, op: str):
         graph = build_graph(nodes_attributes,
                             [('placeholder', 'placeholder_data', {}),
                              ('scale', 'scale_data'),
@@ -91,7 +92,7 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                              ('batchnorm_data', 'result'),
                              ],
                             {}, nodes_with_edges_only=True)
-
+        graph.nodes['batchnorm']['op'] = op
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder', 'placeholder_data', {}),
                                  ('scale', 'scale_data'),
@@ -110,6 +111,14 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                                  ('reshape_1_data', 'mvn', {'in': 0}),
                                  ('mvn', 'mvn_data'),
                                  ('mvn_data', 'reshape_to_orig', {'in': 0}),
+                                 ('start', 'start_data'),
+                                 ('start_data', 'mvn_axes'),
+                                 ('stop', 'stop_data'),
+                                 ('stop_data', 'mvn_axes'),
+                                 ('step', 'step_data'),
+                                 ('step_data', 'mvn_axes'),
+                                 ('mvn_axes', 'mvn_axes_data'),
+                                 ('mvn_axes_data', 'mvn'),
                                  ('placeholder_data', 'shapeof', {'in': 0}),
                                  ('shapeof', 'shapeof_data'),
                                  ('shapeof_data', 'reshape_to_orig', {'in': 1}),
@@ -124,6 +133,8 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                                  }, nodes_with_edges_only=True)
         FusedBatchNormTraining().find_and_replace_pattern(graph)
         shape_inference(graph)
+
+        graph_ref.nodes['batchnorm']['op'] = op
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)

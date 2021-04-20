@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, 
 void MKLDNNGenericNode::getSupportedDescriptors() {
     if (!extFactory && impls.empty()) {
         std::string type = getCnnLayer() ? getCnnLayer()->type : "Generic";
-        THROW_IE_EXCEPTION << "Cannot get generic primitive for layer: " << getName() << " with type: " << type;
+        IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << type;
     }
 }
 
@@ -32,7 +32,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
     InferenceEngine::ResponseDesc resp;
     if (impls.empty()) {
         if (!extFactory)
-            THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
+            IE_THROW() << "Descriptor for generic primitive doesn't exist";
 
         std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
 
@@ -43,7 +43,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
             }
         }
         if (rc != InferenceEngine::OK) {
-            THROW_IE_EXCEPTION << resp.msg;
+            IE_THROW() << resp.msg;
         }
     }
 
@@ -51,20 +51,15 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         std::vector<InferenceEngine::LayerConfig> configs;
         auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            THROW_IE_EXCEPTION << resp.msg;
+            IE_THROW() << resp.msg;
         }
 
         for (auto& config : configs) {
-            std::vector<memory::format> outFormats;
-            for (auto& outConfig : config.outConfs) {
-                outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
-            }
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     }
     if (impls.empty()) {
-        THROW_IE_EXCEPTION << "Layer " << getName() << " hasn't available configurations!";
+        IE_THROW() << "Layer " << getName() << " hasn't available configurations!";
     }
 }
 
@@ -73,14 +68,14 @@ void MKLDNNGenericNode::createPrimitive() {
         return;
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 }
 
 void MKLDNNGenericNode::execute(mkldnn::stream strm) {
     if (!impls.empty()) {
         execLayer();
     } else {
-        THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
+        IE_THROW() << "Descriptor for generic primitive doesn't exist";
     }
 }
 
@@ -158,7 +153,7 @@ void MKLDNNGenericNode::execLayer() {
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
     if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
+        IE_THROW() << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
     }
 }
 
@@ -172,7 +167,7 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            THROW_IE_EXCEPTION << resp.msg;
+            IE_THROW() << resp.msg;
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
             if (t == selectedPrimitiveDescriptorIndex) {
@@ -200,7 +195,7 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     impls.emplace_back(selectedImpl);
     rc = impls[0]->init(rightConfig, &resp);
     if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << resp.msg;
+        IE_THROW() << resp.msg;
     }
 
     auto descriptor = getSelectedPrimitiveDescriptor();

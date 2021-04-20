@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
@@ -78,3 +65,21 @@ class TestDiv(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
         self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Multiply')[0]]['name'] == 'my_div')
+
+    def test_div_with_integer(self):
+        # Test where transformation should not be applied because the divisor is integer
+        graph = build_graph({
+            **regular_op_with_shaped_data('parameter', [1, 227, 227, 3], {'type': 'Parameter', 'data_type': np.int32}),
+            **valued_const_with_data('const', np.array([-1.], dtype=np.int32)),
+            **regular_op_with_shaped_data('div', None, {'op': 'Div', 'type': 'Divide', 'name': 'my_div'}),
+            **result()},
+            [
+                *connect('parameter:0', '0:div'),
+                *connect_data('const:0', '1:div'),
+                *connect('div', 'output'),
+            ])
+        graph_ref = graph.copy()
+        Div().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)

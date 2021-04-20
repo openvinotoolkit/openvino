@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -50,13 +38,16 @@ struct gather : public primitive_base<gather> {
            const primitive_id& dict,
            const primitive_id& idx,
            const gather_axis axis,
+           const format& output_format,
            const tensor& output_shape,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_shape(output_shape) {}
+        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_format(output_format), output_shape(output_shape) {}
 
     /// @brief Gathering axis
     gather_axis axis;
-    /// @brief Gathering input shape
+    /// @brief Gather output format
+    format output_format;
+    /// @brief Gather output shape
     tensor output_shape;
 };
 /// @}

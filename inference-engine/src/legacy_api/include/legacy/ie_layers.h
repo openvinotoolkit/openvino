@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,7 +205,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 
@@ -301,6 +301,23 @@ public:
     unsigned int GetParamAsUInt(const char* param) const;
 
     /**
+     * @brief Returns an size_t value for the given parameter or returns the default value
+     *
+     * @param param Name of the layer parameter
+     * @param def Default value of the parameter if not found
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param, size_t def) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter
+     *
+     * @param param Name of the layer parameter
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param) const;
+
+    /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
      *
      * @param param Name of the layer parameter
@@ -360,6 +377,15 @@ public:
      * @return A string value
      */
     std::string GetParamAsString(const char* param) const;
+
+    /**
+     * @brief Returns a string containing an integer if parameters value was
+     * "true" or "false"
+     *
+     * @param param Name of the layer parameter
+     * @return A string containing an integer or the parameter as string
+     */
+    std::string getBoolStrParamAsIntStr(const char *param) const;
 
     /**
      * @brief Gets the parameter as a std::vector<std::string>
@@ -1944,7 +1970,7 @@ public:
     /**
      * @brief The number of quantization levels
      */
-    int levels = 1;
+    size_t levels = 1;
 
     /**
      * @brief Creates a new QuantizeLayer instance.
@@ -2064,6 +2090,10 @@ public:
      * classes
      */
     bool sort_result_descending = true;
+    /**
+     * @brief Output type for first and third inputs
+     */
+    std::string output_type = "I64";
     /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */

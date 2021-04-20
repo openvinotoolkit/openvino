@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "precision_utils.h"
-#include <details/ie_exception.hpp>
 
 #include <stdint.h>
 
@@ -129,7 +128,7 @@ ie_fp16 f32tof16(float x) {
         if (v.u & 0x007FFFFF) {
             return s | (v.u >> (23 - 10)) | 0x0200;  // return NAN f16
         } else {
-            return s | (v.u >> (23 - 10));  // return INF f16
+            return s | EXP_MASK_F16;  // return INF f16
         }
     }
 

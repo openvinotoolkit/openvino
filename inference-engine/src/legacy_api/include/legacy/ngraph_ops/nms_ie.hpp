@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,15 @@ public:
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
+
+    NonMaxSuppressionIE3(const Output<Node>& boxes,
+                         const Output<Node>& scores,
+                         const Output<Node>& max_output_boxes_per_class,
+                         const Output<Node>& iou_threshold,
+                         const Output<Node>& score_threshold,
+                         int center_point_box,
+                         bool sort_result_descending,
+                         const ngraph::element::Type& output_type = ngraph::element::i64);
 
     NonMaxSuppressionIE3(const Output<Node>& boxes,
                          const Output<Node>& scores,

@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fused_conv_eltwise_kernel_bfyx_os_iyx_osv16.h"
 #include <vector>
@@ -166,8 +155,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_i
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
@@ -193,6 +180,10 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_i
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {

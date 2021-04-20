@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -130,6 +118,7 @@ struct primitive_info {
                    const layout& output_layout,
                    const std::string& layout_str,
                    const std::string& kernel_id,
+                   const data_types& runtime_precision,
                    bool is_cpu,
                    int exec_id)
         : original_id(original_id),
@@ -140,6 +129,7 @@ struct primitive_info {
           output_layout(output_layout),
           layout_str(layout_str),
           kernel_id(kernel_id),
+          runtime_precision(runtime_precision),
           is_cpu(is_cpu),
           exec_id(exec_id) {}
 
@@ -151,6 +141,7 @@ struct primitive_info {
     layout output_layout;
     std::string layout_str;
     std::string kernel_id;
+    data_types runtime_precision;
     bool is_cpu;
     int exec_id;
 };

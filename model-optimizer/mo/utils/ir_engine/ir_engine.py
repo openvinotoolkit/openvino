@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import hashlib
 import logging as log
@@ -123,7 +110,7 @@ class IREngine(object):
             data_nodes = {}
             for port in self.graph.node[node]['ports']:
                 data = self.graph.unique_id(prefix='data_')
-                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port],
+                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port][0],
                                              'value': None})
                 self.graph.add_edges_from([(node, data, {'out': port})])
                 data_nodes.update({port: data})
@@ -232,7 +219,11 @@ class IREngine(object):
                     for dim in port:
                         output_shape.append(int(dim.text))
 
-                    layer_attrs['ports'].update({port_id: output_shape})
+                    out_tensor_names = None
+                    if 'names' in port.attrib:
+                        out_tensor_names = port.attrib['names']
+
+                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
                 for blob_attr in attr:
@@ -306,6 +297,8 @@ class IREngine(object):
             'I8': (1, np.int8),
             'U8': (1, np.uint8),
             'U1': (1, np.uint8),
+            'U4': (1, np.uint8),
+            'I4': (1, np.uint8),
             'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
         }
@@ -331,8 +324,8 @@ class IREngine(object):
                     n_value.append(int(val))
                 elif IREngine.__isfloat(val):
                     n_value.append(float(val))
-                elif val in ['True', 'False']:
-                    n_value.append(val == 'True')
+                elif val in ['True', 'False', 'true', 'false']:
+                    n_value.append(val in ['True', 'true'])
                 else:
                     n_value.append(val)
 

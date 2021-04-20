@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
 #include "custom_matcher.hpp"
+#include "ie_iexecutable_network.hpp"
 
 using namespace InferenceEngine;
 
@@ -103,7 +104,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
             ASSERT_NO_FATAL_FAILURE(executableApi = createExecutableNetworkFromIR());
         }
 
-        if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+        if (executableApi) {
             for (int i=0; i != config._nrequests; i++ ) {
                 inferRequests.push_back(executableApi.CreateInferRequest());
             }
@@ -116,7 +117,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
         }
 
         auto make_unified_endpoints = [&] () {
-            if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+            if (executableApi) {
                 return std::make_pair(executableApi.GetInputsInfo(), executableApi.GetOutputsInfo());
             }
             auto inputs2 = network.getInputsInfo();
@@ -207,6 +208,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                     }
                 }
 
+                IE_SUPPRESS_DEPRECATED_START
                 if (fetchResult.reset) {
                     auto states = executableApi.QueryState();
                     ASSERT_FALSE(states.empty());
@@ -218,16 +220,17 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                     outputs["reset"] = nullptr;
                     //continue;
                 }
+                IE_SUPPRESS_DEPRECATED_END
 
                 //FAIL()<<"stop after one frame";
 
                 // Check errors
                 if (sts == GENERAL_ERROR) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Critical error: " << dsc.msg;
+                    IE_THROW() << "Scoring failed! Critical error: " << dsc.msg;
                 } else if (sts == NOT_IMPLEMENTED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Input data is incorrect and not supported!";
+                    IE_THROW() << "Scoring failed! Input data is incorrect and not supported!";
                 } else if (sts == NETWORK_NOT_LOADED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! " << dsc.msg;
+                    IE_THROW() << "Scoring failed! " << dsc.msg;
                 }
                 if (!fetchResult.fetchMore) break;
             }
@@ -248,9 +251,6 @@ void Regression::Matchers::CustomMatcher::checkResult() {
      */
     if (isSaveOutput) {
         if (!config.fetch_result) {
-
-            decltype(ctx.allOutputs().begin()) output;
-
             // calculating all outputs size
             SizeVector dimsMerged;
             for(auto && output :  ctx.allOutputs()) {
@@ -316,13 +316,12 @@ void Regression::Matchers::CustomMatcher::checkResult() {
 
     if (cmpNear || cmpNearAvg) {
         int idx = 0;
-        float avgDiff = 0.0;
-        float sz = 0.0;
-        float maxDiff = 0.0;
-        float maxAverageDiff = 0.0;
-        float rms = 0.0;
+        float avgDiff = 0.0f;
+        float maxDiff = 0.0f;
+        float maxAverageDiff = 0.0f;
+        float rms = 0.0f;
         int nFrame = -1;
-        float avgFrames = 0.0;
+        float avgFrames = 0.0f;
 
         if (!config.fetch_result) {
             decltype(ctx.allOutputs().begin()) output;

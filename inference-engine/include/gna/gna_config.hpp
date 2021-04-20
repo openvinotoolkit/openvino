@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,11 +43,10 @@ namespace GNAConfigParams {
 DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 
 /**
-* @brief By default gna api work in Int16 precision, however this can be adjusted if necessary,
+* @brief By default gna api works with Int16 weights precision, however this can be adjusted if necessary,
 * currently supported values are I16, I8
 */
 DECLARE_GNA_CONFIG_KEY(PRECISION);
-
 
 /**
 * @brief if turned on, dump GNA firmware model into specified file
@@ -93,6 +92,13 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 
 /**
+* @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
+* will use to find PWL functions.
+* By default (in case of NO value set), 1.0 value is used.
+*/
+DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
+
+/**
 * @brief By default, the GNA plugin uses one worker thread for inference computations.
 * This parameter allows you to create up to 127 threads for software modes.
 *
@@ -101,4 +107,12 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 */
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
+
+namespace Metrics {
+    /**
+    * @brief Metric to get a std::string of GNA Library version, usually in the form <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
+    */
+    DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
+}  // namespace Metrics
+
 }  // namespace InferenceEngine

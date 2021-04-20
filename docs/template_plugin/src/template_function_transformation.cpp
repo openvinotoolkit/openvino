@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@ using namespace ngraph;
 
 // ! [function_pass:template_transformation_cpp]
 // template_function_transformation.cpp
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MyFunctionTransformation, "MyFunctionTransformation", 0);
+
 bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // Example transformation code
     NodeVector nodes;

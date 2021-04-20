@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_imad.h"
 #include "kernel_selector_utils.h"
@@ -41,7 +30,7 @@ static void getOutBlock_WH(size_t output_size,
     if (output_size % max_posible_tile_size == 0) {
         output_block_w = max_posible_tile_size;
     } else {
-        size_t min_horisontal_block_size = 2;  // 4;
+        size_t min_horisontal_block_size = 2; // 4;
 
         size_t block_size = 0;
 
@@ -95,6 +84,9 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
     k.DisableTuning();
     return k;
 }
@@ -172,27 +164,47 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
+    return dispatchData;
+}  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     // This kernel is quite slow for 1x1 and KHx1 kernels
     // TODO: check if we need any optimized kernels in this layout
     // If yes, we need to implement some customization for these cases.
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
-    return dispatchData;
-}  // SetDefault
+    return FORCE_PRIORITY_3;
+}
 
 bool ConvolutionKernel_imad::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {
         return false;
     }
 
-    auto& newParams = static_cast<const convolution_params&>(params);
-    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0 &&
-        newParams.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
+    auto& conv_params = static_cast<const convolution_params&>(params);
+    if (conv_params.groups > 1 && conv_params.weights.IFM().v % 4 != 0 &&
+        conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
         return false;
 
-    size_t min_block_size_x = (newParams.weights.X().v - 1) * newParams.dilation.x + 1;
+    size_t min_block_size_x = (conv_params.weights.X().v - 1) * conv_params.dilation.x + 1;
     if (min_block_size_x > SIMD_SIZE)
         return false;
+
+    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
+        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+        if ((conv_params.activations_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+        if (conv_params.weights_zero_points.empty())
+            return false;
+    } else {
+        if (!conv_params.activations_zero_points.empty() ||
+            !conv_params.weights_zero_points.empty() ||
+            !conv_params.compensation.empty())
+            return false;
+    }
 
     return true;
 }

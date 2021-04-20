@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,6 @@ inline void cpu_memcpy(void* dst, const void* src, size_t count) {
 }
 
 inline int cpu_memcpy_s(void* dst, size_t dst_size, const void* src, size_t count) {
-    size_t i;
     if (!src ||
         count > dst_size ||
         count > (dst > src ? ((uintptr_t)dst - (uintptr_t)src) : ((uintptr_t)src - (uintptr_t)dst))) {

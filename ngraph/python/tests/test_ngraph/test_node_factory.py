@@ -1,22 +1,10 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-import numpy as np
-from _pyngraph import NodeFactory as _NodeFactory
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import ngraph as ng
+from ngraph.utils.node_factory import NodeFactory
+from _pyngraph import NodeFactory as _NodeFactory
 
 
 def test_node_factory_add():
@@ -26,7 +14,8 @@ def test_node_factory_add():
     parameter_b = ng.parameter(shape, dtype=dtype, name="B")
 
     factory = _NodeFactory("opset1")
-    node = factory.create("Add", [parameter_a, parameter_b], {})
+    arguments = NodeFactory._arguments_as_outputs([parameter_a, parameter_b])
+    node = factory.create("Add", arguments, {})
 
     assert node.get_type_name() == "Add"
     assert node.get_output_size() == 1
@@ -52,7 +41,10 @@ def test_node_factory_topk():
     data = ng.parameter([2, 10], dtype=dtype, name="A")
     k = ng.constant(3, dtype=dtype, name="B")
     factory = _NodeFactory("opset1")
-    node = factory.create("TopK", [data, k], {"axis": 1, "mode": "max", "sort": "value"})
+    arguments = NodeFactory._arguments_as_outputs([data, k])
+    node = factory.create(
+        "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"}
+    )
 
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2

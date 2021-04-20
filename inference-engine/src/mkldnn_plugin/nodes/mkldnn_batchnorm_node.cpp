@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +14,16 @@ MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine
                                                            const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return GetVarianceDesc(primitive_desc_it.fetch());
+        return GetVarianceDesc(primitive_desc_it);
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return GetMeanDesc(primitive_desc_it.fetch());
+        return GetMeanDesc(primitive_desc_it);
     });
 
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         if (!fusedWithScale())
             return MKLDNNMemoryDesc();
-        return GetScaleShiftWeightsDesc(primitive_desc_it.fetch());
+        return GetScaleShiftWeightsDesc(primitive_desc_it);
     });
 }
 
@@ -32,18 +32,18 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         return;
     auto * bnLayer = dynamic_cast<BatchNormalizationLayer*>(getCnnLayer().get());
     if (bnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert batch normalization layer.";
+        IE_THROW() << "Cannot convert batch normalization layer.";
     if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
-        THROW_IE_EXCEPTION << "Weights/biases are empty for layer: " << bnLayer->name
+        IE_THROW() << "Weights/biases are empty for layer: " << bnLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
                            << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     eps = bnLayer->epsilon;
 
@@ -51,7 +51,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
 
     if (variancesSize != meansSize && variancesSize != 1)
-        THROW_IE_EXCEPTION << "Incorrect weights and biases sizes!";
+        IE_THROW() << "Incorrect weights and biases sizes!";
 
     internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
     internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
@@ -59,12 +59,12 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
     if (fusedWith.size() > 1)
-        THROW_IE_EXCEPTION << "BatchNorm fusion is possible with only one layer!";
+        IE_THROW() << "BatchNorm fusion is possible with only one layer!";
 
     for (const auto &node : fusedWith) {
         auto * scshLayer = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
         if (scshLayer == nullptr)
-            THROW_IE_EXCEPTION << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
+            IE_THROW() << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
 
         size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
         SizeVector mkldnn_weights = {2, C};
@@ -73,11 +73,11 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         internalBlob->allocate();
         float * data = internalBlob->buffer();
         if (data == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get memory!";
+            IE_THROW() << "Cannot get memory!";
 
         InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
         if (blb == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get weights blob for node " << getName() << ".";
+            IE_THROW() << "Cannot get weights blob for node " << getName() << ".";
 
         size_t weightsByteSize = blb->byteSize();
         cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
@@ -88,7 +88,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
             memset(data, 0, weightsByteSize);
         } else {
             if (weightsByteSize != blb->byteSize())
-                THROW_IE_EXCEPTION << "ScaleShift has incorrect weights!";
+                IE_THROW() << "ScaleShift has incorrect weights!";
             cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         }
         internalBlobs.push_back(internalBlob);
@@ -105,57 +105,29 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     }
 }
 
-MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const memory::primitive_desc &primitive_desc) const {
-    memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc = nullptr;
+static MKLDNNMemoryDesc get_bn_mdesc_by_index(const mkldnn::primitive_desc_iterator &primitive_desc, int idx) {
     mkldnn_batch_normalization_desc_t *p;
     error::wrap_c_api(mkldnn_primitive_desc_query(
-            primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
+            primitive_desc.get(), mkldnn::convert_to_c(mkldnn::query::batch_normalization_d), 0, &p),
                       "could not get a batch-normalization descriptor");
-    const_mkldnn_primitive_desc_t const_bndesc =
-            (p->flags & use_global_stats) ?
-            mkldnn_primitive_desc_query_pd(primitive_desc.get(),
-                                                  mkldnn::convert_to_c(src_pd), 2) :
-            mkldnn_primitive_desc_query_pd(primitive_desc.get(),
-                                                  mkldnn::convert_to_c(dst_pd), 2);
-    error::wrap_c_api(mkldnn_primitive_desc_clone(&bndesc,
-                                                         const_bndesc),
-                      "could not clone a variance primitive descriptor");
-    aprimitive_desc.reset(bndesc);
-    return MKLDNNMemoryDesc(aprimitive_desc.desc());
+    auto bndesc =
+            (p->flags & mkldnn::convert_to_c(mkldnn::normalization_flags::use_global_stats)) ?
+            primitive_desc.src_desc(idx) : primitive_desc.dst_desc(idx);
+
+    return MKLDNNMemoryDesc {bndesc};
 }
 
-MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const memory::primitive_desc &primitive_desc) const {
-    memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc = nullptr;
-    mkldnn_batch_normalization_desc_t *p;
-    error::wrap_c_api(mkldnn_primitive_desc_query(
-            primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
-                      "could not get a batch-normalization descriptor");
-    const_mkldnn_primitive_desc_t const_bndesc =
-            (p->flags & use_global_stats) ?
-            mkldnn_primitive_desc_query_pd(primitive_desc.get(),
-                                                  mkldnn::convert_to_c(src_pd), 1) :
-            mkldnn_primitive_desc_query_pd(primitive_desc.get(),
-                                                  mkldnn::convert_to_c(dst_pd), 1);
-    error::wrap_c_api(mkldnn_primitive_desc_clone(&bndesc,
-                                                         const_bndesc),
-                      "could not clone a mean primitive descriptor");
-    aprimitive_desc.reset(bndesc);
-    return MKLDNNMemoryDesc(aprimitive_desc.desc());
+MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const mkldnn::primitive_desc &primitive_desc) const {
+    // TODO: rewrite with using stat_desc
+    return get_bn_mdesc_by_index(primitive_desc, 2);
 }
 
-MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetScaleShiftWeightsDesc(const memory::primitive_desc &primitive_desc) const {
-    memory::primitive_desc adesc;
-    mkldnn_primitive_desc_t bndesc = nullptr;
-    const_mkldnn_primitive_desc_t const_bndesc =
-            mkldnn_primitive_desc_query_pd(primitive_desc.get(),
-                                           mkldnn::convert_to_c(weights_pd), 0);
-    error::wrap_c_api(mkldnn_primitive_desc_clone(&bndesc,
-                                                  const_bndesc),
-                      "could not clone a weights primitive descriptor");
-    adesc.reset(bndesc);
-    return MKLDNNMemoryDesc(adesc.desc());
+MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const mkldnn::primitive_desc &primitive_desc) const {
+    return get_bn_mdesc_by_index(primitive_desc, 1);
+}
+
+MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetScaleShiftWeightsDesc(const mkldnn::primitive_desc &primitive_desc) const {
+    return MKLDNNMemoryDesc(primitive_desc.weights_desc(0));
 }
 
 bool MKLDNNBatchNormalizationNode::created() const {
@@ -166,23 +138,28 @@ void MKLDNNBatchNormalizationNode::createPrimitive() {
     if (prim)
         return;
 
-    if (fusedWithScale()) {
-        auto prim_desc = createPrimitiveDescriptor<batch_normalization_forward::primitive_desc,
-                batch_normalization_forward::desc>();
-        prim.reset(new batch_normalization_forward(prim_desc,
-                                                   getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                                   (const primitive::at) internalBlobMemory[1]->GetPrimitive(),
-                                                   (const primitive::at) internalBlobMemory[0]->GetPrimitive(),
-                                                   (const primitive::at) internalBlobMemory[2]->GetPrimitive(),
-                                                   getChildEdgeAt(0)->getMemory().GetPrimitive()));
-    }  else {
-        auto prim_desc = createPrimitiveDescriptor<batch_normalization_forward::primitive_desc,
-                batch_normalization_forward::desc>();
-        prim.reset(new batch_normalization_forward(prim_desc,
-                                                   getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                                   (const primitive::at) internalBlobMemory[1]->GetPrimitive(),
-                                                   (const primitive::at) internalBlobMemory[0]->GetPrimitive(),
-                                                   getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    auto prim_desc = createPrimitiveDescriptor<batch_normalization_forward::primitive_desc,
+            batch_normalization_forward::desc>();
+    prim.reset(new batch_normalization_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    const auto &mean = internalBlobMemory[1]->GetPrimitive();
+    const auto &var = internalBlobMemory[0]->GetPrimitive();
+
+    if (convert_to_c(flag) & dnnl_use_scaleshift) {
+        const auto &sclshft = internalBlobMemory[2]->GetPrimitive();
+        primArgs = {{DNNL_ARG_SRC, src},
+                    {DNNL_ARG_MEAN, mean},
+                    {DNNL_ARG_VARIANCE, var},
+                    {DNNL_ARG_SCALE_SHIFT, sclshft},
+                    {DNNL_ARG_DST, dst}};
+    } else {
+        primArgs = {{DNNL_ARG_SRC, src},
+                    {DNNL_ARG_MEAN, mean},
+                    {DNNL_ARG_VARIANCE, var},
+                    {DNNL_ARG_DST, dst}};
     }
 }
 
@@ -194,15 +171,16 @@ void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceE
         MKLDNNDims dims = inDesc.getDims();
         dims.push_back(1);  // H
         dims.push_back(1);  // W
-        auto format = memory::nchw;
+        auto format = memory::format_tag::nchw;
         inDesc = MKLDNNMemoryDesc(dims, inDesc.getDataType(), format);
     }
 
-    unsigned flag = mkldnn_use_global_stats;
+    flag = normalization_flags::use_global_stats;
     if (fusedWithScale())
-        flag |= mkldnn_use_scaleshift;
+        flag |= normalization_flags::use_scale_shift;
+
     MKLDNNDescriptor desc(std::shared_ptr<batch_normalization_forward::desc>(
-            new batch_normalization_forward::desc(prop_kind::forward_scoring, inDesc, eps,
+            new mkldnn::batch_normalization_forward::desc(prop_kind::forward_scoring, inDesc, eps,
                                                   flag)));
     descs.push_back(desc);
 }
@@ -210,14 +188,14 @@ void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceE
 void MKLDNNBatchNormalizationNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 || (!isUninitTensorDesc(config.inConfs[0].desc) &&
             !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-        THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
+        IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;
@@ -237,7 +215,7 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
     // BN primitive doesn't support strides
     for (auto& desc : descs) {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine());
-        while (itpd.is_not_end()) {
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < desc.inputNumbers(); i++) {
@@ -248,27 +226,25 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<memory::format> outFormats;
             for (size_t i = 0; i < desc.outputNumbers(); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(dataConfig);
-
-                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
             }
-            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            itpd++;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
         }
     }
 }
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it,
                                                              size_t idx) {
-    TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());
+    TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
     if (getParentEdgeAt(0)->getDims().ndims() == 2 && desc.getLayout() == InferenceEngine::Layout::NCHW) {
         desc.reshape(getParentEdgeAt(idx)->getDims().ToSizeVector(), InferenceEngine::Layout::NC);
@@ -286,7 +262,7 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getSrcMemDesc(mkldnn::primitive_d
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it,
                                                              size_t idx) {
-    TensorDesc desc =  MKLDNNMemoryDesc(primitive_desc_it.dst_primitive_desc(idx).desc());
+    TensorDesc desc =  MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
 
     if (getParentEdgeAt(0)->getDims().ndims() == 2 && desc.getLayout() == InferenceEngine::Layout::NCHW) {
         desc.reshape(getParentEdgeAt(idx)->getDims().ToSizeVector(), InferenceEngine::Layout::NC);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,11 @@
 
 #include "ie_plugin_config.hpp"
 #include "ie_common.h"
+#include "ie_parallel.hpp"
+#include "ie_system_conf.h"
 
 #include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_parallel.hpp>
-#include <ie_system_conf.h>
-
 
 namespace MKLDNNPlugin {
 
@@ -32,6 +31,9 @@ Config::Config() {
 #else
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
 #endif
+
+    if (!with_cpu_x86_bfloat16())
+        enforceBF16 = false;
 
     updateProperties();
 }
@@ -51,7 +53,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             try {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
                                     << ". Expected only integer numbers";
             }
             // zero and any negative value will be treated
@@ -61,13 +63,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
             else
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_PERF_COUNT
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERF_COUNT
                                    << ". Expected only YES/NO";
         } else if (key == PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) {
             if (val == PluginConfigParams::YES) exclusiveAsyncRequests = true;
             else if (val == PluginConfigParams::NO) exclusiveAsyncRequests = false;
             else
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS
                                    << ". Expected only YES/NO";
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0)
@@ -75,7 +77,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else if (val.compare(PluginConfigParams::NO) == 0)
                 enableDynamicBatch = false;
             else
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
                 << ". Expected only YES/NO";
         } else if (key.compare(PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             // empty string means that dumping is switched off
@@ -86,25 +88,25 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else if (val == PluginConfigParams::YES)
                 lpTransformsMode = LPTransformsMode::On;
             else
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
+                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_DOT) == 0) {
             dumpQuantizedGraphToDot = val;
         } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_IR) == 0) {
             dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_bfloat16())
+                if (with_cpu_x86_avx512_core())
                     enforceBF16 = true;
                 else
-                    THROW_IE_EXCEPTION << "Platform doesn't support BF16 format";
+                    IE_THROW() << "Platform doesn't support BF16 format";
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
             } else {
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
         } else {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property " << key << " by CPU plugin";
+            IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
         _config.clear();
     }
@@ -143,8 +145,6 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
         _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
-        if (!with_cpu_x86_bfloat16())
-            enforceBF16 = false;
         if (enforceBF16)
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else

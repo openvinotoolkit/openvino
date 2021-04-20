@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ static std::vector<std::vector<size_t>> blobToImageOutputArray(InferenceEngine::
         H = outputDims.at(3);
         W = outputDims.at(4);
     } else {
-        THROW_IE_EXCEPTION << "Output blob has unsupported layout " << output->getTensorDesc().getLayout();
+        IE_THROW() << "Output blob has unsupported layout " << output->getTensorDesc().getLayout();
     }
 
     // Get classes
@@ -86,20 +86,20 @@ void SegmentationMatcher::match() {
     InferenceEngine::SizeVector outputDims = outInfo.begin()->second->getDims();
 
     if (outputDims.size() != 4) {
-        THROW_IE_EXCEPTION << "Incorrect output dimensions for Deconvolution model";
+        IE_THROW() << "Incorrect output dimensions for Deconvolution model";
     }
 
     // Read image
     FormatReader::ReaderPtr reader(config._paths_to_images[0].c_str());
     if (reader.get() == nullptr) {
-        THROW_IE_EXCEPTION << "[ERROR]: Image " << config._paths_to_images[0] << " cannot be read!";
+        IE_THROW() << "[ERROR]: Image " << config._paths_to_images[0] << " cannot be read!";
     }
 
     int inputNetworkSize = static_cast<int>(std::accumulate(
         inputDims.begin(), inputDims.end(), (size_t)1, std::multiplies<size_t>()));
 
     if (reader->size() != inputNetworkSize) {
-        THROW_IE_EXCEPTION << "[ERROR]: Input sizes mismatch, got " << reader->size() << " bytes, expecting "
+        IE_THROW() << "[ERROR]: Input sizes mismatch, got " << reader->size() << " bytes, expecting "
                            << inputNetworkSize;
     }
 
@@ -117,7 +117,7 @@ void SegmentationMatcher::match() {
             input = InferenceEngine::make_shared_blob<uint8_t>({ InferenceEngine::Precision::U8, inputDims, NCHW });
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported network precision: " << inputs.begin()->second->getPrecision();
+            IE_THROW() << "Unsupported network precision: " << inputs.begin()->second->getPrecision();
     }
     input->allocate();
 
@@ -126,9 +126,6 @@ void SegmentationMatcher::match() {
 
     // Load image to blob
     ConvertImageToInput(reader->getData().get(), reader->size(), *input);
-
-    InferenceEngine::ResponseDesc dsc;
-    InferenceEngine::StatusCode sts;
 
     auto loadedExecutableNetwork = config.ie_core->LoadNetwork(network, config._device_name, config.plugin_config);
     InferenceEngine::ExecutableNetwork executableNetwork;
@@ -140,33 +137,12 @@ void SegmentationMatcher::match() {
         executableNetwork = loadedExecutableNetwork;
     }
 
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    sts = static_cast<IExecutableNetwork::Ptr&>(executableNetwork)->CreateInferRequest(inferRequest, &dsc);
-    if (sts != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << "Failed CreateInferRequest with error: " << dsc.msg;
-    }
-
-    sts = inferRequest->SetBlob(inputs.begin()->first.c_str(), input, &dsc);
-    if (sts != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << "Failed SetBlob with error: " << dsc.msg;
-    }
-
-    sts = inferRequest->SetBlob(outInfo.begin()->first.c_str(), output, &dsc);
-    if (sts != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << "Failed SetBlob with error: " << dsc.msg;
-    }
+    auto inferRequest = executableNetwork.CreateInferRequest();
+    inferRequest.SetBlob(inputs.begin()->first.c_str(), input);
+    inferRequest.SetBlob(outInfo.begin()->first.c_str(), output);
 
     // Infer model
-    sts = inferRequest->Infer(&dsc);
-
-    // Check errors
-    if (sts == InferenceEngine::GENERAL_ERROR) {
-        THROW_IE_EXCEPTION << "Scoring failed! Critical error: " << dsc.msg;
-    } else if (sts == InferenceEngine::NOT_IMPLEMENTED) {
-        THROW_IE_EXCEPTION << "Scoring failed! Input data is incorrect and not supported!";
-    } else if (sts == InferenceEngine::NETWORK_NOT_LOADED) {
-        THROW_IE_EXCEPTION << "Scoring failed! " << dsc.msg;
-    }
+    inferRequest.Infer();
 
     // Convert output data and save it to image
     outArray = blobToImageOutputArray(output, nullptr, nullptr, &C);
@@ -207,7 +183,7 @@ float SegmentationMatcher::compareOutputBmp(std::vector<std::vector<size_t>> dat
 
     FormatReader::ReaderPtr rd(inFileName.c_str());
     if (rd.get() == nullptr) {
-        THROW_IE_EXCEPTION << "[ERROR]: Image " << inFileName << " cannot be read!";
+        IE_THROW() << "[ERROR]: Image " << inFileName << " cannot be read!";
     }
 
     auto height = data.size();

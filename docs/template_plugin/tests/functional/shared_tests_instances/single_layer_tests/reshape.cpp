@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
 };
 
-INSTANTIATE_TEST_CASE_P(ReshapeCheckDynBatch, ReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -24,11 +24,11 @@ INSTANTIATE_TEST_CASE_P(ReshapeCheckDynBatch, ReshapeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
-                ::testing::Values("TEMPLATE"),
+                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ReshapeCheck, ReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -38,7 +38,7 @@ INSTANTIATE_TEST_CASE_P(ReshapeCheck, ReshapeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<size_t>({10, 0, 100})),
-                ::testing::Values("TEMPLATE"),
+                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTest::getTestCaseName);
 }  // namespace

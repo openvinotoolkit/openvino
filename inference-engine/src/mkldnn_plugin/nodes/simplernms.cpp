@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,10 +199,10 @@ public:
     explicit SimplerNMSImpl(const CNNLayer *layer) {
         try {
             if (layer->insData.size() != 3 || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
-                THROW_IE_EXCEPTION << "SimplerNMS supports only 4D blobs!";
+                IE_THROW() << "SimplerNMS supports only 4D blobs!";
 
             min_box_size_ = layer->GetParamAsInt("min_bbox_size");
             feat_stride_ = layer->GetParamAsInt("feat_stride");
@@ -223,11 +223,11 @@ public:
             // Fill config information
             if (layer->outData[0]->getTensorDesc().getDims().size() != 2 ||
                     layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
-                THROW_IE_EXCEPTION << "Unsupported dimensions!";
+                IE_THROW() << "Unsupported dimensions!";
 
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                      {DataConfigurator(ConfLayout::PLN)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

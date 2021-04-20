@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,14 +6,18 @@ set (TARGET_NAME "inference_engine")
 
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/ie_built_in_holder.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
+    "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
@@ -101,21 +105,20 @@ ie_faster_build(${TARGET_NAME}_obj
     UNITY
 )
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
+                                                      $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(ENABLE_MKL_DNN)
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
-endif()
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
@@ -170,38 +173,49 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations
-                                       PUBLIC pugixml)
+                                               inference_engine_snippets
+                                               inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# export targets
+# InferenceEngineConfig.cmake for install tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake" @ONLY)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/config.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
-    COPYONLY)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+              "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
+              COPYONLY)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-    COPYONLY)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
+               "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
+               COPYONLY)
 
-# developer package
+# Export Inference Engine targets
 
-add_library(xbyak INTERFACE)
-target_include_directories(xbyak INTERFACE ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak)
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-build.cmake.in"
+               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
+               COPYONLY)
 
-# install
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
+               COPYONLY)
+
+# Export for developer package
+
+ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
+
+# install TBB
 
 list(APPEND core_components ngraph)
 
@@ -228,6 +242,8 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb/cmake
             COMPONENT tbb)
 endif()
+
+# Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 

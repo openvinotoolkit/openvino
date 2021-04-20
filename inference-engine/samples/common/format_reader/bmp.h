@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,10 +58,6 @@ public:
      */
     size_t size() const override {
         return _width * _height * 3;
-    }
-
-    void Release() noexcept override {
-        delete this;
     }
 
     std::shared_ptr<unsigned char> getData(size_t width, size_t height) override {

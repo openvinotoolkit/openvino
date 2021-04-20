@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,95 +7,21 @@
 
 #include <cpp_interfaces/base/ie_executable_network_base.hpp>
 
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_async_only.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-class ExecutableNetworkThreadSafeAsyncOnlyTests : public ::testing::Test {
-protected:
-    shared_ptr<MockExecutableNetworkThreadSafeAsyncOnly> mockExeNetwork;
-    shared_ptr<MockAsyncInferRequestInternal> mockAsyncInferRequestInternal;
-    shared_ptr<IExecutableNetwork> exeNetwork;
-    ResponseDesc dsc;
-    StatusCode sts;
-
-    virtual void TearDown() {
-        EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockAsyncInferRequestInternal.get()));
-        EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockExeNetwork.get()));
-    }
-
-    virtual void SetUp() {
-        mockExeNetwork = make_shared<MockExecutableNetworkThreadSafeAsyncOnly>();
-        exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase<MockExecutableNetworkThreadSafeAsyncOnly>(mockExeNetwork));
-        InputsDataMap networkInputs;
-        OutputsDataMap networkOutputs;
-        mockAsyncInferRequestInternal = make_shared<MockAsyncInferRequestInternal>(networkInputs, networkOutputs);
-    }
-};
-
-TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, createAsyncInferRequestCallsThreadSafeImplAndSetNetworkIO) {
-    IInferRequest::Ptr req;
-    EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
-            Return(mockAsyncInferRequestInternal));
-    EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase<AsyncInferRequestInternal>>(req);
-    ASSERT_NE(threadSafeReq, nullptr);
-}
-
-TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, returnErrorIfInferThrowsException) {
-    IInferRequest::Ptr req;
-    EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
-            Return(mockAsyncInferRequestInternal));
-    EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::runtime_error("")));
-    EXPECT_NO_THROW(sts = req->Infer(&dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
-}
-
-TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, returnErrorIfStartAsyncThrowsException) {
-    IInferRequest::Ptr req;
-    EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
-            Return(mockAsyncInferRequestInternal));
-    EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), StartAsyncImpl()).WillOnce(Throw(std::runtime_error("")));
-    EXPECT_NO_THROW(sts = req->StartAsync(&dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
-}
-
-TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, canForwardStartAsyncAndInfer) {
-    IInferRequest::Ptr req;
-    EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
-            Return(mockAsyncInferRequestInternal));
-    EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), StartAsyncImpl()).Times(1);
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), InferImpl()).Times(1);
-
-    EXPECT_NO_THROW(req->StartAsync(&dsc)) << dsc.msg;
-    EXPECT_NO_THROW(req->Infer(&dsc)) << dsc.msg;
-}
-
-TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, canForwardInferAndStartAsync) {
-    IInferRequest::Ptr req;
-    EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
-            Return(mockAsyncInferRequestInternal));
-    EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), StartAsyncImpl()).Times(1);
-    EXPECT_CALL(*mockAsyncInferRequestInternal.get(), InferImpl()).Times(1);
-    EXPECT_NO_THROW(req->Infer(&dsc)) << dsc.msg;
-    EXPECT_NO_THROW(req->StartAsync(&dsc)) << dsc.msg;
-}
+IE_SUPPRESS_DEPRECATED_START
 
 class ExecutableNetworkThreadSafeTests : public ::testing::Test {
 protected:
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetwork;
     shared_ptr<IExecutableNetwork> exeNetwork;
-    shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
+    shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     ResponseDesc dsc;
     StatusCode sts;
 
@@ -106,11 +32,10 @@ protected:
 
     virtual void SetUp() {
         mockExeNetwork = make_shared<MockExecutableNetworkThreadSafe>();
-        exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase<MockExecutableNetworkThreadSafe>(mockExeNetwork));
+        exeNetwork = std::make_shared<ExecutableNetworkBase>(mockExeNetwork);
         InputsDataMap networkInputs;
         OutputsDataMap networkOutputs;
-        mockInferRequestInternal = make_shared<MockInferRequestInternal>(networkInputs, networkOutputs);
+        mockInferRequestInternal = make_shared<MockIInferRequestInternal>(networkInputs, networkOutputs);
     }
 };
 
@@ -118,7 +43,7 @@ TEST_F(ExecutableNetworkThreadSafeTests, createInferRequestCallsThreadSafeImplAn
     IInferRequest::Ptr req;
     EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
     EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase<AsyncInferRequestThreadSafeDefault>>(req);
+    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase>(req);
     ASSERT_NE(threadSafeReq, nullptr);
 }
 
@@ -126,7 +51,7 @@ TEST_F(ExecutableNetworkThreadSafeTests, returnErrorIfInferThrowsException) {
     IInferRequest::Ptr req;
     EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
     EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::runtime_error("")));
+    EXPECT_CALL(*mockInferRequestInternal.get(), checkBlobs()).WillOnce(Throw(std::runtime_error("")));
     EXPECT_NO_THROW(sts = req->Infer(&dsc));
     ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
 }

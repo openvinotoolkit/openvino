@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @file A header file with caseless containers
+ * @file caseless.hpp
+ * @brief A header file with caseless containers
  */
 
 #pragma once

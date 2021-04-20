@@ -99,4 +99,4 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [OpenCV](https://docs.opencv.org/master/) - OpenCV* community version compiled for Intel® hardware
 - [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) (in Intel® Distribution of OpenVINO™ toolkit for Linux only)
 
-OpenVINO™ Toolkit opensource version is available on [GitHub](https://github.com/openvinotoolkit/openvino). For building the Inference Engine from the source code, see the <a href="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md">build instructions</a>.
+OpenVINO™ Toolkit opensource version is available on [GitHub](https://github.com/openvinotoolkit/openvino). For building the Inference Engine from the source code, see the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">build instructions</a>.

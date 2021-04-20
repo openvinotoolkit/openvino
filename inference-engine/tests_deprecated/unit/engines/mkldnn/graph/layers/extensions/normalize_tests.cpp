@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,12 @@ using namespace single_layer_tests;
 
 using namespace Extensions;
 using namespace ::Cpu;
+
+namespace {
+
+OV_CC_DOMAINS(NormalizeTests);
+
+}   // namespace
 
 struct normalize_test_params {
     struct {
@@ -277,7 +283,7 @@ protected:
             ref_normalize(*srcPtr, dst_ref, p, weights->readOnly().as<const float*>());
             compare(*output, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -332,7 +338,7 @@ public:
         try {
             is_blocked = layer->GetParamAsBool("is_blocked");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -349,7 +355,7 @@ public:
                     return 0;
                 return (a + b - 1) / b;
             };
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -359,7 +365,6 @@ public:
             const SizeVector& data_dims = data_desc.getDims();
 
             InferenceEngine::Precision precision = data_desc.getPrecision();
-            Layout layout;
             if (is_blocked) {
                 int blk_size = InferenceEngine::with_cpu_x86_avx512f() ? 16 : 8;
 
@@ -510,10 +515,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_Normalize",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_Normalize>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(NormalizeTests, FakeLayer_Normalize, "FakeLayer_Normalize", Cpu::ImplFactory<FakeLayerImpl_Normalize>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);
@@ -569,7 +571,7 @@ protected:
             ref_normalize(*srcPtr, dst_ref, p, weights->readOnly().as<const float*>());
             compare(*output, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

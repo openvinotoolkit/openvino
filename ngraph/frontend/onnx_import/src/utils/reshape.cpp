@@ -1,30 +1,18 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <functional>
 #include <iterator>
 #include <numeric>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "reshape.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -116,21 +104,22 @@ namespace ngraph
 
             Output<ngraph::Node>
                 reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                    size_t expected_rank)
+                                                    const Output<ngraph::Node>& expected_rank)
             {
-                const auto& rank = node.get_partial_shape().rank();
-                NGRAPH_CHECK(rank.is_static());
-                size_t node_rank = rank.get_length();
-                if (node_rank == 1)
-                {
-                    // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}
-                    std::vector<size_t> reshape_pattern_values(expected_rank, 1U);
-                    reshape_pattern_values[1] = node.get_shape().front();
-                    const auto reshape_pattern = default_opset::Constant::create(
-                        element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
-                    return std::make_shared<default_opset::Reshape>(node, reshape_pattern, false);
-                }
-                return node;
+                // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+                const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
+                const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
+                const auto tail_shape_rank =
+                    std::make_shared<default_opset::Subtract>(expected_rank, two_const);
+                const auto tail_shape =
+                    std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+
+                // Construct new bias shape: [1, C, 1, 1, ... ]
+                const auto C_dim = std::make_shared<default_opset::ShapeOf>(node);
+                const auto new_shape = std::make_shared<default_opset::Concat>(
+                    OutputVector{one_const, C_dim, tail_shape}, 0);
+
+                return std::make_shared<default_opset::Reshape>(node, new_shape, false);
             }
 
         } // namespace  reshape

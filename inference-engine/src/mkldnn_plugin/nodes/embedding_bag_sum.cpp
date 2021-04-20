@@ -1,10 +1,9 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "embedding_bag_sum.hpp"
 #include "ie_parallel.hpp"
-#include "jit_generator.hpp"
 #include "list.hpp"
 
 #include <set>
@@ -30,25 +29,25 @@ MKLDNNEmbeddingBagSum::MKLDNNEmbeddingBagSum(
     try {
         std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + layer->name + "' ";
         if (layer->insData.size() < requiredInputNum || layer->outData.size() != 1)
-            THROW_IE_EXCEPTION << logPrefix << "has incorrect number of input or output edges!";
+            IE_THROW() << logPrefix << "has incorrect number of input or output edges!";
         _layerName = layer->name;
 
         auto inData = layer->insData[0].lock();
         auto indicesData = layer->insData[INDICES_IDX].lock();
         if (inData == nullptr || indicesData == nullptr)
-            THROW_IE_EXCEPTION << logPrefix << "has nullable input data.";
+            IE_THROW() << logPrefix << "has nullable input data.";
 
         auto dataPrecision = inData->getTensorDesc().getPrecision();
         if (dataPrecision == Precision::BF16)
             dataPrecision = Precision::FP32;
         if (!supportedPrecisions.empty()) {
             if (supportedPrecisions.find(dataPrecision) == supportedPrecisions.end())
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported precision: " << dataPrecision.name();
+                IE_THROW() << logPrefix << "has unsupported precision: " << dataPrecision.name();
         } else {
             static const std::set<Precision> defaultSupportedPrecisions =
                 {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
             if (defaultSupportedPrecisions.find(dataPrecision) == defaultSupportedPrecisions.end())
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported precision: " << dataPrecision.name();
+                IE_THROW() << logPrefix << "has unsupported precision: " << dataPrecision.name();
         }
 
         if (layer->insData.size() > PER_SAMPLE_WEIGHTS_IDX)
@@ -56,9 +55,9 @@ MKLDNNEmbeddingBagSum::MKLDNNEmbeddingBagSum(
         if (_withWeights) {
             auto weightsData = layer->insData[PER_SAMPLE_WEIGHTS_IDX].lock();
             if (weightsData == nullptr)
-                 THROW_IE_EXCEPTION << logPrefix << "has nullable weights data";
+                 IE_THROW() << logPrefix << "has nullable weights data";
             if (weightsData->getTensorDesc().getDims() != indicesData->getTensorDesc().getDims())
-                 THROW_IE_EXCEPTION << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
+                 IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
         }
 
         LayerConfig config;
@@ -66,7 +65,7 @@ MKLDNNEmbeddingBagSum::MKLDNNEmbeddingBagSum(
         for (int i = 0; i < layer->insData.size(); i++) {
             auto data = layer->insData[i].lock();
             if (data == nullptr)
-                THROW_IE_EXCEPTION << logPrefix << "has nullable input data";
+                IE_THROW() << logPrefix << "has nullable input data";
             auto prc = data->getTensorDesc().getPrecision();
             if (prc == Precision::BF16)
                 prc = Precision::FP32;
@@ -90,7 +89,7 @@ MKLDNNEmbeddingBagSum::MKLDNNEmbeddingBagSum(
         for (size_t i = 1lu; i < inDataDims.size(); i++) {
             _embDepth *= inDataDims[i];
         }
-    } catch (InferenceEngine::details::InferenceEngineException &ex) {
+    } catch (InferenceEngine::Exception &ex) {
         errorMsg = ex.what();
     }
 }
@@ -166,7 +165,7 @@ void MKLDNNEmbeddingBagSum::processData(
 
                 size_t inIdx = 0lu;
                 if (indices[inIdx] >= inDataDims[0])
-                    THROW_IE_EXCEPTION << "EmbeddingBagSum layer '" << _layerName
+                    IE_THROW() << "EmbeddingBagSum layer '" << _layerName
                         << "' has invalid embedding bag index: " << indices[inIdx];
                 size_t srcIndex = indices[inIdx] * _embDepth;
 
@@ -183,7 +182,7 @@ void MKLDNNEmbeddingBagSum::processData(
 
                 for (inIdx = 1lu; inIdx < indicesSize; inIdx++) {
                     if (indices[inIdx] >= inDataDims[0])
-                        THROW_IE_EXCEPTION << "EmbeddingBagSum layer '" << _layerName
+                        IE_THROW() << "EmbeddingBagSum layer '" << _layerName
                             << "' has invalid embedding bag index: " << indices[inIdx];
                     size_t srcIndex = indices[inIdx] * _embDepth;
 

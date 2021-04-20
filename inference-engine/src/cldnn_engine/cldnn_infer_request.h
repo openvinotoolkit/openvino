@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <vector>
 #include <memory>
 #include <atomic>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include "cldnn_graph.h"
 #include <threading/ie_istreams_executor.hpp>
 
@@ -22,14 +21,14 @@ struct buf_info {
 
 class CLDNNExecNetwork;
 
-class CLDNNInferRequest : public InferenceEngine::InferRequestInternal {
+class CLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     // make sure all blobs and cldnn::memory objects
     // are in place and valid
     void checkBlobs() override;
     void InferImpl() override;
 
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
                       const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
@@ -38,8 +37,8 @@ public:
 
     virtual ~CLDNNInferRequest() = default;
 
-    void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
-    void SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) override;
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
 
     void SetBatch(int batch = -1) override;
     void SetGraph(std::shared_ptr<CLDNNGraph> graph);

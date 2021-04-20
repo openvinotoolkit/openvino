@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,50 +22,30 @@ public:
     explicit SparseToDenseImpl(const CNNLayer* layer) {
         try {
             if ((layer->insData.size() != 3 && layer->insData.size() != 4) || layer->outData.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
             }
             if (layer->insData.size() == 4) {
                 with_default_value = true;
             }
 
-            // check precisions for input tensors
-            Precision input_indices_precision = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_indices_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input indices. Only I32 is supported!";
-            }
-            Precision input_dense_shape_precision = layer->insData[INPUT_DENSE_SHAPE_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_dense_shape_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input dense shape. Only I32 is supported!";
-            }
-            Precision input_values_precision = layer->insData[INPUT_VALUES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_values_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input values. Only I32 is supported!";
-            }
-            if (with_default_value) {
-                Precision input_default_value_precision = layer->insData[INPUT_DEFAULT_VALUE_PORT].lock()->getTensorDesc().getPrecision();
-                if (input_default_value_precision != Precision::I32) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input default value. Only I32 is supported!";
-                }
-            }
-
             // check dimensions of input tensors
             SizeVector input_dense_shape_dims = layer->insData[INPUT_DENSE_SHAPE_PORT].lock()->getTensorDesc().getDims();
             if (input_dense_shape_dims.size() != 1 || input_dense_shape_dims[0] < 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input dense shape. It must be 1D dimension tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input dense shape. It must be 1D dimension tensor.";
             }
             dense_tensor_rank = input_dense_shape_dims[0];
             SizeVector input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 2 || input_indices_dims[1] != dense_tensor_rank) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input indices.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input indices.";
             }
             SizeVector input_values_dims = layer->insData[INPUT_VALUES_PORT].lock()->getTensorDesc().getDims();
             if (input_values_dims.size() != 1 || input_values_dims[0] != input_indices_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input values.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input values.";
             }
             if (with_default_value) {
                 SizeVector input_default_value_dims = layer->insData[INPUT_DEFAULT_VALUE_PORT].lock()->getTensorDesc().getDims();
                 if (input_default_value_dims.size() != 0) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input default value.";
+                    IE_THROW() << layer->name << " Incorrect dimensions for input default value.";
                 }
             }
             input_num_values = input_values_dims[0];
@@ -73,17 +53,17 @@ public:
             // TODO: check that dense shape value is set
             if (with_default_value) {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             } else {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             }
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
