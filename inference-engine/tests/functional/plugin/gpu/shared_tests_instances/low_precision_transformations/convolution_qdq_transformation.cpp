@@ -13,7 +13,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -177,7 +177,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -228,7 +228,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 };

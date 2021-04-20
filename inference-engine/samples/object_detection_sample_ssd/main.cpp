@@ -18,14 +18,17 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <vpu/vpu_plugin_config.hpp>
-
 #include "object_detection_sample_ssd.h"
 
 using namespace InferenceEngine;
 
+/**
+* @brief Checks input args
+* @param argc number of args
+* @param argv list of input arguments
+* @return bool status true(Success) or false(Fail)
+*/
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
@@ -48,12 +51,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     return true;
 }
 
-static std::map<std::string, std::string> configure(const std::string& confFileName) {
-    auto config = parseConfig(confFileName);
-
-    return config;
-}
-
 /**
 * \brief The entry point for the Inference Engine object_detection sample application
 * \file object_detection_sample_ssd/main.cpp
@@ -62,59 +59,55 @@ static std::map<std::string, std::string> configure(const std::string& confFileN
 int main(int argc, char *argv[]) {
     try {
         /** This sample covers certain topology and cannot be generalized for any object detection one **/
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << "\n";
 
-        // --------------------------- 1. Parsing and validation of input args ---------------------------------
+        // --------------------------- Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Read input -----------------------------------------------------------
+        // ------------------------------ Read input -----------------------------------------------------------
         /** This vector stores paths to the processed images **/
         std::vector<std::string> images;
         parseInputFilesArguments(images);
         if (images.empty()) throw std::logic_error("No suitable images were found");
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Load inference engine -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
-
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(FLAGS_d);
+        std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
-            // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
+            // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
-            slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
+            slog::info << "Custom extension loaded: " << FLAGS_l << slog::endl;
         }
 
-        if (!FLAGS_c.empty()) {
-            // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
-            ie.SetConfig({ { PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } }, "GPU");
-            slog::info << "GPU Extension loaded: " << FLAGS_c << slog::endl;
+        if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
+            // Config for device plugin custom extension is loaded from an .xml description
+            ie.SetConfig({ { PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c } }, FLAGS_d);
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // 4. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files:"
-            "\n\t" << FLAGS_m <<
-            slog::endl;
+        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
 
         /** Read network model **/
         CNNNetwork network = ie.ReadNetwork(FLAGS_m);
         // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 5. Prepare input blobs --------------------------------------------------
+        // --------------------------- Step 3. Configure input & output ---------------------------------------------
+        // -------------------------------- Prepare input blobs --------------------------------------------------
         slog::info << "Preparing input blobs" << slog::endl;
 
         /** Taking information about all topology inputs **/
         InputsDataMap inputsInfo(network.getInputsInfo());
-
-        /** SSD network has one input and one output **/
-        if (inputsInfo.size() != 1 && inputsInfo.size() != 2) throw std::logic_error("Sample supports topologies only with 1 or 2 inputs");
 
         /**
          * Some networks have SSD-like output format (ending with DetectionOutput layer), but
@@ -123,6 +116,8 @@ int main(int argc, char *argv[]) {
          * Although object_datection_sample_ssd's main task is to support clean SSD, it could score
          * the networks with two inputs as well. For such networks imInfoInputName will contain the "second" input name.
          */
+        if (inputsInfo.size() != 1 && inputsInfo.size() != 2) throw std::logic_error("Sample supports topologies only with 1 or 2 inputs");
+
         std::string imageInputName, imInfoInputName;
 
         InputInfo::Ptr inputInfo = nullptr;
@@ -157,15 +152,18 @@ int main(int argc, char *argv[]) {
         if (inputInfo == nullptr) {
             inputInfo = inputsInfo.begin()->second;
         }
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 6. Prepare output blobs -------------------------------------------------
+        // --------------------------- Prepare output blobs -------------------------------------------------
         slog::info << "Preparing output blobs" << slog::endl;
 
         OutputsDataMap outputsInfo(network.getOutputsInfo());
 
         std::string outputName;
         DataPtr outputInfo;
+
+        outputInfo = outputsInfo.begin()->second;
+        outputName = outputInfo->getName();
+        // SSD has an additional post-processing DetectionOutput layer
+        // that simplifies output filtering, try to find it.
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& out : outputsInfo) {
                 for (const auto & op : ngraphFunction->get_ops()) {
@@ -177,9 +175,6 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-        } else {
-            outputInfo = outputsInfo.begin()->second;
-            outputName = outputInfo->getName();
         }
 
         if (outputInfo == nullptr) {
@@ -203,18 +198,18 @@ int main(int argc, char *argv[]) {
         outputInfo->setPrecision(Precision::FP32);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading model to the device ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
 
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d, configure(FLAGS_config));
+        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d, parseConfig(FLAGS_config));
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create infer request -------------------------------------------------
         slog::info << "Create infer request" << slog::endl;
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 9. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         /** Collect images data ptrs **/
         std::vector<std::shared_ptr<unsigned char>> imagesData, originalImagesData;
         std::vector<size_t> imageWidths, imageHeights;
@@ -263,7 +258,7 @@ int main(int argc, char *argv[]) {
 
         unsigned char *data = minputHolder.as<unsigned char *>();
 
-        /** Iterate over all input images **/
+        /** Iterate over all input images limited by batch size  **/
         for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
             /** Iterate over all pixel in image (b,g,r) **/
             for (size_t pid = 0; pid < image_size; pid++) {
@@ -300,12 +295,12 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 10. Do inference ---------------------------------------------------------
+        // --------------------------- Step 7. Do inference ---------------------------------------------------------
         slog::info << "Start inference" << slog::endl;
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 11. Process output -------------------------------------------------------
+        // --------------------------- Step 8. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
 
         const Blob::Ptr output_blob = infer_request.GetBlob(outputName);
