@@ -9,48 +9,52 @@
 
 #include <format_reader.h>
 #include <functional>
-#include <vector>
 #include <string>
+#include <vector>
 
-namespace FormatReader {
-/**
- * \class Registry
- * \brief Create reader from fabric
- */
-class Registry {
-private:
-    typedef std::function<Reader *(const std::string &filename)> CreatorFunction;
-    static std::vector<CreatorFunction> _data;
-public:
+namespace FormatReader
+{
     /**
-     * \brief Create reader
-     * @param filename - path to input data
-     * @return Reader for input data or nullptr
+     * \class Registry
+     * \brief Create reader from fabric
      */
-    static Reader *CreateReader(const char *filename);
+    class Registry
+    {
+    private:
+        typedef std::function<Reader*(const std::string& filename)> CreatorFunction;
+        static std::vector<CreatorFunction> _data;
+
+    public:
+        /**
+         * \brief Create reader
+         * @param filename - path to input data
+         * @return Reader for input data or nullptr
+         */
+        static Reader* CreateReader(const char* filename);
+
+        /**
+         * \brief Registers reader in fabric
+         * @param f - a creation function
+         */
+        static void RegisterReader(CreatorFunction f);
+    };
 
     /**
+     * \class Register
      * \brief Registers reader in fabric
-     * @param f - a creation function
      */
-    static void RegisterReader(CreatorFunction f);
-};
-
-/**
- * \class Register
- * \brief Registers reader in fabric
- */
-template<typename To>
-class Register {
-public:
-    /**
-     * \brief Constructor creates creation function for fabric
-     * @return Register object
-     */
-    Register() {
-        Registry::RegisterReader([](const std::string &filename) -> Reader * {
-            return new To(filename);
-        });
-    }
-};
-}  // namespace FormatReader
+    template <typename To>
+    class Register
+    {
+    public:
+        /**
+         * \brief Constructor creates creation function for fabric
+         * @return Register object
+         */
+        Register()
+        {
+            Registry::RegisterReader(
+                [](const std::string& filename) -> Reader* { return new To(filename); });
+        }
+    };
+} // namespace FormatReader

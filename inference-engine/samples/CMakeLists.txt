@@ -211,13 +211,13 @@ macro(ie_add_sample)
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
-    source_group("src" FILES ${IE_SAMPLES_SOURCES})
+    source_group("src" FILES ${IE_SAMPLE_SOURCES})
     if(IE_SAMPLES_HEADERS)
-        source_group("include" FILES ${IE_SAMPLES_HEADERS})
+        source_group("include" FILES ${IE_SAMPLE_HEADERS})
     endif()
 
     # Create executable file from sources
-    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLES_HEADERS})
+    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     if(IE_SAMPLE_OPENCV_DEPENDENCIES)
         target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
     endif()
@@ -256,7 +256,8 @@ macro(ie_add_sample)
                            CUSTOM_FILTERS ${custom_filters})
     endif()
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
-        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_TARGETS ${IE_SAMPLE_NAME})
+        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES})
+        add_clang_format_target(${IE_SAMPLE_NAME}_headers_clang FOR_SOURCES ${IE_SAMPLE_HEADERS})
     endif()
 endmacro()
 

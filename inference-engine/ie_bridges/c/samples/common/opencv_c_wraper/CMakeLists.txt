@@ -28,3 +28,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES FOLDER c_samples)
 if(COMMAND add_cpplint_target)
 	add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
+
+if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+endif()

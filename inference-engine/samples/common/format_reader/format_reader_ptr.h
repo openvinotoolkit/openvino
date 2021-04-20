@@ -8,35 +8,34 @@
  */
 #pragma once
 
-#include "format_reader.h"
 #include <functional>
 #include <memory>
+#include "format_reader.h"
 
-namespace FormatReader {
-class ReaderPtr {
-public:
-    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName)) {}
-    /**
-     * @brief dereference operator overload
-     * @return Reader
-     */
-    Reader *operator->() const noexcept {
-        return reader.get();
-    }
+namespace FormatReader
+{
+    class ReaderPtr
+    {
+    public:
+        explicit ReaderPtr(const char* imageName)
+            : reader(CreateFormatReader(imageName))
+        {
+        }
+        /**
+         * @brief dereference operator overload
+         * @return Reader
+         */
+        Reader* operator->() const noexcept { return reader.get(); }
 
-    /**
-     * @brief dereference operator overload
-     * @return Reader
-     */
-    Reader *operator*() const noexcept {
-        return reader.get();
-    }
+        /**
+         * @brief dereference operator overload
+         * @return Reader
+         */
+        Reader* operator*() const noexcept { return reader.get(); }
 
-    Reader *get() {
-        return reader.get();
-    }
+        Reader* get() { return reader.get(); }
 
-protected:
-    std::unique_ptr<Reader> reader;
-};
-}  // namespace FormatReader
+    protected:
+        std::unique_ptr<Reader> reader;
+    };
+} // namespace FormatReader
