@@ -21,15 +21,9 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
-    std::vector<std::string> input_folder_content;
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    for (const auto &dir : dirs) {
-        if (!CommonTestUtils::directoryExists(dir)) {
-            std::string msg = "Input directory (" + dir + ") doesn't not exist!";
-            throw std::runtime_error(msg);
-        }
-        CommonTestUtils::directoryFileListRecursive(dir, input_folder_content);
-    }
+    std::vector<std::string> input_folder_content =
+            CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
 
     if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
@@ -39,10 +33,9 @@ int main(int argc, char *argv[]) {
     auto ie = InferenceEngine::Core();
     auto cache = SubgraphsDumper::OPCache::make_cache();
 
-    auto xml_regex = std::regex(R"(.*\.xml)");
     for (const auto &file : input_folder_content) {
         try {
-            if (CommonTestUtils::fileExists(file) && std::regex_match(file, xml_regex)) {
+            if (CommonTestUtils::fileExists(file)) {
                 std::cout << "Processing model: " << file << std::endl;
                 std::string bin_file = CommonTestUtils::replaceExt(file, "bin");
                 if (!CommonTestUtils::fileExists(bin_file)) {
