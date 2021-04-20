@@ -329,6 +329,7 @@ namespace ngraph
                 float* output_rois_features,
                 float* output_rois)
             {
+                std::cout << std::string(80, '*') << "\n";
                 std::cout << "Input shapes: ";
                 for (const auto& s : input_shapes)
                 {
@@ -367,6 +368,13 @@ namespace ngraph
                 const float* input_rois = inputs[input_rois_port];
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
+                std::cout << "redistribute_rois: [";
+                for (auto r : redistribute_rois)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << std::string(80, '*') << "\n\n";
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
