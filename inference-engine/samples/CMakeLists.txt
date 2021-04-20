@@ -248,13 +248,6 @@ macro(ie_add_sample)
     endif()
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
-    if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
-        if(c_sample)
-            set(custom_filters "-readability/casting")
-        endif()
-        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
-                           CUSTOM_FILTERS ${custom_filters})
-    endif()
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
         add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES})
         if(IE_SAMPLE_HEADERS)
