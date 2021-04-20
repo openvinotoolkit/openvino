@@ -9,7 +9,7 @@ import numpy as np
 from extensions.front.tf.complex_abs import ComplexAbs
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 graph_node_attrs = {
