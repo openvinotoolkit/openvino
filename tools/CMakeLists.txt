@@ -30,10 +30,10 @@ if(ENABLE_PYTHON)
 
     install(FILES README.md
             DESTINATION python/${PYTHON_VERSION}/openvino/tools
-            COMPONENT ${TARGET_NAME})
+            COMPONENT python_tools)
 
     install(DIRECTORY benchmark/
             DESTINATION python/${PYTHON_VERSION}/openvino/tools
             USE_SOURCE_PERMISSIONS
-            COMPONENT ${TARGET_NAME})
+            COMPONENT python_tools)
 endif()
