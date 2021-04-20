@@ -26,7 +26,7 @@ if(ENABLE_PYTHON)
         DEPENDS ie_api
     )
 
-    ie_cpack_add_component(${TARGET_NAME})
+    ie_cpack_add_component(python_tools)
 
     install(FILES README.md
             DESTINATION python/${PYTHON_VERSION}/openvino/tools
