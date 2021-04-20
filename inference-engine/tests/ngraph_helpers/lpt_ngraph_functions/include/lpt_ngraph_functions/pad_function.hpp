@@ -26,6 +26,14 @@ static std::shared_ptr<ngraph::Function> get(
     const float padValue,
     const element::Type precisionAfterOperation,
     const builder::subgraph::DequantizationOperations& dequantizationAfter);
+
+static std::shared_ptr<Function> get(
+    const Shape& inputShape,
+    const element::Type inputPrecision,
+    const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+    const std::vector<uint64_t>& padsBegin,
+    const std::vector<uint64_t>& padsEnd,
+    const op::PadMode mode);
 };
 }  // namespace subgraph
 }  // namespace builder

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,9 +45,32 @@ std::shared_ptr<ngraph::Function> PadFunction::get(
     const auto deqAfter = makeDequantization(pad, dequantizationAfter);
     deqAfter->set_friendly_name("Pad");
 
-    auto function = std::make_shared<ngraph::Function>(
+    const auto function = std::make_shared<ngraph::Function>(
         ResultVector{ std::make_shared<ngraph::opset1::Result>(deqAfter) },
-        ngraph::ParameterVector{ input }, "PadFunction");
+        ngraph::ParameterVector{ input }, "PadTransformation");
+
+    return function;
+}
+
+std::shared_ptr<Function> PadFunction::get(
+    const Shape& inputShape,
+    const element::Type inputPrecision,
+    const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
+    const std::vector<uint64_t>& padsBegin,
+    const std::vector<uint64_t>& padsEnd,
+    const op::PadMode mode) {
+    const auto input = std::make_shared<opset1::Parameter>(inputPrecision, inputShape);
+    const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
+
+    const auto padsBeginConst = opset1::Constant::create(element::u64, Shape{ padsBegin.size() }, padsBegin);
+    const auto padsEndConst = opset1::Constant::create(element::u64, Shape{ padsEnd.size() }, padsEnd);
+    const auto padsValueConst = opset1::Constant::create(inputPrecision, Shape{}, { 0.f });
+    const auto pad = std::make_shared<opset1::Pad>(fqOnData, padsBeginConst, padsEndConst, padsValueConst, mode);
+    pad->set_friendly_name("Pad");
+
+    const auto function = std::make_shared<Function>(
+        ResultVector{ std::make_shared<opset1::Result>(pad) },
+        ParameterVector{ input }, "PadTransformation");
 
     return function;
 }
