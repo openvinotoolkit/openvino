@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
 #include "custom_matcher.hpp"
-#include "ie_iexecutable_network.hpp"
 
 using namespace InferenceEngine;
 

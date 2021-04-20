@@ -6,7 +6,6 @@
 #include "ie_common.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/exception2status.hpp"
-#include "ie_iexecutable_network.hpp"
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 
 namespace InferenceEngine {

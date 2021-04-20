@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_iexecutable_network.hpp"
 #include "ie_plugin_cpp.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
