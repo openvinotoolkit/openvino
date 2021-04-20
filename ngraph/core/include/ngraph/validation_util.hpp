@@ -280,12 +280,10 @@ namespace ngraph
 
     /// \brief Propagates value label from 0 input to the only output through an operation.
     /// Not applicable for operations which require values interaction (example: mathematical
-    /// operations). Could be used for movement operations (example: gathering, shape change) \param
-    /// node Operation to be performed
-    /// \param output_labels Vector of TensorLabel objects
-    /// representing resulting value labels
-    /// \return boolean status if label evaluation was
-    /// successful.
+    /// operations). Could be used for movement operations (example: gathering, shape change)
+    /// \param node Operation to be performed
+    /// \param output_labels Vector of TensorLabel objects representing resulting value labels
+    /// \return boolean status if label evaluation was successful.
     NGRAPH_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
 
     /// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
