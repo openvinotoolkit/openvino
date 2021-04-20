@@ -33,7 +33,7 @@ namespace ngraph
                 if (input_index_type_map.first >= subgraph_inputs_count)
                 {
                     NGRAPH_WARN << "Input with index: '" << input_index_type_map.first
-                                << "' was not found in the subgraph for the ONNX Loop operator";
+                                << "' was not found in the subgraph";
                 }
                 else
                 {
