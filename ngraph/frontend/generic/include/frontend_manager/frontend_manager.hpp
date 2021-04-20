@@ -279,7 +279,8 @@ class NGRAPH_API FrontEnd
 {
 public:
     typedef std::shared_ptr<FrontEnd> Ptr;
-    virtual ~FrontEnd() = default;
+    FrontEnd();
+    virtual ~FrontEnd();
 
     virtual InputModel::Ptr loadFromFile (const std::string& path) const;
     virtual InputModel::Ptr loadFromFiles (const std::vector<std::string>& paths) const;
