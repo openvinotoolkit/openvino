@@ -90,40 +90,48 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
             op_place_block.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
-                auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
-                op_place->addOutPort(out_port, output.parameter());
-                out_port->setOp(op_place);
                 for (const auto &var_name : output.arguments()) {
+                    auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
+
+                    // connect out_port and tensor
                     const auto& tensor = var_place_block.at(var_name);
                     tensor->addProducingPort(out_port);
-                    out_port->addTargetTensor(tensor);
+                    out_port->setTargetTensor(tensor);
+
+                    // connect out_port and op
+                    op_place->addOutPort(out_port, output.parameter());
+                    out_port->setOp(op_place);
                 }
             }
 
             for (const auto &input : op.inputs()) {
-                auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
-                op_place->addInPort(in_port, input.parameter());
-                in_port->setOp(op_place);
                 for (const auto &var_name : input.arguments()) {
+                    auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
+
+                    // connect in_port and tensor
                     const auto& tensor = var_place_block.at(var_name);
                     tensor->addConsumingPort(in_port);
-                    in_port->addSourceTensor(tensor);
+                    in_port->setSourceTensor(tensor);
+
+                    // connect in_port and op
+                    op_place->addInPort(in_port, input.parameter());
+                    in_port->setOp(op_place);
                 }
             }
 
             // Determine outputs and inputs
             if (op.type() == "feed") {
-                const auto& place = op_place->getOutputPortByName("Out")->getTargetTensor(0);
-                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place);
+                const auto& place = op_place->getOutputPortPDPD("Out", 0);
+                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place->getTargetTensorPDPD());
                 const auto& tensor_desc = var_place->getDesc()->type().lod_tensor().tensor();
                 const auto& dims = tensor_desc.dims();
 
                 var_place->setElementType(TYPE_MAP[tensor_desc.data_type()]);
                 var_place->setPartialShape(PartialShape(std::vector<Dimension>(dims.begin(), dims.end())));
-                m_inputs.push_back(place);
+                m_inputs.push_back(var_place);
             } else if (op.type() == "fetch") {
-                auto place = op_place->getInputPortByName("X")->getSourceTensor(0);
-                m_outputs.push_back(place);
+                auto place = op_place->getInputPortPDPD("X", 0);
+                m_outputs.push_back(place->getSourceTensorPDPD());
             }
         }
     }
