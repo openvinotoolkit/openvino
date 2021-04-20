@@ -548,6 +548,8 @@ target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
-target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
-target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
+    target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+endif()
 ### END FRONTEND ###
