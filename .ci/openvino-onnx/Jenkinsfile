@@ -29,7 +29,7 @@ BACKEND_CONFIGURATIONS = [
 
  }
 
-def getGitPrInfo(String project) {
+def getGitPrInfo(String project, String workdir) {
     def gitPrInfo = [
         prAuthorEmail : "",
         commitAuthorEmail : "",
@@ -37,7 +37,7 @@ def getGitPrInfo(String project) {
         commitSubject : ""
     ]
     try {
-        dir ("${WORKDIR}/${project}") {
+        dir ("${workdir}/${project}") {
             gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
             gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
             gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
@@ -70,8 +70,8 @@ def notifyByEmail(def gitPrInfo) {
     }
 }
 
-def gitSubmoduleUpdate(String repository_name) {
-    dir ("${WORKDIR}/${repository_name}") {
+def gitSubmoduleUpdate(String repository_name, String workdir) {
+    dir ("${workdir}/${repository_name}") {
         sh  label: "Init ${repository_name} submodules",
             script:
         """
@@ -87,7 +87,7 @@ def prepare_repository(String workdir) {
     dir("${workdir}") {
         println "Preparing repository in directory: ${workdir}"
         checkout scm
-        gitSubmoduleUpdate(PROJECT_NAME)
+        gitSubmoduleUpdate(PROJECT_NAME, workdir)
     }
 }
 
@@ -143,20 +143,20 @@ CONFIGURATION_WORKFLOW = { configuration ->
     node("OpenVino-test") {
         try {
             PROJECT_NAME = "openvino"
-            String WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}_${configuration.name}"
-            println "CONFIGURATION_WORKFLOW: ${WORKDIR}"
+            String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${configuration.name}"
+            println "CONFIGURATION_WORKFLOW: ${workdir}"
             stage("Clone repository") {
                 stopPreviousRunningBuilds()
                 try {
-                    prepare_repository(WORKDIR)
+                    prepare_repository(workdir)
                 }
                 catch(e){
                     sleep(time: 30, unit: "SECONDS")
-                    prepare_repository(WORKDIR)
+                    prepare_repository(workdir)
                 }
             }
             stage("Prepare Docker environment") {
-              dir("${WORKDIR}") {
+              dir("${workdir}") {
                     buildDockerImage(configuration)
                 }
             }
@@ -173,7 +173,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 } else {
                     currentBuild.result = "FAILURE"
                 }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
                 notifyByEmail(gitPrInfo)
         }
         finally {
