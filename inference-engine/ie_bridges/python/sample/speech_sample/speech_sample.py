@@ -32,7 +32,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_ark_file(file_name: str) -> list:
+    '''Read utterance matrices from a .ark file'''
     def read_key(file) -> str:
+        '''Read a identifier of utterance matrix'''
         key = ''
         while True:
             char = file.read(1).decode()
@@ -44,6 +46,7 @@ def read_ark_file(file_name: str) -> list:
         return key
 
     def read_matrix(file) -> np.ndarray:
+        '''Read a utterance matrix'''
         header = file.read(5).decode()
         if 'FM' in header:
             num_of_bytes = 4
@@ -68,6 +71,7 @@ def read_ark_file(file_name: str) -> list:
 
 
 def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: str, out_blob: str) -> np.ndarray:
+    '''Do a synchronous matrix inference'''
     batch_size, num_of_dims = exec_net.outputs[out_blob].shape
     result = np.ndarray((matrix.shape[0], num_of_dims))
 
