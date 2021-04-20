@@ -5,6 +5,7 @@
 import argparse
 import logging as log
 import sys
+from collections.abc import Iterable
 from timeit import default_timer
 
 import cv2
@@ -19,7 +20,8 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to an .xml or .onnx file with a trained model.')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an image file.')
+    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an utterance file.')
+    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save ark scores.')
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score .ark file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
@@ -68,6 +70,31 @@ def read_ark_file(file_name: str) -> list:
             matrix_list.append(read_matrix(file))
 
     return matrix_list
+
+
+def write_ark_file(file_name: str, matrices: Iterable):
+    '''Write utterance matrices to a .ark file'''
+    with open(file_name, 'wb') as file:
+        for i, matrix in enumerate(matrices):
+            # write a matrix key
+            key = f'utterance_{i} '
+            file.write(key.encode())
+            file.write('\0B'.encode())
+
+            # write a matrix precision
+            if matrix.dtype == 'float32':
+                file.write('FM '.encode())
+            elif matrix.dtype == 'float64':
+                file.write('DM '.encode())
+
+            # write a matrix shape
+            file.write('\04'.encode())
+            file.write(matrix.shape[0].to_bytes(4, byteorder='little', signed=False))
+            file.write('\04'.encode())
+            file.write(matrix.shape[1].to_bytes(4, byteorder='little', signed=False))
+
+            # write a matrix data
+            file.write(matrix.tobytes())
 
 
 def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: str, out_blob: str) -> np.ndarray:
@@ -156,6 +183,10 @@ def main():
         log.info('')
 
     log.info(f'Total sample time: {sum(infer_times) * 1000:.2f}ms')
+
+    if args.output:
+        write_ark_file(args.output, results)
+        log.info(f'File {args.output} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
