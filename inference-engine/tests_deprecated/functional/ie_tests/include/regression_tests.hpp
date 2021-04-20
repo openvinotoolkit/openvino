@@ -544,13 +544,6 @@ class ModelSelector {
         M(config).to(getReferenceResultsLabel());
     }
 
-    // It's temporary solution
-    void equalToReferenceWithDelta_1191(double nearValue, const std::string& referenceResultsLabel) {
-        config.nearValue = nearValue;
-        config._path_to_models = prepareModelMatching();
-        M(config).to(referenceResultsLabel);
-    }
-
     template <class T>
     M equalToReference(const TBlob<T> & rhs) {
         for (const auto & v : rhs) {
