@@ -52,7 +52,7 @@ done
 shift $((OPTIND -1))
 
 MODEL_ZOO_DIR="$MODELS_DIR/model_zoo"
-ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo"
+ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo_$ONNX_SHA"
 MSFT_MODELS_DIR="$MODEL_ZOO_DIR/MSFT"
 
 function pull_and_postprocess_onnx_model_zoo() {

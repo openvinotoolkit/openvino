@@ -83,8 +83,9 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
-def prepare_repository() {
-    dir("${WORKDIR}") {
+def prepare_repository(String workdir) {
+    dir("${workdir}") {
+        println "Preparing repository in directory: ${workdir}"
         checkout scm
         gitSubmoduleUpdate(PROJECT_NAME)
     }
@@ -142,16 +143,16 @@ CONFIGURATION_WORKFLOW = { configuration ->
     node("OpenVino-test") {
         try {
             PROJECT_NAME = "openvino"
-            WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}"
-
+            String WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}_${configuration.name}"
+            println "CONFIGURATION_WORKFLOW: ${WORKDIR}"
             stage("Clone repository") {
                 stopPreviousRunningBuilds()
                 try {
-                    prepare_repository()
+                    prepare_repository(WORKDIR)
                 }
                 catch(e){
                     sleep(time: 30, unit: "SECONDS")
-                    prepare_repository()
+                    prepare_repository(WORKDIR)
                 }
             }
             stage("Prepare Docker environment") {
