@@ -46,7 +46,7 @@ The `hddldaemon` is a system service, a binary executable that is run to manage 
 `<IE>` refers to the following default OpenVINO&trade; Inference Engine directories:
 -  **Linux:**	   
  ```
- /opt/intel/openvino/inference_engine
+ /opt/intel/openvino_2021/inference_engine
  ```
 -  **Windows:**	    
 ``` 
