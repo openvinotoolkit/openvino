@@ -2148,10 +2148,10 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
             auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-            if (insDatas.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                    << LAYER_NAME(nextLayers[i]) << " is not correct";
-            }
+//            if (insDatas.size() != 1) {
+//                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+//                    << LAYER_NAME(nextLayers[i]) << " is not correct";
+//            }
 
             if (isFQFuseAllowed) {
                 nextLayers[i]->insData[insDatas.front()] = prevData;
