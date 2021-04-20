@@ -180,6 +180,8 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         /* activations */
         fusingRelu,
         fusingElu,
+        fusingTanh,
+        fusingSwish,
         /* FQ */
         fusingFakeQuantizePerChannel,
         fusingFakeQuantizePerChannelRelu,
