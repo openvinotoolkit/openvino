@@ -421,7 +421,7 @@ namespace ngraph
                         const int64_t featuremap_width =
                             static_cast<int64_t>(input_shapes[input_features_start + i][3]);
                         ROIAlignForward_kernel<float>(
-                            feaxels_per_roi * level_rois_num,
+                            level_rois_num,
                             featuremap,
                             1.0f / pyramid_scales[i],
                             channels_num,
