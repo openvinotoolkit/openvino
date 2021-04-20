@@ -1606,6 +1606,14 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     return NetworkHelper::toScalar(constant);
 }
 
+std::shared_ptr<Node> foldConvert(const Output<Node>& node, const element::Type targetPrecision) {
+    if (is_type<opset1::Constant>(node.get_node_shared_ptr()) && (node.get_element_type() == targetPrecision)) {
+        return node.get_node_shared_ptr();
+    }
+
+    return fold<opset1::Convert>(node, targetPrecision);
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

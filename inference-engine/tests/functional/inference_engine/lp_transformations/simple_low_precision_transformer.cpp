@@ -6,6 +6,7 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/transformation_context.hpp>
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/transformation_context.hpp>
@@ -39,6 +40,9 @@ void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>&
     //    transformation->registerMatcherIn(pass, context);
     //}
     //pass.run_on_function(function);
+    ngraph::pass::low_precision::LowPrecision::TypeRelaxedReplacer pass;
+    pass.run_on_function(function);
+
     context.function = function;
     lowPrecisionManager->run_passes(function);
 }

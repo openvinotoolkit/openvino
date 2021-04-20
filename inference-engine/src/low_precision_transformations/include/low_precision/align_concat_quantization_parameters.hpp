@@ -11,6 +11,7 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <low_precision/layer_transformation.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -27,5 +28,9 @@ class TRANSFORMATIONS_API AlignConcatQuantizationParamters;
 // the transformation marks `QuantizationAlignmentAttribute` attribute as actual.
 class ngraph::pass::low_precision::AlignConcatQuantizationParamters : public ngraph::pass::FunctionPass {
 public:
+    AlignConcatQuantizationParamters(LayerTransformation::Params params = LayerTransformation::Params());
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+protected:
+    LayerTransformation::Params params;
 };

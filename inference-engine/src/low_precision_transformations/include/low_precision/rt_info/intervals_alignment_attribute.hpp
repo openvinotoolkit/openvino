@@ -15,9 +15,11 @@
 
 class IntervalsAlignmentAttribute {
 public:
-    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh) : intervalLow(intervalLow), intervalHigh(intervalHigh) {}
+    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const bool isValid = true) :
+        intervalLow(intervalLow), intervalHigh(intervalHigh), isValid(isValid) {}
     float intervalLow;
     float intervalHigh;
+    bool isValid;
 };
 
 using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;

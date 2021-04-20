@@ -24,7 +24,6 @@
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
-#include "low_precision/concat_multi_channels.hpp"
 
 #include "low_precision/fake_quantize_decomposition.hpp"
 

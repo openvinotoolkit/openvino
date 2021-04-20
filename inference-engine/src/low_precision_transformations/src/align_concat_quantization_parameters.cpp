@@ -21,6 +21,10 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
+AlignConcatQuantizationParamters::AlignConcatQuantizationParamters(LayerTransformation::Params params) : params(params) {
+    //
+}
+
 bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_function(std::shared_ptr<ngraph::Function> f) {
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
@@ -28,7 +32,17 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         }
 
         // create new
-        if (ngraph::is_type<opset1::FakeQuantize>(node)) {
+        auto fakeQuantize = ngraph::as_type_ptr<opset1::FakeQuantize>(node);
+        if (fakeQuantize != nullptr) {
+            if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) || !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
+                // TODO: LPT: not implemented
+                // should be handled: branch is not quantized: need tests
+                auto& rtInfo = node->get_rt_info();
+                const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
+                    std::make_shared<IntervalsAlignmentAttribute>(0.f, 0.f, false));
+                rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
+                continue;
+            }
             // TODO: FakeQuantize validation is skipped: if FakeQuantize will be not handled then ignore it
 
             float lowInterval;
@@ -50,14 +64,24 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
 
             } else {
                 {
-                    auto multiplyResult = fold<opset1::Multiply>(node->get_input_node_ptr(3)->shared_from_this(), dequantization.multiplyConstant);
+                    auto multiplyResult = dequantization.multiplyConstant == nullptr ?
+                        node->get_input_node_ptr(3)->shared_from_this() :
+                        fold<opset1::Multiply>(
+                            foldConvert(node->get_input_node_ptr(3)->shared_from_this(), params.deqPrecision),
+                            dequantization.multiplyConstant);
+
                     auto multiplyResultConstant = as_type_ptr<opset1::Constant>(multiplyResult);
                     auto intervals = multiplyResultConstant->cast_vector<float>();
                     lowInterval = *std::min_element(intervals.begin(), intervals.end());
                 }
 
                 {
-                    auto multiplyResult = fold<opset1::Multiply>(node->get_input_node_ptr(4)->shared_from_this(), dequantization.multiplyConstant);
+                    auto multiplyResult = dequantization.multiplyConstant == nullptr ?
+                        node->get_input_node_ptr(4)->shared_from_this() :
+                        fold<opset1::Multiply>(
+                            foldConvert(node->get_input_node_ptr(4)->shared_from_this(), params.deqPrecision),
+                            dequantization.multiplyConstant);
+
                     auto multiplyResultConstant = as_type_ptr<opset1::Constant>(multiplyResult);
                     auto intervals = multiplyResultConstant->cast_vector<float>();
                     highInterval = *std::max_element(intervals.begin(), intervals.end());

@@ -17,7 +17,6 @@
 #include <low_precision/low_precision.hpp>
 
 #include <low_precision/concat.hpp>
-#include <low_precision/concat_multi_channels.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

@@ -128,6 +128,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     layer = NetworkHelper::fuseConvert(layer);
     if (NetworkHelper::isConstantPath(layer)) {
+        // TODO: LPT: not implemented
         //// fold fq if constant just before fq and child layers aren't supported in LPT
         //if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
         //    bool nextOpearionsWillBeNotHandled = true;
@@ -300,6 +301,10 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     }
 
     if (intervalsAlignment != nullptr) {
+        if (!intervalsAlignment->isValid) {
+            // TODO: LPT: not implemented: move to top
+            return false;
+        }
         const float maxOutputInterval = intervalsAlignment->intervalHigh - intervalsAlignment->intervalLow;
         // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
         const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;

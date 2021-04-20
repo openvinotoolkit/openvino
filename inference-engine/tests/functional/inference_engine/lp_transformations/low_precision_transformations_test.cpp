@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/concat_multi_channels.hpp"
+#include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/fuse_convert.hpp"

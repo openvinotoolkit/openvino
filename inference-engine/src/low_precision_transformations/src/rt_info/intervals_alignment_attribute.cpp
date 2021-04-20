@@ -49,6 +49,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
         if (resultAttribute->intervalHigh < attribute->intervalHigh) {
             resultAttribute->intervalHigh = attribute->intervalHigh;
         }
+
+        resultAttribute->isValid = resultAttribute->isValid && attribute->isValid;
     }
 
     return resultAttributeWrapper;
