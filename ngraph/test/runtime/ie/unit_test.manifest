@@ -901,6 +901,14 @@ divide_python_rounding_int32
 convert_int32_bool
 lesseq_int32
 
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
+
 # Uncategorized
 convolution_2d_1item
 convolution_2d_1item_padded_1_1x1_1
@@ -1661,3 +1669,14 @@ onnx_upsample6_dynamic
 
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
+
+# DeformableConvolution groups attribute: ticket 53312
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups

@@ -36,7 +36,7 @@ enum DnnActivationType : uint8_t {
 
 struct FakeQuantizeParams {
     int8_t set;
-    int32_t levels;
+    size_t levels;
     // if input is per-channel quantization - input pointers contains per-channel ranges
     int8_t  inputPerChannel;
     float* input_low;
