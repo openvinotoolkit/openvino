@@ -88,7 +88,7 @@ onnx_model_conv_transpose_w_groups
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 onnx_model_global_lp_pool_p0
-onnx_model_mod
+onnx_model_mod_sign_i64
 onnx_model_constant_of_shape_float_zeros
 onnx_model_constant_of_shape_int_ones
 ab_plus_c_inference
@@ -901,6 +901,14 @@ divide_python_rounding_int32
 convert_int32_bool
 lesseq_int32
 
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
+
 # Uncategorized
 convolution_2d_1item
 convolution_2d_1item_padded_1_1x1_1
@@ -1061,7 +1069,7 @@ rnn_cell_zero_bias_default_attrs
 # Activation function hardsigmoid is not supported
 gru_cell_hardsigmoid_activation_function
 
-# Roll is not implemented yet for CPU, GPU 
+# Roll is not implemented yet for CPU, GPU
 roll_2d_input
 roll_2d_input_negative_shift
 roll_repeated_axes
@@ -1163,6 +1171,41 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
+
+# DFT is not implemented yet in plugins
+IE_CPU.dft1d_eval
+IE_CPU.dft2d_eval
+IE_CPU.dft3d_eval
+IE_CPU.dft1d_eval_i32
+IE_CPU.dft2d_eval_i32
+IE_CPU.dft3d_eval_i32
+IE_CPU.dft1d_signal_size_eval
+IE_CPU.dft1d_eval_bfloat16
+IE_CPU.dft2d_eval_bfloat16
+IE_CPU.dft3d_eval_bfloat16
+IE_CPU.dft1d_eval_float16
+IE_CPU.dft2d_eval_float16
+IE_CPU.dft3d_eval_float16
+IE_CPU.dft1d_eval_1
+IE_CPU.dft2d_eval_1
+IE_CPU.dft3d_eval_1
+
+# IDFT is not implemented yet in plugins
+IE_CPU.idft1d_eval
+IE_CPU.idft2d_eval
+IE_CPU.idft3d_eval
+IE_CPU.idft1d_eval_i32
+IE_CPU.idft2d_eval_i32
+IE_CPU.idft3d_eval_i32
+IE_CPU.idft1d_eval_bfloat16
+IE_CPU.idft2d_eval_bfloat16
+IE_CPU.idft3d_eval_bfloat16
+IE_CPU.idft1d_eval_float16
+IE_CPU.idft2d_eval_float16
+IE_CPU.idft3d_eval_float16
+IE_CPU.idft1d_eval_1
+IE_CPU.idft2d_eval_1
+IE_CPU.idft3d_eval_1
 
 #-------------------------------------------------------------------------------
 #
@@ -1626,3 +1669,14 @@ onnx_upsample6_dynamic
 
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
+
+# DeformableConvolution groups attribute: ticket 53312
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups

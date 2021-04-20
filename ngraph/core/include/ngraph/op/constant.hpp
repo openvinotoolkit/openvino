@@ -71,7 +71,7 @@ namespace ngraph
                     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
                 }
 
-                /// \brief Create unitialized constant
+                /// \brief Create uninitialized constant
                 Constant(const element::Type& type, const Shape& shape);
                 /// \brief Constructs a uniform tensor constant.
                 ///
@@ -84,7 +84,7 @@ namespace ngraph
                 Constant(const element::Type& type, const Shape& shape, T value)
                     : Constant(type, shape)
                 {
-                    auto size = shape_size(m_shape);
+                    using Type_t = element::Type_t;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
@@ -92,115 +92,24 @@ namespace ngraph
 #endif
                     switch (type)
                     {
-                    case element::Type_t::boolean:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::boolean>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::boolean>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::bf16:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::bf16>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::bf16>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::f16:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::f16>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::f16>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::f32:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::f32>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::f32>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::f64:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::f64>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::f64>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::i8:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::i8>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::i8>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::i16:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::i16>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::i16>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::i32:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::i32>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::i32>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::i64:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::i64>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::i64>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::u8:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::u8>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::u8>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::u16:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::u16>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::u16>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::u32:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::u32>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::u32>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::u64:
-                        std::fill_n(
-                            get_data_ptr_nc<element::Type_t::u64>(),
-                            size,
-                            static_cast<
-                                typename element_type_traits<element::Type_t::u64>::value_type>(
-                                value));
-                        break;
-                    case element::Type_t::i4:
-                    case element::Type_t::u1:
-                    case element::Type_t::u4:
-                    case element::Type_t::undefined:
-                    case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
+                    case Type_t::boolean: fill_data<Type_t::boolean>(value); break;
+                    case Type_t::bf16: fill_data<Type_t::bf16>(value); break;
+                    case Type_t::f16: fill_data<Type_t::f16>(value); break;
+                    case Type_t::f32: fill_data<Type_t::f32>(value); break;
+                    case Type_t::f64: fill_data<Type_t::f64>(value); break;
+                    case Type_t::i8: fill_data<Type_t::i8>(value); break;
+                    case Type_t::i16: fill_data<Type_t::i16>(value); break;
+                    case Type_t::i32: fill_data<Type_t::i32>(value); break;
+                    case Type_t::i64: fill_data<Type_t::i64>(value); break;
+                    case Type_t::u8: fill_data<Type_t::u8>(value); break;
+                    case Type_t::u16: fill_data<Type_t::u16>(value); break;
+                    case Type_t::u32: fill_data<Type_t::u32>(value); break;
+                    case Type_t::u64: fill_data<Type_t::u64>(value); break;
+                    case Type_t::i4:
+                    case Type_t::u1:
+                    case Type_t::u4:
+                    case Type_t::undefined:
+                    case Type_t::dynamic: throw std::runtime_error("unsupported type");
                     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
@@ -308,12 +217,11 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values A vector of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, const std::vector<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        const std::vector<T>& values)
                 {
-                    auto result = std::make_shared<op::v0::Constant>(type, shape, values);
-                    result->validate_and_infer_types();
-                    return result;
+                    return std::make_shared<Constant>(type, shape, values);
                 }
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -322,13 +230,22 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values An initializer_list of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, std::initializer_list<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        std::initializer_list<T> values)
                 {
-                    auto result =
-                        std::make_shared<op::v0::Constant>(type, shape, std::vector<T>{values});
-                    result->validate_and_infer_types();
-                    return result;
+                    return std::make_shared<Constant>(type, shape, std::vector<T>{values});
+                }
+
+                /// \brief Wrapper around constructing a shared_ptr of a Constant
+                ///
+                /// \param type The element type of the tensor constant.
+                /// \param shape The shape of the tensor constant.
+                /// \param memory An continues memory chunk which contains the constant data.
+                static std::shared_ptr<Constant>
+                    create(const element::Type& type, const Shape& shape, const void* memory)
+                {
+                    return std::make_shared<Constant>(type, shape, memory);
                 }
 
                 virtual std::shared_ptr<Node>
@@ -355,78 +272,26 @@ namespace ngraph
                 {
                     auto source_type = get_element_type();
                     std::vector<T> rc;
-
+                    using Type_t = element::Type_t;
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4244)
 #endif
                     switch (source_type)
                     {
-                    case element::Type_t::boolean:
-                    {
-                        cast_vector<char>(rc);
-                        break;
-                    }
-                    case element::Type_t::bf16:
-                    {
-                        cast_vector<bfloat16>(rc);
-                        break;
-                    }
-                    case element::Type_t::f16:
-                    {
-                        cast_vector<float16>(rc);
-                        break;
-                    }
-                    case element::Type_t::f32:
-                    {
-                        cast_vector<float>(rc);
-                        break;
-                    }
-                    case element::Type_t::f64:
-                    {
-                        cast_vector<double>(rc);
-                        break;
-                    }
-                    case element::Type_t::i8:
-                    {
-                        cast_vector<int8_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::i16:
-                    {
-                        cast_vector<int16_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::i32:
-                    {
-                        cast_vector<int32_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::i64:
-                    {
-                        cast_vector<int64_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::u8:
-                    {
-                        cast_vector<uint8_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::u16:
-                    {
-                        cast_vector<uint16_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::u32:
-                    {
-                        cast_vector<uint32_t>(rc);
-                        break;
-                    }
-                    case element::Type_t::u64:
-                    {
-                        cast_vector<uint64_t>(rc);
-                        break;
-                    }
+                    case Type_t::boolean: cast_vector<Type_t::boolean>(rc); break;
+                    case Type_t::bf16: cast_vector<Type_t::bf16>(rc); break;
+                    case Type_t::f16: cast_vector<Type_t::f16>(rc); break;
+                    case Type_t::f32: cast_vector<Type_t::f32>(rc); break;
+                    case Type_t::f64: cast_vector<Type_t::f64>(rc); break;
+                    case Type_t::i8: cast_vector<Type_t::i8>(rc); break;
+                    case Type_t::i16: cast_vector<Type_t::i16>(rc); break;
+                    case Type_t::i32: cast_vector<Type_t::i32>(rc); break;
+                    case Type_t::i64: cast_vector<Type_t::i64>(rc); break;
+                    case Type_t::u8: cast_vector<Type_t::u8>(rc); break;
+                    case Type_t::u16: cast_vector<Type_t::u16>(rc); break;
+                    case Type_t::u32: cast_vector<Type_t::u32>(rc); break;
+                    case Type_t::u64: cast_vector<Type_t::u64>(rc); break;
                     default: throw std::runtime_error("unsupported type");
                     }
 #if defined(_MSC_VER)
@@ -471,9 +336,13 @@ namespace ngraph
                 }
 
             protected:
-                template <typename IN_T, typename OUT_T>
+                template <element::Type_t Type, typename OUT_T>
                 void cast_vector(std::vector<OUT_T>& output_vector) const
                 {
+                    // this function is workaround for waring during windows building
+                    // build complains for vector creation based on iterators
+                    // which point on different type than destination vector::value_type
+                    using IN_T = fundamental_type_for<Type>;
                     auto source_vector = get_vector<IN_T>();
                     output_vector.reserve(source_vector.size());
 
@@ -481,6 +350,15 @@ namespace ngraph
                                    source_vector.end(),
                                    std::back_inserter(output_vector),
                                    [](IN_T c) { return static_cast<OUT_T>(c); });
+                }
+
+                template <element::Type_t Type,
+                          typename T,
+                          typename DataStorageType = fundamental_type_for<Type>>
+                void fill_data(const T& value)
+                {
+                    const auto size = shape_size(m_shape);
+                    std::fill_n(get_data_ptr_nc<Type>(), size, static_cast<DataStorageType>(value));
                 }
 
                 void allocate_buffer();
@@ -587,12 +465,13 @@ namespace ngraph
 #endif
                 }
 
+                bool are_all_data_elements_bitwise_identical() const;
                 static constexpr size_t host_alignment() { return 64; }
+
                 element::Type m_element_type;
                 Shape m_shape{};
                 std::shared_ptr<runtime::AlignedBuffer> m_data;
                 bool m_all_elements_bitwise_identical;
-                bool are_all_data_elements_bitwise_identical() const;
                 bool m_alloc_buffer_on_visit_attributes = true;
             };
         }

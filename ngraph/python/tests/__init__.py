@@ -46,8 +46,6 @@ xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
-xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
-                                      "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
@@ -81,9 +79,6 @@ xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimensi
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: roi has zero dimension which is not allowed")
-xfail_issue_38712 = xfail_test(reason="RuntimeError: Check '(fmod == 1) "
-                                      "While validating ONNX node '<Node(Mod): z>': "
-                                      "Only 'fmod=1' mode is supported for mod operator.")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -121,7 +116,6 @@ xfail_issue_44956 = xfail_test(reason="E   Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
-xfail_issue_44967 = xfail_test(reason="E   RuntimeError: unsupported element type: BFLOAT16")
 xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
@@ -167,3 +161,5 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
+
+xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")

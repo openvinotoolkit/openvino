@@ -125,7 +125,7 @@ std::shared_ptr<Function>
         parameter_nodes.push_back(param);
     }
     
-    for (int i = 0; i < model->getBlockNumber(); i++) {
+    for (std::size_t i = 0; i < model->getBlockNumber(); i++) {
         const auto& op_places = model->getOpPlaces(i);
         for (const auto &op_place : op_places) {
             const auto& op_type = op_place->getDesc()->type();
