@@ -42,7 +42,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int32)
     std::vector<int32_t> a{7, -7, 7, -7};
     std::vector<int32_t> b{3, 3, -3, -3};
 
-    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<int32_t>({a, b});
     test_case.add_expected_output<int32_t>(shape, {1, 2, -2, -1});
     test_case.run();
@@ -59,7 +59,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int64)
     std::vector<int32_t> a{7, -7, 7, -7};
     std::vector<int32_t> b{3, 3, -3, -3};
 
-    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<int32_t>({a, b});
     test_case.add_expected_output<int32_t>(shape, {1, 2, -2, -1});
     test_case.run();
@@ -76,7 +76,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_float)
     std::vector<float> a{7, -7, 7, -7};
     std::vector<float> b{3, 3, -3, -3};
 
-    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape, {1, 2, -2, -1});
     test_case.run();
@@ -95,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_broadcasted)
     std::vector<float> a{1, 2, 3, 4};
     std::vector<float> b{2, 3};
 
-    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f,
                                                    1.0f, 0.0f, 0.0f, 1.0f});
@@ -111,7 +111,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_scalars)
     std::vector<float> a{2};
     std::vector<float> b{4};
 
-    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape, {2.0f});
     test_case.run();
