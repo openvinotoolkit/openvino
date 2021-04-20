@@ -339,7 +339,7 @@ TEST(CNNNGraphImplTests, TestAddOutputWithPort) {
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
 
-    EXPECT_THROW(cnnNet.addOutput(testLayerName, 1), InferenceEngine::Exception);
+    EXPECT_THROW(cnnNet.addOutput(testLayerName, 1), OutOfBounds);
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
 
