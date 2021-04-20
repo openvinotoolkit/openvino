@@ -63,16 +63,20 @@ TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
+    const std::vector<std::vector<size_t>> inShapes = {{2, 3, 13, 37}};
+    const std::vector<std::vector<size_t>> kSizes = {{1, 5}, {3, 4}, {3, 1}};
+    const std::vector<std::vector<size_t>> strides = {{1, 2}, {2, 2}, {2, 1}};
+    const std::vector<std::vector<size_t>> rates = {{1, 3}, {3, 3}, {3, 1}};
+
     const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
     const std::vector<Precision> netPrecision = {Precision::I8, Precision::BF16, Precision::FP32};
     const CPUSpecificParams CPUParams = emptyCPUSpec;
 
-/* ============= 1D ============= */
-const auto Layer_params_1D = ::testing::Combine(
-        ::testing::Values(std::vector<size_t> {1, 1, 1, 37}),   // InShapes
-        ::testing::Values(std::vector<size_t> {1, 5}),          // Kernel Sizes
-        ::testing::Values(std::vector<size_t> {1, 2}),          // Strides
-        ::testing::Values(std::vector<size_t> {1, 3}),          // Rates
+const auto Layer_params = ::testing::Combine(
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(kSizes),
+        ::testing::ValuesIn(strides),
+        ::testing::ValuesIn(rates),
         ::testing::ValuesIn(autoPads),
         ::testing::ValuesIn(netPrecision),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -80,59 +84,8 @@ const auto Layer_params_1D = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_1D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_1D, ::testing::Values(CPUParams)),
-                        ExtractImagePatchesLayerCPUTest::getTestCaseName);
-
-/* ============= 2D ============= */
-const auto Layer_params_2D = ::testing::Combine(
-        ::testing::Values(std::vector<size_t> {1, 1, 13, 17}),   // InShape
-        ::testing::Values(std::vector<size_t> {3, 4}),          // Kernel Size
-        ::testing::Values(std::vector<size_t> {2, 2}),          // Strides
-        ::testing::Values(std::vector<size_t> {3, 3}),          // Rates
-        ::testing::ValuesIn(autoPads),
-        ::testing::ValuesIn(netPrecision),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
-
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_2D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_2D, ::testing::Values(CPUParams)),
-                        ExtractImagePatchesLayerCPUTest::getTestCaseName);
-
-/* ============= 3D ============= */
-const auto Layer_params_3D = ::testing::Combine(
-        ::testing::Values(std::vector<size_t> {1, 3, 7, 11}),   // InShape
-        ::testing::Values(std::vector<size_t> {2, 3}),          // Kernel Size
-        ::testing::Values(std::vector<size_t> {1, 2}),          // Strides
-        ::testing::Values(std::vector<size_t> {2, 2}),          // Rates
-        ::testing::ValuesIn(autoPads),
-        ::testing::ValuesIn(netPrecision),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
-
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_3D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_3D, ::testing::Values(CPUParams)),
-                        ExtractImagePatchesLayerCPUTest::getTestCaseName);
-
-/* ============= 4D ============= */
-const auto Layer_params_4D = ::testing::Combine(
-        ::testing::Values(std::vector<size_t> {4, 2, 9, 5}),   // InShape
-        ::testing::Values(std::vector<size_t> {3, 1}),          // Kernel Size
-        ::testing::Values(std::vector<size_t> {1, 3}),          // Strides
-        ::testing::Values(std::vector<size_t> {2, 1}),          // Rates
-        ::testing::ValuesIn(autoPads),
-        ::testing::ValuesIn(netPrecision),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
-
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_4D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_4D, ::testing::Values(CPUParams)),
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
+                        ::testing::Combine(Layer_params, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 } // namespace
