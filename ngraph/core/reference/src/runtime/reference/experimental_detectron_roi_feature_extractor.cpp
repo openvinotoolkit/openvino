@@ -368,13 +368,12 @@ namespace ngraph
                 const float* input_rois = inputs[input_rois_port];
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
-                std::cout << "level_ids:      [";
+                std::cout << "level_ids:             [";
                 for (auto r : level_ids)
                 {
                     std::cout << " " << r;
                 }
                 std::cout << " ]\n";
-                std::cout << std::string(80, '*') << "\n\n";
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
@@ -384,9 +383,28 @@ namespace ngraph
                         4,
                         reordered_rois.data(),
                         original_rois_mapping.data());
+                std::cout << "reordered_rois:        [";
+                for (auto r : reordered_rois)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << "original_rois_mapping: [";
+                for (auto r : original_rois_mapping)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
 
                 std::vector<int64_t> rois_per_level;
                 split_points(level_ids, rois_per_level, levels_num + 1);
+                std::cout << "rois_per_level:        [";
+                for (auto r : rois_per_level)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << std::string(80, '*') << "\n\n";
 
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
                 for (int64_t i = 0; i < levels_num; ++i)
