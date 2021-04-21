@@ -148,6 +148,10 @@ std::shared_ptr<Function>
                 const auto& out_ports = op_place->getOutputPorts();
                 for (const auto& name_to_outputs : named_outputs) {
                     const auto& ports = out_ports.at(name_to_outputs.first);
+
+                    PDPD_ASSERT(ports.size() == name_to_outputs.second.size(),
+                                "The number of output tensors must be equal to "
+                                "the number of outputs of the ngraph node.");
                     for (size_t idx = 0; idx < ports.size(); ++idx) {
                         const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
                         name_to_outputs.second[idx].get_tensor().set_names({var->name()});
