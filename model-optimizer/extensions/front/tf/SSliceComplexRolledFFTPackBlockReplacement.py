@@ -6,7 +6,7 @@ import logging as log
 
 from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout
 from extensions.ops.dft import DFT, IDFT
-from extensions.ops.roll import TFRoll, Roll
+from extensions.ops.roll import Roll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -23,9 +23,9 @@ class SSliceComplexRolledFFTPackBlockReplacement(FrontReplacementSubgraph):
                 ('strided_slice_real', dict(op='StridedSlice')),
                 ('strided_slice_imag', dict(op='StridedSlice')),
                 ('complex', dict(op='Complex')),
-                ('roll', dict(op='TFRoll')),
+                ('roll', dict(op='Roll')),
                 ('fft', dict(op='TFFFT')),
-                ('unroll', dict(op='TFRoll')),
+                ('unroll', dict(op='Roll')),
                 ('real', dict(op='Real')),
                 ('imag', dict(op='Imag')),
                 ('pack', dict(op='Pack')),

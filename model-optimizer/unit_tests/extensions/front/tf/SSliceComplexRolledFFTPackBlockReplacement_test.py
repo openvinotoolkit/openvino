@@ -25,9 +25,9 @@ dft_graph_node_attrs = {
         'shrink_axis_mask': int64_array([0, 1]),
     },
     'complex': {'kind': 'op', 'op': 'Complex'},
-    'roll': {'kind': 'op', 'op': 'TFRoll'},
+    'roll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'fft': {'kind': 'op', 'op': 'TFFFT', 'num_of_dimensions': 2, 'is_inverse': False},
-    'unroll': {'kind': 'op', 'op': 'TFRoll'},
+    'unroll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'real': {'kind': 'op', 'op': 'Real'},
     'imag': {'kind': 'op', 'op': 'Imag'},
     'pack': {'kind': 'op', 'op': 'Pack'},
@@ -94,20 +94,20 @@ dft_graph_edges = [
 
 ref_dft_graph_node_attrs = {
     'placeholder': {'shape': int64_array([3, 100, 100, 2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-    'roll': {'kind': 'op', 'op': 'TFRoll'},
+    'roll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'fft': {'kind': 'op', 'op': 'DFT'},
-    'unroll': {'kind': 'op', 'op': 'TFRoll'},
+    'unroll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'roll_shift': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([50, 50])
     },
     'roll_axes': {
-        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-2, -1])
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-3, -2])
     },
     'unroll_shift': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([50, 50])
     },
     'unroll_axes': {
-        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-2, -1])
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-3, -2])
     },
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
     'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
@@ -144,9 +144,9 @@ non_transformed_graph_node_attrs = {
         'shrink_axis_mask': int64_array([0, 1]),
     },
     'complex': {'kind': 'op', 'op': 'Complex'},
-    'roll': {'kind': 'op', 'op': 'TFRoll'},
+    'roll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'fft': {'kind': 'op', 'op': 'TFFFT', 'num_of_dimensions': 2, 'is_inverse': False},
-    'unroll': {'kind': 'op', 'op': 'TFRoll'},
+    'unroll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll'},
     'real': {'kind': 'op', 'op': 'Real'},
     'imag': {'kind': 'op', 'op': 'Imag'},
     'pack': {'kind': 'op', 'op': 'Pack'},
