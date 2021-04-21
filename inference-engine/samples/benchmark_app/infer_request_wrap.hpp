@@ -47,7 +47,7 @@ public:
     }
 
     void wait() {
-        _request.Wait(InferenceEngine::IInferRequest::RESULT_READY);
+        _request.Wait(InferenceEngine::InferRequest::RESULT_READY);
     }
 
     void infer() {
