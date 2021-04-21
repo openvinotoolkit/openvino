@@ -113,6 +113,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Unsqueeze", Reshape },
         { "Softmax", Softmax },
         { "Reorder", Reorder },
+        { "DepthToSpace", DepthToSpace },
+        { "SpaceToDepth", SpaceToDepth },
         { "Roll", Roll },
 
 //        { "Unknown", Unknown },
@@ -219,11 +221,11 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
     for (size_t i = 0; i < op->get_input_size(); i++) {
         if (op->get_input_partial_shape(i).is_dynamic())
-            THROW_IE_EXCEPTION << errorPrefix << " has dynamic input shape on " << i << " port, but CPU plug-in supports only static shape";
+            IE_THROW() << errorPrefix << " has dynamic input shape on " << i << " port, but CPU plug-in supports only static shape";
     }
     for (size_t i = 0; i < op->get_output_size(); i++) {
         if (op->get_output_partial_shape(i).is_dynamic())
-            THROW_IE_EXCEPTION << errorPrefix << " has dynamic output shape on " << i << " port, but CPU plug-in supports only static shape";
+            IE_THROW() << errorPrefix << " has dynamic output shape on " << i << " port, but CPU plug-in supports only static shape";
     }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {

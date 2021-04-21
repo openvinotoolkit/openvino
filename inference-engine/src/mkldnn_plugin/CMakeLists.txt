@@ -51,6 +51,8 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reference_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depth_to_space_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_space_to_depth_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
@@ -58,7 +60,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder_seq_len.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_offset_sum.cpp
@@ -91,7 +92,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/shuffle_channels.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/simplernms.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_batch.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_depth.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_fill_empty_rows.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_segment_reduce.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_weighted_reduce.cpp

@@ -1808,72 +1808,52 @@ void MKLDNNGraphOptimizer::FuseClampAndFakeQuantize(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
+void MKLDNNGraphOptimizer::FuseMulAddAndFakeQuantize(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableScaleShiftNode = [](MKLDNNNodePtr node) {
-        if (node->getType() != Eltwise)
-            return false;
-
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode == nullptr)
-            IE_THROW() << "Cannot cast " << node->getName() << " to eltwise node";
-
-        if (eltwiseNode->getChildEdges().size() != 1)
-            return false;
-
-        if (eltwiseNode->getOpType() != MulAdd)
-            return false;
-
-        return true;
+        return node->getType() == Eltwise && node->getChildEdges().size() == 1 && node->getAlgorithm() == EltwiseMulAdd && node->canBePerformedAsScaleShift();
     };
 
-    auto isSutableQuantizeNode = [](MKLDNNNodePtr node) {
-        if (node->getType() != Quantize)
-            return false;
-
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-        if (quantizeNode == nullptr)
-            IE_THROW() << "Cannot cast " << node->getName() << " to Quantize node";
-
-        return !quantizeNode->isBinarization();
+    auto isSutableFakeQuantizeNode = [](MKLDNNNodePtr node) {
+        return node->getType() == FakeQuantize && node->getAlgorithm() != FQBinarization;
     };
 
-    auto fuseScaleShiftAndQuantizeNodes = [](MKLDNNNodePtr parent, MKLDNNNodePtr child) {
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent.get());
-        if (eltwiseNode == nullptr)
-            IE_THROW() << "Cannot cast " << parent->getName() << " to eltwise node";
+    auto fuseScaleShiftAndFakeQuantizeNodes = [](MKLDNNNodePtr parent, MKLDNNNodePtr child) {
+        auto fakeQuantizeNode = std::dynamic_pointer_cast<MKLDNNFakeQuantizeNode>(child);
+        if (fakeQuantizeNode == nullptr)
+            IE_THROW() << "Cannot cast " << child->getName() << " to FakeQuantize node";
 
-        auto eltwiseLayer = eltwiseNode->getCnnLayer();
-        if (eltwiseLayer == nullptr)
-            IE_THROW() << "Cannot get scale shift layer " << eltwiseNode->getName();
-
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(child.get());
-        if (quantizeNode == nullptr)
-            IE_THROW() << "Cannot cast " << child->getName() << " to Quantize node";
-
-        Blob::Ptr scalesBlob = eltwiseLayer->blobs["weights"];
-        if (scalesBlob == nullptr)
-            return false;
-
-        Blob::Ptr shiftsBlob = eltwiseLayer->blobs["biases"];
-        if (shiftsBlob == nullptr)
-            return false;
-
-        const float* scalesBufferPtr = scalesBlob->buffer().as<float*>();
-        const float* shiftsBufferPtr = shiftsBlob->buffer().as<float*>();
+        auto scalesBlob = std::dynamic_pointer_cast<MKLDNNInputNode>(parent->getParentEdgesAtPort(1)[0]->getParent())->getConstBlob();
+        auto shiftsBlob = std::dynamic_pointer_cast<MKLDNNInputNode>(parent->getParentEdgesAtPort(2)[0]->getParent())->getConstBlob();
 
         if (scalesBlob->size() != shiftsBlob->size())
             return false;
 
+        std::vector<float> scalesBuffer;
+        const float* scalesBufferPtr = scalesBlob->cbuffer().as<float*>();
+        std::vector<float> shiftsBuffer;
+        const float* shiftsBufferPtr = shiftsBlob->cbuffer().as<float*>();
+
+        if (scalesBlob->getTensorDesc().getPrecision() != Precision::FP32) {
+            scalesBuffer.resize(scalesBlob->size());
+            cpu_convert(scalesBufferPtr, &scalesBuffer[0], scalesBlob->getTensorDesc().getPrecision(), Precision::FP32, scalesBlob->size());
+            scalesBufferPtr = &scalesBuffer[0];
+        }
         for (int i = 0; i < scalesBlob->size(); i++)
             if (scalesBufferPtr[i] == 0.f)
                 return false;
 
-        const std::vector<float>& cropLowData = quantizeNode->getCropLow();
-        const std::vector<float>& cropHighData = quantizeNode->getCropHigh();
-        const std::vector<float>& inputScaleData = quantizeNode->getInputScale();
-        const std::vector<float>& inputShiftData = quantizeNode->getInputShift();
+        if (shiftsBlob->getTensorDesc().getPrecision() != Precision::FP32) {
+            shiftsBuffer.resize(shiftsBlob->size());
+            cpu_convert(shiftsBufferPtr, &shiftsBuffer[0], shiftsBlob->getTensorDesc().getPrecision(), Precision::FP32, shiftsBlob->size());
+            shiftsBufferPtr = &shiftsBuffer[0];
+        }
+
+        const std::vector<float>& cropLowData = fakeQuantizeNode->getCropLow();
+        const std::vector<float>& cropHighData = fakeQuantizeNode->getCropHigh();
+        const std::vector<float>& inputScaleData = fakeQuantizeNode->getInputScale();
+        const std::vector<float>& inputShiftData = fakeQuantizeNode->getInputShift();
 
         std::vector<float> newCropLow(scalesBlob->size());
         std::vector<float> newCropHigh(scalesBlob->size());
@@ -1927,10 +1907,10 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
             }
         }
 
-        quantizeNode->setCropLow(newCropLow);
-        quantizeNode->setCropHigh(newCropHigh);
-        quantizeNode->setInputScale(newInputScale);
-        quantizeNode->setInputShift(newInputShift);
+        fakeQuantizeNode->setCropLow(newCropLow);
+        fakeQuantizeNode->setCropHigh(newCropHigh);
+        fakeQuantizeNode->setInputScale(newInputScale);
+        fakeQuantizeNode->setInputShift(newInputShift);
 
         return true;
     };
@@ -1940,13 +1920,13 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
         if (!isSutableScaleShiftNode(parent)) continue;
 
         auto child = parent->getChildEdgeAt(0)->getChild();
-        if (!isSutableQuantizeNode(child)) continue;
+        if (!isSutableFakeQuantizeNode(child)) continue;
 
-        if (fuseScaleShiftAndQuantizeNodes(parent, child)) {
+        if (fuseScaleShiftAndFakeQuantizeNodes(parent, child)) {
             auto parentEdges = parent->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
-                if (p_edge->getParent()->getCnnLayer()->type != "Const")
+                if (!p_edge->getParent()->isConstant())
                     continue;
 
                 removeEdge(graph, p_edge);
