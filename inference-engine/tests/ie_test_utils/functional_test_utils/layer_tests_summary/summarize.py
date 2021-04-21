@@ -46,6 +46,7 @@ verified_operations = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FloorMod-1'
     'GRUSequence-5',
     'Gather-1',
     'GatherElements-6',
@@ -64,6 +65,7 @@ verified_operations = [
     'LogSoftmax-5',
     'Loop-5',
     'MVN-6',
+    'Maximum-1',
     'MaxPool-1',
     'Mish-4',
     'Multiply-1',
