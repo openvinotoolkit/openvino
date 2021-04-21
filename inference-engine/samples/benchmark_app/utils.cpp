@@ -16,7 +16,7 @@
 #include "utils.hpp"
 
 #ifdef USE_OPENCV
-#include <opencv2/core.hpp>
+#    include <opencv2/core.hpp>
 #endif
 
 namespace benchmark_app

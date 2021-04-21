@@ -12,9 +12,9 @@
 #include "object_detection_sample_ssd.h"
 
 #ifdef _WIN32
-#include "c_w_dirent.h"
+#    include "c_w_dirent.h"
 #else
-#include <dirent.h>
+#    include <dirent.h>
 #endif
 
 #define MAX_IMAGES 20

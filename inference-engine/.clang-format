@@ -52,3 +52,5 @@ IncludeCategories:
 SortIncludes: true
 
 FixNamespaceComments: false
+
+IndentPPDirectives: AfterHash

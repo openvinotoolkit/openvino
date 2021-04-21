@@ -3,13 +3,13 @@
 //
 
 #ifdef USE_OPENCV
-#include "opencv_wraper.h"
-#include <fstream>
-#include <iostream>
+#    include "opencv_wraper.h"
+#    include <fstream>
+#    include <iostream>
 
-#include <opencv2/opencv.hpp>
+#    include <opencv2/opencv.hpp>
 
-#include <samples/slog.hpp>
+#    include <samples/slog.hpp>
 
 using namespace std;
 using namespace FormatReader;

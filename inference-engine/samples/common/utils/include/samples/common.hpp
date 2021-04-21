@@ -24,11 +24,11 @@
 #include <inference_engine.hpp>
 
 #ifndef UNUSED
-#if defined(_MSC_VER) && !defined(__clang__)
-#define UNUSED
-#else
-#define UNUSED __attribute__((unused))
-#endif
+#    if defined(_MSC_VER) && !defined(__clang__)
+#        define UNUSED
+#    else
+#        define UNUSED __attribute__((unused))
+#    endif
 #endif
 
 /**

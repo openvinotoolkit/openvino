@@ -18,9 +18,9 @@
 
 #include <sys/stat.h>
 #ifdef _WIN32
-#include <samples/os/windows/w_dirent.h>
+#    include <samples/os/windows/w_dirent.h>
 #else
-#include <dirent.h>
+#    include <dirent.h>
 #endif
 
 using namespace InferenceEngine;

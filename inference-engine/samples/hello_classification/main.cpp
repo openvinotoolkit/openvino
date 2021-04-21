@@ -19,15 +19,15 @@ using namespace InferenceEngine;
  * @brief Define names based depends on Unicode path support
  */
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-#define tcout std::wcout
-#define file_name_t std::wstring
-#define imread_t imreadW
-#define ClassificationResult_t ClassificationResultW
+#    define tcout std::wcout
+#    define file_name_t std::wstring
+#    define imread_t imreadW
+#    define ClassificationResult_t ClassificationResultW
 #else
-#define tcout std::cout
-#define file_name_t std::string
-#define imread_t cv::imread
-#define ClassificationResult_t ClassificationResult
+#    define tcout std::cout
+#    define file_name_t std::string
+#    define imread_t cv::imread
+#    define ClassificationResult_t ClassificationResult
 #endif
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)

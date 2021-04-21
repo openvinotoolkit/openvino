@@ -9,13 +9,13 @@
 #pragma once
 
 #ifdef USE_OPENCV
-#include <format_reader.h>
-#include <memory>
-#include <string>
+#    include <format_reader.h>
+#    include <memory>
+#    include <string>
 
-#include <opencv2/opencv.hpp>
+#    include <opencv2/opencv.hpp>
 
-#include "register.h"
+#    include "register.h"
 
 namespace FormatReader
 {

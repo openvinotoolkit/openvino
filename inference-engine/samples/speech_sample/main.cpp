@@ -397,19 +397,19 @@ float StdDevError(score_error_t error)
 }
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#ifdef _WIN32
-#include <intrin.h>
-#include <windows.h>
-#else
+#    ifdef _WIN32
+#        include <intrin.h>
+#        include <windows.h>
+#    else
 
-#include <cpuid.h>
+#        include <cpuid.h>
 
-#endif
+#    endif
 
 inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx, unsigned int* edx)
 {
     size_t level = *eax;
-#ifdef _WIN32
+#    ifdef _WIN32
     int regs[4] = {static_cast<int>(*eax),
                    static_cast<int>(*ebx),
                    static_cast<int>(*ecx),
@@ -419,9 +419,9 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
     *ebx = static_cast<uint32_t>(regs[1]);
     *ecx = static_cast<uint32_t>(regs[2]);
     *edx = static_cast<uint32_t>(regs[3]);
-#else
+#    else
     __get_cpuid(level, eax, ebx, ecx, edx);
-#endif
+#    endif
 }
 
 /**

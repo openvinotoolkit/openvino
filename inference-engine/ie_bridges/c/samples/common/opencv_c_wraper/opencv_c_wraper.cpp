@@ -29,8 +29,8 @@ int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int n
 
 #else
 
-#include <algorithm>
-#include <opencv2/opencv.hpp>
+#    include <algorithm>
+#    include <opencv2/opencv.hpp>
 
 int image_read(const char* img_path, c_mat_t* img)
 {
