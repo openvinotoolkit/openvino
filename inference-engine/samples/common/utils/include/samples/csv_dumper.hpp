@@ -4,27 +4,25 @@
 
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
 #include <time.h>
 
+#include <fstream>
+#include <iostream>
 #include <samples/slog.hpp>
+#include <sstream>
+#include <string>
 
 /**
  * @class CsvDumper
  * @brief A CsvDumper class provides functionality for dumping the values in CSV files
  */
-class CsvDumper
-{
+class CsvDumper {
     std::ofstream file;
     std::string filename;
     bool canDump = true;
     char delimiter = ';';
 
-    std::string generateFilename()
-    {
+    std::string generateFilename() {
         std::stringstream filename;
         filename << "dumpfile-";
         filename << time(nullptr);
@@ -38,17 +36,13 @@ public:
      * @param enabled - True if dumping is enabled by default.
      * @param name - name of file to dump to. File won't be created if first parameter is false.
      */
-    explicit CsvDumper(bool enabled = true, const std::string& name = "")
-        : canDump(enabled)
-    {
-        if (!canDump)
-        {
+    explicit CsvDumper(bool enabled = true, const std::string& name = ""): canDump(enabled) {
+        if (!canDump) {
             return;
         }
         filename = (name == "" ? generateFilename() : name);
         file.open(filename, std::ios::out);
-        if (!file)
-        {
+        if (!file) {
             slog::warn << "Cannot create dump file! Disabling dump." << slog::endl;
             canDump = false;
         }
@@ -59,7 +53,9 @@ public:
      * @param c - Delimiter char
      * @return
      */
-    void setDelimiter(char c) { delimiter = c; }
+    void setDelimiter(char c) {
+        delimiter = c;
+    }
 
     /**
      * @brief Overloads operator to organize streaming values to file. Does nothing if dumping is
@@ -68,10 +64,8 @@ public:
      * @return reference to same object
      */
     template <class T>
-    CsvDumper& operator<<(const T& add)
-    {
-        if (canDump)
-        {
+    CsvDumper& operator<<(const T& add) {
+        if (canDump) {
             file << add << delimiter;
         }
         return *this;
@@ -80,10 +74,8 @@ public:
     /**
      * @brief Finishes line in dump file. Does nothing if dumping is disabled
      */
-    void endLine()
-    {
-        if (canDump)
-        {
+    void endLine() {
+        if (canDump) {
             file << "\n";
         }
     }
@@ -92,11 +84,15 @@ public:
      * @brief Gets information if dump is enabled.
      * @return true if dump is enabled and file was successfully created
      */
-    bool dumpEnabled() { return canDump; }
+    bool dumpEnabled() {
+        return canDump;
+    }
 
     /**
      * @brief Gets name of a dump file
      * @return name of a dump file
      */
-    std::string getFilename() const { return filename; }
+    std::string getFilename() const {
+        return filename;
+    }
 };

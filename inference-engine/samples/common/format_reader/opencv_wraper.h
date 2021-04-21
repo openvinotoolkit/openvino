@@ -9,43 +9,43 @@
 #pragma once
 
 #ifdef USE_OPENCV
-#    include <format_reader.h>
-#    include <memory>
-#    include <string>
+    #include <format_reader.h>
 
-#    include <opencv2/opencv.hpp>
+    #include <memory>
+    #include <opencv2/opencv.hpp>
+    #include <string>
 
-#    include "register.h"
+    #include "register.h"
 
-namespace FormatReader
-{
+namespace FormatReader {
+/**
+ * \class OCVMAT
+ * \brief OpenCV Wrapper
+ */
+class OCVReader : public Reader {
+private:
+    cv::Mat img;
+    size_t _size;
+    static Register<OCVReader> reg;
+
+public:
     /**
-     * \class OCVMAT
-     * \brief OpenCV Wrapper
+     * \brief Constructor of BMP reader
+     * @param filename - path to input data
+     * @return BitMap reader object
      */
-    class OCVReader : public Reader
-    {
-    private:
-        cv::Mat img;
-        size_t _size;
-        static Register<OCVReader> reg;
+    explicit OCVReader(const std::string& filename);
+    virtual ~OCVReader() {}
 
-    public:
-        /**
-         * \brief Constructor of BMP reader
-         * @param filename - path to input data
-         * @return BitMap reader object
-         */
-        explicit OCVReader(const std::string& filename);
-        virtual ~OCVReader() {}
+    /**
+     * \brief Get size
+     * @return size
+     */
+    size_t size() const override {
+        return _size;
+    }
 
-        /**
-         * \brief Get size
-         * @return size
-         */
-        size_t size() const override { return _size; }
-
-        std::shared_ptr<unsigned char> getData(size_t width, size_t height) override;
-    };
-} // namespace FormatReader
+    std::shared_ptr<unsigned char> getData(size_t width, size_t height) override;
+};
+}  // namespace FormatReader
 #endif

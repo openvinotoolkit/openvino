@@ -12,8 +12,6 @@ file(WRITE "${OUTPUT_FILE}" "${STYLE_CHECK_RESULT}")
 
 if(NOT SKIP_RETURN_CODE)
     if("${STYLE_CHECK_RESULT}" MATCHES ".*<replacement .*")
-        # Display the style check output to console in case an issue
-        message("Style check result: ${STYLE_CHECK_RESULT}")
         message(FATAL_ERROR "[clang-format] Code style check failed for: ${INPUT_FILE}")
     endif()
 endif()

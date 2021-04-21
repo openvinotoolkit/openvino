@@ -19,15 +19,13 @@
  * @param batchIndex - batch index of an image inside of the blob.
  */
 template <typename T>
-void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, int batchIndex = 0)
-{
+void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, int batchIndex = 0) {
     InferenceEngine::SizeVector blobSize = blob->getTensorDesc().getDims();
     const size_t width = blobSize[3];
     const size_t height = blobSize[2];
     const size_t channels = blobSize[1];
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-    if (!mblob)
-    {
+    if (!mblob) {
         IE_THROW() << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
                    << "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
@@ -37,22 +35,16 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
     T* blob_data = mblobHolder.as<T*>();
 
     cv::Mat resized_image(orig_image);
-    if (static_cast<int>(width) != orig_image.size().width ||
-        static_cast<int>(height) != orig_image.size().height)
-    {
+    if (static_cast<int>(width) != orig_image.size().width || static_cast<int>(height) != orig_image.size().height) {
         cv::resize(orig_image, resized_image, cv::Size(width, height));
     }
 
     int batchOffset = batchIndex * width * height * channels;
 
-    for (size_t c = 0; c < channels; c++)
-    {
-        for (size_t h = 0; h < height; h++)
-        {
-            for (size_t w = 0; w < width; w++)
-            {
-                blob_data[batchOffset + c * width * height + h * width + w] =
-                    resized_image.at<cv::Vec3b>(h, w)[c];
+    for (size_t c = 0; c < channels; c++) {
+        for (size_t h = 0; h < height; h++) {
+            for (size_t w = 0; w < width; w++) {
+                blob_data[batchOffset + c * width * height + h * width + w] = resized_image.at<cv::Vec3b>(h, w)[c];
             }
         }
     }
@@ -65,8 +57,7 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
  * @param mat - given cv::Mat object with an image data.
  * @return resulting Blob pointer.
  */
-static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat)
-{
+static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat) {
     size_t channels = mat.channels();
     size_t height = mat.size().height;
     size_t width = mat.size().width;
@@ -79,9 +70,7 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat)
     if (!is_dense)
         IE_THROW() << "Doesn't support conversion from not dense cv::Mat";
 
-    InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8,
-                                      {1, channels, height, width},
-                                      InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8, {1, channels, height, width}, InferenceEngine::Layout::NHWC);
 
     return InferenceEngine::make_shared_blob<uint8_t>(tDesc, mat.data);
 }

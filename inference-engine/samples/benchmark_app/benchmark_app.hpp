@@ -5,6 +5,7 @@
 #pragma once
 
 #include <gflags/gflags.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -13,148 +14,124 @@
 static const char help_message[] = "Print a usage message";
 
 /// @brief message for images argument
-static const char input_message[] =
-    "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
+static const char input_message[] = "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
 
 /// @brief message for model argument
-static const char model_message[] =
-    "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with "
-    "a trained compiled model.";
+static const char model_message[] = "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with "
+                                    "a trained compiled model.";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] =
-    "Optional. Specify a target device to infer on (the list of available devices is shown below). "
-    "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
-    "HETERO plugin. "
-    "Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI plugin. "
-    "The application looks for a suitable plugin for the specified device.";
+static const char target_device_message[] = "Optional. Specify a target device to infer on (the list of available devices is shown below). "
+                                            "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
+                                            "HETERO plugin. "
+                                            "Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI plugin. "
+                                            "The application looks for a suitable plugin for the specified device.";
 
 /// @brief message for iterations count
-static const char iterations_count_message[] =
-    "Optional. Number of iterations. "
-    "If not specified, the number of iterations is calculated depending on a device.";
+static const char iterations_count_message[] = "Optional. Number of iterations. "
+                                               "If not specified, the number of iterations is calculated depending on a device.";
 
 /// @brief message for requests count
-static const char infer_requests_count_message[] =
-    "Optional. Number of infer requests. Default value is determined automatically for device.";
+static const char infer_requests_count_message[] = "Optional. Number of infer requests. Default value is determined automatically for device.";
 
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
 
 /// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] =
-    "Optional. Number of threads to use for inference on the CPU "
-    "(including HETERO and MULTI cases).";
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
+                                                "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] =
-    "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
-    "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
-    "<nstreams>). "
-    "Default value is determined automatically for a device.Please note that although the "
-    "automatic selection "
-    "usually provides a reasonable performance, it still may be non - optimal for some cases, "
-    "especially for "
-    "very small networks. See sample's README for more details. "
-    "Also, using nstreams>1 is inherently throughput-oriented option, "
-    "while for the best-latency estimations the number of streams should be set to 1.";
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
+                                                "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
+                                                "<nstreams>). "
+                                                "Default value is determined automatically for a device.Please note that although the "
+                                                "automatic selection "
+                                                "usually provides a reasonable performance, it still may be non - optimal for some cases, "
+                                                "especially for "
+                                                "very small networks. See sample's README for more details. "
+                                                "Also, using nstreams>1 is inherently throughput-oriented option, "
+                                                "while for the best-latency estimations the number of streams should be set to 1.";
 
 /// @brief message for enforcing of BF16 execution where it is possible
-static const char enforce_bf16_message[] =
-    "Optional. By default floating point operations execution in bfloat16 precision are enforced "
-    "if supported by platform.\n"
-    "                                  'true'  - enable  bfloat16 regardless of platform support\n"
-    "                                  'false' - disable bfloat16 regardless of platform support";
+static const char enforce_bf16_message[] = "Optional. By default floating point operations execution in bfloat16 precision are enforced "
+                                           "if supported by platform.\n"
+                                           "                                  'true'  - enable  bfloat16 regardless of platform support\n"
+                                           "                                  'false' - disable bfloat16 regardless of platform support";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] =
-    "Required for CPU custom layers. Absolute path to a shared library with the kernels "
-    "implementations.";
+static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels "
+                                                 "implementations.";
 
 /// @brief message for clDNN custom kernels desc
-static const char custom_cldnn_message[] =
-    "Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.";
+static const char custom_cldnn_message[] = "Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.";
 
-static const char batch_size_message[] =
-    "Optional. Batch size value. If not specified, the batch size value is determined from "
-    "Intermediate Representation.";
+static const char batch_size_message[] = "Optional. Batch size value. If not specified, the batch size value is determined from "
+                                         "Intermediate Representation.";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] =
-    "Optional. Enable threads->cores (\"YES\", default), threads->(NUMA)nodes (\"NUMA\") "
-    "or completely disable (\"NO\") "
-    "CPU threads pinning for CPU-involved inference.";
+static const char infer_threads_pinning_message[] = "Optional. Enable threads->cores (\"YES\", default), threads->(NUMA)nodes (\"NUMA\") "
+                                                    "or completely disable (\"NO\") "
+                                                    "CPU threads pinning for CPU-involved inference.";
 
 // @brief message for stream_output option
-static const char stream_output_message[] =
-    "Optional. Print progress as a plain text. When specified, an interactive progress bar is "
-    "replaced with a "
-    "multiline output.";
+static const char stream_output_message[] = "Optional. Print progress as a plain text. When specified, an interactive progress bar is "
+                                            "replaced with a "
+                                            "multiline output.";
 
 // @brief message for report_type option
-static const char report_type_message[] =
-    "Optional. Enable collecting statistics report. \"no_counters\" report contains "
-    "configuration options specified, resulting FPS and latency. \"average_counters\" "
-    "report extends \"no_counters\" report and additionally includes average PM "
-    "counters values for each layer from the network. \"detailed_counters\" report "
-    "extends \"average_counters\" report and additionally includes per-layer PM "
-    "counters and latency for each executed infer request.";
+static const char report_type_message[] = "Optional. Enable collecting statistics report. \"no_counters\" report contains "
+                                          "configuration options specified, resulting FPS and latency. \"average_counters\" "
+                                          "report extends \"no_counters\" report and additionally includes average PM "
+                                          "counters values for each layer from the network. \"detailed_counters\" report "
+                                          "extends \"average_counters\" report and additionally includes per-layer PM "
+                                          "counters and latency for each executed infer request.";
 
 // @brief message for report_folder option
-static const char report_folder_message[] =
-    "Optional. Path to a folder where statistics report is stored.";
+static const char report_folder_message[] = "Optional. Path to a folder where statistics report is stored.";
 
 // @brief message for exec_graph_path option
-static const char exec_graph_path_message[] =
-    "Optional. Path to a file where to store executable graph information serialized.";
+static const char exec_graph_path_message[] = "Optional. Path to a file where to store executable graph information serialized.";
 
 // @brief message for progress bar option
-static const char progress_message[] =
-    "Optional. Show progress bar (can affect performance measurement). Default values is "
-    "\"false\".";
+static const char progress_message[] = "Optional. Show progress bar (can affect performance measurement). Default values is "
+                                       "\"false\".";
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
 
 #ifdef USE_OPENCV
 // @brief message for load config option
-static const char load_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
-    " Please note, command line parameters have higher priority then parameters from configuration "
-    "file.";
+static const char load_config_message[] = "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+                                          " Please note, command line parameters have higher priority then parameters from configuration "
+                                          "file.";
 
 // @brief message for dump config option
-static const char dump_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
+static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
 #endif
 
-static const char shape_message[] =
-    "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or "
-    "\"[1,3,224,224]\""
-    " in case of one input size.";
+static const char shape_message[] = "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or "
+                                    "\"[1,3,224,224]\""
+                                    " in case of one input size.";
 
-static const char layout_message[] =
-    "Optional. Prompts how network layouts should be treated by application. "
-    "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+static const char layout_message[] = "Optional. Prompts how network layouts should be treated by application. "
+                                     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
-static constexpr char inputs_precision_message[] =
-    "Optional. Specifies precision for all input layers of the network.";
+static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
-static constexpr char outputs_precision_message[] =
-    "Optional. Specifies precision for all output layers of the network.";
+static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the network.";
 
-static constexpr char iop_message[] =
-    "Optional. Specifies precision for input and output layers by name.\n"
-    "                                             Example: -iop \"input:FP16, output:FP16\".\n"
-    "                                             Notice that quotes are required.\n"
-    "                                             Overwrites precision from ip and op options for "
-    "specified layers.";
+static constexpr char iop_message[] = "Optional. Specifies precision for input and output layers by name.\n"
+                                      "                                             Example: -iop \"input:FP16, output:FP16\".\n"
+                                      "                                             Notice that quotes are required.\n"
+                                      "                                             Overwrites precision from ip and op options for "
+                                      "specified layers.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -262,8 +239,7 @@ DEFINE_string(iop, "", iop_message);
 /**
  * @brief This function show a help message
  */
-static void showUsage()
-{
+static void showUsage() {
     std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -288,8 +264,7 @@ static void showUsage()
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message
-              << std::endl;
+    std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
@@ -300,9 +275,7 @@ static void showUsage()
     std::cout << "    -load_config              " << load_config_message << std::endl;
 #endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
-    std::cout << "    -ip                          <value>     " << inputs_precision_message
-              << std::endl;
-    std::cout << "    -op                          <value>     " << outputs_precision_message
-              << std::endl;
+    std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
+    std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
 }

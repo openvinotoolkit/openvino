@@ -5,6 +5,7 @@
 #pragma once
 
 #include <gflags/gflags.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -13,104 +14,86 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char input_message[] =
-    "Required. Paths to .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.";
+static const char input_message[] = "Required. Paths to .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.";
 
 /// @brief message for model argument
-static const char model_message[] =
-    "Required. Path to an .xml file with a trained model (required if -rg is missing).";
+static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] =
-    "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
-    "GNA_SW_FP32, "
-    "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-    " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown "
-    "below. "
-    "The sample will look for a suitable plugin for device specified.";
+static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+                                            "GNA_SW_FP32, "
+                                            "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
+                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown "
+                                            "below. "
+                                            "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] =
-    "Required for CPU plugin custom layers."
-    "Absolute path to a shared library with the kernels implementations.";
+static const char custom_cpu_library_message[] = "Required for CPU plugin custom layers."
+                                                 "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
 static const char output_message[] = "Optional. Output file name to save ark scores.";
 
 /// @brief message for reference score file argument
-static const char reference_score_message[] =
-    "Optional. Read reference score .ark file and compare scores.";
+static const char reference_score_message[] = "Optional. Read reference score .ark file and compare scores.";
 
 /// @brief message for read GNA model argument
-static const char read_gna_model_message[] =
-    "Read GNA model from file using path/filename provided (required if -m is missing).";
+static const char read_gna_model_message[] = "Read GNA model from file using path/filename provided (required if -m is missing).";
 
 /// @brief message for write GNA model argument
-static const char write_gna_model_message[] =
-    "Optional. Write GNA model to file using path/filename provided.";
+static const char write_gna_model_message[] = "Optional. Write GNA model to file using path/filename provided.";
 
 /// @brief message for write GNA embedded model argument
-static const char write_embedded_model_message[] =
-    "Optional. Write GNA embedded model to file using path/filename provided.";
+static const char write_embedded_model_message[] = "Optional. Write GNA embedded model to file using path/filename provided.";
 
 /// @brief message for write GNA embedded model generation argument
-static const char write_embedded_model_generation_message[] =
-    "Optional. GNA generation configuration string for embedded export."
-    "Can be GNA1 (default) or GNA3.";
+static const char write_embedded_model_generation_message[] = "Optional. GNA generation configuration string for embedded export."
+                                                              "Can be GNA1 (default) or GNA3.";
 
 /// @brief message for quantization argument
-static const char quantization_message[] =
-    "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
+static const char quantization_message[] = "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
 
 /// @brief message for quantization bits argument
-static const char quantization_bits_message[] =
-    "Optional. Weight bits for quantization: 8 or 16 (default)";
+static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
-static const char scale_factor_message[] =
-    "Optional. User-specified input scale factor for quantization (use with -q user). "
-    "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas.";
+static const char scale_factor_message[] = "Optional. User-specified input scale factor for quantization (use with -q user). "
+                                           "If the network contains multiple inputs, provide scale factors by separating them with "
+                                           "commas.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
 
 /// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] =
-    "Optional. Number of threads to use for concurrent async"
-    " inference requests on the GNA.";
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async"
+                                                " inference requests on the GNA.";
 
 /// @brief message for left context window argument
-static const char context_window_message_l[] =
-    "Optional. Number of frames for left context windows (default is 0). "
-    "Works only with context window networks."
-    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+static const char context_window_message_l[] = "Optional. Number of frames for left context windows (default is 0). "
+                                               "Works only with context window networks."
+                                               " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for right context window argument
-static const char context_window_message_r[] =
-    "Optional. Number of frames for right context windows (default is 0). "
-    "Works only with context window networks."
-    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+static const char context_window_message_r[] = "Optional. Number of frames for right context windows (default is 0). "
+                                               "Works only with context window networks."
+                                               " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for output layer names
-static const char output_layer_names_message[] =
-    "Optional. Layer names for output blobs. "
-    "The names are separated with \",\" "
-    "Example: Output1:port,Output2:port ";
+static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
+                                                 "The names are separated with \",\" "
+                                                 "Example: Output1:port,Output2:port ";
 
 /// @brief message for inputs layer names
-static const char input_layer_names_message[] =
-    "Optional. Layer names for input blobs. "
-    "The names are separated with \",\" "
-    "Example: Input1,Input2 ";
+static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
+                                                "The names are separated with \",\" "
+                                                "Example: Input1,Input2 ";
 
 /// @brief message for PWL max error percent
-static const char pwl_max_error_percent_message[] =
-    "Optional. The maximum percent of error for PWL function."
-    "The value must be in <0, 100> range. The default value is 1.0.";
+static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
+                                                    "The value must be in <0, 100> range. The default value is 1.0.";
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -184,8 +167,7 @@ DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
 /**
  * \brief This function show a help message
  */
-static void showUsage()
-{
+static void showUsage() {
     std::cout << std::endl;
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -205,8 +187,7 @@ static void showUsage()
     std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
-    std::cout << "    -we_gen \"<generation>\"  " << write_embedded_model_generation_message
-              << std::endl;
+    std::cout << "    -we_gen \"<generation>\"  " << write_embedded_model_generation_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;

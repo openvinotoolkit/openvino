@@ -5,6 +5,7 @@
 #pragma once
 
 #include <gflags/gflags.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -22,22 +23,19 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 static const char image_message[] = "Required. Path to an image.";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] =
-    "Optional. Specify the target device to infer on (the list of available devices is shown "
-    "below). "
-    "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify "
-    "HETERO plugin. "
-    "Sample will look for a suitable plugin for device specified.";
+static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown "
+                                            "below). "
+                                            "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify "
+                                            "HETERO plugin. "
+                                            "Sample will look for a suitable plugin for device specified.";
 
 /// @brief message for plugin custom kernels desc
-static const char custom_plugin_cfg_message[] =
-    "Required for GPU, MYRIAD, HDDL custom kernels. "
-    "Absolute path to the .xml config file with the kernels descriptions.";
+static const char custom_plugin_cfg_message[] = "Required for GPU, MYRIAD, HDDL custom kernels. "
+                                                "Absolute path to the .xml config file with the kernels descriptions.";
 
 /// @brief message for user library argument
-static const char custom_ex_library_message[] =
-    "Required for CPU plugin custom layers. "
-    "Absolute path to a shared library with the kernels implementations.";
+static const char custom_ex_library_message[] = "Required for CPU plugin custom layers. "
+                                                "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for config argument
 static constexpr char config_message[] = "Path to the configuration file.";
@@ -71,8 +69,7 @@ DEFINE_string(config, "", config_message);
 /**
  * \brief This function show a help message
  */
-static void showUsage()
-{
+static void showUsage() {
     std::cout << std::endl;
     std::cout << "object_detection_sample_ssd [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;

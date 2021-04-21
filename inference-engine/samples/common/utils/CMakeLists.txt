@@ -18,6 +18,6 @@ target_link_libraries(${TARGET_NAME}
         IE::inference_engine
         gflags)
 
-if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()

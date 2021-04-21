@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include <map>
-#include <string>
-#include <utility>
-#include <vector>
-
 #include <inference_engine.hpp>
+#include <map>
 #include <samples/common.hpp>
 #include <samples/csv_dumper.hpp>
 #include <samples/slog.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 // @brief statistics reports types
 static constexpr char noCntReport[] = "no_counters";
@@ -20,35 +19,30 @@ static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
 
 /// @brief Responsible for collecting of statistics and dumping to .csv file
-class StatisticsReport
-{
+class StatisticsReport {
 public:
     typedef std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> PerformaceCounters;
     typedef std::vector<std::pair<std::string, std::string>> Parameters;
 
-    struct Config
-    {
+    struct Config {
         std::string report_type;
         std::string report_folder;
     };
 
-    enum class Category
-    {
+    enum class Category {
         COMMAND_LINE_PARAMETERS,
         RUNTIME_CONFIG,
         EXECUTION_RESULTS,
     };
 
-    explicit StatisticsReport(Config config)
-        : _config(std::move(config))
-    {
+    explicit StatisticsReport(Config config): _config(std::move(config)) {
         _separator =
 #if defined _WIN32 || defined __CYGWIN__
-#    if defined UNICODE
+    #if defined UNICODE
             L"\\";
-#    else
+    #else
             "\\";
-#    endif
+    #endif
 #else
             "/";
 #endif

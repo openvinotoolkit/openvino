@@ -6,32 +6,30 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
-#    define OPENCV_C_EXTERN extern "C"
+    #define OPENCV_C_EXTERN extern "C"
 #else
-#    define OPENCV_C_EXTERN
+    #define OPENCV_C_EXTERN
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ < 4)
-#    define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
+    #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
 #else
-#    if defined(_WIN32)
-#        ifdef opencv_c_wraper_EXPORTS
-#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
-#        else
-#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
-#        endif
-#    else
-#        define OPENCV_C_WRAPPER(...)                                                              \
-            OPENCV_C_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
-#    endif
+    #if defined(_WIN32)
+        #ifdef opencv_c_wraper_EXPORTS
+            #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+        #else
+            #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+        #endif
+    #else
+        #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+    #endif
 #endif
 
 /**
  * @struct c_mat
  * @brief OpenCV Mat Wrapper
  */
-typedef struct c_mat
-{
+typedef struct c_mat {
     unsigned char* mat_data;
     int mat_data_size;
     int mat_width;
@@ -44,8 +42,7 @@ typedef struct c_mat
  * @struct rectangle
  * @brief This structure describes rectangle data.
  */
-typedef struct rectangle
-{
+typedef struct rectangle {
     int x_min;
     int y_min;
     int rect_width;
@@ -56,8 +53,7 @@ typedef struct rectangle
  * @struct color
  * @brief  Stores channels of a given color
  */
-typedef struct color
-{
+typedef struct color {
     unsigned char r;
     unsigned char g;
     unsigned char b;

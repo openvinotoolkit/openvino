@@ -3,7 +3,9 @@
 //
 
 #include <format_reader.h>
+
 #include <iostream>
+
 #include "MnistUbyte.h"
 #include "bmp.h"
 #include "opencv_wraper.h"
@@ -19,10 +21,8 @@ Register<OCVReader> OCVReader::reg;
 Register<BitMap> BitMap::reg;
 #endif
 
-Reader* Registry::CreateReader(const char* filename)
-{
-    for (auto maker : _data)
-    {
+Reader* Registry::CreateReader(const char* filename) {
+    for (auto maker : _data) {
         Reader* ol = maker(filename);
         if (ol != nullptr && ol->size() != 0)
             return ol;
@@ -32,12 +32,10 @@ Reader* Registry::CreateReader(const char* filename)
     return nullptr;
 }
 
-void Registry::RegisterReader(CreatorFunction f)
-{
+void Registry::RegisterReader(CreatorFunction f) {
     _data.push_back(f);
 }
 
-FORMAT_READER_API(Reader*) CreateFormatReader(const char* filename)
-{
+FORMAT_READER_API(Reader*) CreateFormatReader(const char* filename) {
     return Registry::CreateReader(filename);
 }

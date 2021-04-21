@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <c_api/ie_c_api.h>
+#include <opencv_c_wraper.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#include <c_api/ie_c_api.h>
-#include <opencv_c_wraper.h>
 #include "object_detection_sample_ssd.h"
 
 #ifdef _WIN32
-#    include "c_w_dirent.h"
+    #include "c_w_dirent.h"
 #else
-#    include <dirent.h>
+    #include <dirent.h>
 #endif
 
 #define MAX_IMAGES 20
@@ -37,41 +37,49 @@ const char* warn = "[ WARNING ] ";
  * @param char *argv[] - array values of args
  * @return int - status 1(success) or -1(fail)
  */
-int ParseAndCheckCommandLine(int argc, char* argv[])
-{
+int ParseAndCheckCommandLine(int argc, char* argv[]) {
     int opt = 0;
     int help = 0;
     char* string = "hi:m:d:c:l:g:";
 
     printf("%sParsing input parameters\n", info);
 
-    while ((opt = getopt(argc, argv, string)) != -1)
-    {
-        switch (opt)
-        {
+    while ((opt = getopt(argc, argv, string)) != -1) {
+        switch (opt) {
         case 'h':
             showUsage();
             help = 1;
             break;
-        case 'i': img_msg = optarg; break;
-        case 'm': input_model = optarg; break;
-        case 'd': device_name = optarg; break;
-        case 'c': custom_plugin_cfg_msg = optarg; break;
-        case 'l': custom_ex_library_msg = optarg; break;
-        case 'g': config_msg = optarg; break;
-        default: return -1;
+        case 'i':
+            img_msg = optarg;
+            break;
+        case 'm':
+            input_model = optarg;
+            break;
+        case 'd':
+            device_name = optarg;
+            break;
+        case 'c':
+            custom_plugin_cfg_msg = optarg;
+            break;
+        case 'l':
+            custom_ex_library_msg = optarg;
+            break;
+        case 'g':
+            config_msg = optarg;
+            break;
+        default:
+            return -1;
         }
     }
 
     if (help)
         return -1;
-    if (input_model == NULL)
-    {
+    if (input_model == NULL) {
         printf("Model is required but not set. Please set -m option.\n");
         return -1;
     }
-    if (img_msg == NULL)
-    {
+    if (img_msg == NULL) {
         printf("Input is required but not set.Please set -i option.\n");
         return -1;
     }
@@ -85,28 +93,23 @@ int ParseAndCheckCommandLine(int argc, char* argv[])
  * @param arg path to a file to be checked for existence
  * @return none.
  */
-void readInputFilesArgument(const char* arg)
-{
+void readInputFilesArgument(const char* arg) {
     struct stat sb;
     int i;
-    if (stat(arg, &sb) != 0)
-    {
+    if (stat(arg, &sb) != 0) {
         printf("%sFile %s cannot be opened!\n", warn, arg);
         return;
     }
-    if (S_ISDIR(sb.st_mode))
-    {
+    if (S_ISDIR(sb.st_mode)) {
         DIR* dp;
         dp = opendir(arg);
-        if (dp == NULL)
-        {
+        if (dp == NULL) {
             printf("%sFile %s cannot be opened!\n", warn, arg);
             return;
         }
 
         struct dirent* ep;
-        while (NULL != (ep = readdir(dp)))
-        {
+        while (NULL != (ep = readdir(dp))) {
             const char* fileName = ep->d_name;
             if (strcmp(fileName, ".") == 0 || strcmp(fileName, "..") == 0)
                 continue;
@@ -115,24 +118,17 @@ void readInputFilesArgument(const char* arg)
             memcpy(file_path + strlen(arg), "/", strlen("/"));
             memcpy(file_path + strlen(arg) + strlen("/"), ep->d_name, strlen(ep->d_name) + 1);
 
-            if (file_num == 0)
-            {
+            if (file_num == 0) {
                 file_paths = (char**)calloc(1, sizeof(char*));
                 file_paths[0] = file_path;
                 ++file_num;
-            }
-            else
-            {
+            } else {
                 char** temp = (char**)realloc(file_paths, sizeof(char*) * (file_num + 1));
-                if (temp)
-                {
+                if (temp) {
                     file_paths = temp;
                     file_paths[file_num++] = file_path;
-                }
-                else
-                {
-                    for (i = 0; i < file_num; ++i)
-                    {
+                } else {
+                    for (i = 0; i < file_num; ++i) {
                         free(file_paths[i]);
                     }
                     free(file_path);
@@ -143,13 +139,10 @@ void readInputFilesArgument(const char* arg)
         }
         closedir(dp);
         dp = NULL;
-    }
-    else
-    {
+    } else {
         char* file_path = (char*)calloc(strlen(arg) + 1, sizeof(char));
         memcpy(file_path, arg, strlen(arg) + 1);
-        if (file_num == 0)
-        {
+        if (file_num == 0) {
             file_paths = (char**)calloc(1, sizeof(char*));
         }
         file_paths[file_num++] = file_path;
@@ -161,37 +154,28 @@ void readInputFilesArgument(const char* arg)
  * multiple values for single key
  * @return none.
  */
-void parseInputFilesArguments(int argc, char** argv)
-{
+void parseInputFilesArguments(int argc, char** argv) {
     int readArguments = 0, i;
-    for (i = 0; i < argc; ++i)
-    {
-        if (strcmp(argv[i], "-i") == 0)
-        {
+    for (i = 0; i < argc; ++i) {
+        if (strcmp(argv[i], "-i") == 0) {
             readArguments = 1;
             continue;
         }
-        if (!readArguments)
-        {
+        if (!readArguments) {
             continue;
         }
-        if (argv[i][0] == '-')
-        {
+        if (argv[i][0] == '-') {
             break;
         }
         readInputFilesArgument(argv[i]);
     }
 
-    if (file_num < MAX_IMAGES)
-    {
+    if (file_num < MAX_IMAGES) {
         printf("%sFiles were added: %d\n", info, file_num);
-        for (i = 0; i < file_num; ++i)
-        {
+        for (i = 0; i < file_num; ++i) {
             printf("%s    %s\n", info, file_paths[i]);
         }
-    }
-    else
-    {
+    } else {
         printf("%sFiles were added: %d. Too many to display each of them.\n", info, file_num);
     }
 }
@@ -202,19 +186,16 @@ void parseInputFilesArguments(int argc, char** argv)
  * @param comment Separator symbol.
  * @return A pointer to the ie_config_t instance.
  */
-ie_config_t* parseConfig(const char* config_file, char comment)
-{
+ie_config_t* parseConfig(const char* config_file, char comment) {
     FILE* file = fopen(config_file, "r");
-    if (!file)
-    {
+    if (!file) {
         return NULL;
     }
 
     ie_config_t* cfg = NULL;
     char key[256], value[256];
 
-    if (fscanf(file, "%s", key) != EOF && fscanf(file, "%s", value) != EOF)
-    {
+    if (fscanf(file, "%s", key) != EOF && fscanf(file, "%s", value) != EOF) {
         char* cfg_name = (char*)calloc(strlen(key) + 1, sizeof(char));
         char* cfg_value = (char*)calloc(strlen(value) + 1, sizeof(char));
         memcpy(cfg_name, key, strlen(key) + 1);
@@ -225,13 +206,10 @@ ie_config_t* parseConfig(const char* config_file, char comment)
         cfg_t->next = NULL;
         cfg = cfg_t;
     }
-    if (cfg)
-    {
+    if (cfg) {
         ie_config_t* cfg_temp = cfg;
-        while (fscanf(file, "%s", key) != EOF && fscanf(file, "%s", value) != EOF)
-        {
-            if (strlen(key) == 0 || key[0] == comment)
-            {
+        while (fscanf(file, "%s", key) != EOF && fscanf(file, "%s", value) != EOF) {
+            if (strlen(key) == 0 || key[0] == comment) {
                 continue;
             }
             char* cfg_name = (char*)calloc(strlen(key) + 1, sizeof(char));
@@ -256,23 +234,18 @@ ie_config_t* parseConfig(const char* config_file, char comment)
  * @param config A pointer to the config to free memory.
  * @return none
  */
-void config_free(ie_config_t* config)
-{
-    while (config)
-    {
+void config_free(ie_config_t* config) {
+    while (config) {
         ie_config_t* temp = config;
-        if (config->name)
-        {
+        if (config->name) {
             free((char*)config->name);
             config->name = NULL;
         }
-        if (config->value)
-        {
+        if (config->value) {
             free((char*)config->value);
             config->value = NULL;
         }
-        if (config->next)
-        {
+        if (config->next) {
             config = config->next;
         }
 
@@ -287,34 +260,29 @@ void config_free(ie_config_t* config)
  * @param num The number to convert.
  * @return none.
  */
-void int2str(char* str, int num)
-{
+void int2str(char* str, int num) {
     int i = 0, j;
-    if (num == 0)
-    {
+    if (num == 0) {
         str[0] = '0';
         str[1] = '\0';
         return;
     }
 
-    while (num != 0)
-    {
+    while (num != 0) {
         str[i++] = num % 10 + '0';
         num = num / 10;
     }
 
     str[i] = '\0';
     --i;
-    for (j = 0; j < i; ++j, --i)
-    {
+    for (j = 0; j < i; ++j, --i) {
         char temp = str[j];
         str[j] = str[i];
         str[i] = temp;
     }
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     /** This sample covers certain topology and cannot be generalized for any
      * object detection one **/
     // ------------------------------ Get Inference Engine API version
@@ -328,14 +296,12 @@ int main(int argc, char** argv)
     // ---------------------------------
 
     char** argv_temp = (char**)calloc(argc, sizeof(char*));
-    if (!argv_temp)
-    {
+    if (!argv_temp) {
         return EXIT_FAILURE;
     }
 
     int i, j;
-    for (i = 0; i < argc; ++i)
-    {
+    for (i = 0; i < argc; ++i) {
         argv_temp[i] = argv[i];
     }
 
@@ -346,8 +312,7 @@ int main(int argc, char** argv)
     ie_infer_request_t* infer_request = NULL;
     ie_blob_t *imageInput = NULL, *output_blob = NULL;
 
-    if (ParseAndCheckCommandLine(argc, argv) < 0)
-    {
+    if (ParseAndCheckCommandLine(argc, argv) < 0) {
         free(argv_temp);
         return EXIT_FAILURE;
     }
@@ -357,8 +322,7 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------
     /** This file_paths stores paths to the processed images **/
     parseInputFilesArguments(argc, argv_temp);
-    if (!file_num)
-    {
+    if (!file_num) {
         printf("No suitable images were found\n");
         free(argv_temp);
         return EXIT_FAILURE;
@@ -380,19 +344,14 @@ int main(int argc, char** argv)
     status = ie_core_get_versions(core, device_name, &ver);
     if (status != OK)
         goto err;
-    for (i = 0; i < ver.num_vers; ++i)
-    {
+    for (i = 0; i < ver.num_vers; ++i) {
         printf("         %s\n", ver.versions[i].device_name);
-        printf("         %s version ......... %zu.%zu\n",
-               ver.versions[i].description,
-               ver.versions[i].major,
-               ver.versions[i].minor);
+        printf("         %s version ......... %zu.%zu\n", ver.versions[i].description, ver.versions[i].major, ver.versions[i].minor);
         printf("         Build ......... %s\n", ver.versions[i].build_number);
     }
     ie_core_versions_free(&ver);
 
-    if (custom_ex_library_msg)
-    {
+    if (custom_ex_library_msg) {
         // Custom CPU extension is loaded as a shared library and passed as a
         // pointer to base extension
         status = ie_core_add_extension(core, custom_ex_library_msg, "CPU");
@@ -401,18 +360,14 @@ int main(int argc, char** argv)
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
-    if (custom_plugin_cfg_msg &&
-        (device_name == "GPU" || device_name == "MYRIAD" || device_name == "HDDL"))
-    {
+    if (custom_plugin_cfg_msg && (device_name == "GPU" || device_name == "MYRIAD" || device_name == "HDDL")) {
         // Config for device plugin custom extension is loaded from an .xml
         // description
         ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
         status = ie_core_set_config(core, &cfg, device_name);
         if (status != OK)
             goto err;
-        printf("%sConfig for device plugin custom extension loaded: %s\n",
-               info,
-               custom_plugin_cfg_msg);
+        printf("%sConfig for device plugin custom extension loaded: %s\n", info, custom_plugin_cfg_msg);
     }
     // -----------------------------------------------------------------------------------------------------
 
@@ -434,8 +389,7 @@ int main(int argc, char** argv)
     /** SSD network has one input and one output **/
     size_t input_num = 0;
     status = ie_network_get_inputs_number(network, &input_num);
-    if (status != OK || (input_num != 1 && input_num != 2))
-    {
+    if (status != OK || (input_num != 1 && input_num != 2)) {
         printf("Sample supports topologies only with 1 or 2 inputs\n");
         goto err;
     }
@@ -454,8 +408,7 @@ int main(int argc, char** argv)
     /** Stores input image **/
 
     /** Iterating over all input blobs **/
-    for (i = 0; i < input_num; ++i)
-    {
+    for (i = 0; i < input_num; ++i) {
         char* name = NULL;
         status |= ie_network_get_input_name(network, i, &name);
         dimensions_t input_dim;
@@ -464,8 +417,7 @@ int main(int argc, char** argv)
             goto err;
 
         /** Working with first input tensor that stores image **/
-        if (input_dim.ranks == 4)
-        {
+        if (input_dim.ranks == 4) {
             imageInputName = name;
             input_height = input_dim.dims[2];
             input_width = input_dim.dims[3];
@@ -474,22 +426,18 @@ int main(int argc, char** argv)
             status = ie_network_set_input_precision(network, name, U8);
             if (status != OK)
                 goto err;
-        }
-        else if (input_dim.ranks == 2)
-        {
+        } else if (input_dim.ranks == 2) {
             imInfoInputName = name;
 
             status = ie_network_set_input_precision(network, name, FP32);
-            if (status != OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6))
-            {
+            if (status != OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6)) {
                 printf("Invalid input info. Should be 3 or 6 values length\n");
                 goto err;
             }
         }
     }
 
-    if (imageInputName == NULL)
-    {
+    if (imageInputName == NULL) {
         status = ie_network_get_input_name(network, 0, &imageInputName);
         if (status != OK)
             goto err;
@@ -509,44 +457,32 @@ int main(int argc, char** argv)
         goto err;
 
     int image_num = 0;
-    for (i = 0; i < file_num; ++i)
-    {
+    for (i = 0; i < file_num; ++i) {
         c_mat_t img = {NULL, 0, 0, 0, 0, 0};
-        if (image_read(file_paths[i], &img) == -1)
-        {
+        if (image_read(file_paths[i], &img) == -1) {
             printf("%sImage %s cannot be read!\n", warn, file_paths[i]);
             continue;
         }
         /** Store image data **/
         c_mat_t resized_img = {NULL, 0, 0, 0, 0, 0};
-        if ((input_width == img.mat_width) && (input_height == img.mat_height))
-        {
+        if ((input_width == img.mat_width) && (input_height == img.mat_height)) {
             resized_img.mat_data_size = img.mat_data_size;
             resized_img.mat_channels = img.mat_channels;
             resized_img.mat_width = img.mat_width;
             resized_img.mat_height = img.mat_height;
             resized_img.mat_type = img.mat_type;
             resized_img.mat_data = calloc(1, resized_img.mat_data_size);
-            if (resized_img.mat_data == NULL)
-            {
+            if (resized_img.mat_data == NULL) {
                 image_free(&img);
                 continue;
             }
 
             for (j = 0; j < resized_img.mat_data_size; ++j)
                 resized_img.mat_data[j] = img.mat_data[j];
-        }
-        else
-        {
-            printf("%sImage is resized from (%d, %d) to (%zu, %zu)\n",
-                   warn,
-                   img.mat_width,
-                   img.mat_height,
-                   input_width,
-                   input_height);
+        } else {
+            printf("%sImage is resized from (%d, %d) to (%zu, %zu)\n", warn, img.mat_width, img.mat_height, input_width, input_height);
 
-            if (image_resize(&img, &resized_img, (int)input_width, (int)input_height) == -1)
-            {
+            if (image_resize(&img, &resized_img, (int)input_width, (int)input_height) == -1) {
                 printf("%sImage %s cannot be resized!\n", warn, file_paths[i]);
                 image_free(&img);
                 continue;
@@ -558,8 +494,7 @@ int main(int argc, char** argv)
         ++image_num;
     }
 
-    if (!image_num)
-    {
+    if (!image_num) {
         printf("Valid input images were not found!\n");
         free(originalImages);
         free(images);
@@ -596,8 +531,7 @@ int main(int argc, char** argv)
     size_t output_num = 0;
     status = ie_network_get_outputs_number(network, &output_num);
 
-    if (status != OK || !output_num)
-    {
+    if (status != OK || !output_num) {
         printf("Can't find a DetectionOutput layer in the topology\n");
         goto err;
     }
@@ -610,8 +544,7 @@ int main(int argc, char** argv)
     status = ie_network_get_output_dims(network, output_name, &output_dim);
     if (status != OK)
         goto err;
-    if (output_dim.ranks != 4)
-    {
+    if (output_dim.ranks != 4) {
         printf("Incorrect output dimensions for SSD model\n");
         goto err;
     }
@@ -619,8 +552,7 @@ int main(int argc, char** argv)
     const int maxProposalCount = (int)output_dim.dims[2];
     const int objectSize = (int)output_dim.dims[3];
 
-    if (objectSize != 7)
-    {
+    if (objectSize != 7) {
         printf("Output item should have 7 as a last dimension\n");
         goto err;
     }
@@ -635,18 +567,14 @@ int main(int argc, char** argv)
     // --------------------------- Step 4. Loading model to the device
     // ------------------------------------------
     printf("%sLoading model to the device\n", info);
-    if (config_msg)
-    {
+    if (config_msg) {
         ie_config_t* config = parseConfig(config_msg, '#');
         status = ie_core_load_network(core, network, device_name, config, &exe_network);
         config_free(config);
-        if (status != OK)
-        {
+        if (status != OK) {
             goto err;
         }
-    }
-    else
-    {
+    } else {
         ie_config_t cfg = {NULL, NULL, NULL};
         status = ie_core_load_network(core, network, device_name, &cfg, &exe_network);
         if (status != OK)
@@ -688,18 +616,14 @@ int main(int argc, char** argv)
 
     /** Iterate over all input images **/
     int image_id, pid, ch, k;
-    for (image_id = 0; image_id < batchSize; ++image_id)
-    {
+    for (image_id = 0; image_id < batchSize; ++image_id) {
         /** Iterate over all pixel in image (b,g,r) **/
-        for (pid = 0; pid < image_size; ++pid)
-        {
+        for (pid = 0; pid < image_size; ++pid) {
             /** Iterate over all channels **/
-            for (ch = 0; ch < num_channels; ++ch)
-            {
+            for (ch = 0; ch < num_channels; ++ch) {
                 /**          [images stride + channels stride + pixel id ] all in bytes
                  * **/
-                data[image_id * image_size * num_channels + ch * image_size + pid] =
-                    images[image_id].mat_data[pid * num_channels + ch];
+                data[image_id * image_size * num_channels + ch * image_size + pid] = images[image_id].mat_data[pid * num_channels + ch];
             }
         }
         image_free(&images[image_id]);
@@ -707,8 +631,7 @@ int main(int argc, char** argv)
     free(images);
     ie_blob_free(&imageInput);
 
-    if (imInfoInputName != NULL)
-    {
+    if (imInfoInputName != NULL) {
         ie_blob_t* input2 = NULL;
         status = ie_infer_request_get_blob(infer_request, imInfoInputName, &input2);
 
@@ -717,20 +640,17 @@ int main(int argc, char** argv)
         // Fill input tensor with values
         ie_blob_buffer_t info_blob_buffer;
         status |= ie_blob_get_buffer(input2, &info_blob_buffer);
-        if (status != OK)
-        {
+        if (status != OK) {
             ie_blob_free(&input2);
             goto err;
         }
         float* p = (float*)(info_blob_buffer.buffer);
-        for (image_id = 0; image_id < batchSize; ++image_id)
-        {
+        for (image_id = 0; image_id < batchSize; ++image_id) {
             p[image_id * imInfoDim.dims[1] + 0] = (float)input_height;
             p[image_id * imInfoDim.dims[1] + 1] = (float)input_width;
 
-            for (k = 2; k < imInfoDim.dims[1]; k++)
-            {
-                p[image_id * imInfoDim.dims[1] + k] = 1.0f; // all scale factors are set to 1.0
+            for (k = 2; k < imInfoDim.dims[1]; k++) {
+                p[image_id * imInfoDim.dims[1] + k] = 1.0f;  // all scale factors are set to 1.0
             }
         }
         ie_blob_free(&input2);
@@ -763,8 +683,7 @@ int main(int argc, char** argv)
     int** classes = (int**)calloc(image_num, sizeof(int*));
     rectangle_t** boxes = (rectangle_t**)calloc(image_num, sizeof(rectangle_t*));
     int* object_num = (int*)calloc(image_num, sizeof(int));
-    for (i = 0; i < image_num; ++i)
-    {
+    for (i = 0; i < image_num; ++i) {
         classes[i] = (int*)calloc(maxProposalCount, sizeof(int));
         boxes[i] = (rectangle_t*)calloc(maxProposalCount, sizeof(rectangle_t));
         object_num[i] = 0;
@@ -772,37 +691,22 @@ int main(int argc, char** argv)
 
     /* Each detection has image_id that denotes processed image */
     int curProposal;
-    for (curProposal = 0; curProposal < maxProposalCount; curProposal++)
-    {
+    for (curProposal = 0; curProposal < maxProposalCount; curProposal++) {
         image_id = (int)(detection[curProposal * objectSize + 0]);
-        if (image_id < 0)
-        {
+        if (image_id < 0) {
             break;
         }
 
         float confidence = detection[curProposal * objectSize + 2];
         int label = (int)(detection[curProposal * objectSize + 1]);
-        int xmin =
-            (int)(detection[curProposal * objectSize + 3] * originalImages[image_id].mat_width);
-        int ymin =
-            (int)(detection[curProposal * objectSize + 4] * originalImages[image_id].mat_height);
-        int xmax =
-            (int)(detection[curProposal * objectSize + 5] * originalImages[image_id].mat_width);
-        int ymax =
-            (int)(detection[curProposal * objectSize + 6] * originalImages[image_id].mat_height);
+        int xmin = (int)(detection[curProposal * objectSize + 3] * originalImages[image_id].mat_width);
+        int ymin = (int)(detection[curProposal * objectSize + 4] * originalImages[image_id].mat_height);
+        int xmax = (int)(detection[curProposal * objectSize + 5] * originalImages[image_id].mat_width);
+        int ymax = (int)(detection[curProposal * objectSize + 6] * originalImages[image_id].mat_height);
 
-        printf("[%d, %d] element, prob = %f    (%d, %d)-(%d, %d) batch id : %d",
-               curProposal,
-               label,
-               confidence,
-               xmin,
-               ymin,
-               xmax,
-               ymax,
-               image_id);
+        printf("[%d, %d] element, prob = %f    (%d, %d)-(%d, %d) batch id : %d", curProposal, label, confidence, xmin, ymin, xmax, ymax, image_id);
 
-        if (confidence > 0.5)
-        {
+        if (confidence > 0.5) {
             /** Drawing only objects with >50% probability **/
             classes[image_id][object_num[image_id]] = label;
             boxes[image_id][object_num[image_id]].x_min = xmin;
@@ -816,21 +720,14 @@ int main(int argc, char** argv)
     }
     /** Adds rectangles to the image and save **/
     int batch_id;
-    for (batch_id = 0; batch_id < batchSize; ++batch_id)
-    {
-        if (object_num[batch_id] > 0)
-        {
-            image_add_rectangles(&originalImages[batch_id],
-                                 boxes[batch_id],
-                                 classes[batch_id],
-                                 object_num[batch_id],
-                                 2);
+    for (batch_id = 0; batch_id < batchSize; ++batch_id) {
+        if (object_num[batch_id] > 0) {
+            image_add_rectangles(&originalImages[batch_id], boxes[batch_id], classes[batch_id], object_num[batch_id], 2);
         }
         const char* out = "out_";
         char str_num[16] = {0};
         int2str(str_num, batch_id);
-        char* img_path =
-            (char*)calloc(strlen(out) + strlen(str_num) + strlen(".bmp") + 1, sizeof(char));
+        char* img_path = (char*)calloc(strlen(out) + strlen(str_num) + strlen(".bmp") + 1, sizeof(char));
         memcpy(img_path, out, strlen(out));
         memcpy(img_path + strlen(out), str_num, strlen(str_num));
         memcpy(img_path + strlen(out) + strlen(str_num), ".bmp", strlen(".bmp") + 1);
@@ -843,13 +740,11 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------------------------------------------------
 
     printf("%sExecution successful\n", info);
-    printf(
-        "\nThis sample is an API example,"
-        " for any performance measurements please use the dedicated benchmark_"
-        "app tool\n");
+    printf("\nThis sample is an API example,"
+           " for any performance measurements please use the dedicated benchmark_"
+           "app tool\n");
 
-    for (i = 0; i < image_num; ++i)
-    {
+    for (i = 0; i < image_num; ++i) {
         free(classes[i]);
         free(boxes[i]);
     }

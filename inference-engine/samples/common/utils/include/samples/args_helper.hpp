@@ -9,10 +9,9 @@
 
 #pragma once
 
+#include <inference_engine.hpp>
 #include <string>
 #include <vector>
-
-#include <inference_engine.hpp>
 
 /**
  * @brief This function checks input args and existence of specified files in a given folder
@@ -28,14 +27,8 @@ void readInputFilesArguments(std::vector<std::string>& files, const std::string&
  */
 void parseInputFilesArguments(std::vector<std::string>& files);
 
-void processPrecision(InferenceEngine::CNNNetwork& network,
-                      const std::string& ip,
-                      const std::string& op,
-                      const std::string& iop);
+void processPrecision(InferenceEngine::CNNNetwork& network, const std::string& ip, const std::string& op, const std::string& iop);
 
-void processLayout(InferenceEngine::CNNNetwork& network,
-                   const std::string& il,
-                   const std::string& ol,
-                   const std::string& iol);
+void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, const std::string& ol, const std::string& iol);
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);

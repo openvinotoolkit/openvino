@@ -6,31 +6,31 @@
 
 #if defined(_WIN32)
 
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN_UNDEF
-#    endif
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN_UNDEF
+    #endif
 
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#        define NOMINMAX_UNDEF
-#    endif
+    #ifndef NOMINMAX
+        #define NOMINMAX
+        #define NOMINMAX_UNDEF
+    #endif
 
-#    if defined(_M_IX86) && !defined(_X86_) && !defined(_AMD64_)
-#        define _X86_
-#    endif
+    #if defined(_M_IX86) && !defined(_X86_) && !defined(_AMD64_)
+        #define _X86_
+    #endif
 
-#    if defined(_M_X64) && !defined(_X86_) && !defined(_AMD64_)
-#        define _AMD64_
-#    endif
+    #if defined(_M_X64) && !defined(_X86_) && !defined(_AMD64_)
+        #define _AMD64_
+    #endif
 
-#    if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
-#        define _ARM_
-#    endif
+    #if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
+        #define _ARM_
+    #endif
 
-#    if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
-#        define _ARM64_
-#    endif
+    #if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
+        #define _ARM64_
+    #endif
 
 // clang-format off
 #include <string.h>
@@ -38,36 +38,34 @@
 #include <fileapi.h>
 #include <Winbase.h>
 #include <sys/stat.h>
-// clang-format on
+    // clang-format on
 
-// Copied from linux libc sys/stat.h:
-#    define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+    // Copied from linux libc sys/stat.h:
+    #define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
+    #define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 
 /// @brief structure to store directory names
-struct dirent
-{
+struct dirent {
     char* d_name;
 
-    explicit dirent(const wchar_t* wsFilePath)
-    {
+    explicit dirent(const wchar_t* wsFilePath) {
         size_t i;
         auto slen = wcslen(wsFilePath);
         d_name = static_cast<char*>(malloc(slen + 1));
         wcstombs_s(&i, d_name, slen + 1, wsFilePath, slen);
     }
-    ~dirent() { free(d_name); }
+    ~dirent() {
+        free(d_name);
+    }
 };
 
 /// @brief class to store directory data (files meta)
-class DIR
-{
+class DIR {
     WIN32_FIND_DATAA FindFileData;
     HANDLE hFind;
     dirent* next;
 
-    static inline bool endsWith(const std::string& src, const char* with)
-    {
+    static inline bool endsWith(const std::string& src, const char* with) {
         int wl = static_cast<int>(strlen(with));
         int so = static_cast<int>(src.length()) - wl;
         if (so < 0)
@@ -81,9 +79,7 @@ public:
     DIR& operator=(const DIR& other) = delete;
     DIR& operator=(DIR&& other) = delete;
 
-    explicit DIR(const char* dirPath)
-        : next(nullptr)
-    {
+    explicit DIR(const char* dirPath): next(nullptr) {
         std::string ws = dirPath;
         if (endsWith(ws, "\\"))
             ws += "*";
@@ -93,8 +89,7 @@ public:
         FindFileData.dwReserved0 = hFind != INVALID_HANDLE_VALUE;
     }
 
-    ~DIR()
-    {
+    ~DIR() {
         if (!next)
             delete next;
         next = nullptr;
@@ -105,14 +100,15 @@ public:
      * @brief Check file handler is valid
      * @return status True(success) or False(fail)
      */
-    bool isValid() const { return (hFind != INVALID_HANDLE_VALUE && FindFileData.dwReserved0); }
+    bool isValid() const {
+        return (hFind != INVALID_HANDLE_VALUE && FindFileData.dwReserved0);
+    }
 
     /**
      * @brief Add directory to directory names struct
      * @return pointer to directory names struct
      */
-    dirent* nextEnt()
-    {
+    dirent* nextEnt() {
         if (next != nullptr)
             delete next;
         next = nullptr;
@@ -135,11 +131,9 @@ public:
  * @param string directory path
  * @return pointer to directory data struct element
  */
-static DIR* opendir(const char* dirPath)
-{
+static DIR* opendir(const char* dirPath) {
     auto dp = new DIR(dirPath);
-    if (!dp->isValid())
-    {
+    if (!dp->isValid()) {
         delete dp;
         return nullptr;
     }
@@ -151,8 +145,7 @@ static DIR* opendir(const char* dirPath)
  * @param pointer to directory data struct
  * @return pointer to directory data struct next element
  */
-static struct dirent* readdir(DIR* dp)
-{
+static struct dirent* readdir(DIR* dp) {
     return dp->nextEnt();
 }
 
@@ -161,24 +154,23 @@ static struct dirent* readdir(DIR* dp)
  * @param pointer to struct directory data
  * @return void
  */
-static void closedir(DIR* dp)
-{
+static void closedir(DIR* dp) {
     delete dp;
 }
 
-#    ifdef WIN32_LEAN_AND_MEAN_UNDEF
-#        undef WIN32_LEAN_AND_MEAN
-#        undef WIN32_LEAN_AND_MEAN_UNDEF
-#    endif
+    #ifdef WIN32_LEAN_AND_MEAN_UNDEF
+        #undef WIN32_LEAN_AND_MEAN
+        #undef WIN32_LEAN_AND_MEAN_UNDEF
+    #endif
 
-#    ifdef NOMINMAX_UNDEF
-#        undef NOMINMAX_UNDEF
-#        undef NOMINMAX
-#    endif
+    #ifdef NOMINMAX_UNDEF
+        #undef NOMINMAX_UNDEF
+        #undef NOMINMAX
+    #endif
 
 #else
 
-#    include <dirent.h>
-#    include <sys/types.h>
+    #include <dirent.h>
+    #include <sys/types.h>
 
 #endif

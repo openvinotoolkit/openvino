@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <c_api/ie_c_api.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <c_api/ie_c_api.h>
-
 /**
  * @brief Struct to store classification results
  */
-struct classify_res
-{
+struct classify_res {
     size_t class_id;
     float probability;
 };
@@ -24,21 +22,15 @@ struct classify_res
  * @param size of the struct
  * @return none
  */
-void classify_res_sort(struct classify_res* res, size_t n)
-{
+void classify_res_sort(struct classify_res* res, size_t n) {
     size_t i, j;
-    for (i = 0; i < n; ++i)
-    {
-        for (j = i + 1; j < n; ++j)
-        {
-            if (res[i].probability < res[j].probability)
-            {
+    for (i = 0; i < n; ++i) {
+        for (j = i + 1; j < n; ++j) {
+            if (res[i].probability < res[j].probability) {
                 struct classify_res temp = res[i];
                 res[i] = res[j];
                 res[j] = temp;
-            }
-            else if (res[i].probability == res[j].probability && res[i].class_id > res[j].class_id)
-            {
+            } else if (res[i].probability == res[j].probability && res[i].class_id > res[j].class_id) {
                 struct classify_res temp = res[i];
                 res[i] = res[j];
                 res[j] = temp;
@@ -53,8 +45,7 @@ void classify_res_sort(struct classify_res* res, size_t n)
  * @param size of the blob
  * @return struct classify_res
  */
-struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
-{
+struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n) {
     dimensions_t output_dim;
     IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
     if (status != OK)
@@ -63,23 +54,20 @@ struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
     *n = output_dim.dims[1];
 
     struct classify_res* cls = (struct classify_res*)malloc(sizeof(struct classify_res) * (*n));
-    if (!cls)
-    {
+    if (!cls) {
         return NULL;
     }
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
-    if (status != OK)
-    {
+    if (status != OK) {
         free(cls);
         return NULL;
     }
     float* blob_data = (float*)(blob_cbuffer.cbuffer);
 
     size_t i;
-    for (i = 0; i < *n; ++i)
-    {
+    for (i = 0; i < *n; ++i) {
         cls[i].class_id = i;
         cls[i].probability = blob_data[i];
     }
@@ -94,20 +82,17 @@ struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
  * @param string image path
  * @return none
  */
-void print_classify_res(struct classify_res* cls, size_t n, const char* img_path)
-{
+void print_classify_res(struct classify_res* cls, size_t n, const char* img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
     printf("------- -----------\n");
     size_t i;
-    for (i = 0; i < n; ++i)
-    {
+    for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
-    printf(
-        "\nThis sample is an API example,"
-        " for any performance measurements please use the dedicated benchmark_"
-        "app tool\n");
+    printf("\nThis sample is an API example,"
+           " for any performance measurements please use the dedicated benchmark_"
+           "app tool\n");
 }
 
 /**
@@ -118,16 +103,13 @@ void print_classify_res(struct classify_res* cls, size_t n, const char* img_path
  * @return total number of elements successfully read, in case of error it
  * doesn't equal to size param
  */
-size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size)
-{
+size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
     FILE* fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
-    if (fp)
-    {
+    if (fp) {
         fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size)
-        {
+        if (ftell(fp) >= size) {
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
@@ -143,19 +125,14 @@ size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_
  * @param pointer to image height
  * @return bool status True(success) or False(fail)
  */
-bool is_supported_image_size(const char* size_str, size_t* width, size_t* height)
-{
+bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
     const char* _size = size_str;
     size_t _width = 0, _height = 0;
-    while (_size && *_size != 'x' && *_size != '\0')
-    {
-        if ((*_size <= '9') && (*_size >= '0'))
-        {
+    while (_size && *_size != 'x' && *_size != '\0') {
+        if ((*_size <= '9') && (*_size >= '0')) {
             _width = (_width * 10) + (*_size - '0');
             _size++;
-        }
-        else
-        {
+        } else {
             goto err;
         }
     }
@@ -163,54 +140,40 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
     if (_size)
         _size++;
 
-    while (_size && *_size != '\0')
-    {
-        if ((*_size <= '9') && (*_size >= '0'))
-        {
+    while (_size && *_size != '\0') {
+        if ((*_size <= '9') && (*_size >= '0')) {
             _height = (_height * 10) + (*_size - '0');
             _size++;
-        }
-        else
-        {
+        } else {
             goto err;
         }
     }
 
-    if (_width > 0 && _height > 0)
-    {
-        if (_width % 2 == 0 && _height % 2 == 0)
-        {
+    if (_width > 0 && _height > 0) {
+        if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
             *height = _height;
             return true;
-        }
-        else
-        {
+        } else {
             printf("Unsupported image size, width and height must be even numbers \n");
             return false;
         }
-    }
-    else
-    {
+    } else {
         goto err;
     }
 err:
-    printf(
-        "Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
-        "actual: %s\n",
-        size_str);
+    printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
+           "actual: %s\n",
+           size_str);
     return false;
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     // ------------------------------ Parsing and validation of input args
     // ---------------------------------
-    if (argc != 5)
-    {
-        printf(
-            "Usage : ./hello_classification <path_to_model> <path_to_image> "
-            "<image_size> <device_name>\n");
+    if (argc != 5) {
+        printf("Usage : ./hello_classification <path_to_model> <path_to_image> "
+               "<image_size> <device_name>\n");
         return EXIT_FAILURE;
     }
 
@@ -313,8 +276,7 @@ int main(int argc, char** argv)
     // Create blob for Y plane from raw data
     status |= ie_blob_make_memory_from_preallocated(&y_tensor, img_data, y_plane_size, &y_blob);
     // Create blob for UV plane from raw data
-    status |= ie_blob_make_memory_from_preallocated(
-        &uv_tensor, img_data + y_plane_size, uv_plane_size, &uv_blob);
+    status |= ie_blob_make_memory_from_preallocated(&uv_tensor, img_data + y_plane_size, uv_plane_size, &uv_blob);
     // Create NV12Blob from Y and UV blobs
     status |= ie_blob_make_memory_nv12(y_blob, uv_blob, &nv12_blob);
     if (status != OK)
@@ -346,8 +308,7 @@ int main(int argc, char** argv)
 
     // Print classification results
     size_t top = 10;
-    if (top > class_num)
-    {
+    if (top > class_num) {
         top = class_num;
     }
     printf("\nTop %zu results:\n", top);

@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <samples/classification_results.h>
+#include <sys/stat.h>
+
 #include <fstream>
+#include <inference_engine.hpp>
 #include <iostream>
 #include <memory>
+#include <samples/common.hpp>
+#include <samples/slog.hpp>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <inference_engine.hpp>
-
-#include <samples/classification_results.hpp>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
-
-#include <sys/stat.h>
 #ifdef _WIN32
-#    include <samples/os/windows/w_dirent.h>
+    #include <samples/os/windows/w_dirent.h>
 #else
-#    include <dirent.h>
+    #include <dirent.h>
 #endif
 
 using namespace InferenceEngine;
@@ -30,12 +28,9 @@ using namespace InferenceEngine;
  * @param string of image size in WIDTHxHEIGHT format
  * @return parsed width and height
  */
-std::pair<size_t, size_t> parseImageSize(const std::string& size_string)
-{
+std::pair<size_t, size_t> parseImageSize(const std::string& size_string) {
     auto delimiter_pos = size_string.find("x");
-    if (delimiter_pos == std::string::npos || delimiter_pos >= size_string.size() - 1 ||
-        delimiter_pos == 0)
-    {
+    if (delimiter_pos == std::string::npos || delimiter_pos >= size_string.size() - 1 || delimiter_pos == 0) {
         std::stringstream err;
         err << "Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
                "actual: "
@@ -44,18 +39,14 @@ std::pair<size_t, size_t> parseImageSize(const std::string& size_string)
     }
 
     size_t width = static_cast<size_t>(std::stoull(size_string.substr(0, delimiter_pos)));
-    size_t height =
-        static_cast<size_t>(std::stoull(size_string.substr(delimiter_pos + 1, size_string.size())));
+    size_t height = static_cast<size_t>(std::stoull(size_string.substr(delimiter_pos + 1, size_string.size())));
 
-    if (width == 0 || height == 0)
-    {
-        throw std::runtime_error(
-            "Incorrect format of image size parameter, width "
-            "and height must not be equal to 0");
+    if (width == 0 || height == 0) {
+        throw std::runtime_error("Incorrect format of image size parameter, width "
+                                 "and height must not be equal to 0");
     }
 
-    if (width % 2 != 0 || height % 2 != 0)
-    {
+    if (width % 2 != 0 || height % 2 != 0) {
         throw std::runtime_error("Unsupported image size, width and height must be even numbers");
     }
 
@@ -70,54 +61,41 @@ std::pair<size_t, size_t> parseImageSize(const std::string& size_string)
  * @param path path to a file to be checked for existence
  * @return files updated vector of verified input files
  */
-std::vector<std::string> readInputFileNames(const std::string& path)
-{
+std::vector<std::string> readInputFileNames(const std::string& path) {
     struct stat sb;
-    if (stat(path.c_str(), &sb) != 0)
-    {
+    if (stat(path.c_str(), &sb) != 0) {
         slog::warn << "File " << path << " cannot be opened!" << slog::endl;
         return {};
     }
 
     std::vector<std::string> files;
 
-    if (S_ISDIR(sb.st_mode))
-    {
+    if (S_ISDIR(sb.st_mode)) {
         DIR* dp = opendir(path.c_str());
-        if (dp == nullptr)
-        {
+        if (dp == nullptr) {
             slog::warn << "Directory " << path << " cannot be opened!" << slog::endl;
             return {};
         }
 
-        for (struct dirent* ep = readdir(dp); ep != nullptr; ep = readdir(dp))
-        {
+        for (struct dirent* ep = readdir(dp); ep != nullptr; ep = readdir(dp)) {
             std::string fileName = ep->d_name;
-            if (fileName == "." || fileName == ".." ||
-                fileName.substr(fileName.size() - 4) != ".yuv")
+            if (fileName == "." || fileName == ".." || fileName.substr(fileName.size() - 4) != ".yuv")
                 continue;
             files.push_back(path + "/" + ep->d_name);
         }
         closedir(dp);
-    }
-    else
-    {
+    } else {
         files.push_back(path);
     }
 
     size_t max_files = 20;
-    if (files.size() < max_files)
-    {
+    if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
-        for (std::string filePath : files)
-        {
+        for (std::string filePath : files) {
             slog::info << "    " << filePath << slog::endl;
         }
-    }
-    else
-    {
-        slog::info << "Files were added: " << files.size() << ". Too many to display each of them."
-                   << slog::endl;
+    } else {
+        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
     }
 
     return files;
@@ -131,23 +109,19 @@ using UString = std::basic_string<uint8_t>;
  * @param size of file paths vector
  * @return buffers containing the images data
  */
-std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& files, size_t size)
-{
+std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& files, size_t size) {
     std::vector<UString> result;
 
-    for (const auto& image_path : files)
-    {
+    for (const auto& image_path : files) {
         std::ifstream file(image_path, std::ios_base::ate | std::ios_base::binary);
-        if (!file.good() || !file.is_open())
-        {
+        if (!file.good() || !file.is_open()) {
             std::stringstream err;
             err << "Cannot access input image file. File path: " << image_path;
             throw std::runtime_error(err.str());
         }
 
         const size_t file_size = file.tellg();
-        if (file_size < size)
-        {
+        if (file_size < size) {
             std::stringstream err;
             err << "Invalid read size provided. File size: " << file_size << ", to read: " << size;
             throw std::runtime_error(err.str());
@@ -168,22 +142,17 @@ std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& fil
  * @param height input image
  * @return blob point to hold the NV12 input data
  */
-std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height)
-{
+std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height) {
     // read image with size converted to NV12 data size: height(NV12) = 3 / 2 *
     // logical height
 
     // Create tensor descriptors for Y and UV blobs
-    const InferenceEngine::TensorDesc y_plane_desc(
-        InferenceEngine::Precision::U8, {1, 1, height, width}, InferenceEngine::Layout::NHWC);
-    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8,
-                                                    {1, 2, height / 2, width / 2},
-                                                    InferenceEngine::Layout::NHWC);
+    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8, {1, 1, height, width}, InferenceEngine::Layout::NHWC);
+    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8, {1, 2, height / 2, width / 2}, InferenceEngine::Layout::NHWC);
     const size_t offset = width * height;
 
     std::vector<Blob::Ptr> blobs;
-    for (auto& buf : data)
-    {
+    for (auto& buf : data) {
         // --------------------------- Create a blob to hold the NV12 input data
         // -------------------------------
         auto ptr = &buf[0];
@@ -205,56 +174,42 @@ std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, 
  * @param string device name
  * @return True(success) or False(fail)
  */
-bool isBatchedBlobSupported(const Core& ie, const std::string& device_name)
-{
-    const std::vector<std::string> supported_metrics =
-        ie.GetMetric(device_name, METRIC_KEY(SUPPORTED_METRICS));
+bool isBatchedBlobSupported(const Core& ie, const std::string& device_name) {
+    const std::vector<std::string> supported_metrics = ie.GetMetric(device_name, METRIC_KEY(SUPPORTED_METRICS));
 
-    if (std::find(supported_metrics.begin(),
-                  supported_metrics.end(),
-                  METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end())
-    {
+    if (std::find(supported_metrics.begin(), supported_metrics.end(), METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
         return false;
     }
 
-    const std::vector<std::string> optimization_caps =
-        ie.GetMetric(device_name, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+    const std::vector<std::string> optimization_caps = ie.GetMetric(device_name, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
 
-    return std::find(optimization_caps.begin(),
-                     optimization_caps.end(),
-                     METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
+    return std::find(optimization_caps.begin(), optimization_caps.end(), METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
 }
 
 /**
  * @brief The entry point of the Inference Engine sample application
  */
-int main(int argc, char* argv[])
-{
-    try
-    {
+int main(int argc, char* argv[]) {
+    try {
         // ------------------------------ Parsing and validation input
         // arguments------------------------------
-        if (argc != 5)
-        {
-            std::cout << "Usage : " << argv[0]
-                      << " <path_to_model> <path_to_image(s)> <image_size> <device_name>"
-                      << std::endl;
+        if (argc != 5) {
+            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>" << std::endl;
             return EXIT_FAILURE;
         }
 
-        const std::string input_model{argv[1]};
-        const std::string input_image_path{argv[2]};
+        const std::string input_model {argv[1]};
+        const std::string input_image_path {argv[2]};
         size_t input_width = 0, input_height = 0;
         std::tie(input_width, input_height) = parseImageSize(argv[3]);
-        const std::string device_name{argv[4]};
+        const std::string device_name {argv[4]};
         // -----------------------------------------------------------------------------------------------------
 
         // ------------------------------ Read image names
         // -----------------------------------------------------
         auto image_names = readInputFileNames(input_image_path);
 
-        if (image_names.empty())
-        {
+        if (image_names.empty()) {
             throw std::invalid_argument("images not found");
         }
         // -----------------------------------------------------------------------------------------------------
@@ -273,11 +228,9 @@ int main(int argc, char* argv[])
         // -------------------------------------------------
         size_t netInputSize = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
         ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
-        for (auto& shape : inputShapes)
-        {
+        for (auto& shape : inputShapes) {
             auto& dims = shape.second;
-            if (dims.empty())
-            {
+            if (dims.empty()) {
                 throw std::runtime_error("Network's input shapes have empty dimensions");
             }
             dims[0] = netInputSize;
@@ -291,8 +244,7 @@ int main(int argc, char* argv[])
         // -------------------------------------------
         // --------------------------- Prepare input blobs
         // -----------------------------------------------------
-        if (network.getInputsInfo().empty())
-        {
+        if (network.getInputsInfo().empty()) {
             std::cerr << "Network inputs info is empty" << std::endl;
             return EXIT_FAILURE;
         }
@@ -309,8 +261,7 @@ int main(int argc, char* argv[])
 
         // --------------------------- Prepare output blobs
         // ----------------------------------------------------
-        if (network.getOutputsInfo().empty())
-        {
+        if (network.getOutputsInfo().empty()) {
             std::cerr << "Network outputs info is empty" << std::endl;
             return EXIT_FAILURE;
         }
@@ -332,15 +283,13 @@ int main(int argc, char* argv[])
 
         // --------------------------- Step 6. Prepare input
         // --------------------------------------------------------
-        auto image_bufs =
-            readImagesDataFromFiles(image_names, input_width * (input_height * 3 / 2));
+        auto image_bufs = readImagesDataFromFiles(image_names, input_width * (input_height * 3 / 2));
 
         auto inputs = readInputBlobs(image_bufs, input_width, input_height);
 
         // If batch_size > 1 => batched blob supported => replace all inputs by a
         // BatchedBlob
-        if (netInputSize > 1)
-        {
+        if (netInputSize > 1) {
             assert(netInputSize == inputs.size());
             std::cout << "Infer using BatchedBlob of NV12 images." << std::endl;
             Blob::Ptr batched_input = make_shared_blob<BatchedBlob>(inputs);
@@ -353,18 +302,15 @@ int main(int argc, char* argv[])
 
         std::ifstream inputFile;
         inputFile.open(labelFileName, std::ios::in);
-        if (inputFile.is_open())
-        {
+        if (inputFile.is_open()) {
             std::string strLine;
-            while (std::getline(inputFile, strLine))
-            {
+            while (std::getline(inputFile, strLine)) {
                 trim(strLine);
                 labels.push_back(strLine);
             }
         }
 
-        for (size_t i = 0; i < inputs.size(); i++)
-        {
+        for (size_t i = 0; i < inputs.size(); i++) {
             const auto& input = inputs[i];
             // --------------------------- Set the input blob to the InferRequest
             // ------------------------------
@@ -389,9 +335,7 @@ int main(int argc, char* argv[])
             classificationResult.print();
             // -------------------------------------------------------------------------------------------------
         }
-    }
-    catch (const std::exception& ex)
-    {
+    } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }

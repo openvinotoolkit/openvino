@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
+#include <format_reader_ptr.h>
 #include <gflags/gflags.h>
+
+#include <algorithm>
+#include <inference_engine.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
-#include <string>
-#include <vector>
-
-#include <format_reader_ptr.h>
-#include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-
 #include <samples/args_helper.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
+#include <string>
+#include <vector>
 
 #include "object_detection_sample_ssd.h"
 
@@ -28,11 +27,9 @@ using namespace InferenceEngine;
  * @param argv list of input arguments
  * @return bool status true(Success) or false(Fail)
  */
-bool ParseAndCheckCommandLine(int argc, char* argv[])
-{
+bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-    if (FLAGS_h)
-    {
+    if (FLAGS_h) {
         showUsage();
         showAvailableDevices();
         return false;
@@ -40,14 +37,12 @@ bool ParseAndCheckCommandLine(int argc, char* argv[])
 
     slog::info << "Parsing input parameters" << slog::endl;
 
-    if (FLAGS_m.empty())
-    {
+    if (FLAGS_m.empty()) {
         showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
-    if (FLAGS_i.empty())
-    {
+    if (FLAGS_i.empty()) {
         showUsage();
         throw std::logic_error("Input is required but not set. Please set -i option.");
     }
@@ -60,10 +55,8 @@ bool ParseAndCheckCommandLine(int argc, char* argv[])
  * application \file object_detection_sample_ssd/main.cpp \example
  * object_detection_sample_ssd/main.cpp
  */
-int main(int argc, char* argv[])
-{
-    try
-    {
+int main(int argc, char* argv[]) {
+    try {
         /** This sample covers certain topology and cannot be generalized for any
          * object detection one **/
         // ------------------------------ Get Inference Engine version
@@ -72,8 +65,7 @@ int main(int argc, char* argv[])
 
         // --------------------------- Parsing and validation of input arguments
         // ---------------------------------
-        if (!ParseAndCheckCommandLine(argc, argv))
-        {
+        if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
         // -----------------------------------------------------------------------------------------------------
@@ -96,8 +88,7 @@ int main(int argc, char* argv[])
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
-        if (!FLAGS_l.empty())
-        {
+        if (!FLAGS_l.empty()) {
             // Custom CPU extension is loaded as a shared library and passed as a
             // pointer to base extension
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
@@ -105,13 +96,11 @@ int main(int argc, char* argv[])
             slog::info << "Custom extension loaded: " << FLAGS_l << slog::endl;
         }
 
-        if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL"))
-        {
+        if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d
-                       << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -151,38 +140,30 @@ int main(int argc, char* argv[])
         /** Stores input image **/
 
         /** Iterating over all input blobs **/
-        for (auto& item : inputsInfo)
-        {
+        for (auto& item : inputsInfo) {
             /** Working with first input tensor that stores image **/
-            if (item.second->getInputData()->getTensorDesc().getDims().size() == 4)
-            {
+            if (item.second->getInputData()->getTensorDesc().getDims().size() == 4) {
                 imageInputName = item.first;
 
                 inputInfo = item.second;
 
-                slog::info << "Batch size is " << std::to_string(network.getBatchSize())
-                           << slog::endl;
+                slog::info << "Batch size is " << std::to_string(network.getBatchSize()) << slog::endl;
 
                 /** Creating first input blob **/
                 Precision inputPrecision = Precision::U8;
                 item.second->setPrecision(inputPrecision);
-            }
-            else if (item.second->getInputData()->getTensorDesc().getDims().size() == 2)
-            {
+            } else if (item.second->getInputData()->getTensorDesc().getDims().size() == 2) {
                 imInfoInputName = item.first;
 
                 Precision inputPrecision = Precision::FP32;
                 item.second->setPrecision(inputPrecision);
-                if ((item.second->getTensorDesc().getDims()[1] != 3 &&
-                     item.second->getTensorDesc().getDims()[1] != 6))
-                {
+                if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6)) {
                     throw std::logic_error("Invalid input info. Should be 3 or 6 values length");
                 }
             }
         }
 
-        if (inputInfo == nullptr)
-        {
+        if (inputInfo == nullptr) {
             inputInfo = inputsInfo.begin()->second;
         }
         // --------------------------- Prepare output blobs
@@ -198,15 +179,10 @@ int main(int argc, char* argv[])
         outputName = outputInfo->getName();
         // SSD has an additional post-processing DetectionOutput layer
         // that simplifies output filtering, try to find it.
-        if (auto ngraphFunction = network.getFunction())
-        {
-            for (const auto& out : outputsInfo)
-            {
-                for (const auto& op : ngraphFunction->get_ops())
-                {
-                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info &&
-                        op->get_friendly_name() == out.second->getName())
-                    {
+        if (auto ngraphFunction = network.getFunction()) {
+            for (const auto& out : outputsInfo) {
+                for (const auto& op : ngraphFunction->get_ops()) {
+                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info && op->get_friendly_name() == out.second->getName()) {
                         outputName = out.first;
                         outputInfo = out.second;
                         break;
@@ -215,8 +191,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (outputInfo == nullptr)
-        {
+        if (outputInfo == nullptr) {
             throw std::logic_error("Can't find a DetectionOutput layer in the topology");
         }
 
@@ -225,13 +200,11 @@ int main(int argc, char* argv[])
         const int maxProposalCount = outputDims[2];
         const int objectSize = outputDims[3];
 
-        if (objectSize != 7)
-        {
+        if (objectSize != 7) {
             throw std::logic_error("Output item should have 7 as a last dimension");
         }
 
-        if (outputDims.size() != 4)
-        {
+        if (outputDims.size() != 4) {
             throw std::logic_error("Incorrect output dimensions for SSD model");
         }
 
@@ -244,8 +217,7 @@ int main(int argc, char* argv[])
         // ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
 
-        ExecutableNetwork executable_network =
-            ie.LoadNetwork(network, FLAGS_d, parseConfig(FLAGS_config));
+        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d, parseConfig(FLAGS_config));
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 5. Create infer request
@@ -259,20 +231,16 @@ int main(int argc, char* argv[])
         /** Collect images data ptrs **/
         std::vector<std::shared_ptr<unsigned char>> imagesData, originalImagesData;
         std::vector<size_t> imageWidths, imageHeights;
-        for (auto& i : images)
-        {
+        for (auto& i : images) {
             FormatReader::ReaderPtr reader(i.c_str());
-            if (reader.get() == nullptr)
-            {
+            if (reader.get() == nullptr) {
                 slog::warn << "Image " + i + " cannot be read!" << slog::endl;
                 continue;
             }
             /** Store image data **/
             std::shared_ptr<unsigned char> originalData(reader->getData());
-            std::shared_ptr<unsigned char> data(reader->getData(
-                inputInfo->getTensorDesc().getDims()[3], inputInfo->getTensorDesc().getDims()[2]));
-            if (data.get() != nullptr)
-            {
+            std::shared_ptr<unsigned char> data(reader->getData(inputInfo->getTensorDesc().getDims()[3], inputInfo->getTensorDesc().getDims()[2]));
+            if (data.get() != nullptr) {
                 originalImagesData.push_back(originalData);
                 imagesData.push_back(data);
                 imageWidths.push_back(reader->width());
@@ -284,14 +252,10 @@ int main(int argc, char* argv[])
 
         size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
-        if (batchSize != imagesData.size())
-        {
-            slog::warn << "Number of images " + std::to_string(imagesData.size()) +
-                              " doesn't match batch size " + std::to_string(batchSize)
-                       << slog::endl;
+        if (batchSize != imagesData.size()) {
+            slog::warn << "Number of images " + std::to_string(imagesData.size()) + " doesn't match batch size " + std::to_string(batchSize) << slog::endl;
             batchSize = std::min(batchSize, imagesData.size());
-            slog::warn << "Number of images to be processed is " << std::to_string(batchSize)
-                       << slog::endl;
+            slog::warn << "Number of images to be processed is " << std::to_string(batchSize) << slog::endl;
         }
 
         /** Creating input blob **/
@@ -300,8 +264,7 @@ int main(int argc, char* argv[])
         /** Filling input tensor with images. First b channel, then g and r channels
          * **/
         MemoryBlob::Ptr mimage = as<MemoryBlob>(imageInput);
-        if (!mimage)
-        {
+        if (!mimage) {
             slog::err << "We expect image blob to be inherited from MemoryBlob, but "
                          "by fact we were not able "
                          "to cast imageInput to MemoryBlob"
@@ -313,37 +276,30 @@ int main(int argc, char* argv[])
         auto minputHolder = mimage->wmap();
 
         size_t num_channels = mimage->getTensorDesc().getDims()[1];
-        size_t image_size =
-            mimage->getTensorDesc().getDims()[3] * mimage->getTensorDesc().getDims()[2];
+        size_t image_size = mimage->getTensorDesc().getDims()[3] * mimage->getTensorDesc().getDims()[2];
 
         unsigned char* data = minputHolder.as<unsigned char*>();
 
         /** Iterate over all input images limited by batch size  **/
-        for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id)
-        {
+        for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
             /** Iterate over all pixel in image (b,g,r) **/
-            for (size_t pid = 0; pid < image_size; pid++)
-            {
+            for (size_t pid = 0; pid < image_size; pid++) {
                 /** Iterate over all channels **/
-                for (size_t ch = 0; ch < num_channels; ++ch)
-                {
+                for (size_t ch = 0; ch < num_channels; ++ch) {
                     /**          [images stride + channels stride + pixel id ] all in
                      * bytes            **/
-                    data[image_id * image_size * num_channels + ch * image_size + pid] =
-                        imagesData.at(image_id).get()[pid * num_channels + ch];
+                    data[image_id * image_size * num_channels + ch * image_size + pid] = imagesData.at(image_id).get()[pid * num_channels + ch];
                 }
             }
         }
 
-        if (imInfoInputName != "")
-        {
+        if (imInfoInputName != "") {
             Blob::Ptr input2 = infer_request.GetBlob(imInfoInputName);
             auto imInfoDim = inputsInfo.find(imInfoInputName)->second->getTensorDesc().getDims()[1];
 
             /** Fill input tensor with values **/
             MemoryBlob::Ptr minput2 = as<MemoryBlob>(input2);
-            if (!minput2)
-            {
+            if (!minput2) {
                 slog::err << "We expect input2 blob to be inherited from MemoryBlob, "
                              "but by fact we were not able "
                              "to cast input2 to MemoryBlob"
@@ -355,15 +311,11 @@ int main(int argc, char* argv[])
             auto minput2Holder = minput2->wmap();
             float* p = minput2Holder.as<PrecisionTrait<Precision::FP32>::value_type*>();
 
-            for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id)
-            {
-                p[image_id * imInfoDim + 0] =
-                    static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
-                p[image_id * imInfoDim + 1] =
-                    static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[3]);
-                for (size_t k = 2; k < imInfoDim; k++)
-                {
-                    p[image_id * imInfoDim + k] = 1.0f; // all scale factors are set to 1.0
+            for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
+                p[image_id * imInfoDim + 0] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
+                p[image_id * imInfoDim + 1] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[3]);
+                for (size_t k = 2; k < imInfoDim; k++) {
+                    p[image_id * imInfoDim + k] = 1.0f;  // all scale factors are set to 1.0
                 }
             }
         }
@@ -381,47 +333,37 @@ int main(int argc, char* argv[])
 
         const Blob::Ptr output_blob = infer_request.GetBlob(outputName);
         MemoryBlob::CPtr moutput = as<MemoryBlob>(output_blob);
-        if (!moutput)
-        {
-            throw std::logic_error(
-                "We expect output to be inherited from MemoryBlob, "
-                "but by fact we were not able to cast output to MemoryBlob");
+        if (!moutput) {
+            throw std::logic_error("We expect output to be inherited from MemoryBlob, "
+                                   "but by fact we were not able to cast output to MemoryBlob");
         }
         // locked memory holder should be alive all time while access to its buffer
         // happens
         auto moutputHolder = moutput->rmap();
-        const float* detection =
-            moutputHolder.as<const PrecisionTrait<Precision::FP32>::value_type*>();
+        const float* detection = moutputHolder.as<const PrecisionTrait<Precision::FP32>::value_type*>();
 
         std::vector<std::vector<int>> boxes(batchSize);
         std::vector<std::vector<int>> classes(batchSize);
 
         /* Each detection has image_id that denotes processed image */
-        for (int curProposal = 0; curProposal < maxProposalCount; curProposal++)
-        {
+        for (int curProposal = 0; curProposal < maxProposalCount; curProposal++) {
             auto image_id = static_cast<int>(detection[curProposal * objectSize + 0]);
-            if (image_id < 0)
-            {
+            if (image_id < 0) {
                 break;
             }
 
             float confidence = detection[curProposal * objectSize + 2];
             auto label = static_cast<int>(detection[curProposal * objectSize + 1]);
-            auto xmin =
-                static_cast<int>(detection[curProposal * objectSize + 3] * imageWidths[image_id]);
-            auto ymin =
-                static_cast<int>(detection[curProposal * objectSize + 4] * imageHeights[image_id]);
-            auto xmax =
-                static_cast<int>(detection[curProposal * objectSize + 5] * imageWidths[image_id]);
-            auto ymax =
-                static_cast<int>(detection[curProposal * objectSize + 6] * imageHeights[image_id]);
+            auto xmin = static_cast<int>(detection[curProposal * objectSize + 3] * imageWidths[image_id]);
+            auto ymin = static_cast<int>(detection[curProposal * objectSize + 4] * imageHeights[image_id]);
+            auto xmax = static_cast<int>(detection[curProposal * objectSize + 5] * imageWidths[image_id]);
+            auto ymax = static_cast<int>(detection[curProposal * objectSize + 6] * imageHeights[image_id]);
 
-            std::cout << "[" << curProposal << "," << label << "] element, prob = " << confidence
-                      << "    (" << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")"
+            std::cout << "[" << curProposal << "," << label << "] element, prob = " << confidence << "    (" << xmin << "," << ymin << ")-(" << xmax << ","
+                      << ymax << ")"
                       << " batch id : " << image_id;
 
-            if (confidence > 0.5)
-            {
+            if (confidence > 0.5) {
                 /** Drawing only objects with >50% probability **/
                 classes[image_id].push_back(label);
                 boxes[image_id].push_back(xmin);
@@ -433,36 +375,21 @@ int main(int argc, char* argv[])
             std::cout << std::endl;
         }
 
-        for (size_t batch_id = 0; batch_id < batchSize; ++batch_id)
-        {
-            addRectangles(originalImagesData[batch_id].get(),
-                          imageHeights[batch_id],
-                          imageWidths[batch_id],
-                          boxes[batch_id],
-                          classes[batch_id],
+        for (size_t batch_id = 0; batch_id < batchSize; ++batch_id) {
+            addRectangles(originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id], boxes[batch_id], classes[batch_id],
                           BBOX_THICKNESS);
             const std::string image_path = "out_" + std::to_string(batch_id) + ".bmp";
-            if (writeOutputBmp(image_path,
-                               originalImagesData[batch_id].get(),
-                               imageHeights[batch_id],
-                               imageWidths[batch_id]))
-            {
+            if (writeOutputBmp(image_path, originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id])) {
                 slog::info << "Image " + image_path + " created!" << slog::endl;
-            }
-            else
-            {
+            } else {
                 throw std::logic_error(std::string("Can't create a file: ") + image_path);
             }
         }
         // -----------------------------------------------------------------------------------------------------
-    }
-    catch (const std::exception& error)
-    {
+    } catch (const std::exception& error) {
         slog::err << error.what() << slog::endl;
         return 1;
-    }
-    catch (...)
-    {
+    } catch (...) {
         slog::err << "Unknown/internal exception happened." << slog::endl;
         return 1;
     }

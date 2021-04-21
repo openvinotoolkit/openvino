@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <c_api/ie_c_api.h>
+#include <opencv_c_wraper.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <c_api/ie_c_api.h>
-#include <opencv_c_wraper.h>
-
 /**
  * @brief Struct to store classification results
  */
-struct classify_res
-{
+struct classify_res {
     size_t class_id;
     float probability;
 };
@@ -25,21 +23,15 @@ struct classify_res
  * @param size of the struct
  * @return none
  */
-void classify_res_sort(struct classify_res* res, size_t n)
-{
+void classify_res_sort(struct classify_res* res, size_t n) {
     size_t i, j;
-    for (i = 0; i < n; ++i)
-    {
-        for (j = i + 1; j < n; ++j)
-        {
-            if (res[i].probability < res[j].probability)
-            {
+    for (i = 0; i < n; ++i) {
+        for (j = i + 1; j < n; ++j) {
+            if (res[i].probability < res[j].probability) {
                 struct classify_res temp = res[i];
                 res[i] = res[j];
                 res[j] = temp;
-            }
-            else if (res[i].probability == res[j].probability && res[i].class_id > res[j].class_id)
-            {
+            } else if (res[i].probability == res[j].probability && res[i].class_id > res[j].class_id) {
                 struct classify_res temp = res[i];
                 res[i] = res[j];
                 res[j] = temp;
@@ -54,8 +46,7 @@ void classify_res_sort(struct classify_res* res, size_t n)
  * @param size of the blob
  * @return struct classify_res
  */
-struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
-{
+struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n) {
     dimensions_t output_dim;
     IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
     if (status != OK)
@@ -64,23 +55,20 @@ struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
     *n = output_dim.dims[1];
 
     struct classify_res* cls = (struct classify_res*)malloc(sizeof(struct classify_res) * (*n));
-    if (!cls)
-    {
+    if (!cls) {
         return NULL;
     }
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
-    if (status != OK)
-    {
+    if (status != OK) {
         free(cls);
         return NULL;
     }
     float* blob_data = (float*)(blob_cbuffer.cbuffer);
 
     size_t i;
-    for (i = 0; i < *n; ++i)
-    {
+    for (i = 0; i < *n; ++i) {
         cls[i].class_id = i;
         cls[i].probability = blob_data[i];
     }
@@ -95,31 +83,25 @@ struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n)
  * @param string image path
  * @return none
  */
-void print_classify_res(struct classify_res* cls, size_t n, const char* img_path)
-{
+void print_classify_res(struct classify_res* cls, size_t n, const char* img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
     printf("------- -----------\n");
     size_t i;
-    for (i = 0; i < n; ++i)
-    {
+    for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
-    printf(
-        "\nThis sample is an API example,"
-        " for any performance measurements please use the dedicated benchmark_"
-        "app tool\n");
+    printf("\nThis sample is an API example,"
+           " for any performance measurements please use the dedicated benchmark_"
+           "app tool\n");
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     // ------------------------------ Parsing and validation of input args
     // ---------------------------------
-    if (argc != 4)
-    {
-        printf(
-            "Usage : ./hello_classification <path_to_model> <path_to_image> "
-            "<device_name>\n");
+    if (argc != 4) {
+        printf("Usage : ./hello_classification <path_to_model> <path_to_image> "
+               "<device_name>\n");
         return EXIT_FAILURE;
     }
 
@@ -151,15 +133,13 @@ int main(int argc, char** argv)
         goto err;
     // check the network topology
     status = ie_network_get_inputs_number(network, &network_input_size);
-    if (status != OK || network_input_size != 1)
-    {
+    if (status != OK || network_input_size != 1) {
         printf("Sample supports topologies with 1 input only\n");
         goto err;
     }
 
     status = ie_network_get_outputs_number(network, &network_output_size);
-    if (status != OK || network_output_size != 1)
-    {
+    if (status != OK || network_output_size != 1) {
         printf("Sample supports topologies with 1 output only\n");
         goto err;
     }
@@ -214,15 +194,13 @@ int main(int argc, char** argv)
     c_mat_t img;
     image_read(input_image_path, &img);
 
-    dimensions_t dimens = {
-        4, {1, (size_t)img.mat_channels, (size_t)img.mat_height, (size_t)img.mat_width}};
+    dimensions_t dimens = {4, {1, (size_t)img.mat_channels, (size_t)img.mat_height, (size_t)img.mat_width}};
     tensor_desc_t tensorDesc = {NHWC, dimens, U8};
     size_t size = img.mat_data_size;
     // just wrap IplImage data to ie_blob_t pointer without allocating of new
     // memory
     status = ie_blob_make_memory_from_preallocated(&tensorDesc, img.mat_data, size, &imgBlob);
-    if (status != OK)
-    {
+    if (status != OK) {
         image_free(&img);
         goto err;
     }
@@ -244,8 +222,7 @@ int main(int argc, char** argv)
     // --------------------------- Step 8. Process output
     // ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
-    if (status != OK)
-    {
+    if (status != OK) {
         image_free(&img);
         goto err;
     }
@@ -256,8 +233,7 @@ int main(int argc, char** argv)
 
     // Print classification results
     size_t top = 10;
-    if (top > class_num)
-    {
+    if (top > class_num) {
         top = class_num;
     }
     printf("\nTop %zu results:\n", top);

@@ -7,22 +7,17 @@
 #include <map>
 #include <string>
 
-static std::map<std::string, std::string> parseConfig(const std::string& configName,
-                                                      char comment = '#')
-{
+static std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#') {
     std::map<std::string, std::string> config = {};
 
     std::ifstream file(configName);
-    if (!file.is_open())
-    {
+    if (!file.is_open()) {
         return config;
     }
 
     std::string key, value;
-    while (file >> key >> value)
-    {
-        if (key.empty() || key[0] == comment)
-        {
+    while (file >> key >> value) {
+        if (key.empty() || key[0] == comment) {
             continue;
         }
         config[key] = value;

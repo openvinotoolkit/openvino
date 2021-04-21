@@ -8,6 +8,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <inference_engine.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -15,7 +16,6 @@
 #include <string>
 #include <vector>
 
-#include <inference_engine.hpp>
 #include "statistics_report.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
@@ -23,53 +23,46 @@ typedef std::chrono::nanoseconds ns;
 
 typedef std::function<void(size_t id, const double latency)> QueueCallbackFunction;
 
-/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and
-/// calculates execution time.
-class InferReqWrap final
-{
+/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution time.
+class InferReqWrap final {
 public:
     using Ptr = std::shared_ptr<InferReqWrap>;
 
     ~InferReqWrap() = default;
 
-    explicit InferReqWrap(InferenceEngine::ExecutableNetwork& net,
-                          size_t id,
-                          QueueCallbackFunction callbackQueue)
-        : _request(net.CreateInferRequest())
-        , _id(id)
-        , _callbackQueue(callbackQueue)
-    {
+    explicit InferReqWrap(InferenceEngine::ExecutableNetwork& net, size_t id, QueueCallbackFunction callbackQueue)
+        : _request(net.CreateInferRequest()), _id(id), _callbackQueue(callbackQueue) {
         _request.SetCompletionCallback([&]() {
             _endTime = Time::now();
             _callbackQueue(_id, getExecutionTimeInMilliseconds());
         });
     }
 
-    void startAsync()
-    {
+    void startAsync() {
         _startTime = Time::now();
         _request.StartAsync();
     }
 
-    void wait() { _request.Wait(InferenceEngine::InferRequest::RESULT_READY); }
+    void wait() {
+        _request.Wait(InferenceEngine::InferRequest::RESULT_READY);
+    }
 
-    void infer()
-    {
+    void infer() {
         _startTime = Time::now();
         _request.Infer();
         _endTime = Time::now();
         _callbackQueue(_id, getExecutionTimeInMilliseconds());
     }
 
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getPerformanceCounts()
-    {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getPerformanceCounts() {
         return _request.GetPerformanceCounts();
     }
 
-    InferenceEngine::Blob::Ptr getBlob(const std::string& name) { return _request.GetBlob(name); }
+    InferenceEngine::Blob::Ptr getBlob(const std::string& name) {
+        return _request.GetBlob(name);
+    }
 
-    double getExecutionTimeInMilliseconds() const
-    {
+    double getExecutionTimeInMilliseconds() const {
         auto execTime = std::chrono::duration_cast<ns>(_endTime - _startTime);
         return static_cast<double>(execTime.count()) * 0.000001;
     }
@@ -82,50 +75,36 @@ private:
     QueueCallbackFunction _callbackQueue;
 };
 
-class InferRequestsQueue final
-{
+class InferRequestsQueue final {
 public:
-    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq)
-    {
-        for (size_t id = 0; id < nireq; id++)
-        {
+    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq) {
+        for (size_t id = 0; id < nireq; id++) {
             requests.push_back(
-                std::make_shared<InferReqWrap>(net,
-                                               id,
-                                               std::bind(&InferRequestsQueue::putIdleRequest,
-                                                         this,
-                                                         std::placeholders::_1,
-                                                         std::placeholders::_2)));
+                std::make_shared<InferReqWrap>(net, id, std::bind(&InferRequestsQueue::putIdleRequest, this, std::placeholders::_1, std::placeholders::_2)));
             _idleIds.push(id);
         }
         resetTimes();
     }
-    ~InferRequestsQueue()
-    {
-        // Inference Request guarantee that it will wait for all asynchronous internal tasks in
-        // destructor So it should be released before any context that the request can use inside
-        // internal asynchronous tasks For example all members of InferRequestsQueue would be
-        // destroyed before `requests` vector So requests can try to use this members from
-        // `putIdleRequest()` that would be called from request callback To avoid this we should
-        // move this vector declaration after all members declaration or just clear it manually in
-        // destructor
+    ~InferRequestsQueue() {
+        // Inference Request guarantee that it will wait for all asynchronous internal tasks in destructor
+        // So it should be released before any context that the request can use inside internal asynchronous tasks
+        // For example all members of InferRequestsQueue would be destroyed before `requests` vector
+        // So requests can try to use this members from `putIdleRequest()` that would be called from request callback
+        // To avoid this we should move this vector declaration after all members declaration or just clear it manually in destructor
         requests.clear();
     }
 
-    void resetTimes()
-    {
+    void resetTimes() {
         _startTime = Time::time_point::max();
         _endTime = Time::time_point::min();
         _latencies.clear();
     }
 
-    double getDurationInMilliseconds()
-    {
+    double getDurationInMilliseconds() {
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void putIdleRequest(size_t id, const double latency)
-    {
+    void putIdleRequest(size_t id, const double latency) {
         std::unique_lock<std::mutex> lock(_mutex);
         _latencies.push_back(latency);
         _idleIds.push(id);
@@ -133,23 +112,27 @@ public:
         _cv.notify_one();
     }
 
-    InferReqWrap::Ptr getIdleRequest()
-    {
+    InferReqWrap::Ptr getIdleRequest() {
         std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [this] { return _idleIds.size() > 0; });
+        _cv.wait(lock, [this] {
+            return _idleIds.size() > 0;
+        });
         auto request = requests.at(_idleIds.front());
         _idleIds.pop();
         _startTime = std::min(Time::now(), _startTime);
         return request;
     }
 
-    void waitAll()
-    {
+    void waitAll() {
         std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [this] { return _idleIds.size() == requests.size(); });
+        _cv.wait(lock, [this] {
+            return _idleIds.size() == requests.size();
+        });
     }
 
-    std::vector<double> getLatencies() { return _latencies; }
+    std::vector<double> getLatencies() {
+        return _latencies;
+    }
 
     std::vector<InferReqWrap::Ptr> requests;
 

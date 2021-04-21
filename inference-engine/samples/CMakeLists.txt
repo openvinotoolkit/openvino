@@ -191,10 +191,10 @@ include(CMakeParseArguments)
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
 #               [OPENCV_DEPENDENCIES <opencv modules>]
-#               [EXCLUDE_CPPLINT]
+#               [EXCLUDE_CLANG_FORMAT]
 #
 macro(ie_add_sample)
-    set(options EXCLUDE_CPPLINT)
+    set(options EXCLUDE_CLANG_FORMAT)
     set(oneValueArgs NAME)
     set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES)
     cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
@@ -249,10 +249,7 @@ macro(ie_add_sample)
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
-        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES})
-        if(IE_SAMPLE_HEADERS)
-            add_clang_format_target(${IE_SAMPLE_NAME}_headers_clang FOR_SOURCES ${IE_SAMPLE_HEADERS})
-        endif()
+        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     endif()
 endmacro()
 
