@@ -55,7 +55,6 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
-    using TensorLabel = std::vector<std::string>;
     using TensorLabelVector = std::vector<TensorLabel>;
 
     namespace op

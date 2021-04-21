@@ -68,7 +68,7 @@ namespace ngraph
             /// \brief gets upper bound value description
             HostTensorPtr get_upper_value() const { return m_upper_value; }
             /// \brief gets upper bound value description
-            std::vector<std::string> get_value_label() const { return m_value_label; }
+            TensorLabel get_value_label() const { return m_value_label; }
             /// \brief checks if lower and upper bound are set and point to the same HostTensor
             bool has_and_set_bound() const
             {
