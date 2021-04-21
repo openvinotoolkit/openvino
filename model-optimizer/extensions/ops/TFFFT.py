@@ -7,6 +7,17 @@ from mo.ops.op import Op
 
 
 class TFFFT(Op):
+    """
+    This operation is intended to read TF operations FFT, FFT2D, FFT3D, IFFT, IFFT2D, IFFT3D.
+    The operation TFFFT has two attributes: an integer attribute num_of_dimensions and a boolean attribute is_inverse.
+
+    If an operation to read is FFT, FFT2D, or FFT3D, then the attribute 'is_inverse' is False, and True otherwise.
+    The attribute 'num_of_dimensions' is equal to number of transformed axes, i.e. 1 for FFT and IFFT, 2 for FFT2D and
+    IFFT2D, 3 for FFT3D and IFFT3D.
+
+    The transformation SSliceComplexRolledFFTPackBlockReplacement converts the operation TFFFT into MO DFT (if the
+    attribute 'is_inverse' is False) or MO IDFT (otherwise).
+    """
     op = 'TFFFT'
 
     def __init__(self, graph: Graph, attrs: dict):
