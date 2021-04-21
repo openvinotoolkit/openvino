@@ -105,6 +105,72 @@ TEST(op_eval, eval_transpose)
     }
 }
 
+TEST(op_eval, eval_duplicated_axes_transpose)
+{
+    auto data_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes_order = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+
+    auto x_transpose = make_shared<op::v1::Transpose>(data_param, axes_order);
+    auto function = make_shared<Function>(NodeVector{x_transpose}, ParameterVector{data_param, axes_order});
+
+    const std::vector<float> data{1, 2, 3, 4, 5, 6};
+    std::vector<size_t> data_shape{2, 3, 1};
+    const std::vector<int32_t> perm{1, 2, 2};
+    std::vector<float> expected_result{1, 4, 2, 5, 3, 6};
+
+    try
+    {
+        auto result_tensor = make_shared<HostTensor>();
+        function->evaluate({result_tensor},
+                                {make_host_tensor<element::Type_t::f32>(data_shape, data),
+                                make_host_tensor<element::Type_t::i32>(Shape{perm.size()}, perm)});
+
+        auto actual_results = read_vector<float>(result_tensor);
+
+        ASSERT_EQ(actual_results, expected_result);
+        FAIL() << "Duplicated axes values not detected";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("must be unique"));
+    }
+    catch (...)
+    {
+        FAIL() << "Failed for unexpected reason";
+    }
+}
+
+TEST(op_eval, eval_out_of_shape_axes_transpose)
+{
+    auto data_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes_order = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+
+    auto x_transpose = make_shared<op::v1::Transpose>(data_param, axes_order);
+    auto function = make_shared<Function>(NodeVector{x_transpose}, ParameterVector{data_param, axes_order});
+
+    const std::vector<float> data{1, 2, 3, 4, 5, 6};
+    std::vector<size_t> data_shape{2, 3, 1};
+    const std::vector<int32_t> perm{0, 1, 3};
+
+    try
+    {
+        auto result_tensor = make_shared<HostTensor>();
+        function->evaluate({result_tensor},
+                                {make_host_tensor<element::Type_t::f32>(data_shape, data),
+                                make_host_tensor<element::Type_t::i32>(Shape{perm.size()}, perm)});
+
+        FAIL() << "Out of shape axes not detected";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of shape"));
+    }
+    catch (...)
+    {
+        FAIL() << "Failed for unexpected reason";
+    }
+}
+
 TEST(op_eval, eval_negative_axes_transpose)
 {
     auto data_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());

@@ -96,7 +96,7 @@ namespace transpose
                             const HostTensorPtr& out)
     {
         NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
-                     "axis element type is not integral data type");
+                     "Transpose axis element type is not integral data type");
 
         std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
         Shape in_shape = arg1->get_shape();
@@ -106,11 +106,16 @@ namespace transpose
             std::iota(axes_order.begin(), axes_order.end(), 0);
             std::reverse(axes_order.begin(), axes_order.end());
         }
+        bool is_unique_order =
+            (std::unique(axes_order.begin(), axes_order.end()) == axes_order.end());
+        NGRAPH_CHECK(is_unique_order, "Transpose axes order values must be unique.");
 
         Shape out_shape(in_shape.size());
         std::transform(
             axes_order.begin(), axes_order.end(), out_shape.begin(), [&](const int64_t& v) {
                 NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
+                NGRAPH_CHECK(
+                    v < int64_t(in_shape.size()), "Transpose axis ", v, " is out of shape range.");
                 return in_shape[v];
             });
 
