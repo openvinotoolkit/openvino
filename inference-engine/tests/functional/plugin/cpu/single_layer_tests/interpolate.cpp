@@ -236,7 +236,7 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
         fusingRelu,
         fusingSwish,
-        fusingFakeQuantizePerChannelRelu
+        fusingFakeQuantizePerChannelRelu,
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
@@ -247,7 +247,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
         };
     } else {
         return {
-            // default config as an stub for target without avx512, otherwise all tests with BF16 in its name are skipped
+            // default config as an stub for target without avx512, otherwise all tests with BF16 in its name are skipped.
             {{PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::NO}}
         };
     }
