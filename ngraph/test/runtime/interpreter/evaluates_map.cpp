@@ -2260,12 +2260,19 @@ namespace
 
         return true;
     }
-  template <element::Type_t ET>
+    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::DeformablePSROIPooling>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
+        NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
+                        "2D tensor must be provided as second input. ");
+        outputs[0]->set_shape({inputs[1]->get_shape()[0],
+                               static_cast<size_t>(op->get_output_dim()), 
+                               static_cast<size_t>(op->get_group_size()), 
+                               static_cast<size_t>(op->get_group_size())});
+
         const bool has_offset_intput = inputs.size() == 3;
         if (has_offset_intput)
         {   
