@@ -1542,9 +1542,16 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         } else {
             return false;
         }
-        auto subtractConst = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+        auto subtract1input = node->get_input_node_shared_ptr(1);
+        if (is_type<opset1::Convert>(subtract1input)) {
+            return true;
+        }
+        auto subtractConst = as_type_ptr<opset1::Constant>(subtract1input);
         if (!subtractConst) {
             subtractConst = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)->get_input_node_shared_ptr(0));
+            if (subtractConst == nullptr) {
+                return false;
+            }
         }
         const auto subtractValues = subtractConst->cast_vector<float>();
         if (std::any_of(subtractValues.begin(), subtractValues.end(), [min, max] (const float& val) {
@@ -1559,9 +1566,14 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         max = dataPrecision.max + 0.5f;
         const auto quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(node));
         for (size_t i = 0; i < quantizationDetails.outputIntervalsCount; ++i) {
-            const float shift =
-                    (dataPrecision.min * quantizationDetails.outputHighValues[i] - dataPrecision.max * quantizationDetails.outputLowValues[i]) /
-                    (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
+            float shift;
+            if (quantizationDetails.outputHighValues[i] != quantizationDetails.outputLowValues[i]) {
+                shift = (dataPrecision.min * quantizationDetails.outputHighValues[i] -
+                         dataPrecision.max * quantizationDetails.outputLowValues[i]) /
+                        (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
+            } else {
+                shift = 0.f;
+            }
             if (shift < min || shift > max) {
                 return false;
             }

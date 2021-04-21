@@ -16,6 +16,61 @@ namespace low_precision {
 
 WeightableLayerTransformation::WeightableLayerTransformation(const Params& params) : LayerTransformation(params) {}
 
+bool WeightableLayerTransformation::canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    if (!canSubtractBeHandled(layer, dequantization)) {
+        return false;
+    }
+
+    if (updatePrecisions && !NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+        return false;
+    }
+
+    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+        return false;
+    }
+
+    std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->get_input_node_shared_ptr(1));
+    dequantization = reshapeFromWeights == nullptr ?
+                     NetworkHelper::getDequantization(layer, 1ul) :
+                     NetworkHelper::getDequantization(reshapeFromWeights);
+
+    if (dequantization.empty()) {
+        const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
+        const auto dataPrecision = getDataPrecisionOnWeights(layer);
+        if ((!supportAsymmetricQuantization) && dataPrecision.hasZeroPoint) {
+            return false;
+        }
+        if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
+            const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            if (as_type_ptr<opset1::Constant>(resultConstant)) {
+                replace_node(fqOnWeights, resultConstant);
+            }
+            return false;
+        }
+    } else {
+        if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+            const auto resultDequantization = NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
+            if (resultDequantization.empty() && reshapeFromWeights) {
+                const auto foldedReshape = fold<opset1::Reshape>(
+                        reshapeFromWeights->get_input_node_shared_ptr(0),
+                        reshapeFromWeights->get_input_node_shared_ptr(1),
+                        reshapeFromWeights->get_special_zero());
+                if (is_type<opset1::Constant>(foldedReshape)) {
+                    replace_node(reshapeFromWeights, foldedReshape);
+                }
+            }
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool WeightableLayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
