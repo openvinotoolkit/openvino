@@ -110,7 +110,7 @@ public:
         const bool hasZeroPoint,
         const bool updatePrecision,
         const element::Type deqPrecision = element::f32,
-        const int outChannelsShapeIndex = 0);
+        const size_t outChannelsShapeIndex = 0);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
