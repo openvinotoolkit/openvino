@@ -5,7 +5,7 @@ import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
 
-from mo.utils.versions_checker import get_module_version_list_from_file, parse_and_filter_versions_list
+from mo.utils.versions_checker import get_module_version_list_from_file, parse_and_filter_versions_list, version_check
 
 
 class TestingVersionsChecker(unittest.TestCase):
@@ -74,3 +74,20 @@ class TestingVersionsChecker(unittest.TestCase):
                     ('mxnet', '<=', '1.3.1')]
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
+
+    def test_version_check(self):
+        modules_versions_list = [('tensorflow', '==', '2.0', '2.0'),
+                                 ('numpy', '>=', '1.12.0', '1.12.0'),
+                                 ('defusedxml', '<=', '0.5.0', '0.6'),
+                                 ('networkx', '>', '1.11', '1.01'),
+                                 ]
+
+        ref_list = [('defusedxml', 'installed: 0.6', 'required: <= 0.5.0'),
+                    ('networkx', 'installed: 1.01', 'required: > 1.11'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)

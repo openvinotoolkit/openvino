@@ -11,6 +11,7 @@ modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
 }
+critical_modules = ["networkx", "defusedxml", "numpy"]
 
 message = "\nDetected not satisfied dependencies:\n" \
           "{}\n" \
@@ -130,7 +131,7 @@ def get_module_version_list_from_file(file_name, env_setup):
     return req_dict
 
 
-def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_code):
+def version_check(name, installed_v, required_v, sign, not_satisfied_v):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -143,8 +144,6 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
     :param required_v: required version of module
     :param sign: sing for comparison of required and installed versions
     :param not_satisfied_v: list of modules with not satisfying versions
-    :param exit_code: flag of successful execution (0 - successful, 1 - error)
-    :return: exit code
     """
     if sign is not None:
         req_ver = LooseVersion(required_v)
@@ -165,7 +164,6 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
         satisfied = True
     if not satisfied:
         not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {} {}'.format(sign, required_v)))
-    return exit_code
 
 
 def get_environment_setup():
@@ -220,9 +218,12 @@ def check_requirements(framework=None):
             importable_name = modules.get(name, name)
             exec("import {}".format(importable_name))
             installed_version = sys.modules[importable_name].__version__
-            exit_code = version_check(name, installed_version, required_version, key, not_satisfied_versions, exit_code)
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
             exec("del {}".format(importable_name))
         except (AttributeError, ImportError):
+            # we need to raise error only in cases when import of critical modules is failed
+            if name in critical_modules:
+                exit_code = 1
             if key is not None and required_version is not None:
                 not_satisfied_versions.append((name, 'not installed', 'required: {} {}'.format(key, required_version)))
             else:
