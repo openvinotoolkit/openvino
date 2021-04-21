@@ -79,6 +79,9 @@ jobs:
 
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+      # For opencv-python: setuptools and upgrade
+      sudo apt-get install python3-setuptools
+      python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
