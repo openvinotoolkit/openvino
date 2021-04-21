@@ -75,8 +75,6 @@ public:
         m_source_tensor = source_tensor;
     }
 
-    std::vector<std::shared_ptr<TensorPlacePDPD>> getSourceTensors() const;
-
     std::shared_ptr<TensorPlacePDPD> getSourceTensorPDPD() const;
 
     std::shared_ptr<OpPlacePDPD> getOp();
