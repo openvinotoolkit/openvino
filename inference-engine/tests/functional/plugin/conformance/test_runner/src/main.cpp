@@ -4,21 +4,11 @@
 
 #include "gtest/gtest.h"
 
+#include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
-
-static std::vector<std::string> splitStringByDelimiter(std::string str, const std::string& delimiter = ",") {
-    size_t delimiterPos;
-    std::vector<std::string> irPaths;
-    while ((delimiterPos = str.find(delimiter)) != std::string::npos) {
-        irPaths.push_back(str.substr(0, delimiterPos));
-        str = str.substr(delimiterPos + 1);
-    }
-    irPaths.push_back(str);
-    return irPaths;
-}
 
 int main(int argc, char* argv[]) {
     // Workaround for Gtest + Gflag
@@ -54,10 +44,11 @@ int main(int argc, char* argv[]) {
         LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
     }
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
+    LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ConformanceTests::targetDevice = FLAGS_device.c_str();
-    ConformanceTests::IRFolderPaths = splitStringByDelimiter(FLAGS_input_folders);
+    ConformanceTests::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
