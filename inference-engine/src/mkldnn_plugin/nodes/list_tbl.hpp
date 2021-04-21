@@ -51,7 +51,6 @@ MKLDNN_EXTENSION_NODE(ReorgYoloImpl, ReorgYolo);
 //MKLDNN_EXTENSION_NODE(UniqueImpl, Unique);
 MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);
 MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, DeformablePSROIPooling);
-MKLDNN_EXTENSION_NODE(DepthToSpaceImpl, DepthToSpace);
 MKLDNN_EXTENSION_NODE(OneHotImpl, OneHot);
 MKLDNN_EXTENSION_NODE(BroadcastImpl, Broadcast);
 //MKLDNN_EXTENSION_NODE(ExperimentalSparseWeightedReduceImpl, ExperimentalSparseWeightedSum);
@@ -61,7 +60,6 @@ MKLDNN_EXTENSION_NODE(ExperimentalDetectronGenerateProposalsSingleImageImpl, Exp
 MKLDNN_EXTENSION_NODE(NonMaxSuppressionImpl, NonMaxSuppressionIEInternal);
 MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
 MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
-MKLDNN_EXTENSION_NODE(SpaceToDepthImpl, SpaceToDepth);
 //MKLDNN_EXTENSION_NODE(PowerFileImpl, PowerFile);
 MKLDNN_EXTENSION_NODE(BatchToSpaceImpl, BatchToSpace);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);

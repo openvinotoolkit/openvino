@@ -15,7 +15,7 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNPermuteNode : public MKLDNNNode {
+class MKLDNNTransposeNode : public MKLDNNNode {
 public:
     MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNTransposeNode() override = default;
@@ -47,7 +47,7 @@ private:
         isApplicable isValidParams;
     };
 
-    static const std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
+    static const std::multimap<InferenceEngine::SizeVector, TransposeImpl> OptimizedCases;
     std::unique_ptr<PermuteKernel> permuteKernel;
 };
 

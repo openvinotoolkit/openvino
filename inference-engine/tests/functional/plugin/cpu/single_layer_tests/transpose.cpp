@@ -148,7 +148,7 @@ const auto paramsPerChannels4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_nhwc));
 
-INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels4D_CPU, PermuteLayerCPUTest, paramsPerChannels4D, PermuteLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels4D_CPU, TransposeLayerCPUTest, paramsPerChannels4D, TransposeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes5D = {
         {2, 32, 5, 10, 20}
@@ -201,7 +201,7 @@ const auto paramsPerChannels5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_ndhwc));
 
-INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels5D_CPU, PermuteLayerCPUTest, paramsPerChannels5D, PermuteLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels5D_CPU, TransposeLayerCPUTest, paramsPerChannels5D, TransposeLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
