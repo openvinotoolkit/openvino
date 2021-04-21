@@ -840,7 +840,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const bool hasZeroPoint,
     const bool updatePrecision,
     const element::Type deqPrecision,
-    const int outChannelsShapeIndex) {
+    const size_t outChannelsShapeIndex) {
     using std::make_shared;
 
     const auto outputLow = fq->input_value(3);

@@ -56,21 +56,17 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData);
     const bool haveOutputShape = convolutionBackpropData->get_input_size() == 3;
     {
-        std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
             std::shared_ptr<ngraph::Node> layer = dequantization.subtract;
             ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
 
-            auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
-            subtract = optimizedSubtract ? as_type_ptr<opset1::Subtract>(optimizedSubtract) : dequantization.subtract;
+            NetworkHelper::optimizeSubtract(dequantization.subtract);
         }
-
-        std::shared_ptr<opset1::Constant> reducedConstant = as_type_ptr<opset1::Constant>(
-            dequantization.multiply->input_value(1).get_node_shared_ptr());
+        std::shared_ptr<opset1::Constant> reducedConstant = as_type_ptr<opset1::Constant>(dequantization.multiplyConstant);
         std::shared_ptr<Node> newMultiplyAfterConst = std::make_shared<opset1::Constant>(
-            reducedConstant->get_output_element_type(0),
-            Shape{ 1 },
-            reducedConstant->cast_vector<float>()[0]);
+                reducedConstant->get_output_element_type(0),
+                Shape{ 1 },
+                reducedConstant->cast_vector<float>()[0]);
 
         const auto copyNode = haveOutputShape ?
             convolutionBackpropData->copy_with_new_inputs({
@@ -110,7 +106,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     }
 
     {
-        decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1);
+        decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
 
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, 1ul);
 
