@@ -532,7 +532,7 @@ void CheckCnn2DInputSupported(const unsigned h, const unsigned w) {
         THROW_GNA_EXCEPTION << "Unsupported input height: " << h << ", must be in range <16, 384>";
     }
     if (w < 16 || w > 240) {
-        THROW_GNA_EXCEPTION << "Unsupported input width: " << h << ", must be in range <16, 240>";
+        THROW_GNA_EXCEPTION << "Unsupported input width: " << w << ", must be in range <16, 240>";
     }
 }
 
@@ -564,7 +564,7 @@ void ExpectCnn2DKernelValid(unsigned kW, unsigned kH,
     if (kW == 1 && kH <= l.vVecLimit) return;
     if (kH == 1 && kW <= l.hVecLimit) return;
     if (kH != kW || kH > l.squareLimit || kW > l.squareLimit) {
-        THROW_GNA_EXCEPTION << "Unsupported kerenel in Convolution2D (WxH)" << kW << "x" << kH <<
+        THROW_GNA_EXCEPTION << "Unsupported kerenel in Convolution2D (WxH) " << kW << "x" << kH <<
             ", only vertical vector up to 1x" << l.vVecLimit << ", horizontal up to " << l.hVecLimit <<
             "x1 or square up to " << l.squareLimit << "x" << l.squareLimit << " are supported";
     }
@@ -574,13 +574,13 @@ void CheckCnn2DSupported(unsigned IFVC, unsigned kW, unsigned kH, unsigned kN,
     OvGnaType inPrecision) {
 
     if (kN % 8 != 0 || kN > 256 || kN == 0) {
-        THROW_GNA_EXCEPTION << "Unsupported number of kernels in Convolution2D" << kN << ", must be multiply of 8 and in range <8, 256>";
+        THROW_GNA_EXCEPTION << "Unsupported number of kernels in Convolution2D: " << kN << ", must be multiply of 8 and in range <8, 256>";
     }
     if (IFVC % 8 != 0) {
-        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D" << IFVC << ", must be multiply of 8";
+        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D: " << IFVC << ", must be multiply of 8";
     }
     if (IFVC > 384) {
-        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D" << IFVC << ", must be <= 384";
+        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D: " << IFVC << ", must be <= 384";
     }
     ExpectCnn2DKernelValid(kW, kH, GetCnn2DLimit(inPrecision, IFVC));
 }
