@@ -100,13 +100,13 @@ def updateModels() {
 
 def get_docker_container_name(Map configuration){
     println "RUN get_docker_container_name for ${configuration.name}"
-    docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
+    String docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
     return docker_container_name
 }
 
 def buildDockerImage(Map configuration, String workdir) {
     println "Building docker image for workdir: ${workdir}"
-    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
     println "docker_image_tag: ${docker_image_tag}"
     println "dziala"
     updateModels()
@@ -122,10 +122,10 @@ def buildDockerImage(Map configuration, String workdir) {
 
 def runTests(Map configuration, String workdir) {
     println "Run tests for ${configuration.name}"
-    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
     println "docker_image_tag run test: ${docker_image_tag}"
 
-    docker_container_name = get_docker_container_name(configuration)
+    String docker_container_name = get_docker_container_name(configuration)
     println "docker_container_name: ${docker_container_name}"
 
     // Run only basic unit tests in Debug configuration
@@ -185,13 +185,13 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 } else {
                     currentBuild.result = "FAILURE"
                 }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
+                def gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
                 notifyByEmail(gitPrInfo)
         }
         finally {
             stage("Cleanup") {
                 deleteDir()
-                docker_container_name = get_docker_container_name(configuration)
+                String docker_container_name = get_docker_container_name(configuration)
                 sh """
                     docker rm -f ${docker_container_name}
                 """
