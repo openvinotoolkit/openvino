@@ -4,7 +4,7 @@ doc_string: "This model contains the first few nodes of the ONNX Inception V1 mo
 graph {
   name: "Inception V1 fragment"
   node {
-    input: "pool1/3x3_s2_1:conv1/7x7_s2_2"
+    input: "conv1/7x7_s2_2"
     output: "pool1/3x3_s2_1"
     name: ""
     op_type: "MaxPool"
@@ -31,7 +31,7 @@ graph {
   }
 
   input {
-    name: "pool1/3x3_s2_1:conv1/7x7_s2_2"
+    name: "conv1/7x7_s2_2"
     type {
       tensor_type {
         elem_type: 1

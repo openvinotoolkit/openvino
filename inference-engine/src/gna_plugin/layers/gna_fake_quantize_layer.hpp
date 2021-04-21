@@ -28,7 +28,7 @@ class GNAFakeQuantizeLayer {
     DnnActivation parseAsActivation() const {
         DnnActivation fqActivation;
 
-        fqActivation.fqParams.levels = fqLayer->GetParamAsInt("levels");
+        fqActivation.fqParams.levels = fqLayer->GetParamAsSizeT("levels");
         auto inputShape  = getShapeForRange(fqLayer, 1);
         auto outputShape = getShapeForRange(fqLayer, 3);
 
@@ -64,7 +64,7 @@ class GNAFakeQuantizeLayer {
     }
 
     int32_t getLevels() {
-        return fqLayer->GetParamAsInt("levels");
+        return fqLayer->GetParamAsSizeT("levels");
     }
 
     std::pair<std::vector<float>, std::vector<float>> getInputRange() {
