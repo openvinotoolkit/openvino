@@ -53,27 +53,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)"
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
 
 
         /* ********************************************************** TEMPORARILY DISABLED TESTS ********************************************************** */
         // shared SLT test
-        R"(.*BatchToSpaceLayerTest.*)",
-        R"(.*BucketizeLayerTest.*)",
-        R"(.*ExtractImagePatchesTest.*)",
         R"(.*GRUCellTest.*)",
         R"(.*GRUSequenceTest.*)",
-        R"(.*LogSoftmaxLayerTest.*)",
         R"(.*StaticShapeLoopTest.*)",
         R"(.*TrivialLoopTest.*)",
         R"(.*LoopTest.*)",
         R"(.*LSTMCellTest.*)",
         R"(.*LSTMSequenceTest.*)",
-        R"(.*OneHotLayerTest.*)",
-        R"(.*ReverseSequenceLayerTest.*)",
         R"(.*RNNCellTest.*)",
         R"(.*RNNSequenceTest.*)",
-        R"(.*SpaceToBatchLayerTest.*)",
         R"(.*TensorIteratorTest.*)",
         R"(.*VariadicSplitPad.*)",
 
@@ -101,7 +94,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // plug-in specific tests
         R"(.*GatherElementsCPUTest.*)",
-        R"(.*OneHotLayerCPUTest.*)",
         R"(.*AddConvertToReorderTest.*)",
 
         // InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone

@@ -53,7 +53,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reference_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder_seq_len.cpp
@@ -65,7 +65,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_packed_sum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_sum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_segments_sum.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_elements.cpp
@@ -73,32 +73,32 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/one_hot.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/one_hot.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/powerfile.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox_clustered.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorgridgenerator_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorgridgenerator_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/psroi_pooling.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorg_yolo.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/roifeatureextractor_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/roifeatureextractor_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/select.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/shuffle_channels.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/simplernms.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_batch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_batch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_depth.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_fill_empty_rows.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_segment_reduce.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_weighted_reduce.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_to_dense.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/bucketize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/bucketize.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/squeeze.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topkrois_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topkrois_onnx.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp

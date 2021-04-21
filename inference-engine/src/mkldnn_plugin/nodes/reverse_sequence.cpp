@@ -10,60 +10,87 @@
 #include <cassert>
 #include <algorithm>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset1.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class ReverseSequenceImpl: public ExtLayerBase {
-public:
-    explicit ReverseSequenceImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 2 || layer->outData.size() != 1)
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+            if (!revSeq) {
+                errorMessage = "Only opset1 ReverseSequence operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            src_dims = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getDims();
+    std::string errorPrefix;
 
-            Precision lengthsPrecision = layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getPrecision();
+public:
+    explicit ReverseSequenceImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
+            const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+
+            if (op->get_input_size() != 2 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            src_dims = op->get_input_shape(REVERSESEQUENCE_DATA);
+
+            Precision lengthsPrecision = details::convertPrecision(op->get_input_element_type(REVERSESEQUENCE_LENGTHS));
             if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
                 lengthsPrecision = Precision::I32;
 
-            SizeVector seq_lengths_dims = layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getDims();
-            if (seq_lengths_dims.size() > 1)
-                IE_THROW() << layer->name << " Seq_lengths vector should be 1 dimension";
+            SizeVector seq_lengths_dims = op->get_input_shape(REVERSESEQUENCE_LENGTHS);
+            if (seq_lengths_dims.size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect 2nd input rank: " << seq_lengths_dims.size();
 
-            SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
+            SizeVector dst_dims = op->get_output_shape(0);
             if (src_dims.size() != dst_dims.size())
-                IE_THROW() << layer->name << " Incorrect number of input/output sizes!";
+                IE_THROW() << errorPrefix << " has incorrect number of input/output sizes!";
 
             for (size_t i = 0; i < dst_dims.size(); i++) {
                 if (src_dims[i] != dst_dims[i])
-                    IE_THROW() << layer->name << " Incorrect number of input/output dimension!";
+                    IE_THROW() << errorPrefix << " has incorrect number of input/output dimension!";
             }
 
-            seq_axis = layer->GetParamAsInt("seq_axis", 1);
-            if (seq_axis < 0)
-                seq_axis += src_dims.size();
+            seq_axis = revSeq->get_sequence_axis();
 
             if (seq_axis < 0 || seq_axis >= static_cast<int>(src_dims.size()))
-                IE_THROW() << layer->name << " Incorrect 'seq_axis' parameters dimensions and axis number!";
+                IE_THROW() << errorPrefix << " has incorrect 'seq_axis' parameters dimensions and axis number!";
 
-            batch_axis = layer->GetParamAsInt("batch_axis", 0);
-            if (batch_axis < 0)
-                batch_axis += src_dims.size();
+            batch_axis = revSeq->get_batch_axis();
 
             if (batch_axis < 0 || batch_axis >= static_cast<int>(src_dims.size()))
-                IE_THROW() << layer->name << " Incorrect 'batch_axis' parameters dimensions and axis number!";
+                IE_THROW() << errorPrefix << " has incorrect 'batch_axis' parameters dimensions and axis number!";
 
             if (seq_lengths_dims[0] != dst_dims[batch_axis])
-                IE_THROW() << layer->name << " Incorrect 'seq_lengths_dims' parameters dimension!";
+                IE_THROW() << errorPrefix << " has incorrect 'seq_lengths_dims' parameters dimension!";
 
-            srcStrides = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
+            srcStrides.resize(src_dims.size());
+            srcStrides[srcStrides.size() - 1] = 1;
+            for (int i = srcStrides.size() - 2; i >= 0; i--) {
+                srcStrides[i] = srcStrides[i + 1] * src_dims[i + 1];
+            }
+
             work_amount_dst = srcStrides[0] * src_dims[0];
 
-            addConfig(layer,
-                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, lengthsPrecision) },
-                    { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, lengthsPrecision}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
