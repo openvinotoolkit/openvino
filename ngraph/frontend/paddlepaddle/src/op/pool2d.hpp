@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector pool2d (const NodeContext& node);
+NamedOutputs pool2d (const NodeContext& node);
 
 }}}}

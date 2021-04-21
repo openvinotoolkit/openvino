@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-    OutputVector split(const NodeContext& node);
+    NamedOutputs split(const NodeContext& node);
 
 } // namespace op
 } // namespace pdpd

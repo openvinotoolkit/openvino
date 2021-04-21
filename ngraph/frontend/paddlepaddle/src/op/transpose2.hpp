@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector transpose2 (const NodeContext& node);
+NamedOutputs transpose2 (const NodeContext& node);
 
 }}}}

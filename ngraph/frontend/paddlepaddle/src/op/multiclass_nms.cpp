@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector multiclass_nms (const NodeContext& node) {
+NamedOutputs multiclass_nms (const NodeContext& node) {
     auto bboxes = node.get_ng_input("BBoxes");
     auto scores = node.get_ng_input("Scores");
 
@@ -35,10 +35,10 @@ OutputVector multiclass_nms (const NodeContext& node) {
     auto node_iou_threshold =  ngraph::opset6::Constant::create<float>(element::f32, Shape{1}, {iou_threshold}); 
     auto node_score_threshold = ngraph::opset6::Constant::create<float>(element::f32, Shape{1}, {score_threshold});     
 
-    return {std::make_shared<ngraph::opset6::NonMaxSuppression>(bboxes, scores,
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::NonMaxSuppression>(bboxes, scores,
                                     node_max_output_boxes_per_class,
                                     node_iou_threshold,
-                                    node_score_threshold)};
+                                    node_score_threshold)}, {"Out"});
 }
 
 }}}}

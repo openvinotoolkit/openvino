@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector nearest_interp_v2 (const NodeContext& node_context);
+NamedOutputs nearest_interp_v2 (const NodeContext& node_context);
 
 }}}}

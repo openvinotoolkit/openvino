@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector conv2d (const NodeContext& node_context);
+NamedOutputs conv2d (const NodeContext& node_context);
 
 }}}}

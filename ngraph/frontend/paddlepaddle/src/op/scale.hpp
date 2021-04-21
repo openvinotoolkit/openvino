@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector scale (const NodeContext& node);
+NamedOutputs scale (const NodeContext& node);
 
 }}}}

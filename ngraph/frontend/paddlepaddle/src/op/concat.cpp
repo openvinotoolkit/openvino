@@ -22,10 +22,10 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector concat (const NodeContext& node) {
+NamedOutputs concat (const NodeContext& node) {
     auto data = node.get_ng_inputs("X");
     auto axis = node.get_attribute<int>("axis");
-    return {std::make_shared<ngraph::opset6::Concat>(data, axis)};
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Concat>(data, axis)}, {"Out"});
 }
 
 }}}}

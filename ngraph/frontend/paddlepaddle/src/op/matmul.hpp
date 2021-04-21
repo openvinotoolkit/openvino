@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector matmul(const NodeContext& node);
+NamedOutputs matmul(const NodeContext& node);
 
 } // namespace op
 } // namespace pdpd

@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector transpose2 (const NodeContext& node) {
+NamedOutputs transpose2 (const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto perm = node.get_attribute<std::vector<int>>("axis");
 
@@ -34,7 +34,7 @@ OutputVector transpose2 (const NodeContext& node) {
     PDPD_ASSERT(perm.size() == rank, "transpose2: axis size must equal to data rank!");
 
     auto input_order = ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
-    return {std::make_shared<ngraph::opset6::Transpose>(data, input_order)};
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
 }
 
 }}}}

@@ -22,14 +22,14 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector batch_norm (const NodeContext& node) {
+NamedOutputs batch_norm (const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto gamma = node.get_ng_input("Scale");
     auto beta = node.get_ng_input("Bias");
     auto mean = node.get_ng_input("Mean");
     auto variance = node.get_ng_input("Variance");
-    return {std::make_shared<ngraph::opset6::BatchNormInference>(
-            data, gamma, beta, mean, variance, node.get_attribute<float>("epsilon"))};
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::BatchNormInference>(
+            data, gamma, beta, mean, variance, node.get_attribute<float>("epsilon"))}, {"Y"});
 }
 
 }}}}

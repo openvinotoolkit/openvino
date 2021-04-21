@@ -19,6 +19,8 @@
 namespace ngraph {
 namespace frontend {
 
+using namespace paddle::framework;
+
 std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
         {proto::VarType_Type::VarType_Type_BOOL,  ngraph::element::boolean},
         {proto::VarType_Type::VarType_Type_INT16, ngraph::element::i16},
@@ -145,6 +147,14 @@ bool DecoderPDPDProto::get_bool(const std::string& name, bool def) const
     } else {
         return attrs[0].b();
     }
+}
+
+std::vector<std::string> DecoderPDPDProto::get_output_names() const {
+    std::vector<std::string> output_names;
+    for (const auto& output : op.outputs()) {
+        output_names.push_back(output.parameter());
+    }
+    return output_names;
 }
 
 }

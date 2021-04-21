@@ -22,10 +22,10 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector scale (const NodeContext& node) {
+NamedOutputs scale (const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto scale = ngraph::opset6::Constant::create(ngraph::element::f32, {1}, {node.get_attribute<float>("scale")});
-    return {std::make_shared<ngraph::opset6::Multiply>(data, scale)};
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Multiply>(data, scale)}, {"Out"});
 }
 
 }}}}

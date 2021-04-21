@@ -22,8 +22,8 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector relu (const NodeContext& node) {
-    return {std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))};
+NamedOutputs relu (const NodeContext& node) {
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
 }
 
 }}}}

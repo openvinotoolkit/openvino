@@ -22,20 +22,20 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector conv2d (const NodeContext& node) {
+NamedOutputs conv2d (const NodeContext& node) {
     auto data = node.get_ng_input("Input");
     auto filter = node.get_ng_input("Filter");
     // TODO: resolve padding according to spec
     auto strides = node.get_attribute<std::vector<int32_t>>("strides");
     auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
     auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-    return {std::make_shared<ngraph::opset6::Convolution>(
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Convolution>(
         data,
         filter,
         ngraph::Strides(strides.begin(), strides.end()),
         ngraph::CoordinateDiff(paddings.begin(), paddings.end()),
         ngraph::CoordinateDiff(paddings.begin(), paddings.end()),
-        ngraph::Strides(dilations.begin(), dilations.end()))};
+        ngraph::Strides(dilations.begin(), dilations.end()))}, {"Output"});
 }
 
 }}}}

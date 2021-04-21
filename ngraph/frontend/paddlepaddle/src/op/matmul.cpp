@@ -23,7 +23,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-    OutputVector matmul(const NodeContext& node) {
+    NamedOutputs matmul(const NodeContext& node) {
         auto x = node.get_ng_input("X");
         auto y = node.get_ng_input("Y");
         auto alpha = node.get_attribute<float>("alpha");
@@ -31,7 +31,7 @@ namespace op {
         auto transpose_b = node.get_attribute<bool>("transpose_b");
         auto mm = std::make_shared<ngraph::opset6::MatMul>(x, y, transpose_a, transpose_b);
         auto alpha_node = ngraph::opset6::Constant::create(ngraph::element::f32, {1}, {alpha});
-        return {std::make_shared<ngraph::opset6::Multiply>(mm, alpha_node)};
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Multiply>(mm, alpha_node)}, {"Out"});
     }
 
 } // namespace op

@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector pool2d (const NodeContext& node) {
+NamedOutputs pool2d (const NodeContext& node) {
     // TODO : resolve padding according to spec
     auto data = node.get_ng_input("X");
     auto pooling_type = node.get_attribute<std::string>("pooling_type");
@@ -35,13 +35,13 @@ OutputVector pool2d (const NodeContext& node) {
         auto rounding_type = node.get_attribute<bool>("ceil_mode")
                                  ? ngraph::op::RoundingType::CEIL
                                  : ngraph::op::RoundingType::FLOOR;
-        return {std::make_shared<ngraph::opset6::MaxPool>(
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::MaxPool>(
                     data,
                     ngraph::Strides(strides.begin(), strides.end()),
                     ngraph::Shape(paddings.begin(), paddings.end()),
                     ngraph::Shape(paddings.begin(), paddings.end()),
                     ngraph::Shape(kernel_shape.begin(), kernel_shape.end()),
-                    rounding_type)};
+                    rounding_type)}, {"Out"});
     }
     else if (pooling_type == "avg" &&
              (global_pooling || adaptive && all_of(kernel_shape.begin(),
@@ -50,7 +50,7 @@ OutputVector pool2d (const NodeContext& node) {
     {
         // TODO : resolve axes according to rank
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {2, 3});
-        return {std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true)};
+        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true)}, {"Out"});
     } else {
         throw std::runtime_error("Unsupported pooling type");
     }
