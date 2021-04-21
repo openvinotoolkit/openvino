@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Exp::type_info;
+NGRAPH_RTTI_DEFINITION(op::Exp, "Exp", 0, UnaryElementwiseArithmetic);
 
 op::Exp::Exp(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
