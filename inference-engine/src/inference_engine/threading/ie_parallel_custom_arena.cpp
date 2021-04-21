@@ -192,7 +192,7 @@ void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters)
     });
 #elif TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
     my_constraints.max_concurrency = max_concurrency_;
-    tbb::task_arena::initialize(convert_constraints(my_constraints), reserverd_for_masters);
+    tbb::task_arena::initialize(convert_constraints(my_constraints), reserved_for_masters);
 #else
     tbb::task_arena::initialize(max_concurrency_, reserved_for_masters);
 #endif
@@ -206,7 +206,7 @@ void task_arena::initialize(constraints constraints_, unsigned reserved_for_mast
         my_binding_observer = detail::construct_binding_observer(
             *this, tbb::task_arena::max_concurrency(), my_constraints);
 #elif TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
-        tbb::task_arena::initialize(convert_constraints(my_constraints), reserverd_for_masters);
+        tbb::task_arena::initialize(convert_constraints(my_constraints), reserved_for_masters);
 #else
         tbb::task_arena::initialize(my_constraints.max_concurrency, reserved_for_masters);
 #endif
