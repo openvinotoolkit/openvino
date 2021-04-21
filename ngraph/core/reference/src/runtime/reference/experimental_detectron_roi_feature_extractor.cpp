@@ -177,7 +177,7 @@ namespace
                         if (x_low >= width - 1)
                         {
                             x_high = x_low = width - 1;
-                            x = static_cast<T>(x_low);
+                            x = static_cast<float>(x_low);
                         }
                         else
                         {
