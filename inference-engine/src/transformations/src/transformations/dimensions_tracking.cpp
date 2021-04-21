@@ -135,6 +135,64 @@ void find_batch(std::shared_ptr<ngraph::Function> f) {
     }
 }
 
+void restore_original_dimensions_except_batch(const std::map<ngraph::opset1::Parameter*, ngraph::PartialShape>& parameter_to_shape) {
+    for (const auto& item : parameter_to_shape) {
+        const auto& batch_marked_shape = item.first->get_partial_shape();
+        const auto& original_shape = item.second;
+
+        auto original_shape_with_dynamic_batch = ngraph::PartialShape::dynamic(batch_marked_shape.rank());
+        for (ngraph::Dimension::value_type n = 0; n < batch_marked_shape.rank().get_length(); ++n) {
+            if (batch_marked_shape[n].get_name().rfind("BATCH_", 0) == 0)
+                original_shape_with_dynamic_batch[n] = ngraph::Dimension(-1, batch_marked_shape[n].get_name());
+            else
+                original_shape_with_dynamic_batch[n] = original_shape[n];
+        }
+        item.first->set_partial_shape(original_shape_with_dynamic_batch);
+    }
+}
+
+bool check_batch_tracks_through_all_the_nodes(std::shared_ptr<ngraph::Function> f) {
+    bool failed_to_propagate_batch = false;
+    for (auto &node : f->get_ordered_ops()) {
+        bool any_input_has_batch = false;
+        for (const auto &input : node->input_values()) {
+            const auto &input_shape = input.get_partial_shape();
+            bool name_stays = false;
+            bool others_are_static = true;
+            for (const auto &dim : input_shape)
+                if (dim.get_name().empty())
+                    others_are_static &= dim.is_static();
+                else
+                    name_stays = true;
+            any_input_has_batch |= name_stays && others_are_static;
+        }
+        bool all_outputs_has_batch = true;
+        for (const auto &output : node->outputs()) {
+            const auto &output_shape = output.get_partial_shape();
+            bool name_stays = false;
+            bool others_are_static = true;
+            for (const auto &dim : output_shape)
+                if (dim.get_name().empty())
+                    others_are_static &= dim.is_static();
+                else
+                    name_stays = true;
+            all_outputs_has_batch &= name_stays && others_are_static;
+        }
+        if (any_input_has_batch && !all_outputs_has_batch &&
+            !ngraph::is_type<ngraph::opset3::ShapeOf>(node) && !ngraph::is_type<ngraph::opset1::ShapeOf>(node)) {
+            failed_to_propagate_batch = true;
+        }
+    }
+    const auto &results = f->get_results();
+    for (const auto &result : results) {
+        const auto &input_shape = result->get_input_partial_shape(0);
+        bool name_stays = std::any_of(
+                input_shape.cbegin(), input_shape.cend(), [](const ngraph::Dimension &d) { return !d.get_name().empty(); });
+        failed_to_propagate_batch |= !name_stays;
+    }
+    return failed_to_propagate_batch;
+}
+
 bool ngraph::pass::FindBatch::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(FindBatch);
 
@@ -153,59 +211,11 @@ bool ngraph::pass::FindBatch::run_on_function(std::shared_ptr<ngraph::Function> 
 
     find_batch(f);
 
-    for (const auto& item : parameter_to_shape) {
-        const auto& batch_marked_shape = item.first->get_partial_shape();
-        const auto& original_shape = item.second;
-
-        auto original_shape_with_dynamic_batch = PartialShape::dynamic(batch_marked_shape.rank());
-        for (Dimension::value_type n = 0; n < batch_marked_shape.rank().get_length(); ++n) {
-            if (batch_marked_shape[n].get_name().rfind("BATCH_", 0) == 0)
-                original_shape_with_dynamic_batch[n] = ngraph::Dimension(-1, batch_marked_shape[n].get_name());
-            else
-                original_shape_with_dynamic_batch[n] = original_shape[n];
-        }
-        item.first->set_partial_shape(original_shape_with_dynamic_batch);
-    }
+    restore_original_dimensions_except_batch(parameter_to_shape);
 
     f->validate_nodes_and_infer_types();
 
-    bool failed_to_propagate_batch = false;
-    for (auto& node : f->get_ordered_ops()) {
-        bool any_input_has_batch = false;
-        for (const auto &input : node->input_values()) {
-            const auto& input_shape = input.get_partial_shape();
-            bool name_stays = false;
-            bool others_are_static = true;
-            for (const auto& dim : input_shape)
-                if (dim.get_name().empty())
-                    others_are_static &= dim.is_static();
-                else
-                    name_stays = true;
-            any_input_has_batch |= name_stays && others_are_static;
-        }
-        bool all_outputs_has_batch = true;
-        for (const auto &output : node->outputs()) {
-            const auto& output_shape = output.get_partial_shape();
-            bool name_stays = false;
-            bool others_are_static = true;
-            for (const auto& dim : output_shape)
-                if (dim.get_name().empty())
-                    others_are_static &= dim.is_static();
-                else
-                    name_stays = true;
-            all_outputs_has_batch &= name_stays && others_are_static;
-        }
-        if (any_input_has_batch && !all_outputs_has_batch && !ngraph::is_type<ngraph::opset3::ShapeOf>(node)) {
-            failed_to_propagate_batch = true;
-        }
-    }
-    const auto& results = f->get_results();
-    for (const auto& result : results) {
-        const auto & input_shape = result->get_input_partial_shape(0);
-        bool name_stays = std::any_of(
-                input_shape.cbegin(), input_shape.cend(), [](const ngraph::Dimension& d) { return !d.get_name().empty(); });
-        failed_to_propagate_batch |= !name_stays;
-    }
+    bool failed_to_propagate_batch = check_batch_tracks_through_all_the_nodes(f);
 
     if (failed_to_propagate_batch) {
         // return function to the initial state
