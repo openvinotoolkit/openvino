@@ -49,7 +49,10 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
         # create Reshape before convolution
-        # shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), patch_stride, C=1]
+        # if transpose will be applied (new models)
+        #   shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), patch_stride, C=1]
+        # else (for old models to avoid fails on GNA - should be removed as soon as GNA will be changed)
+        #   shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), C=1, patch_stride]
         i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
         shape = Cast(graph, {'name': node_name + '/to_float',
                              'dst_type': dst_dtype}).create_node()
@@ -65,8 +68,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         # added if to avoid changes in old networks where channel dimension is 1 and transpose is not needed
         # (GNA doesn't support)
         if node.kernel[1] == 1:
-            channel_dim = 1
-            sp_dim_1 = 2
+            channel_dim = 2
+            sp_dim_1 = 1
             sp_dim_2 = 3
         else:
             channel_dim = 3

@@ -33,7 +33,7 @@ class ConvolutionalComponentFrontExtractorTest(KaldiFrontExtractorTest):
 
     def test_attrs(self):
         val_attrs = {
-            'kernel': [2, 1, 2, 2],
+            'kernel': [1, 1, 1, 2],
             'stride': [1, 1, 1, 2],
             'pad': [[[0, 0], [0, 0], [0, 0], [0, 0]]],
             'output': 2,
