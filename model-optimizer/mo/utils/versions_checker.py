@@ -88,7 +88,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
 
     # parse a requirement for a dependency
     requirement = splited_requirement[0]
-    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<", requirement)
+    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<|~=", requirement)
     splited_versions_by_conditions = [l.strip(',') for l in splited_versions_by_conditions]
 
     if len(splited_versions_by_conditions) == 0:
@@ -98,7 +98,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     else:
         splited_required_versions= re.split(r",", requirement)
         for i, l in enumerate(splited_required_versions):
-            for comparison in ['==', '>=', '<=', '<', '>']:
+            for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                 if comparison in l:
                     version_list.append((splited_versions_by_conditions[0], comparison, splited_versions_by_conditions[i + 1]))
                     break
@@ -160,6 +160,8 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
             satisfied = installed_v < req_ver
         elif sign == '==':
             satisfied = installed_v == req_ver
+        elif sign == '~=':
+            satisfied = installed_v >= req_ver
         else:
             log.error("Error during version comparison")
     else:
