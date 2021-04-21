@@ -18,7 +18,7 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-from mo.utils.frontendmanager_wrapper import create_fem
+from mo.front_ng.frontendmanager_wrapper import create_fem
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
