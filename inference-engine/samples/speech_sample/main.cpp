@@ -1086,7 +1086,7 @@ int main(int argc, char *argv[]) {
                         /* waits until inference result becomes available */
                         if (inferRequest.frameIndex != -1) {
                             StatusCode code = inferRequest.inferRequest.Wait(
-                                    InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+                                    InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 
                             if (code != StatusCode::OK) {
                                 if (!useHetero) continue;

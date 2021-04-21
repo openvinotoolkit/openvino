@@ -21,6 +21,8 @@ def parse_arguments():
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default="")
+    parser.add_argument("-f", "--output_filename", help=output_folders_help, default="report")
+
     return parser.parse_args()
 
 
@@ -57,6 +59,8 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
                     if device_results.find(op.tag) is not None:
                         entry = device_results.find(op.tag)
                         for attr_name in device_results.find(op.tag).attrib:
+                            if attr_name == "passrate":
+                                continue
                             xml_value = int(op.attrib.get(attr_name))
                             aggregated_value = int(entry.attrib.get(attr_name))
                             device_results.find(entry.tag).set(attr_name, str(xml_value + aggregated_value))
@@ -65,7 +69,7 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     return timestamp
 
 
-def merge_xml(input_folder_paths: list, output_folder_paths: str):
+def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str):
     logger.info(f" Processing is finished")
 
     summary = ET.Element("report")
@@ -94,7 +98,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
 
         if not os.path.exists(output_folder_paths):
             os.mkdir(output_folder_paths)
-        out_file_path = os.path.join(output_folder_paths, "report.xml")
+        out_file_path = os.path.join(output_folder_paths, f'{output_filename}.xml')
         with open(out_file_path, "w") as xml_file:
             xml_file.write(ET.tostring(summary).decode('utf8'))
             logger.info(f" Final report is saved to file: '{out_file_path}'")
@@ -102,4 +106,4 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
 
 if __name__ == "__main__":
     arguments = parse_arguments()
-    merge_xml(arguments.input_folders, arguments.output_folder)
+    merge_xml(arguments.input_folders, arguments.output_folder, arguments.output_filename)
