@@ -111,6 +111,10 @@ std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
         inputs[0] = foldingConstant;
         const auto op = operation->clone_with_new_inputs(inputs);
 
+        if (std::dynamic_pointer_cast<op::TypeRelaxedBase>(op)) {
+            setOutDataPrecisionForTypeRelaxed(op, inputs[0].get_element_type());
+        }
+
         // constant folding of constant
         op->constant_fold(outputs, inputs);
 
