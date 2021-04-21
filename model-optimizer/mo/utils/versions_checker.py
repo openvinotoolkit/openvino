@@ -161,7 +161,7 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
         elif sign == '==':
             satisfied = installed_v == req_ver
         elif sign == '~=':
-            satisfied = installed_v >= req_ver
+            satisfied = installed_v >= req_ver and (installed_v.split('.')[:-1] == req_ver.vstring.split('.')[:-1])
         else:
             log.error("Error during version comparison")
     else:
