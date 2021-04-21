@@ -19,7 +19,7 @@ except ModuleNotFoundError:
 
 import mo.utils.version as v
 try:
-    import openvino.telemetry as tm  # pylint: disable=import-error,no-name-in-module
+    import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
 except ImportError:
     import mo.utils.telemetry_stub as tm
 from mo.utils.error import classify_error_type
