@@ -108,7 +108,6 @@ def prepare_ir(argv: argparse.Namespace):
     log.debug(str(argv))
     log.debug("Model Optimizer started")
     t = tm.Telemetry()
-    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
