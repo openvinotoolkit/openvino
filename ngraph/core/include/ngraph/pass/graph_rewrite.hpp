@@ -219,9 +219,27 @@ namespace ngraph
             void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
         protected:
+            bool apply_matcher_passes(std::shared_ptr<Function> f,
+                                      std::deque<std::shared_ptr<Node>> nodes_to_run);
+
             bool m_enable_shape_inference = false;
 
             std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
+        };
+
+        class NGRAPH_API BackwardGraphRewrite : public ngraph::pass::GraphRewrite
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+
+            BackwardGraphRewrite() = default;
+
+            explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass)
+                : GraphRewrite(pass)
+            {
+            }
+
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
         };
 
         class NGRAPH_API RecurrentGraphRewrite : public ngraph::pass::FunctionPass
