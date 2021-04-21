@@ -1716,6 +1716,13 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
     } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
+        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+        if (!power) {
+            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+        }
+        scales.push_back(power->getBeta());
+        shifts.push_back(power->getGamma());
     }
 
     const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].ndims() > 1 ? 1 : 0]);
@@ -1805,6 +1812,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
             case EltwiseMultiply:
             case EltwiseDivide:
             case EltwiseMulAdd:
+            case EltwisePowerStatic:
                 if (scales.empty() || shifts.empty())
                     IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
                 ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scales[0], &shifts[0]);

@@ -166,7 +166,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "GRUSequence", RNNSeq },
 //        { "RNNSequence", RNNSeq },
         { "FakeQuantize", FakeQuantize },
-//        { "BinaryConvolution", BinaryConvolution },
+        { "BinaryConvolution", BinaryConvolution },
         { "DeformableConvolution", DeformableConvolution },
 //        { "TensorIterator", TensorIterator },
 //        { "Loop", TensorIterator },
@@ -1329,7 +1329,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
     for (size_t i = (parentNode == nullptr ? 1 : 0); i < getParentEdges().size(); i++) {
         MKLDNNNode *node = getParentEdgeAt(i)->getParent().get();
         if (node == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot get parent node for " << getName() << " on " << i << " port";
+            IE_THROW() << "Cannot get parent node for " << getName() << " on " << i << " port";
         }
         if (node == parentNode) {
             fusingPort = i;
@@ -1359,7 +1359,19 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
         return true;
     };
 
-    return one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && isBroadcastableToDataInput();
+    const auto isConvertablePowerStatic = [&]() {
+        if (getAlgorithm() == EltwisePowerStatic) {
+            const auto eltwise = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+            if (!eltwise) {
+                IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+            }
+            return eltwise->getAlpha() == 1.0f;
+        }
+        return false;
+    };
+
+    return (one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && isBroadcastableToDataInput())
+            || isConvertablePowerStatic();
 }
 
 bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {

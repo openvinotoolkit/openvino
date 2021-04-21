@@ -69,7 +69,14 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, 1.0f, value,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Subtract>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, 1.0f, (-1.0f * value),
+        float scale = 1.0f;
+        float shift = value;
+        if (constPort == 0) {
+            scale *= -1.0f;
+        } else {
+            shift *= -1.0f;
+        }
+        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, scale, shift,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Multiply>::value) {
         return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.f, value, 0.0f,
