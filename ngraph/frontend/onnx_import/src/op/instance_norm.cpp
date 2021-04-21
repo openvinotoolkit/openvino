@@ -18,6 +18,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "op/instance_norm.hpp"
 #include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -84,22 +85,15 @@ namespace ngraph
                     auto mvn = std::make_shared<default_opset::MVN>(
                         data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-                    const auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-
-                    // Broadcast preserving channel dimension
-                    scale = std::make_shared<default_opset::Broadcast>(
-                        scale,
-                        data_shape_node,
-                        std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
-                    bias = std::make_shared<default_opset::Broadcast>(
-                        bias,
-                        data_shape_node,
-                        std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
+                    const auto mvn_shape = std::make_shared<default_opset::ShapeOf>(mvn);
+                    const auto mvn_rank = std::make_shared<default_opset::ShapeOf>(mvn_shape);
 
                     // scale * mvn + bias
                     std::shared_ptr<ngraph::Node> result =
-                        std::make_shared<default_opset::Multiply>(mvn, scale);
-                    result = std::make_shared<default_opset::Add>(result, bias);
+                        std::make_shared<default_opset::Multiply>(
+                            mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
+                    result = std::make_shared<default_opset::Add>(
+                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
 
                     return {result};
                 }

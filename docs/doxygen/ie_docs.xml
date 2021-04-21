@@ -52,10 +52,12 @@ limitations under the License.
                         <tab type="usergroup" title="Converting Your ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX">
                             <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
-                            <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
-                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet"/>
-                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_YOLACT"/>
-                            <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_F3Net"/>
+                            <tab type="user" title="Convert ONNX* GPT-2 Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2"/>
+                            <tab type="user" title="Convert DLRM ONNX* Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
+                        <tab type="usergroup" title="Converting Your PyTorch* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch">
+                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet"/>
+                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT"/>
+                            <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
@@ -130,6 +132,7 @@ limitations under the License.
                 <tab type="user" title="DetectionOutput-1" url="@ref openvino_docs_ops_detection_DetectionOutput_1"/>
                 <tab type="user" title="DFT-7" url="@ref openvino_docs_ops_signals_DFT_7"/>
                 <tab type="user" title="Divide-1" url="@ref openvino_docs_ops_arithmetic_Divide_1"/>
+                <tab type="user" title="Einsum-7" url="@ref openvino_docs_ops_matrix_Einsum_7"/>
                 <tab type="user" title="Elu-1" url="@ref openvino_docs_ops_activation_Elu_1"/>
                 <tab type="user" title="EmbeddingBagOffsetsSum-3" url="@ref openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3"/>
                 <tab type="user" title="EmbeddingBagPackedSum-3" url="@ref openvino_docs_ops_sparse_EmbeddingBagPackedSum_3"/>
@@ -268,7 +271,6 @@ limitations under the License.
         <tab id="deploying_inference" type="usergroup" title="Deploying Inference" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
             <!-- Inference Engine Developer Guide -->
             <tab type="usergroup" title="Inference Engine Developer Guide" url="@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide">
-                <tab type="user" title="Introduction to Inference Engine" url="@ref openvino_docs_IE_DG_inference_engine_intro"/>
                 <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                 <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                 <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>

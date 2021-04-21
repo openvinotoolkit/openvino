@@ -8,13 +8,12 @@
 #include <string>
 #include <map>
 
-#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
-#include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
-class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
  protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
@@ -23,7 +22,7 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
                     InferenceEngine::InputsDataMap networkInputs,
                     InferenceEngine::OutputsDataMap networkOutputs)
-        : InferenceEngine::AsyncInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
+        : InferenceEngine::IInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
         // TODO: internal connection API - better to generalize
         if (networkOutputs.empty()) {
             THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero outputs";
@@ -78,10 +77,19 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         inferRequestIdx = plg->QueueInference(_inputs, _outputs);
         // workaround to unblock callback-based flows
         if (_callback) {
-            auto infer_request = _publicInterface.lock();
-            IE_ASSERT(infer_request != nullptr);
             auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-            _callback(infer_request, res);
+            std::exception_ptr exceptionPtr;
+            if (res != InferenceEngine::StatusCode::OK) {
+                try {
+                    IE_EXCEPTION_SWITCH(res, ExceptionType,
+                        InferenceEngine::details::ThrowNow<ExceptionType>{}
+                            <<= std::stringstream{} << IE_LOCATION
+                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                } catch (...) {
+                    exceptionPtr = std::current_exception();
+                }
+            }
+            _callback(exceptionPtr);
         }
     }
 

@@ -11,7 +11,7 @@
 #include <mvnc.h>
 
 using namespace InferenceEngine;
-using ExeNetworkPtr = InferenceEngine::IExecutableNetwork::Ptr;
+using ExeNetwork = InferenceEngine::ExecutableNetwork;
 
 //------------------------------------------------------------------------------
 // class MyriadLoadNetworkTestCase

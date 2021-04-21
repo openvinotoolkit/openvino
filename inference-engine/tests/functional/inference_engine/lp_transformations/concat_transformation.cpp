@@ -686,6 +686,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
             {},
@@ -709,6 +710,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
             {},
