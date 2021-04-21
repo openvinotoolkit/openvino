@@ -413,9 +413,7 @@ extensions/front/tf/faster_rcnn_support_api_v1.15.json
 extensions/front/tf/faster_rcnn_support_api_v1.7.json
 extensions/front/tf/faster_rcnn_support_api_v2.0.json
 extensions/front/tf/faster_rcnn_support_api_v2.4.json
-extensions/front/tf/fft1d.py
-extensions/front/tf/fft2d.py
-extensions/front/tf/fft3d.py
+extensions/front/tf/fft_ext.py
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
@@ -428,9 +426,6 @@ extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
-extensions/front/tf/ifft1d.py
-extensions/front/tf/ifft2d.py
-extensions/front/tf/ifft3d.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/KerasRNNTransformation.py
