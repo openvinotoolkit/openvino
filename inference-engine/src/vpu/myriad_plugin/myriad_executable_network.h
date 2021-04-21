@@ -74,7 +74,6 @@ public:
     }
 
     ie::IInferRequestInternal::Ptr CreateInferRequest() override {
-        ie::IInferRequest::Ptr asyncRequest;
         if (_device == nullptr || !_device->isBooted()) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;

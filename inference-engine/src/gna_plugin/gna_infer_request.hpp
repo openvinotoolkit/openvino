@@ -41,7 +41,7 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
     }
     /**
      * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
+     * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     void InferImpl() override {
         // execute input pre-processing.
@@ -77,7 +77,7 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
         inferRequestIdx = plg->QueueInference(_inputs, _outputs);
         // workaround to unblock callback-based flows
         if (_callback) {
-            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+            auto res = Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
             std::exception_ptr exceptionPtr;
             if (res != InferenceEngine::StatusCode::OK) {
                 try {
@@ -101,7 +101,7 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
             IE_THROW(ParameterMismatch);
         }
 
-        if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
+        if (millis_timeout == InferenceEngine::InferRequest::WaitMode::RESULT_READY) {
             millis_timeout = MAX_TIMEOUT;
         }
         const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);

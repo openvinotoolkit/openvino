@@ -170,8 +170,8 @@ Call `Wait` for waiting result to become available for asynchronous request.
 There are three ways to use it:
 * specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed,
 or the result becomes available, whichever comes first.
-* `InferenceEngine::IInferRequest::WaitMode::RESULT_READY` - waits until inference result becomes available
-* `InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY` - immediately returns request status.It does not
+* `InferenceEngine::InferRequest::WaitMode::RESULT_READY` - waits until inference result becomes available
+* `InferenceEngine::InferRequest::WaitMode::STATUS_ONLY` - immediately returns request status.It does not
 block or interrupts current thread.
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.

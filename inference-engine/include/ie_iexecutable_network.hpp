@@ -23,16 +23,21 @@
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
+
+_IE_SUPPRESS_DEPRECATED_START_GCC
+
 /**
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork instead") IExecutableNetwork
     : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief A smart pointer to the current IExecutableNetwork object
      */
     using Ptr = std::shared_ptr<IExecutableNetwork>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets the Executable network output Data node information.
@@ -60,6 +65,7 @@ public:
      */
     virtual StatusCode GetInputsInfo(ConstInputsDataMap& inputs, ResponseDesc* resp) const noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Creates an inference request object used to infer the network.
      *
@@ -70,6 +76,7 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Exports the current executable network.
@@ -172,5 +179,7 @@ public:
 protected:
     ~IExecutableNetwork() = default;
 };
+
+_IE_SUPPRESS_DEPRECATED_END_GCC
 
 }  // namespace InferenceEngine

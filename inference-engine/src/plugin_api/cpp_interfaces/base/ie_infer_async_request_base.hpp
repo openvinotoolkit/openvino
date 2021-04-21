@@ -84,6 +84,8 @@ namespace InferenceEngine {
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
     }
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief Inference request `noexcept` wrapper which accepts IInferRequestInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_infer_request_api
@@ -189,5 +191,7 @@ public:
 
     void* _data = nullptr;
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

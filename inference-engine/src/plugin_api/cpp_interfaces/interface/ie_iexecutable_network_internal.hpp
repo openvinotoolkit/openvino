@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <ie_iexecutable_network.hpp>
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <ie_iinfer_request.hpp>
-#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <ie_parameter.hpp>
+#include <ie_remote_context.hpp>
 #include <cpp/ie_cnn_network.h>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 
 namespace InferenceEngine {
 class IInferRequestInternal;

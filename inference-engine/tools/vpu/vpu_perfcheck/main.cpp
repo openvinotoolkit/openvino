@@ -140,13 +140,6 @@ public:
     }
 };
 
-#define IECALL(call)                                                                \
-{                                                                                   \
-    if (InferenceEngine::OK != (call)) {                                            \
-        std::cout << #call " failed: " << resp.msg << std::endl;                    \
-        return 1;                                                                   \
-    }                                                                               \
-}
 
 static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob);
 static bool loadVideo(const std::vector<std::string> &imagesFolder, InferenceEngine::Blob::Ptr &blob);
@@ -309,7 +302,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
 
 int process(const std::string& modelFileName, const std::string& inputsDir,
             std::string& file_config_cl, int nBatch, int num_networks) {
-    InferenceEngine::ResponseDesc resp;
     InferenceEngine::Core ie;
     niter /= nBatch;
     num_requests = num_requests * num_networks;
@@ -394,7 +386,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         exeNetwork[n] = ie.LoadNetwork(cnnNetwork, deviceName, networkConfig);
     }
 
-    std::vector<InferenceEngine::IInferRequest::Ptr> request(num_requests);
+    std::vector<InferenceEngine::InferRequest> request(num_requests);
     iter_start.resize(niter);
     iter_end.resize(niter);
     iter_time.resize(niter);
@@ -406,9 +398,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         request[r] = exeNetwork[n].CreateInferRequest();
 
         for (auto &input : networkInputs) {
-            InferenceEngine::Blob::Ptr inputBlob;
-            IECALL(request[r]->GetBlob(input.first.c_str(), inputBlob, &resp));
-
+            auto inputBlob = request[r].GetBlob(input.first);
             const auto& dims = inputBlob->getTensorDesc().getDims();
             auto layout = inputBlob->getTensorDesc().getLayout();
 
@@ -430,8 +420,8 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
             }
         }
 
-        IECALL(request[r]->SetCompletionCallback(
-                [](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
+        request[r].SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
+                [](InferenceEngine::InferRequest request, InferenceEngine::StatusCode code) -> void {
                     if (code != InferenceEngine::OK) {
                         std::cout << "Infer failed: " << code << std::endl;
                         exit(1);
@@ -442,17 +432,13 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
 
                     iter_end[reqIdx] = Time::now();
 
-                    InferenceEngine::ResponseDesc resp;
                     if (profile && (reqIdx == niter / 2)) {
-                        request->GetPerformanceCounts(perfMap, &resp);
+                        perfMap = request.GetPerformanceCounts();
                     }
 
                     if (iter >= 0) {
                         iter_start[reqIdx + (num_requests)] = Time::now();
-                        if (InferenceEngine::OK != request->StartAsync(&resp)) {
-                            std::cout << "StartAsync failed: " << resp.msg << std::endl;
-                            exit(1);
-                        }
+                        request.StartAsync();
                     }
 
                     iter_time[reqIdx] = TIMEDIFF(iter_start[reqIdx], iter_end[reqIdx]);
@@ -462,14 +448,14 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
                         reallydone = 1;
                         alldone.notify_all();
                     }
-                }));
+                });
     }
 
     printf("Inference started. Running %d iterations...\n", niter - 2 * 2 * num_requests);
     fflush(stdout);
     for (int r = 0; r < num_requests; ++r) {
         iter_start[r] = Time::now();
-        IECALL(request[r]->StartAsync(&resp));
+        request[r].StartAsync();
     }
 
     {

@@ -6,7 +6,6 @@
 #include "ie_common.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/exception2status.hpp"
-#include "ie_iexecutable_network.hpp"
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 
 namespace InferenceEngine {
@@ -39,6 +38,8 @@ ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
     EXEC_NET_CALL_STATEMENT(return _impl->GetInputsInfo());
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
     if (newActual == nullptr) IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
@@ -48,6 +49,8 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     IE_ASSERT(newImpl != nullptr);
     this->_impl.swap(newImpl);
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
     EXEC_NET_CALL_STATEMENT(return InferRequest{_impl->CreateInferRequest(), _so});
