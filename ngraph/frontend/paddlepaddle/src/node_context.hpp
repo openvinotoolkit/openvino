@@ -24,6 +24,7 @@ namespace pdpd {
 
 using InPortName = std::string;
 using OutPortName = std::string;
+using TensorName = std::string;
 using NamedOutputs = std::map<OutPortName, OutputVector>;
 using NamedInputs = std::map<InPortName, OutputVector>;
 
@@ -31,7 +32,7 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 class NodeContext
 {
     const DecoderPDPDProto& node;
-    NamedInputs& name_map;
+    const NamedInputs& name_map;
 
 public:
 
@@ -76,7 +77,7 @@ public:
 
     std::vector<OutPortName> get_output_names() const { return node.get_output_names(); }
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node> &ngraph_node,
-                                               const std::vector<OutPortName>& pdpd_out_names) const;
+                                               const std::vector<OutPortName>& required_pdpd_out_names) const;
 };
 
 template <>

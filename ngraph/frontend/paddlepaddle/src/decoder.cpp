@@ -19,6 +19,8 @@
 namespace ngraph {
 namespace frontend {
 
+using namespace paddle::framework;
+
 std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
         {proto::VarType_Type::VarType_Type_BOOL,  ngraph::element::boolean},
         {proto::VarType_Type::VarType_Type_INT16, ngraph::element::i16},

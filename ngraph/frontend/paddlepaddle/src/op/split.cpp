@@ -33,8 +33,8 @@ namespace op {
         auto axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
 
         NamedOutputs named_outputs;
-        const auto& split_outputs = std::make_shared<Split>(data, axis, num_or_sections)->outputs();
-        const auto& out_names = node.get_output_names();
+        auto split_outputs = std::make_shared<Split>(data, axis, num_or_sections)->outputs();
+        auto out_names = node.get_output_names();
         PDPD_ASSERT(out_names.size() == 1, "Unexpected number of outputs");
 
         auto it = std::find(out_names.begin(), out_names.end(), "Out");
