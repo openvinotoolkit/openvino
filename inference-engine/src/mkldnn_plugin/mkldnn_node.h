@@ -54,7 +54,6 @@ enum Type {
     Concatenation,
     Eltwise,
     MatMul,
-    StridedSlice,
     Reshape,
     Tile,
     SimplerNMS,
@@ -143,8 +142,6 @@ static std::string NameFromType(Type type) {
             return "Transpose";
         case SpaceToDepth:
             return "SpaceToDepth";
-        case StridedSlice:
-            return "StridedSlice";
         case Copy:
             return "Copy";
         case MemoryOutput:

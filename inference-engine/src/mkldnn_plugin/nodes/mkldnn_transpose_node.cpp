@@ -70,8 +70,6 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[1].inPlace = -1;
-    config.inConfs[1].constant = true;
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), inputOrderDataType, memory::format_tag::x);
@@ -91,7 +89,7 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw16c});
         }
 
-        if (prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nhwc});
@@ -112,7 +110,7 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw16c});
         }
 
-        if (prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
