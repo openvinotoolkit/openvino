@@ -48,6 +48,11 @@ void op::v1::Split::validate_and_infer_types()
                           "Element type of 'axis' input must be integer. Got: ",
                           axis_et);
 
+    NODE_VALIDATION_CHECK(this,
+                          m_num_splits > 0,
+                          "Attribute 'num_splits' must be greater than zero. Got: ",
+                          m_num_splits);
+
     PartialShape each_output_shape{data_ps};
     const Rank data_rank = data_ps.rank();
     const auto axis_input = get_constant_from_source(input_value(1));

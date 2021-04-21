@@ -272,6 +272,27 @@ TEST(type_prop, split_v1_invalid_axis_not_a_scalar)
     }
 }
 
+TEST(type_prop, split_v1_invalid_num_splits)
+{
+    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const size_t num_splits = 0;
+    try
+    {
+        auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+        // num_splits value is zero
+        FAIL() << "Invalid 'num_splits' attribute value not detected.";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'num_splits' must be greater than zero");
+    }
+    catch(...)
+    {
+        FAIL() << "Attribute 'num_splits' validation check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, split_v1_invalid_axis_value)
 {
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
