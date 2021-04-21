@@ -60,8 +60,8 @@ TEST(type_prop, einsum_staticshape_diagextraction)
 TEST(type_prop, einsum_staticshape_transpose)
 {
     std::string equation = "ijk->kij";
-    Shape input1_shape{1, 3, 3};
-    Shape out_shape{3, 1, 3};
+    Shape input1_shape{1, 2, 3};
+    Shape out_shape{3, 1, 2};
     auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1}, equation);
     ASSERT_EQ(O->get_element_type(), element::f32);
@@ -75,18 +75,18 @@ TEST(type_prop, einsum_staticshape_multimatmul)
     Shape input2_shape{5, 3, 6};
     Shape input3_shape{5, 3};
     Shape out_shape{3, 2};
-    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
-    auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
-    auto I3 = make_shared<op::Parameter>(element::f32, input3_shape);
+    auto I1 = make_shared<op::Parameter>(element::i32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::i32, input2_shape);
+    auto I3 = make_shared<op::Parameter>(element::i32, input3_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2, I3}, equation);
-    ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_EQ(O->get_element_type(), element::i32);
     ASSERT_EQ(O->get_shape(), out_shape);
 }
 
 TEST(type_prop, einsum_staticshape_ellipsis)
 {
     std::string equation = "a...->...";
-    Shape input1_shape{3, 3};
+    Shape input1_shape{5, 3};
     Shape out_shape{3};
     auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1}, equation);
@@ -97,9 +97,9 @@ TEST(type_prop, einsum_staticshape_ellipsis)
 TEST(type_prop, einsum_staticshape_ellipsis2)
 {
     std::string equation = "a...,...->a...";
-    Shape input1_shape{3, 3};
+    Shape input1_shape{3, 5};
     Shape input2_shape{1};
-    Shape out_shape{3, 3};
+    Shape out_shape{3, 5};
     auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
     auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
@@ -113,10 +113,10 @@ TEST(type_prop, einsum_staticshape_ellipsis3)
     Shape input1_shape{11, 1, 4, 3};
     Shape input2_shape{3, 11, 7, 1};
     Shape out_shape{11, 11, 7, 4};
-    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
-    auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
+    auto I1 = make_shared<op::Parameter>(element::i32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::i32, input2_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
-    ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_EQ(O->get_element_type(), element::i32);
     ASSERT_EQ(O->get_shape(), out_shape);
 }
 
@@ -138,9 +138,9 @@ TEST(type_prop, einsum_dynamicshape_diagextraction)
     std::string equation = "xyzxy->xyz";
     const auto input1_shape = PartialShape{Dimension(2, 7), Dimension(1, 5), 4, Dimension(3, 5), 3};
     const auto out_shape = PartialShape{Dimension(3, 5), 3, 4};
-    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
+    auto I1 = make_shared<op::Parameter>(element::i32, input1_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1}, equation);
-    ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_EQ(O->get_element_type(), element::i32);
     ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
@@ -183,6 +183,36 @@ TEST(type_prop, einsum_implicitmode_mixedcaseletters2)
     auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
     auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
     ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
+}
+
+TEST(type_prop, einsum_dynamicrank_multimatmul)
+{
+    std::string equation = "ab,bcd,bc->ca";
+    Shape input1_shape{2, 5};
+    PartialShape input2_shape = PartialShape::dynamic();
+    Shape input3_shape{5, 3};
+    Shape out_shape{3, 2};
+    auto I1 = make_shared<op::Parameter>(element::i32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::i32, input2_shape);
+    auto I3 = make_shared<op::Parameter>(element::i32, input3_shape);
+    auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2, I3}, equation);
+    ASSERT_EQ(O->get_element_type(), element::i32);
+    ASSERT_EQ(O->get_shape(), out_shape);
+}
+
+TEST(type_prop, einsum_dynamicrank_multimatmul2)
+{
+    std::string equation = "ab,bcd,bc->ca";
+    PartialShape input1_shape = PartialShape::dynamic();
+    PartialShape input2_shape = PartialShape::dynamic();
+    PartialShape input3_shape = PartialShape::dynamic();
+    PartialShape out_shape{Dimension(), Dimension()};
+    auto I1 = make_shared<op::Parameter>(element::i32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::i32, input2_shape);
+    auto I3 = make_shared<op::Parameter>(element::i32, input3_shape);
+    auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2, I3}, equation);
+    ASSERT_EQ(O->get_element_type(), element::i32);
     ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
@@ -229,7 +259,9 @@ TEST(type_prop, einsum_incorrectequation_invalidlabels)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Equation must be strictly in explicit or implicit mode."));
+            error.what(),
+            std::string("Input subscript of Einsum equation must consist of either only alphabetic "
+                        "letters or alphabetic letters with one ellipsis."));
     }
     catch (...)
     {

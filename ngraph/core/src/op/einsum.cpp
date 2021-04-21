@@ -21,11 +21,15 @@ op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation)
     : Op(inputs)
     , m_equation(equation)
 {
+    // normalize input equation by removing extra white-spaces from the equation
+    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace),
+                     m_equation.end());
+
     constructor_validate_and_infer_types();
 }
 
-bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
-                                    std::string& output_subscript)
+void op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
+                                    std::string& output_subscript) const
 {
     NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
 
@@ -35,10 +39,6 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
 
     // create regular expression to match ellipsis label
     const std::regex ellipsis_regex("\\.\\.\\.");
-
-    // remove extra white-spaces from the equation
-    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace),
-                     m_equation.end());
 
     // split equation to input subscripts and an output subscript
     auto pos_output_delimeter = m_equation.find("->");
@@ -53,10 +53,10 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
     for (std::string input_subscript; std::getline(input, input_subscript, ',');)
     {
         // check that input subscript contains only alphabetic letter or ellipsis
-        if (std::regex_match(input_subscript, subscript_regex) == false)
-        {
-            return false;
-        }
+        NODE_VALIDATION_CHECK(this,
+                              std::regex_match(input_subscript, subscript_regex) == true,
+                              "Input subscript of Einsum equation must consist of either only "
+                              "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // figure out if ellipsis is met in input subscript
         if (std::regex_search(input_subscript, ellipsis_match, ellipsis_regex) == true)
@@ -91,26 +91,25 @@ bool op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
         output_subscript = m_equation.substr(pos_output_delimeter + 2);
 
         // check that the output subscript has the correct format
-        if (std::regex_match(output_subscript, subscript_regex) == false)
-        {
-            return false;
-        }
+        NODE_VALIDATION_CHECK(this,
+                              std::regex_match(output_subscript, subscript_regex) == true,
+                              "Output subscript of Einsum equation must consist of either only "
+                              "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
         std::regex_search(output_subscript, ellipsis_match, ellipsis_regex);
-        if (is_ellipsis_met && ellipsis_match.size() != 1)
-        {
-            return false;
-        }
+        NODE_VALIDATION_CHECK(this,
+                              is_ellipsis_met == false || ellipsis_match.size() == 1,
+                              "Output subscript of Einsum equation must contain one ellipsis if "
+                              "ellipsis is met in any input subscript.");
     }
-
-    return true;
 }
 
-void op::v7::Einsum::extract_labels(std::string const& subscript, std::vector<std::string>& labels)
+std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript) const
 {
     NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
 
+    std::vector<std::string> labels;
     labels.clear();
     auto subscript_length = subscript.length();
     for (size_t ch_idx = 0; ch_idx < subscript_length; ++ch_idx)
@@ -126,7 +125,13 @@ void op::v7::Einsum::extract_labels(std::string const& subscript, std::vector<st
             // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         }
+        else
+        {
+            NODE_VALIDATION_CHECK(this, false, "Einsum equation has invalid label.");
+        }
     }
+
+    return labels;
 }
 
 void op::v7::Einsum::validate_and_infer_types()
@@ -153,9 +158,9 @@ void op::v7::Einsum::validate_and_infer_types()
     // check that equation has correct format and extract input and output subscripts
     std::vector<std::string> input_subscripts;
     std::string output_subscript;
-    NODE_VALIDATION_CHECK(this,
-                          parse_equation(input_subscripts, output_subscript) == true,
-                          "Equation must be strictly in explicit or implicit mode.");
+    parse_equation(input_subscripts, output_subscript);
+
+    // a number of input subscripts must match with a number of input tensors
     NODE_VALIDATION_CHECK(
         this,
         input_subscripts.size() == num_inputs,
@@ -170,16 +175,18 @@ void op::v7::Einsum::validate_and_infer_types()
     {
         const auto& pshape = get_input_partial_shape(input_idx);
         std::vector<std::string> labels;
-        extract_labels(input_subscripts[input_idx], labels);
+        labels = extract_labels(input_subscripts[input_idx]);
 
         if (pshape.rank().is_static())
         {
             size_t input_rank = pshape.rank().get_length();
-            // check that a rank is equal to a number of labels
-            NODE_VALIDATION_CHECK(this,
-                                  input_rank >= labels.size(),
-                                  "Input rank must be equal to a number of labels in the "
-                                  "corresponding input subscript.");
+            // check that a rank is greater or equal to a number of labels
+            // these numbers are always equal if there is no ellipsis in the subscript
+            NODE_VALIDATION_CHECK(
+                this,
+                input_rank >= labels.size(),
+                "Input rank must be greater or equal to a number of labels in the "
+                "corresponding input subscript.");
 
             for (size_t label_ind = 0, dim_ind = 0;
                  label_ind < labels.size() && dim_ind < input_rank;
@@ -247,7 +254,7 @@ void op::v7::Einsum::validate_and_infer_types()
 
     // compute the output shape
     std::vector<std::string> output_labels;
-    extract_labels(output_subscript, output_labels);
+    output_labels = extract_labels(output_subscript);
     std::vector<Dimension> output_pshape_vector;
 
     for (auto const& output_label : output_labels)

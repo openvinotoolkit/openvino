@@ -47,15 +47,17 @@ namespace ngraph
                 /// \param      input_subscripts      A vector of extracted input subscripts
                 /// \param      output_subscript      An output subscript
                 ///
-                bool parse_equation(std::vector<std::string>& input_subscripts,
-                                    std::string& output_subscript);
+                void parse_equation(std::vector<std::string>& input_subscripts,
+                                    std::string& output_subscript) const;
 
-                /// \brief      Extract labels from subscript
+                /// \brief      Extract labels (from subscript) that can be alphabetic letters or
+                /// ellipsis
                 ///
-                /// \param      subscript      Input subscript
-                /// \param      labels         Extracted labels
+                /// \param      subscript      Subscript
                 ///
-                void extract_labels(std::string const& subscript, std::vector<std::string>& labels);
+                /// \return     A vector of extracted labels from the input subscript
+                ///
+                std::vector<std::string> extract_labels(const std::string& subscript) const;
             };
         } // namespace v7
     }     // namespace op
