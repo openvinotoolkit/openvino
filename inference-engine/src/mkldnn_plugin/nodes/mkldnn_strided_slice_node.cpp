@@ -10,7 +10,6 @@
 #include <legacy/ie_layers.h>
 #include "ie_parallel.hpp"
 #include "caseless.hpp"
-#include "common/dnnl_thread.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/tensor_desc_creator.h"
 #include "utils/general_utils.h"
@@ -471,7 +470,7 @@ void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector
         for (size_t idx = secondDim.first + 1; idx < secondDim.second; idx++)
             begin[1] /= newDstDims[idx];
 
-        const size_t maxThreads = dnnl_get_max_threads();
+        const size_t maxThreads = parallel_get_max_threads();
         if (params.dstDims[0] < maxThreads) {
             params.dstDims[1] /= realDstDim;
             params.srcDims[1] /= realSrcDim;
@@ -486,7 +485,7 @@ void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector
 
 void MKLDNNStridedSliceNode::indicesCalculation() {
     // indices calculation before execution for the best performance
-    params.nThreads = dnnl_get_max_threads();
+    params.nThreads = parallel_get_max_threads();
     params.srcIndices.resize(params.workAmount, 0);
     params.dstIndices.resize(params.workAmount, 0);
 
@@ -530,7 +529,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!params.parametersAreConstant) {
         auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
         auto dstDims = getChildEdgeAt(0)->getDims();
-        const size_t nDims = std::max(srcDims.size(), dstDims.size());
+        const size_t nDims = std::max(srcDims.ndims(), dstDims.ndims());
         const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
 
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {

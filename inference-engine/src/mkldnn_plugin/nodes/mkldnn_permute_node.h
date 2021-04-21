@@ -11,37 +11,9 @@
 #include <utility>
 #include <map>
 #include <memory>
+#include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
-
-struct jit_permute_conf_t {
-    uint32_t ndims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_strides;
-    InferenceEngine::SizeVector dst_strides;
-    int n;
-    int data_size;
-
-    bool supported_dynamic_batch = false;
-};
-
-struct jit_args_permute {
-    const void* src;
-    const void* dst;
-};
-
-struct jit_uni_permute_kernel {
-    void (*ker_)(const jit_args_permute *);
-
-    void operator()(const jit_args_permute *args) { assert(ker_); ker_(args); }
-
-    jit_permute_conf_t jpp;
-
-    virtual void create_ker() = 0;
-
-    explicit jit_uni_permute_kernel(jit_permute_conf_t jpp) : ker_(nullptr), jpp(jpp) {}
-    virtual ~jit_uni_permute_kernel() {}
-};
 
 class MKLDNNPermuteNode : public MKLDNNNode {
 public:
@@ -75,7 +47,7 @@ private:
     };
 
     static const std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
-    std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
+    std::unique_ptr<PermuteKernel> permuteKernel;
 };
 
 }  // namespace MKLDNNPlugin
