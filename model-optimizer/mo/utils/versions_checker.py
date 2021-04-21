@@ -11,7 +11,6 @@ modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
 }
-critical_modules = ["networkx", "defusedxml", "numpy"]
 
 message = "\nDetected not satisfied dependencies:\n" \
           "{}\n" \
@@ -166,8 +165,6 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
         satisfied = True
     if not satisfied:
         not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {} {}'.format(sign, required_v)))
-        if name in critical_modules:
-            exit_code = 1
     return exit_code
 
 
