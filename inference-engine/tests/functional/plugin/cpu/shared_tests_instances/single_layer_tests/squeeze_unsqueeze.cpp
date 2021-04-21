@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ShapeAxesVec> axesVectors = {
         {{4, 2, 1, 3}},
-        {{4, 2, 1, 3}, {}},
+        {{4, 2, 1, 3}, {2}},
         {{1, 1, 1, 1}},
         {{1, 1, 1, 1}, {-1}},
         {{1, 1, 1, 1}, {0}},
@@ -30,7 +30,6 @@ const std::vector<ShapeAxesVec> axesVectors = {
         {{1, 1, 1, 1}, {0, 1, 2, 3}},
         {{1, 2, 3, 4}, {0}},
         {{2, 1, 3, 4}},
-        {{2, 1, 3, 4}, {}},
         {{2, 1, 3, 4}, {1}},
         {{1}},
         {{1}, {0}},
