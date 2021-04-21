@@ -4,8 +4,9 @@
 
 import logging as log
 
+from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout
 from extensions.ops.dft import DFT, IDFT
-from extensions.ops.roll import TFRoll
+from extensions.ops.roll import TFRoll, Roll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -56,8 +57,11 @@ class SSliceComplexRolledFFTPackBlockReplacement(FrontReplacementSubgraph):
         roll_name = roll.soft_get('name', roll.id)
         unroll_name = unroll.soft_get('name', unroll.id)
 
-        roll_before = TFRoll(graph, {'need_axes_correction': True}).create_node()
-        roll_after = TFRoll(graph, {'need_axes_correction': True}).create_node()
+        roll_before = Roll(graph, {}).create_node()
+        roll_after = Roll(graph, {}).create_node()
+
+        self.correct_roll_axes(roll)
+        self.correct_roll_axes(unroll)
 
         roll.in_port(1).get_connection().set_destination(roll_before.in_port(1))
         roll.in_port(2).get_connection().set_destination(roll_before.in_port(2))
@@ -83,6 +87,23 @@ class SSliceComplexRolledFFTPackBlockReplacement(FrontReplacementSubgraph):
 
         if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
             dft_node['need_insert_transposes_for_dft'] = True
+
+    @staticmethod
+    def correct_roll_axes(roll: Node):
+        axes_node = roll.in_port(2).get_source().node
+        if axes_node.soft_get('type') != 'Const':
+            return
+        axes = axes_node.soft_get('value', None)
+        if axes is None:
+            return
+
+        corrected_axes = axes.copy()
+        for i, axis in enumerate(axes):
+            if axis < 0:
+                corrected_axes[i] = axis - 1
+
+        axes_node.value = int64_array(corrected_axes)
+        mark_input_as_in_correct_layout(roll, 2)
 
 
 def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:

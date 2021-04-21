@@ -561,7 +561,6 @@ extensions/middle/ConvertGroupedStridedSlice.py
 extensions/middle/ConvertLayoutDependentOperations.py
 extensions/middle/ConvertMultiInputConv.py
 extensions/middle/ConvToBinaryConv.py
-extensions/middle/CorrectRollAxes.py
 extensions/middle/CustomSubgraphCall.py
 extensions/middle/CutInputHavingZeroDimFromConcat.py
 extensions/middle/DecomposeBias.py
@@ -637,7 +636,6 @@ extensions/middle/TensorIteratorLSTMToLSTMSequence.py
 extensions/middle/TensorIteratorMerge.py
 extensions/middle/TensorIteratorOutput.py
 extensions/middle/TF_lstm_cell_to_generic.py
-extensions/middle/TFRollToRoll.py
 extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
