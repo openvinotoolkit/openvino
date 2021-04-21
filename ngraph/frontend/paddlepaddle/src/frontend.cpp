@@ -28,6 +28,7 @@
 #include "framework.pb.h"
 
 #include <paddlepaddle_frontend/model.hpp>
+#include <paddlepaddle_frontend/place.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset7.hpp>
@@ -60,6 +61,8 @@ NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
             if (nodes.count(var_desc->name()))
                 named_inputs[name_to_ports.first].push_back(nodes.at(var_desc->name()));
             else
+                // return empty map when not all inputs exist. It usually means that these
+                // nodes are not used because model inputs were overwritten
                 return NamedOutputs();
         }
     }
@@ -96,7 +99,7 @@ std::shared_ptr<Function>
 {
     std::cout << "Convert Model Start" << std::endl;    
     
-    std::map<pdpd::TensorName, Output<Node>> nodes_dict;
+    std::map<pdpd::TensorName, Output<Node>> nodes_dict(model->getTensorValues());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
     
@@ -154,7 +157,10 @@ std::shared_ptr<Function>
                     for (size_t idx = 0; idx < ports.size(); ++idx) {
                         const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
                         name_to_outputs.second[idx].get_tensor().set_names({var->name()});
-                        nodes_dict[var->name()] = name_to_outputs.second[idx];
+                        // if nodes_dict already has node mapped to this tensor name it usually
+                        // means that it was overwritten using setTensorValue
+                        if (!nodes_dict.count(var->name()))
+                            nodes_dict[var->name()] = name_to_outputs.second[idx];
                     }
                 }
             }
