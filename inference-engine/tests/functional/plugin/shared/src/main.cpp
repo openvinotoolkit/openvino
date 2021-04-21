@@ -23,6 +23,14 @@ int main(int argc, char *argv[]) {
                     std::string(argv[i]).substr(std::string("--output_folder").length() + 1));
         } else if (std::string(argv[i]).find("--report_unique_name") != std::string::npos) {
             LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
+        } else if (std::string(argv[i]).find("--save_report_timeout") != std::string::npos) {
+            size_t timeout;
+            try {
+                timeout = std::stoi(std::string(argv[i]).substr(std::string("--save_report_timeout").length() + 1));
+            } catch (...) {
+                throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
+            }
+            LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
         }
     }
 
@@ -40,13 +48,14 @@ int main(int argc, char *argv[]) {
         std::cout << "  --report_unique_name" << std::endl;
         std::cout << "       Allow to save report with unique name (report_pid_timestamp.xml). " <<
                   "Mutually exclusive with --extend_report." << std::endl;
+        std::cout << "  --save_report_timeout" << std::endl;
+        std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << std::endl;
     }
 
     if (LayerTestsUtils::Summary::getSaveReportWithUniqueName() &&
             LayerTestsUtils::Summary::getExtendReport()) {
-        std::cout << "Using mutually exclusive arguments: --extend_report and --report_unique_name" << std::endl;
-        return -1;
+        throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
     ::testing::InitGoogleTest(&argc, argv);

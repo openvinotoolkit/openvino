@@ -132,6 +132,7 @@ limitations under the License.
                 <tab type="user" title="DetectionOutput-1" url="@ref openvino_docs_ops_detection_DetectionOutput_1"/>
                 <tab type="user" title="DFT-7" url="@ref openvino_docs_ops_signals_DFT_7"/>
                 <tab type="user" title="Divide-1" url="@ref openvino_docs_ops_arithmetic_Divide_1"/>
+                <tab type="user" title="Einsum-7" url="@ref openvino_docs_ops_matrix_Einsum_7"/>
                 <tab type="user" title="Elu-1" url="@ref openvino_docs_ops_activation_Elu_1"/>
                 <tab type="user" title="EmbeddingBagOffsetsSum-3" url="@ref openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3"/>
                 <tab type="user" title="EmbeddingBagPackedSum-3" url="@ref openvino_docs_ops_sparse_EmbeddingBagPackedSum_3"/>
