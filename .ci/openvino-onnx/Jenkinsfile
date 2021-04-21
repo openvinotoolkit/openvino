@@ -209,7 +209,7 @@ pipeline {
     stages {
         stage('Parallel CI') {
             steps {
-                // stopPreviousRunningBuilds()
+                stopPreviousRunningBuilds()
                 script {
                     parallelStagesMap = getConfigurationsMap()
                     parallel parallelStagesMap
