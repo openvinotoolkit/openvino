@@ -70,19 +70,54 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
     return res;
 }
 
-static inline std::string GetTiledOutputOrder(size_t size) {
+static inline std::string GetTiledOutputOrder(const permute_params& params) {
+    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.output.GetDims().size()};
+
     std::string order_str = "";
-    switch (size) {
-        case 4 :
-            order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-            break;
-        case 5 :
-            order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-            break;
-        case 6 :
-            order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
+    int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
+
+    if (dim_diff == 0) {
+        switch (dim_change.first) {
+            case 4 :
+                order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                break;
+            case 5 :
+                order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                break;
+            case 6 :
+                order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                break;
+            default : throw std::runtime_error("Unsupported combination\n");
+        }
+    } else if (dim_diff > 0) {
+        // dim is shrinked
+        order_str = "b, z + lh, y * INPUT0_SIZE_X + x, f";
+        if (dim_change.first == 5 && dim_change.second == 4) {
+            order_str = "b, z, y * INPUT0_SIZE_X + (x * TILE_SIZE + lh), (f*TILE_SIZE)";
+        } else if (dim_change.first == 6 && dim_change.second == 4) {
+            order_str = "b, w, z * INPUT0_SIZE_Y * INPUT0_SIZE_X +  y * INPUT0_SIZE_X + (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+        } else if (dim_change.first == 6 && dim_change.second == 5) {
+            order_str = "b, w, z * INPUT0_SIZE_Y + y, x * TILE_SIZE + lh, (f * TILE_SIZE)";
+        }
+    } else {
+        // dim is expanded
+        if (dim_change.first == 4 && dim_change.second == 5) {
+            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
+                                 + ", (x * TILE_SIZE +lh) % " + std::to_string(params.output.Y().v)
+                                 + ", (f * TILE_SIZE)");
+        } else if (dim_change.first == 4 && dim_change.second == 6) {
+            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + std::to_string(params.output.Y().v)
+                                 + " * " + std::to_string(params.output.Z().v) + ")"
+                                 + ", (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
+                                 + ", (x * TILE_SIZE + lh) % " + std::to_string(params.output.Y().v)
+                                 + ", (f * TILE_SIZE)");
+        } else if (dim_change.first == 5 && dim_change.second == 6) {
+            order_str = ("b, z, y /" + std::to_string(params.output.Z().v)
+                                 + ", y % " + std::to_string(params.output.Z().v)
+                                 + ", (x * TILE_SIZE + lh), (f * TILE_SIZE)");
+        } else {
+            throw std::runtime_error("Unsupported combination\n");
+        }
     }
     return order_str;
 }
@@ -104,7 +139,6 @@ static inline std::string GetTiledInputOrder(size_t size) {
     return order_str;
 }
 
-
 JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     size_t tile_size = GetTileSize(params);
@@ -113,7 +147,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
     jit.AddConstant(MakeJitConstant("VEC_WIDTH", vector_width));
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params.inputs[0].GetDims().size())));
-    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params.output.GetDims().size())));
+    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("N_VECTORS_IN_TILE", tile_size / vector_width));
     jit.AddConstant(MakeJitConstant("LWS", total_lws));
@@ -226,15 +260,6 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
     };
 
     const permute_params& params = static_cast<const permute_params&>(p);
-
-    if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
-        return false;
-    }
-
-    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
-        // Reorder cannot be fused
-        return false;
-    }
 
     if (!is_rotating_except_batch(params.order)) {
         return false;
