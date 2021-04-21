@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_iexecutable_network.hpp"
 #include "ie_plugin_cpp.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
@@ -90,13 +89,13 @@ TEST_F(ExecutableNetworkTests, GetInputsInfo) {
     ASSERT_EQ(info, InferenceEngine::ConstInputsDataMap{});
 }
 
+IE_SUPPRESS_DEPRECATED_START
 
 TEST_F(ExecutableNetworkTests, resetThrowsIfResetToNullptr) {
     InferenceEngine::IExecutableNetwork::Ptr mockIExeNet_2{};
     ASSERT_THROW(exeNetwork.reset(mockIExeNet_2), InferenceEngine::Exception);
 }
 
-IE_SUPPRESS_DEPRECATED_START
 TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), QueryState())
             .Times(1)
@@ -113,6 +112,7 @@ TEST_F(ExecutableNetworkTests, QueryState) {
     EXPECT_NO_THROW(MemState_v = exeNetwork.QueryState());
     EXPECT_EQ(MemState_v.size(), 1);
 }
+
 IE_SUPPRESS_DEPRECATED_END
 
 class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
@@ -147,10 +147,12 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfSetRequest
     ASSERT_THROW(exeNetwork.CreateInferRequest(), InferenceEngine::Exception);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 // CreateInferRequestPtr
 TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequestPtr) {
     EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
-    ASSERT_NO_THROW(exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(exeNetwork.CreateInferRequestPtr());
 }
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfReturnNotOK) {
@@ -162,8 +164,6 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequ
     EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(std::shared_ptr<MockIInferRequestInternal>{}));
     ASSERT_THROW(exeNetwork.CreateInferRequestPtr(), InferenceEngine::Exception);
 }
-
-IE_SUPPRESS_DEPRECATED_START
 
 class ExecutableNetworkBaseTests : public ::testing::Test {
 protected:
