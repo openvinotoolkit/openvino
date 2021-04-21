@@ -77,7 +77,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
             not_satisfied_list = []
             for name, key, required_version in env_req_version_list:
                 version_check(name, installed_python_version, required_version,
-                              key, not_satisfied_list, 0)
+                              key, not_satisfied_list)
             if len(not_satisfied_list) > 0:
                 # this python_version requirement is not satisfied to required environment
                 # and requirement for a dependency will be skipped
