@@ -32,12 +32,12 @@
         #define _ARM64_
     #endif
 
-// clang-format off
-#include <string.h>
-#include <windef.h>
-#include <fileapi.h>
-#include <Winbase.h>
-#include <sys/stat.h>
+    // clang-format off
+    #include <string.h>
+    #include <windef.h>
+    #include <fileapi.h>
+    #include <Winbase.h>
+    #include <sys/stat.h>
     // clang-format on
 
     // Copied from linux libc sys/stat.h:
