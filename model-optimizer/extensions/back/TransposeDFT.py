@@ -8,7 +8,20 @@ from mo.graph.graph import Graph
 
 class TransposeDFT(BackReplacementPattern):
     """
-    Return original layout for inputs and output of (I)DFT operation when this operation came from TF.
+    In TF models, operation (I)FFTxD has some input shape, [N_0, ..., N_{r - 1}].
+
+    After the transformation SSliceComplexRolledFFTPackBlockReplacement, we have an input shape [N_0, ..., N_{r - 1}, 2]
+    for operation DFT or IDFT.
+
+    If the input rank in the TF model was greater than 2, we have [N_0, 2, N_1, ..., N_{r - 1}] as the input shape of
+    (I)DFT after the layout conversion, if the option '--disable_nhwc_to_nchw' is not specified.
+
+    But, generally speaking, according to DFT and IDFT specifications, the input shape [N_0, 2, N_1, ..., N_{r - 1}]
+    is not correct input shape for DFT and IDFT. Hence, we need to insert Transpose operations before and after (I)DFT
+    in such cases.
+
+    This transformation inserts such Transpose nodes, when the source model was the TF model, (I)DFT node has the
+    attribute 'need_insert_transposes_for_dft', and this attribute is True.
     """
     enabled = True
     force_shape_inference = True
