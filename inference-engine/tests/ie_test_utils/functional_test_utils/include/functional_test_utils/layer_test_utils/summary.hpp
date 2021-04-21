@@ -64,14 +64,18 @@ private:
     std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
     std::string deviceName;
     bool isReported = false;
+    static size_t saveReportTimeout;
     static bool extendReport;
     static bool saveReportWithUniqueName;
-    static const char* outputFolder;
+    static const char *outputFolder;
+    std::vector<ngraph::OpSet> opsets;
 
     friend class SummaryDestroyer;
 
+    std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
+
 protected:
-    Summary() = default;
+    Summary();
 
     ~Summary() = default;
 
@@ -99,6 +103,10 @@ public:
     static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
 
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
+
+    static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
+
+    static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
 };

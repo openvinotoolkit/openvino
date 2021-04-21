@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
 
 def read_image(image_path: str) -> np.ndarray:
     '''Read and return an image as grayscale (one channel)'''
-    image = cv2.imread(image_path,  cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
     # Try to open image as ubyte
     if image is None:
@@ -203,8 +203,16 @@ def main():
     for i in range(n):
         image = read_image(args.input[i])
 
-        if image.shape[:-1] != (h, w):
-            log.warning(f'Image {args.input[i]} is resized from {image.shape[:]} to {(h, w)}')
+        light_pixel_count = np.count_nonzero(image > 127)
+        darK_pixel_count = np.count_nonzero(image < 127)
+        is_light_image = (light_pixel_count - darK_pixel_count) > 0
+
+        if is_light_image:
+            log.warning(f'Image {args.input[i]} is inverted to white over black')
+            image = cv2.bitwise_not(image)
+
+        if image.shape != (h, w):
+            log.warning(f'Image {args.input[i]} is resized from {image.shape} to {(h, w)}')
             image = cv2.resize(image, (w, h))
 
         input_data[i] = image
