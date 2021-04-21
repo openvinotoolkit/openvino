@@ -103,15 +103,35 @@ std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<Tensor
         case element::f32:
         {
             auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(float));    
-            return Constant::create(element::f32, shape, pdpd::reinterpret_vector<float>(tensor_data));
+            return Constant::create(type, shape, pdpd::reinterpret_vector<float>(tensor_data));
+        }
+        break;
+        case element::f16:
+        {
+            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(float16));    
+            return Constant::create(type, shape, pdpd::reinterpret_vector<float16>(tensor_data));
+        }
+        break;
+        case element::i8:
+        {
+            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int8_t));    
+            return Constant::create(type, shape, pdpd::reinterpret_vector<int8_t>(tensor_data));
         }
         break;
         case element::i32:
         {
             auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int32_t));    
-            return Constant::create(element::i32, shape, pdpd::reinterpret_vector<int32_t>(tensor_data));
+            return Constant::create(type, shape, pdpd::reinterpret_vector<int32_t>(tensor_data));
         }
         break;
+        case element::i64:
+        {
+            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int64_t));    
+            return Constant::create(type, shape, pdpd::reinterpret_vector<int64_t>(tensor_data));
+        }
+        break;
+        default:
+            PDPD_THROW("Unsupported type of constant.");
     }
 }
 
