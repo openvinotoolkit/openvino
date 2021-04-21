@@ -98,22 +98,17 @@ def updateModels() {
     """
 }
 
-def get_commit_id(String workdir){
-    dir("${workdir}/${PROJECT_NAME}") {
-        GIT_COMMIT_ID = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
-    }
-    return GIT_COMMIT_ID
-}
-
-def get_docker_container_name(Map configuration, String workdir){
-    commit_ID = get_commit_id(workdir)
-    docker_container_name = ${DOCKER_CONTAINER_NAME}_${commit_ID}_$(configuration.name)
+def get_docker_container_name(Map configuration){
+    println "RUN get_docker_container_name for ${configuration.name}"
+    docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
     return docker_container_name
 }
 
 def buildDockerImage(Map configuration, String workdir) {
-    commit_ID = get_commit_id(workdir)
-    docker_image_tag = ${DOCKER_IMAGE_TAG}_$commit_ID_${configuration.name}.toLowerCase()
+    println "Building docker image for workdir: ${workdir}"
+    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    println "docker_image_tag: ${docker_image_tag}"
+    println "dziala"
     updateModels()
     sh """
         docker build --tag=${docker_image_tag} \
@@ -126,21 +121,24 @@ def buildDockerImage(Map configuration, String workdir) {
 }
 
 def runTests(Map configuration, String workdir) {
-    docker_image_tag = ${DOCKER_IMAGE_TAG}_$commit_ID_${configuration.name}.toLowerCase()
+    println "Run tests for ${configuration.name}"
+    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    println "docker_image_tag run test: ${docker_image_tag}"
+
+    docker_container_name = get_docker_container_name(configuration)
+    println "docker_container_name: ${docker_container_name}"
 
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME} ${docker_image_tag}
+            docker run --name ${docker_container_name} ${docker_image_tag}
         """
     }
 
     // Run unit-tests AND large model tests by default
     else {
-        commit_ID = get_commit_id(workdir)
-
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME} \
+            docker run --name ${docker_container_name} \
             --volume ${HOME}/ONNX_CI/data/model_zoo/onnx_model_zoo_${ONNX_MODEL_ZOO_SHA}:/root/.onnx/model_zoo/onnx_model_zoo \
             --volume ${HOME}/ONNX_CI/data/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
             ${docker_image_tag} /bin/bash -c "tox && tox -e zoo_models"
@@ -164,16 +162,10 @@ CONFIGURATION_WORKFLOW = { configuration ->
     node("OpenVino-test") {
         try {
             PROJECT_NAME = "openvino"
-            String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${configuration.name}"
+            String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
             println "CONFIGURATION_WORKFLOW: ${workdir}"
             stage("Clone repository") {
-                try {
                     prepare_repository(workdir)
-                }
-                catch(e){
-                    sleep(time: 30, unit: "SECONDS")
-                    prepare_repository(workdir)
-                }
             }
             stage("Prepare Docker environment") {
               dir("${workdir}") {
@@ -181,8 +173,8 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 }
             }
             stage("Run tests") {
-                timeout(time: 20, unit: 'MINUTES') {
-                    runTests(configuration)
+                timeout(time: 60, unit: 'MINUTES') {
+                    runTests(configuration, workdir)
                 }
             }
         }
@@ -199,10 +191,9 @@ CONFIGURATION_WORKFLOW = { configuration ->
         finally {
             stage("Cleanup") {
                 deleteDir()
-                docker_container_name = get_docker_container_name(configuration, workdir)
+                docker_container_name = get_docker_container_name(configuration)
                 sh """
                     docker rm -f ${docker_container_name}
-                    docker image prune -f
                 """
             }
         }
@@ -213,12 +204,12 @@ pipeline {
     agent none
     options {
         skipDefaultCheckout true
-        timeout(activity: true, time: 60, unit: 'MINUTES')
+        timeout(activity: true, time: 120, unit: 'MINUTES')
     }
     stages {
         stage('Parallel CI') {
             steps {
-                stopPreviousRunningBuilds()
+                // stopPreviousRunningBuilds()
                 script {
                     parallelStagesMap = getConfigurationsMap()
                     parallel parallelStagesMap
