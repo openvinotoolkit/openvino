@@ -25,13 +25,11 @@ namespace ngraph
                     auto data = ng_inputs.at(0);
                     auto indices = ng_inputs.at(1);
                     auto axis = node.get_attribute_value<int64_t>("axis", 0);
-                    const auto valid_axis = ngraph::normalize_axis(
-                        node.get_description(), axis, data.get_partial_shape().rank());
 
                     return {std::make_shared<default_opset::Gather>(
                         data,
                         indices,
-                        default_opset::Constant::create(element::i64, Shape{}, {valid_axis}))};
+                        default_opset::Constant::create(element::i64, Shape{}, {axis}))};
                 }
 
             } // namespace set_1
