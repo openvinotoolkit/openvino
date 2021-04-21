@@ -88,7 +88,6 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, std::make_shared<OpDesc>(op));
-            *op_place.get();
             op_place_block.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
