@@ -209,6 +209,7 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
