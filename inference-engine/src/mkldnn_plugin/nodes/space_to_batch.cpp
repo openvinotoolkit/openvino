@@ -58,11 +58,11 @@ public:
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
                 IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-            const SizeVector& in_dims = op->get_input_shape(0);
-            const SizeVector& out_dims = op->get_output_shape(0);
-            if (in_dims.size() < 4 || in_dims.size() > 5)
-                IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << in_dims.size();
-            if (in_dims.size() != out_dims.size())
+            inDims = op->get_input_shape(0);
+            outDims = op->get_output_shape(0);
+            if (inDims.size() < 4 || inDims.size() > 5)
+                IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
+            if (inDims.size() != outDims.size())
                 IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
 
             blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
@@ -72,20 +72,20 @@ public:
                            {TensorDescCreatorTypes::ncsp},
                            {TensorDescCreatorTypes::ncsp},
                            {TensorDescCreatorTypes::ncsp}},
-                          {{TensorDescCreatorTypes::ncsp, precision}});
+                          {{TensorDescCreatorTypes::nspc, precision}});
             addConfig(op, {{TensorDescCreatorTypes::ncsp, precision},
                            {TensorDescCreatorTypes::ncsp},
                            {TensorDescCreatorTypes::ncsp},
                            {TensorDescCreatorTypes::ncsp}},
                           {{TensorDescCreatorTypes::ncsp, precision}});
-            if (in_dims[1] % 8 == 0) {
+            if (inDims[1] % 8 == 0) {
                 addConfig(op, {{TensorDescCreatorTypes::nCsp8c, precision},
                                {TensorDescCreatorTypes::ncsp},
                                {TensorDescCreatorTypes::ncsp},
                                {TensorDescCreatorTypes::ncsp}},
                               {{TensorDescCreatorTypes::nCsp8c, precision}});
             }
-            if (in_dims[1] % 16 == 0) {
+            if (inDims[1] % 16 == 0) {
                 addConfig(op, {{TensorDescCreatorTypes::nCsp16c, precision},
                                {TensorDescCreatorTypes::ncsp},
                                {TensorDescCreatorTypes::ncsp},
