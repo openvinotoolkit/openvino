@@ -18,6 +18,7 @@
 #include "cpu/x64/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
+#include <ngraph/opsets/opset1.hpp>
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -871,80 +872,87 @@ private:
     }
 };
 
+bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        if (!binConv) {
+            errorMessage = "Only opset1 BinaryConvolution operation is supported";
+            return false;
+        }
+        if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
                                                          const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
-    if (mayiuse(x64::avx512_common)) {
-        implType = impl_desc_type::jit_avx512;
-    } else if (mayiuse(x64::avx2)) {
-        implType = impl_desc_type::jit_avx2;
-    } else if (mayiuse(x64::sse41)) {
-        implType = impl_desc_type::jit_sse42;
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
+        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+
+        pad_value = binConv->get_pad_value();
+        for (int i = 0; i < binConv->get_strides().size(); i++) {
+            stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
+        }
+        for (int i = 0; i < binConv->get_dilations().size(); i++) {
+            dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
+        }
+        paddingL = binConv->get_pads_begin();
+        paddingR = binConv->get_pads_end();
+
+        if (mayiuse(x64::avx512_common)) {
+            implType = impl_desc_type::jit_avx512;
+        } else if (mayiuse(x64::avx2)) {
+            implType = impl_desc_type::jit_avx2;
+        } else if (mayiuse(x64::sse41)) {
+            implType = impl_desc_type::jit_sse42;
+        } else {
+            implType = impl_desc_type::ref;
+        }
     } else {
-        implType = impl_desc_type::ref;
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
 void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
-    // TODO [NM]: reimplement w/o using CNNLayer
-    IE_THROW() << "Not implemented";
-//    if (!descs.empty())
-//        return;
-//
-//    auto* binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(getCnnLayer().get());
-//    if (binConvLayer == nullptr)
-//        IE_THROW() << "Cannot convert convolution layer.";
-//
-//    std::string errorPrefix = "BinaryConvolution layer with name '" + getName() + "' ";
-//
-//    withBinarization = isFusedWith(FakeQuantize);
-//    withSum = false;
-//    int expectedInputEdgesNum = 2;
-//    for (int i = 0; i < fusedWith.size(); i++) {
-//        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
-//        if (eltwiseNode && eltwiseNode->isSum()) {
-//            withSum = true;
-//            expectedInputEdgesNum++;
-//        }
-//    }
-//
-//    group = binConvLayer->_group;
-//    if (group != 1) {
-//        IE_THROW() << errorPrefix << "doesn't support parameter group != 1";
-//    }
-//
-//    if (getParentEdges().size() != expectedInputEdgesNum)
-//        IE_THROW() << errorPrefix << "has incorrect number of input edges";
-//
-//    if (getChildEdges().empty())
-//        IE_THROW() << errorPrefix << "has incorrect number of output edges";
-//
-//    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-//        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
-//    }
-//
-//    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-//        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
-//    }
-//
-//    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-//        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
-//    }
-//
-//    if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
-//        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
-//    }
-//
-//    pad_value = binConvLayer->_pad_value;
-//
-//    invertVectorCopyUtoI(binConvLayer->_stride, stride);
-//    for (int i = 1; i <= binConvLayer->_dilation.size(); i++) {
-//        dilation.push_back(static_cast<int>(binConvLayer->_dilation[binConvLayer->_dilation.size() - i]) - 1);
-//    }
-//
-//    auto allPads = getPaddings(*binConvLayer);
-//    invertVectorCopyUtoI(allPads.begin, paddingL);
-//    invertVectorCopyUtoI(allPads.end, paddingR);
+    if (!descs.empty())
+        return;
+
+    withBinarization = isFusedWith(FakeQuantize);
+    withSum = false;
+    int expectedInputEdgesNum = 2;
+    for (int i = 0; i < fusedWith.size(); i++) {
+        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+        if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+            withSum = true;
+            expectedInputEdgesNum++;
+        }
+    }
+
+    if (getParentEdges().size() != expectedInputEdgesNum)
+        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+
+    if (getChildEdges().empty())
+        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+
+    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+    }
+
+    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    }
+
+    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+    }
 }
 
 void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {

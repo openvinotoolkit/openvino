@@ -117,7 +117,7 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
 namespace ngraph
 {
     template <>
-    EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
+    NGRAPH_API EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
         EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get()
     {
         static auto enum_names = EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>(

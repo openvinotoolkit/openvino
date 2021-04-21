@@ -9,50 +9,84 @@
 #include <vector>
 #include <cassert>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include <utils/general_utils.h>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+
+
 class RangeImpl: public ExtLayerBase {
-public:
-    explicit RangeImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::type_info, ngraph::op::v4::Range::type_info)) {
+                errorMessage = "Only opset1 and opset4 Range operation is supported";
+                return false;
+            }
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_START)) == nullptr ||
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_LIMIT)) == nullptr ||
+                    std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_DELTA)) == nullptr) {
+                errorMessage = "Only const inputs for Range operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData.size() != 3)
-                IE_THROW() << layer->name << " Incorrect number of input edges!";
+    std::string errorPrefix;
 
-            SizeVector start_dims = layer->insData[RANGE_START].lock()->getTensorDesc().getDims();
-            if (start_dims.size() > 1)
-                IE_THROW() << layer->name << " Start scalar should have 1 dimension";
+public:
+    explicit RangeImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            SizeVector limit_dims = layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getDims();
-            if (limit_dims.size() > 1)
-                IE_THROW() << layer->name << " Limit scalar should have 1 dimension";
+            errorPrefix = "Range layer with name '" + op->get_friendly_name() + "'";
 
-            SizeVector delta_dims = layer->insData[RANGE_DELTA].lock()->getTensorDesc().getDims();
-            if (delta_dims.size() > 1)
-                IE_THROW() << layer->name << " Delta scalar should have 1 dimension";
+            if (op->get_input_size() != 3 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-            SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
+            SizeVector start_dims = op->get_input_shape(RANGE_START);
+            if (ngraph::shape_size(start_dims) != 1)
+                IE_THROW() << errorPrefix << " has start scalar with more than 1 value";
+
+            SizeVector limit_dims = op->get_input_shape(RANGE_LIMIT);
+            if (ngraph::shape_size(limit_dims) != 1)
+                IE_THROW() << errorPrefix << " has limit scalar with more than 1 value";
+
+            SizeVector delta_dims = op->get_input_shape(RANGE_DELTA);
+            if (ngraph::shape_size(delta_dims) != 1)
+                IE_THROW() << errorPrefix << " has delta scalar with more than 1 value";
+
+            SizeVector dst_dims = op->get_output_shape(0);
             if (dst_dims.size() > 1)
-                IE_THROW() << layer->name << " Output vector should have 1 dimension";
+                IE_THROW() << errorPrefix << " has unsupported rank for output: " << dst_dims.size();
 
-            if (!(layer->insData[RANGE_START].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
-                  layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
-                  layer->insData[RANGE_DELTA].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
-                  layer->outData[0]->getTensorDesc().getPrecision() == Precision::I32) &&
-                !(layer->insData[RANGE_START].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
-                  layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
-                  layer->insData[RANGE_DELTA].lock()->getTensorDesc().getPrecision() == Precision::FP32 &&
-                  layer->outData[0]->getTensorDesc().getPrecision() == Precision::FP32)) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
-                    DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
+            if (!(details::convertPrecision(op->get_input_element_type(RANGE_START)) == Precision::I32 &&
+                  details::convertPrecision(op->get_input_element_type(RANGE_LIMIT)) == Precision::I32 &&
+                  details::convertPrecision(op->get_input_element_type(RANGE_DELTA)) == Precision::I32 &&
+                  details::convertPrecision(op->get_output_element_type(0)) == Precision::I32) &&
+                !(details::convertPrecision(op->get_input_element_type(RANGE_START)) == Precision::FP32 &&
+                  details::convertPrecision(op->get_input_element_type(RANGE_LIMIT)) == Precision::FP32 &&
+                  details::convertPrecision(op->get_input_element_type(RANGE_DELTA)) == Precision::FP32 &&
+                  details::convertPrecision(op->get_output_element_type(0)) == Precision::FP32)) {
+                      addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                                     {TensorDescCreatorTypes::ncsp, Precision::FP32},
+                                     {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                                    {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
             } else {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                                 { DataConfigurator(ConfLayout::PLN) });
+                addConfig(op, {{TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp}},
+                              {{TensorDescCreatorTypes::ncsp}});
             }
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
@@ -95,9 +129,9 @@ public:
     }
 
 private:
-    const size_t RANGE_START = 0;
-    const size_t RANGE_LIMIT = 1;
-    const size_t RANGE_DELTA = 2;
+    static const size_t RANGE_START = 0;
+    static const size_t RANGE_LIMIT = 1;
+    static const size_t RANGE_DELTA = 2;
 
     template <typename data_t>
     StatusCode range(data_t start, data_t limit, data_t delta, Blob::Ptr output);

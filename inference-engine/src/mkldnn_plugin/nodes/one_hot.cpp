@@ -8,6 +8,7 @@
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset1.hpp>
 
 #include <vector>
 
@@ -20,59 +21,93 @@ namespace Cpu {
 class OneHotImpl: public ExtLayerBase {
     typedef PrecisionTrait<Precision::I32>::value_type in_type;
 
-public:
-    explicit OneHotImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            depth     = layer->GetParamAsUInt("depth");
-            axis      = layer->GetParamAsInt("axis", -1);
-            src_dims = layer->insData[0].lock()->getTensorDesc().getDims();
-            dst_dims = layer->outData[0]->getTensorDesc().getDims();
+            const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
+            if (!oneHot) {
+                errorMessage = "Only opset1 OneHot operation is supported";
+                return false;
+            }
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID)) == nullptr) {
+                errorMessage = "Only const 'depth' input is supported";
+                return false;
+            }
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
+                errorMessage = "Only const 'on_value' input is supported";
+                return false;
+            }
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
+                errorMessage = "Only const 'off_value' input is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+public:
+    explicit OneHotImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
+            const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
+            const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
+            const auto onValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID));
+            const auto offValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID));
+            depth = depthNode->cast_vector<uint32_t>()[0];
+            axis = oneHot->get_axis();
+            src_dims = oneHot->get_input_shape(INDICES_ID);
+            if (ngraph::is_scalar(src_dims)) {
+                src_dims = SizeVector{1};
+            }
+            dst_dims = oneHot->get_output_shape(0);
+            if (ngraph::is_scalar(dst_dims)) {
+                dst_dims = SizeVector{1};
+            }
 
             int output_dims_size = dst_dims.size();
-            if (layer->CheckParamPresence("axis") &&
-                (-1 > axis || axis >= output_dims_size)) {
-                    IE_THROW() << "The value of " << layer->name << " layer axis parameter must be between -1 <= axis < "\
-                                       << output_dims_size << ", but actually it is " << axis;
+            if (axis < 0) {
+                axis += output_dims_size;
+            }
+            if (axis < 0 || axis >= output_dims_size) {
+                IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
             }
 
             if (!( ((1 + src_dims.size()) == dst_dims.size()) ||
                    (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
-                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
+                IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 
             // check a precision of the input tensor
-            auto input_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            auto input_precision = details::convertPrecision(oneHot->get_input_element_type(INDICES_ID));
             if (input_precision != Precision::I32) {
-                IE_THROW() << layer->name << " Incorrect input precision for the input. Only I32 is supported!";
+                IE_THROW() << errorPrefix << " has incorrect input precision for the input. Only I32 is supported!";
             }
-            output_precision = layer->outData[0]->getTensorDesc().getPrecision();
+            output_precision = details::convertPrecision(oneHot->get_output_element_type(0));
             if (Precision::BF16 == output_precision) {
-                MKLDNNPlugin::bfloat16_t bf16_on_value  = layer->GetParamAsFloat("on_value", 1.0f);
-                MKLDNNPlugin::bfloat16_t bf16_off_value = layer->GetParamAsFloat("off_value", 0.0f);
+                MKLDNNPlugin::bfloat16_t bf16_on_value  = onValueNode->cast_vector<float>()[0];
+                MKLDNNPlugin::bfloat16_t bf16_off_value = offValueNode->cast_vector<float>()[0];
                 cpu_memcpy(&on_value, &bf16_on_value, sizeof(MKLDNNPlugin::bfloat16_t));
                 cpu_memcpy(&off_value, &bf16_off_value, sizeof(MKLDNNPlugin::bfloat16_t));
             } else if (output_precision.is_float()) {
-                float float_on_value  = layer->GetParamAsFloat("on_value", 1.0f);
-                float float_off_value = layer->GetParamAsFloat("off_value", 0.0f);
+                float float_on_value  = onValueNode->cast_vector<float>()[0];
+                float float_off_value = offValueNode->cast_vector<float>()[0];
                 cpu_memcpy(&on_value, &float_on_value, sizeof(float));
                 cpu_memcpy(&off_value, &float_off_value, sizeof(float));
             } else {
-                on_value = layer->GetParamAsInt("on_value", 1);
-                off_value = layer->GetParamAsInt("off_value", 0);
+                on_value = onValueNode->cast_vector<int>()[0];
+                off_value = offValueNode->cast_vector<int>()[0];
             }
 
-            LayerConfig config;
-            DataConfig dataConfig;
-            config.dynBatchSupport = false;
-
-            auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
-
-            dataConfig.desc = creators.at(MKLDNNPlugin::TensorDescCreatorTypes::ncsp)->createDesc(input_precision, src_dims);
-            config.inConfs.push_back(dataConfig);
-
-            dataConfig.desc = creators.at(MKLDNNPlugin::TensorDescCreatorTypes::ncsp)->createDesc(output_precision, dst_dims);
-            config.outConfs.push_back(dataConfig);
-
-            confs.push_back(config);
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, input_precision},
+                           {TensorDescCreatorTypes::ncsp, input_precision},
+                           {TensorDescCreatorTypes::ncsp, output_precision},
+                           {TensorDescCreatorTypes::ncsp, output_precision}},
+                          {{TensorDescCreatorTypes::ncsp, output_precision}});
         } catch (InferenceEngine::Exception& ex) {
             errorMsg = ex.what();
         }
@@ -159,6 +194,13 @@ private:
     SizeVector dst_dims;
 
     Precision output_precision;
+
+    std::string errorPrefix;
+
+    static const size_t INDICES_ID = 0;
+    static const size_t DEPTH_ID = 1;
+    static const size_t ON_VALUE_ID = 2;
+    static const size_t OFF_VALUEAXES_ID = 3;
 };
 
 REG_FACTORY_FOR(OneHotImpl, OneHot);

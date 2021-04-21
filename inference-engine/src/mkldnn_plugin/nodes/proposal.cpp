@@ -89,10 +89,11 @@ public:
                 return false;
             }
             auto proposalOp = std::dynamic_pointer_cast<const ngraph::op::v0::Proposal>(op);
-            if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
-                errorMessage = "Unsupported framework attribute.";
-                return false;
-            }
+            // [NM] TODO: Enable after fix Issue: 53750
+            // if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
+            //     errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
+            //     return false;
+            // }
         } catch (...) {
             return false;
         }

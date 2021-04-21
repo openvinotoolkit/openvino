@@ -9,83 +9,88 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <cassert>
+#include <ngraph/opsets/opset2.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class SpaceToBatchImpl: public ExtLayerBase {
-public:
-    explicit SpaceToBatchImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            auto spaceToBatchLayer = dynamic_cast<const SpaceToBatchLayer*>(layer);
-            if (!spaceToBatchLayer)
-                IE_THROW() << "SpaceToBatch layer with name '" << layer->name << "' isn't instance of SpaceToBatchLayer class";
+            const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
+            if (!spaceToBatch) {
+                errorMessage = "Only opset2 SpaceToBatch operation is supported";
+                return false;
+            }
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1)) == nullptr ||
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2)) == nullptr ||
+                    std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(3)) == nullptr) {
+                errorMessage = "Only constant 'block_shape', 'pads_begin', 'pads_end' are supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (spaceToBatchLayer->insData.size() != 4)
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has incorrect number of input edges";
+    std::string errorPrefix;
 
-            if (spaceToBatchLayer->outData.size() != 1)
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has incorrect number of output edges";
+public:
+    explicit SpaceToBatchImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            auto data = spaceToBatchLayer->insData[0].lock();
-            if (!data)
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
+            errorPrefix = "BatchToSpace layer with name '" + op->get_friendly_name() + "'";
 
-            inDims = data->getTensorDesc().getDims();
-            if (inDims.size() < 4)
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' doesn't support dimensions with rank less than 4";
+            if (op->get_input_size() != 4 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
 
-            if (inDims.size() > 5)
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' doesn't support dimensions with rank greater than 5";
-
-            outDims = spaceToBatchLayer->outData[0]->getTensorDesc().getDims();
-            if (inDims.size() != outDims.size())
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has incorrect number of input/output dimensions";
-
-            const auto precision = data->getTensorDesc().getPrecision();
+            const auto precision = details::convertPrecision(op->get_input_element_type(0));
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has unsupported precision: " << precision.name();
+                IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-            blockShapeIn = spaceToBatchLayer->_block_shape;
-            padsBeginIn = spaceToBatchLayer->_pads_begin;
+            const SizeVector& in_dims = op->get_input_shape(0);
+            const SizeVector& out_dims = op->get_output_shape(0);
+            if (in_dims.size() < 4 || in_dims.size() > 5)
+                IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << in_dims.size();
+            if (in_dims.size() != out_dims.size())
+                IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
 
-            auto createConfig = [&](Layout layout) {
-                LayerConfig config;
-                // TODO: remove Const layers
-                for (int i = 0; i < spaceToBatchLayer->insData.size(); i++) {
-                    auto inData = spaceToBatchLayer->insData[i].lock();
-                    if (!inData)
-                        IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
-                    DataConfig inConfig;
-                    if (i == 0)
-                        inConfig.desc = TensorDesc(precision, inData->getTensorDesc().getDims(), layout);
-                    else
-                        inConfig.desc = TensorDesc(inData->getPrecision(), inData->getTensorDesc().getDims(), inData->getTensorDesc().getLayout());
-                    config.inConfs.push_back(inConfig);
-                }
+            blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
+            padsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
 
-                DataConfig outConfig;
-                outConfig.desc = TensorDesc(precision, outDims, layout);
-                config.outConfs.push_back(outConfig);
-
-                config.dynBatchSupport = false;
-                confs.push_back(config);
-            };
-
-            createConfig(inDims.size() == 4 ? NHWC : NDHWC);
-            createConfig(TensorDesc::getLayoutByDims(inDims));
-
-            std::vector<std::pair<ConfLayout, ConfLayout>>  blockConfs { };
-            if (inDims[1] % 8 == 0)  blockConfs.push_back({ConfLayout::BLK8, ConfLayout::BLK8});
-            if (inDims[1] % 16 == 0) blockConfs.push_back({ConfLayout::BLK16, ConfLayout::BLK16});
-            for (auto conf : blockConfs) {
-                addConfig(layer, {DataConfigurator(conf.first, precision),
-                                  DataConfigurator(ConfLayout::PLN, spaceToBatchLayer->insData[1].lock()->getPrecision()),
-                                  DataConfigurator(ConfLayout::PLN, spaceToBatchLayer->insData[2].lock()->getPrecision()),
-                                  DataConfigurator(ConfLayout::PLN, spaceToBatchLayer->insData[3].lock()->getPrecision())},
-                          {DataConfigurator(conf.second, precision)});
+            addConfig(op, {{TensorDescCreatorTypes::nspc, precision},
+                           {TensorDescCreatorTypes::ncsp},
+                           {TensorDescCreatorTypes::ncsp},
+                           {TensorDescCreatorTypes::ncsp}},
+                          {{TensorDescCreatorTypes::ncsp, precision}});
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, precision},
+                           {TensorDescCreatorTypes::ncsp},
+                           {TensorDescCreatorTypes::ncsp},
+                           {TensorDescCreatorTypes::ncsp}},
+                          {{TensorDescCreatorTypes::ncsp, precision}});
+            if (in_dims[1] % 8 == 0) {
+                addConfig(op, {{TensorDescCreatorTypes::nCsp8c, precision},
+                               {TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp}},
+                              {{TensorDescCreatorTypes::nCsp8c, precision}});
+            }
+            if (in_dims[1] % 16 == 0) {
+                addConfig(op, {{TensorDescCreatorTypes::nCsp16c, precision},
+                               {TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp},
+                               {TensorDescCreatorTypes::ncsp}},
+                              {{TensorDescCreatorTypes::nCsp16c, precision}});
             }
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();

@@ -12,52 +12,83 @@
 #include <cassert>
 #include <set>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset3.hpp>
+#include <utils/general_utils.h>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
-using details::CaselessEq;
-
 class ExtractImagePatchesImpl : public ExtLayerBase {
-public:
-    explicit ExtractImagePatchesImpl(const CNNLayer* layer) {
+    enum class ExtImgPatcherPadType {
+        VALID,
+        SAME_LOWER,
+        SAME_UPPER
+    };
+
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            std::string errorPrefix = std::string("Layer ") + layer->type + " with name '" + layer->name + "' ";
-            if (details::CaselessEq<std::string>()("ExtractImagePatchesLayer", layer->type))
-                IE_THROW() << errorPrefix << "is not an instance of ExtractImagePatchesLayer class";
+            const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
+            if (!extImgPatcher) {
+                errorMessage = "Only opset3 ExtractImagePatches operation is supported";
+                return false;
+            }
+            const auto padValue = extImgPatcher->get_auto_pad();
+            if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
+                errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
+                return false;
+            }
+            if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+                errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData.size() != 1 || layer->outData.size() != 1)
+    std::string errorPrefix;
+
+public:
+    explicit ExtractImagePatchesImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
+            const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
+
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
                 IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                    << " Input: " << layer->insData.size() << "; Output: " << layer->outData.size();
+                    << " Input: " << op->get_input_size() << "; Output: " << op->get_output_size();
 
-            auto inData = layer->insData[0].lock();
-            if (inData == nullptr)
-                IE_THROW() << errorPrefix << "has nullable input data";
+            if (op->get_input_shape(0).size() != 4)
+                IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << op->get_input_shape(0).size();
 
-            if (inData->getTensorDesc().getDims().size() != 4)
-                IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << inData->getTensorDesc().getDims().size();
+            if (op->get_output_shape(0).size() != 4)
+                IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
 
-            if (layer->outData[0]->getTensorDesc().getDims().size() != 4)
-                IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << layer->outData[0]->getTensorDesc().getDims().size();
-
-            if (inData->getLayout() != NCHW)
-                IE_THROW() << errorPrefix << "has unsupported layout: " << inData->getLayout();
-
-            const auto precision = inData->getTensorDesc().getPrecision();
+            const auto precision = details::convertPrecision(op->get_input_element_type(0));
             if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
                 IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
-            auto ksizes = layer->GetParamAsUInts("sizes");
-            auto strides = layer->GetParamAsUInts("strides");
-            auto rates = layer->GetParamAsUInts("rates");
-            _auto_pad = layer->GetParamAsString("auto_pad");
-            if (!CaselessEq<std::string>()(_auto_pad, "valid")
-                    && !CaselessEq<std::string>()(_auto_pad, "same_upper")
-                    && !CaselessEq<std::string>()(_auto_pad, "same_lower"))
-                IE_THROW() <<  errorPrefix << "has unsupported auto_pad value: " << _auto_pad;
-            if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
-                IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
+            auto ksizes = extImgPatcher->get_sizes();
+            auto strides = extImgPatcher->get_strides();
+            auto rates = extImgPatcher->get_rates();
+            if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
+                _auto_pad = ExtImgPatcherPadType::VALID;
+            } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
+                _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
+            } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
+                _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
+            } else {
+                IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
+            }
 
             _ksizes.clear();
             _strides.clear();
@@ -69,20 +100,8 @@ public:
             for (size_t i = 0; i < rates.size(); i++)
                 _rates.push_back((int64_t)rates[i]);
 
-            LayerConfig config;
-
-            DataConfig inConfig;
-            inConfig.desc = inData->getTensorDesc();
-            config.inConfs.push_back(inConfig);
-
-            DataConfig outConfig;
-            outConfig.desc = layer->outData[0]->getTensorDesc();
-            outConfig.desc.setPrecision(inConfig.desc.getPrecision());
-            outConfig.desc.setLayout(inConfig.desc.getLayout());
-            config.outConfs.push_back(outConfig);
-
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, precision}},
+                          {{TensorDescCreatorTypes::ncsp, precision}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -154,15 +173,15 @@ public:
         int64_t ihStep = KH + (RH - 1) * (KH - 1);
 
         int64_t PL = 0, PT = 0;
-        if (!CaselessEq<std::string>()(_auto_pad, "valid")) {
+        if (_auto_pad != ExtImgPatcherPadType::VALID) {
             int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
             int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
 
             if ((PW > 0) && (PW < iwStep)) {
                 if (PW % 2 == 1) {
-                    if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
+                    if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
                         PL = (PW + 1) / 2;
-                    } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
+                    } else if (_auto_pad == ExtImgPatcherPadType::SAME_UPPER) {
                         PL = (PW - 1) / 2;
                     }
                 } else {
@@ -171,9 +190,9 @@ public:
             }
             if ((PH > 0) && (PH < ihStep)) {
                 if (PH % 2 == 1) {
-                    if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
+                    if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
                         PT = (PH + 1) / 2;
-                    } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
+                    } else if (_auto_pad == ExtImgPatcherPadType::SAME_UPPER) {
                         PT = (PH - 1) / 2;
                     }
                 } else {
@@ -234,7 +253,7 @@ private:
     std::vector<int64_t> _ksizes;
     std::vector<int64_t> _strides;
     std::vector<int64_t> _rates;
-    std::string _auto_pad;
+    ExtImgPatcherPadType _auto_pad;
 
     static const std::set<size_t> _supported_precisions_sizes;
 };
