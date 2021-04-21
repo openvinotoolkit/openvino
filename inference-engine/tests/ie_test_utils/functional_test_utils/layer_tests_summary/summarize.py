@@ -65,6 +65,7 @@ verified_operations = [
     'LogSoftmax-5',
     'Loop-5',
     'MVN-6',
+    'Maximum-1',
     'MaxPool-1',
     'Mish-4',
     'Multiply-1',
