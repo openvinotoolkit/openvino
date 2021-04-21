@@ -17,6 +17,8 @@ set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
+disable_deprecated_warnings()
+
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 

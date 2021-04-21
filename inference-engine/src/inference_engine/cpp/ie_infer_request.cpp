@@ -162,6 +162,8 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
     )
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
         IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
@@ -183,6 +185,14 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
     )
 }
 
+InferRequest::operator IInferRequest::Ptr () {
+    INFER_REQ_CALL_STATEMENT(
+        return std::make_shared<InferRequestBase>(_impl);
+    )
+}
+
+IE_SUPPRESS_DEPRECATED_END
+
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
@@ -191,12 +201,6 @@ std::vector<VariableState> InferRequest::QueryState() {
         }
     )
     return controller;
-}
-
-InferRequest::operator IInferRequest::Ptr () {
-    INFER_REQ_CALL_STATEMENT(
-        return std::make_shared<InferRequestBase>(_impl);
-    )
 }
 
 bool InferRequest::operator!() const noexcept {
