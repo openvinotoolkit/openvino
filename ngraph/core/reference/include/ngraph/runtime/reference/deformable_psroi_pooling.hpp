@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "clamp.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -17,15 +18,6 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace details
-            {
-                template <typename T>
-                T clamp(const T& value, const T& lower, const T& upper)
-                {
-                    return std::min<T>(std::max<T>(value, lower), upper);
-                }
-            }
-
             template <typename T>
             void deformable_psroi_pooling(const T* data_input,
                                           const Shape& data_input_shape,
@@ -168,10 +160,16 @@ namespace ngraph
                                             sub_bin_x1_idx > width_in - 0.5)
                                             continue;
 
-                                        sub_bin_x1_idx = details::clamp<float>(
-                                            sub_bin_x1_idx, 0.f, width_in - 1.f);
-                                        sub_bin_y1_idx = details::clamp<float>(
-                                            sub_bin_y1_idx, 0.f, height_in - 1.f);
+                                        clamp(&sub_bin_x1_idx,
+                                              &sub_bin_x1_idx,
+                                              0.f,
+                                              width_in - 1.f,
+                                              1);
+                                        clamp(&sub_bin_y1_idx,
+                                              &sub_bin_y1_idx,
+                                              0.f,
+                                              height_in - 1.f,
+                                              1);
 
                                         // Calculate value for sub-bin by bilinear interpolation
                                         const int64_t left_x =
