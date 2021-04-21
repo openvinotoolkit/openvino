@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils.hpp"
-
+// clang-format off
 #include <algorithm>
 #include <iostream>
 #include <map>
@@ -13,6 +12,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "utils.hpp"
+// clang-format on
 
 #ifdef USE_OPENCV
     #include <opencv2/core.hpp>
