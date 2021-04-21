@@ -8,7 +8,7 @@ import numpy as np
 from extensions.front.kaldi.replace_timeheightconvolution import ReplaceTimeHeightConvolutionPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op, connect_front, const
+from unit_tests.utils.graph import build_graph, regular_op, connect_front, const
 
 
 class TimeheightconvolutionReplacerTest(unittest.TestCase):
