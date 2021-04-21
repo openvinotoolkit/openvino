@@ -73,7 +73,7 @@ namespace
         std::vector<double> expected_double(test_results.first.size());
         std::vector<double> result_double(test_results.second.size());
 
-        for (int i = 0; i < test_results.first.size(); ++i)
+        for (size_t i = 0; i < test_results.first.size(); ++i)
         {
             expected_double[i] = static_cast<double>(test_results.first[i]);
             result_double[i] = static_cast<double>(test_results.second[i]);
