@@ -58,7 +58,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
 
-            // Need to add safe SoftPlus support
+            // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)"
     };
 }
