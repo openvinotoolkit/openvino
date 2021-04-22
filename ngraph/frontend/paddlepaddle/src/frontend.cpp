@@ -76,8 +76,8 @@ bool endsWith(const std::string &str, const std::string &suffix) {
 
 } // namespace pdpd
 
-std::shared_ptr<Constant> FrontEndPDPD::read_tensor(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
-                const std::shared_ptr<InputModelPDPD>& model)
+std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
+                                                    const std::shared_ptr<InputModelPDPD>& model)
 {
     const auto& var_desc = tensor_place->getDesc();
     std::cout << "Reading tensor " << var_desc->name() << std::endl;
@@ -85,11 +85,10 @@ std::shared_ptr<Constant> FrontEndPDPD::read_tensor(const std::shared_ptr<Tensor
     const auto& tensor = var_desc->type().lod_tensor().tensor();
     const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
-    // TODO: implement for other types
-    auto tensor_data = model->readWeight(var_desc->name(), tensor_length);    
-
-    std::vector<size_t> shape(tensor.dims().cbegin(), tensor.dims().cend());
-    return Constant::create(element::f32, Shape(shape), tensor_data);
+    Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
+    const auto& type = TYPE_MAP[tensor.data_type()];
+    auto tensor_data = model->readWeight(var_desc->name(), tensor_length * type.size());    
+    return Constant::create(type, shape, &tensor_data[0]);
 }
 
 std::shared_ptr<Function>
@@ -109,7 +108,7 @@ std::shared_ptr<Function>
             continue;
         if (!var->persistable())
             continue;
-        nodes_dict[name_var.first] = read_tensor(name_var.second, model);
+        nodes_dict[name_var.first] = make_const_node(name_var.second, model);
     }
     std::cout << "Reading consts finished" << std::endl;
 

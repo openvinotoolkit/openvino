@@ -28,8 +28,7 @@ public:
     void setPartialShape (Place::Ptr place, const ngraph::PartialShape&);
     void setElementType (Place::Ptr place, const ngraph::element::Type&);
     
-    template<typename T>
-    std::vector<T> readWeight(const std::string& name, int64_t tensor_length);
+    std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
     std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const { return m_op_places_blocks[i]; }
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces(int i) const { return m_var_places_blocks[i]; }
     size_t getBlockNumber() const { return m_op_places_blocks.size(); }
@@ -58,10 +57,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
         m_weights_composed = true;
         auto weights_file = m_path.replace(m_path.size() - ext.size(), ext.size(), ".pdiparams");
         m_weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
-        if (!m_weights_stream || !m_weights_stream->is_open())
-        {
-            std::cerr << "Model file cannot be opened" << std::endl;
-        }
+        PDPD_ASSERT(m_weights_stream && m_weights_stream->is_open(), "Model file cannot be opened");
     } else {
         m_weights_composed = false;
         model_file += "/__model__";
@@ -138,9 +134,8 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
     }
 }
 
-template<typename T>
-std::vector<T> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::string& name, int64_t tensor_length) {
-    std::vector<T> tensor_data(tensor_length, 0);
+std::vector<uint8_t> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::string& name, int64_t len) {
+    std::vector<uint8_t> tensor_data(len);
 
     std::unique_ptr<std::ifstream> is;
     std::ifstream* stream_ptr;
@@ -148,20 +143,16 @@ std::vector<T> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::string&
         stream_ptr = m_weights_stream.get();
     } else {
         is = std::unique_ptr<std::ifstream>(new std::ifstream(m_path + "/" + name, std::ios::in | std::ifstream::binary));
-        if (!is || !is->is_open())
-        {
-            std::cout << "File not opened" << std::endl;
-        }
+        PDPD_ASSERT(is && is->is_open(), "Cannot open file for constant value.");
         stream_ptr = is.get();
     }
-    // TODO: validate that this works for types other than FP32
-    std::vector<char> header(16, 0);
+    std::vector<char> header(16);
     stream_ptr->read(&header[0], 16);
     uint32_t dims_len = 0;
     stream_ptr->read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len, 0);
+    std::vector<char> dims_struct(dims_len);
     stream_ptr->read(&dims_struct[0], dims_len);
-    stream_ptr->read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length * sizeof(T));
+    stream_ptr->read(reinterpret_cast<char*>(&tensor_data[0]), len);
     return tensor_data;
 }
 
@@ -246,8 +237,8 @@ void InputModelPDPD::InputModelPDPDImpl::setElementType (Place::Ptr place, const
 
 InputModelPDPD::InputModelPDPD (const std::string& _path) : _impl{std::make_shared<InputModelPDPDImpl>(_path, *this)} {}
 
-std::vector<float> InputModelPDPD::readWeight(const std::string& name, int64_t tensor_length) {
-    return _impl->readWeight<float>(name, tensor_length);
+std::vector<uint8_t> InputModelPDPD::readWeight(const std::string& name, int64_t len) {
+    return _impl->readWeight(name, len);
 }
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces(int i) const {
