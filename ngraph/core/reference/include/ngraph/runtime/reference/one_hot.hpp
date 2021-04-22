@@ -50,6 +50,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

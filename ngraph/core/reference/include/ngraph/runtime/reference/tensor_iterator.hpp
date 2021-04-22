@@ -24,6 +24,6 @@ namespace ngraph
                                  const HostTensorVector& out,
                                  const HostTensorVector& args,
                                  const custom_evaluate_function& evaluate = nullptr);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
