@@ -46,7 +46,7 @@ namespace ngraph
 
             Subgraph get_subgraph_from_attribute(
                 const std::string& name,
-                const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const;
+                const std::map<std::size_t, std::string>& carried_dependencies_map) const;
 
             template <typename T>
             T get_attribute_value(const std::string& name, T default_value) const;
@@ -96,7 +96,7 @@ namespace ngraph
 
         Subgraph Node::Impl::get_subgraph_from_attribute(
             const std::string& name,
-            const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const
+            const std::map<std::size_t, std::string>& carried_dependencies_map) const
         {
             auto it = std::find_if(
                 std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
@@ -106,7 +106,7 @@ namespace ngraph
             {
                 throw error::node::UnknownAttribute{this->name(), name};
             }
-            return it->get_subgraph(graph(), subgraph_inputs_types_map);
+            return it->get_subgraph(graph(), carried_dependencies_map);
         }
 
         template <typename T>
@@ -140,7 +140,7 @@ namespace ngraph
         template <>
         Subgraph Node::Impl::get_attribute_value(const std::string& name) const
         {
-            const std::map<std::size_t, element::Type_t> empty_map;
+            const std::map<std::size_t, std::string> empty_map;
             return get_subgraph_from_attribute(name, empty_map);
         }
 
@@ -221,9 +221,9 @@ namespace ngraph
 
         Subgraph Node::get_subgraph_from_attribute(
             const std::string& name,
-            const std::map<std::size_t, element::Type_t>& subgraph_inputs_types_map) const
+            const std::map<std::size_t, std::string>& carried_dependencies_map) const
         {
-            return m_pimpl->get_subgraph_from_attribute(name, subgraph_inputs_types_map);
+            return m_pimpl->get_subgraph_from_attribute(name, carried_dependencies_map);
         }
 
         template <>
