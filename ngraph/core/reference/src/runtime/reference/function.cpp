@@ -130,6 +130,6 @@ namespace ngraph
                 }
                 call(outputs, inputs, function);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -36,9 +36,9 @@ namespace ngraph
                 static PerfCounters counters;
                 return counters;
             }
-        }
-    }
-}
+        } // namespace
+    }     // namespace pass
+} // namespace ngraph
 
 pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>())

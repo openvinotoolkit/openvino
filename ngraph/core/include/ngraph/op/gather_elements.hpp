@@ -39,6 +39,6 @@ namespace ngraph
             private:
                 int64_t m_axis;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

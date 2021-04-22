@@ -47,7 +47,7 @@ namespace not_equalop
         }
         return rc;
     }
-}
+} // namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
 
