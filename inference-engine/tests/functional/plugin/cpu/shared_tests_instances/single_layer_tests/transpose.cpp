@@ -13,7 +13,9 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::I16
 };
 
 std::vector<std::vector<size_t>> inputShape2D = {{2, 10}, {10, 2}, {10, 10}};
