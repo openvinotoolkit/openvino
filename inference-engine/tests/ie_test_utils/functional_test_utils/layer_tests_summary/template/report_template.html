@@ -30,7 +30,7 @@
 <h2>Operations coverage summary {{ timestamp }}</h2>
 <hr class="my-4">
 <table class="table table-hover" id="legend">
-    <thead>
+    <thead style="position: sticky>
     <tr>
         <th class="table-info" scope="col"></th>
         <th scope="col">Not verified Ngraph references</th>
@@ -56,7 +56,18 @@
         {% for d in devices -%}
         <td class="table-secondary" >{{results[d]|length}}</td>
         {% endfor %}
-
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">Trusted op counter (passrate=100%):</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{trusted_ops[d]}}</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">Tested op counter:</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{general_test_count[d]}}</td>
+        {% endfor %}
     </tr>
         <tr>
         <th class="table-secondary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
