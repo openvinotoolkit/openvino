@@ -23,4 +23,4 @@ namespace ngraph
 
     NGRAPH_API
     void copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to);
-}
+} // namespace ngraph

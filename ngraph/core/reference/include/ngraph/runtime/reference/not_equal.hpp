@@ -46,9 +46,9 @@ namespace ngraph
                         return x != y;
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

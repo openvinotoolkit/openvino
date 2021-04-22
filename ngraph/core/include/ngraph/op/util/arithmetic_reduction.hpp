@@ -42,6 +42,6 @@ namespace ngraph
                 /// \brief Change the reduction axes
                 void set_reduction_axes(const AxisSet& reduction_axes);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph
