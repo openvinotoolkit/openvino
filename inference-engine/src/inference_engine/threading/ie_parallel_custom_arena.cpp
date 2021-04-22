@@ -139,7 +139,7 @@ tbb::task_arena::constraints convert_constraints(custom::task_arena::constraints
     tbb::task_arena::constraints result{};
 #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     result.core_type = c.core_type;
-    result.max_threads_per_core = c.max_threads_per_code;
+    result.max_threads_per_core = c.max_threads_per_core;
 #endif
     result.numa_id = c.numa_id;
     result.max_concurrency = c.max_concurrency;
