@@ -45,7 +45,7 @@ namespace ngraph
 
                     return {scaler};
                 }
-            }
-        }
-    }
-}
+            } // namespace set_1
+        }     // namespace op
+    }         // namespace onnx_import
+} // namespace ngraph
