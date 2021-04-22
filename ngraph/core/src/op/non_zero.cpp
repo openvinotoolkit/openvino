@@ -165,7 +165,7 @@ namespace nonzero
         }
         return rc;
     }
-}
+} // namespace nonzero
 
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const

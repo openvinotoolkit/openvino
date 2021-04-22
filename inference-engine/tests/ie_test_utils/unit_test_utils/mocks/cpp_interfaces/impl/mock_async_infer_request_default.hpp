@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <gmock/gmock.h>
-#include <ie_iinfer_request.hpp>
 
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 

@@ -42,7 +42,7 @@ namespace ngraph
                     {
                     }
                 };
-            }
+            } // namespace error
 
             namespace detail
             {
@@ -57,7 +57,7 @@ namespace ngraph
                                            float beta UNUSED_PARAMETER);
                 std::shared_ptr<Node>
                     hardsigmoid(const std::shared_ptr<Node>& arg, float alpha, float beta);
-            }
+            } // namespace detail
 
             using ActivationFunctionType = std::shared_ptr<Node> (*)(const std::shared_ptr<Node>&,
                                                                      float,

@@ -18,6 +18,8 @@
 #define VLOAD CAT(vload, TILE_SIZE)
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
+#define AS_OUTPUTVTYPE CAT(as_, OUTPUTVTYPE)
+#define TO_OUTPUTVTYPE CAT(convert_, OUTPUTVTYPE)
 
 #define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
@@ -51,6 +53,49 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                     + GET_LOCAL_ID(2);
     const uint local_buf_offset = local_id * TILE_SIZE;
 
+#ifdef REORDERED_OUTPUT_TILED_ORDER
+    if (F_NO_REMAINDER_CONDITION) {
+        unroll_for (uint lh = 0; lh < TILE_SIZE/*8*/; ++lh) {
+            // read
+            const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
+            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            // write to ddr
+          #if HAS_FUSED_OPS
+            OUTPUTVTYPE out_data;
+            unroll_for (uint lw = 0; lw < TILE_SIZE; ++lw) {
+                INPUT0_TYPE input_var = read_data[lw];
+                FUSED_OPS;
+                out_data[lw] = FUSED_OPS_RESULT;
+            }
+            const uint output_idx = OUTPUT_GET_TILED_INDEX(REORDERED_OUTPUT_TILED_ORDER);
+            VSTORE(out_data, 0, output + output_idx);
+          #else
+            const uint output_idx = OUTPUT_GET_TILED_INDEX(REORDERED_OUTPUT_TILED_ORDER);
+            VSTORE(ACTIVATION(TO_OUTPUTVTYPE(read_data), ACTIVATION_PARAMS), 0, output + output_idx);
+          #endif
+        }
+    }
+#ifdef F_REMAINDER_CONDITION
+    else if (F_REMAINDER_CONDITION) {
+        unroll_for (uint lh = 0; lh < TILE_SIZE/*8*/; ++lh) {
+            unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+                // read
+                const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
+                INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+                // write to ddr
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(REORDERED_OUTPUT_TILED_ORDER);
+              #if HAS_FUSED_OPS
+                INPUT0_TYPE input_var = read_data[lw];
+                FUSED_OPS;
+                output[output_idx + lw] = FUSED_OPS_RESULT;
+              #else
+                output[output_idx + lw] = TO_OUTPUT_TYPE(read_data[lw]);
+              #endif
+            }
+        }
+    }
+#endif // F_REMAINDER_CONDITION
+#else // !REORDERED_OUTPUT_TILED_ORDER
     if (F_NO_REMAINDER_CONDITION) {
         // read and transpose
         unroll_for (uint lh = 0; lh < TILE_SIZE; ++lh) {
@@ -59,16 +104,15 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 
             unroll_for (uint lw = 0; lw < TILE_SIZE; ++lw) {
                 const uint dst = local_buf_offset + lw;
-#if HAS_FUSED_OPS
+          #if HAS_FUSED_OPS
                 INPUT0_TYPE input_var = read_data[lw];
                 FUSED_OPS;
                 transpose_buf[dst][lh] = FUSED_OPS_RESULT;
-#else
+          #else
                 transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
-#endif
+          #endif
             }
         }
-        // write to ddr
 #ifdef YZ_REMAINDER_CONDITION
         if (YZ_REMAINDER_LESS_THAN_TILE_SIZE) {
             // copy one by one when z % TILE_SIZE < TILE_SIZE/2
@@ -94,12 +138,13 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
             }
         }
-#else
+#else // YZ_REMAINDER_CONDITION
+        // write to ddr
         unroll_for (uint lw = 0; lw < TILE_SIZE; ++lw) {
             const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
             VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
         }
-#endif
+#endif //YZ_REMAINDER_CONDITION
     }
 #ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION) {
@@ -109,13 +154,13 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
             unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
                 uint dst = local_buf_offset + lw;
-    #if HAS_FUSED_OPS
-                    INPUT0_TYPE input_var = read_data[lw];
-                    FUSED_OPS;
-                    transpose_buf[dst][lh] = FUSED_OPS_RESULT;
-    #else
-                    transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
-    #endif
+        #if HAS_FUSED_OPS
+                INPUT0_TYPE input_var = read_data[lw];
+                FUSED_OPS;
+                transpose_buf[dst][lh] = FUSED_OPS_RESULT;
+        #else
+                transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
+        #endif
             }
         }
         // write to ddr
@@ -145,12 +190,30 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
             }
         }
-#else
+#else //  !YZ_REMAINDER_CONDITION
         unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
             const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
             VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
         }
-#endif
+#endif // YZ_REMAINDER_CONDITION
     }
-#endif
+#endif // F_REMAINDER_CONDITION
+#endif // REORDERED_OUTPUT)TILED_ORDER
 }
+
+#undef unroll_for
+#undef CEIL_DIV(A, B)
+#undef INPUT0_GET_TILED_INDEX(ORDER)
+#undef OUTPUT_GET_TILED_INDEX(ORDER)
+#undef YZ_REMAINDER_LESS_THAN_TILE_SIZE
+#undef YZ_REMAINDER_MORE_THAN_TILE_SIZE
+#undef INPUTVTYPE
+#undef OUTPUTVTYPE
+#undef VLOAD
+#undef VSTORE
+#undef AS_INPUTVTYPE
+#undef AS_OUTPUTVTYPE
+#undef TO_OUTPUTVTYPE
+#undef GET_GLOBAL_ID(IDX)
+#undef GET_LOCAL_ID(IDX)
+#undef GET_LOCAL_SIZE(IDX)

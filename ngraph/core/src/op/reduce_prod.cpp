@@ -67,7 +67,7 @@ namespace reduce_prod
         }
         return rc;
     }
-}
+} // namespace reduce_prod
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
