@@ -60,8 +60,8 @@ namespace ngraph
 
                 FrameworkNodeAttrs m_attrs;
             };
-        }
-    }
+        } // namespace util
+    }     // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::util::FrameworkNodeAttrs>
@@ -73,4 +73,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

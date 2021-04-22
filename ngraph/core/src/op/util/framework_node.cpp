@@ -71,4 +71,4 @@ namespace ngraph
         : DirectValueAccessor<op::util::FrameworkNodeAttrs>(value)
     {
     }
-}
+} // namespace ngraph
