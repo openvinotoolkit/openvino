@@ -26,5 +26,5 @@ namespace ngraph
                                const SlicePlan& sp,
                                size_t elem_type);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

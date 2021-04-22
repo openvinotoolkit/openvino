@@ -474,7 +474,7 @@ namespace ngraph
                 bool m_all_elements_bitwise_identical;
                 bool m_alloc_buffer_on_visit_attributes = true;
             };
-        }
+        } // namespace v0
         using v0::Constant;
-    }
-}
+    } // namespace op
+} // namespace ngraph
