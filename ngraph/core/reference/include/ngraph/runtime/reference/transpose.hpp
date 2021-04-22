@@ -25,16 +25,11 @@ namespace ngraph
                            const int64_t* axes_order,
                            Shape out_shape)
             {
-                // To reuse opt_kernel::reshape axes order vector need to be converted to AxisVector
-                std::vector<int64_t> axes_order_vector(axes_order, axes_order + data_shape.size());
-                std::vector<size_t> converted_axes_orded(data_shape.size());
+                // To reuse opt_kernel::reshape axes order vector has to be converted to AxisVector
                 // Negative axes are not supported, it is validated by transpose evaluate method
-                std::transform(axes_order_vector.begin(),
-                               axes_order_vector.end(),
-                               converted_axes_orded.begin(),
-                               [&](const int64_t v) { return static_cast<size_t>(v); });
+                std::vector<size_t> axis_vector(axes_order, axes_order + data_shape.size());
                 runtime::opt_kernel::reshape(
-                    data, out, data_shape, converted_axes_orded, out_shape, element_size);
+                    data, out, data_shape, axis_vector, out_shape, element_size);
             }
 
             // Legacy function template to ensure backward compatibility
