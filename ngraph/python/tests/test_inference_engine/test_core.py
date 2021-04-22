@@ -80,6 +80,16 @@ def test_read_network():
     assert isinstance(net, IENetwork)
 
 
+def test_read_network_from_memory():
+    ie_core = IECore()
+    model = open(test_net_xml).read()
+    array = np.fromfile(test_net_bin,dtype=np.uint8)
+    tensor_desc = TensorDesc("U8", array.shape, "C")
+    blob = Blob(tensor_desc,array)
+    net = ie_core.read_network(model, blob)
+    assert isinstance(net, IENetwork) 
+
+
 def test_get_version(device):
     ie = IECore()
     version = ie.get_versions(device)
