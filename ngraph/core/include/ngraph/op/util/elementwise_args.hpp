@@ -15,5 +15,5 @@ namespace ngraph
             std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
                 Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
         }
-    }
-}
+    } // namespace op
+} // namespace ngraph

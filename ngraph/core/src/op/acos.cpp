@@ -66,7 +66,7 @@ namespace acosop
         }
         return rc;
     }
-}
+} // namespace acosop
 
 bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
