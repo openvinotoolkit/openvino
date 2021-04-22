@@ -313,6 +313,7 @@ void MKLDNNGraph::InitGraph() {
     SortTopologically();
 
     InitDescriptors();
+    RemoveDroppedEdges();
 
     InitOptimalPrimitiveDescriptors();
 
