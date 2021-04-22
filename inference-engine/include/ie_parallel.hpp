@@ -32,6 +32,10 @@
 #ifndef TBB_PREVIEW_NUMA_SUPPORT
 # define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
+#ifndef TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION
+# define TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION 1
+#endif
+
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/blocked_range3d.h"

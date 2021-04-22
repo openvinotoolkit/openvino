@@ -122,6 +122,9 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
             case IStreamsExecutor::ThreadBindingType::NUMA:
                 return {CONFIG_VALUE(NUMA)};
             break;
+            case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+                return {CONFIG_VALUE(HYBRID_AWARE)};
+            break;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {_streams};

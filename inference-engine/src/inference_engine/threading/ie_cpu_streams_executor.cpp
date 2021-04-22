@@ -15,7 +15,7 @@
 #include <utility>
 
 #include "threading/ie_thread_local.hpp"
-#include "ie_parallel.hpp"
+#include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 #include "threading/ie_thread_affinity.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
@@ -71,15 +71,21 @@ struct CPUStreamsExecutor::Impl {
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
-            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
-                _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
-#else
-                _taskArena.reset(new tbb::task_arena{concurrency});
-#endif
+            auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
+            if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}
+                        .set_core_type(custom::info::core_types().back())
+                        .set_max_concurrency(concurrency)
+                });
+            } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}
+                        .set_numa_id(_numaNodeId)
+                        .set_max_concurrency(concurrency)
+                });
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
-                _taskArena.reset(new tbb::task_arena{concurrency});
+                _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                     CpuSet processMask;
                     int    ncpus = 0;
@@ -140,7 +146,7 @@ struct CPUStreamsExecutor::Impl {
         bool _execute = false;
         std::queue<Task> _taskQueue;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        std::unique_ptr<tbb::task_arena>    _taskArena;
+        std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer>           _observer;
 #endif
     };
