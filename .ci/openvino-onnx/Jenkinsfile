@@ -105,10 +105,8 @@ def get_docker_container_name(Map configuration){
 }
 
 def buildDockerImage(Map configuration, String workdir) {
-    println "Building docker image for workdir: ${workdir}"
     String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
     println "docker_image_tag: ${docker_image_tag}"
-    println "dziala"
     updateModels()
     sh """
         docker build --tag=${docker_image_tag} \
@@ -123,10 +121,8 @@ def buildDockerImage(Map configuration, String workdir) {
 def runTests(Map configuration, String workdir) {
     println "Run tests for ${configuration.name}"
     String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
-    println "docker_image_tag run test: ${docker_image_tag}"
 
     String docker_container_name = get_docker_container_name(configuration)
-    println "docker_container_name: ${docker_container_name}"
 
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
@@ -150,7 +146,6 @@ def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        println "getConfigurationsMap: ${configuration.name}"
         configurationsMap[configuration.name] = {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
@@ -163,7 +158,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
         try {
             PROJECT_NAME = "openvino"
             String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
-            println "CONFIGURATION_WORKFLOW: ${workdir}"
+
             stage("Clone repository") {
                     prepare_repository(workdir)
             }
