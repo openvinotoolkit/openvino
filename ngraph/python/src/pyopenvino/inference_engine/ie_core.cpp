@@ -59,6 +59,12 @@ void regclass_IECore(py::module m)
         return self.ReadNetwork(model, weights);
     }, py::arg("model"), py::arg("weights")="");
 
+    cls.def("read_network", [](InferenceEngine::Core& self,
+                               const std::string& model,
+                               py::handle blob) {
+        return self.ReadNetwork(model, Common::cast_to_blob(blob));
+    }, py::arg("model"), py::arg("blob"));
+
     cls.def("import_network", [](InferenceEngine::Core& self,
                                  const std::string& model_file,
                                  const std::string& device_name,
