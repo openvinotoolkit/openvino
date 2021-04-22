@@ -154,8 +154,8 @@ op::v6::MVN::MVN(const Output<Node>& data,
                  float eps,
                  MVNEpsMode eps_mode)
     : Op({data, reduction_axes})
-    , m_eps{eps}
     , m_normalize_variance{normalize_variance}
+    , m_eps{eps}
     , m_eps_mode{eps_mode}
 {
     constructor_validate_and_infer_types();

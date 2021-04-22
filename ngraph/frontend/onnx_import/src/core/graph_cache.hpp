@@ -68,6 +68,8 @@ namespace ngraph
             ///             is avalible in parent_graph_cache, otherwise Lack
             virtual NodeScope node_scope(const std::string& name) const;
 
+            virtual ~GraphCache() = default;
+
         private:
             std::map<std::string, Output<ngraph::Node>> m_graph_cache_map;
         };

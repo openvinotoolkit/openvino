@@ -32,7 +32,7 @@ namespace ngraph
                 {
                     embDepth *= outShape[i];
                 }
-                memset(out, 0, shape_size(outShape) * sizeof(T));
+                std::fill(out, out + shape_size(outShape), T{0});
 
                 auto get_indices = [&](size_t emb_index,
                                        const U*& indices_ref,

@@ -55,8 +55,8 @@ static vector<string> to_lower_case(const vector<string>& vs)
 }
 
 op::util::RNNCellBase::RNNCellBase()
-    : m_clip(0.f)
-    , m_hidden_size(0)
+    : m_hidden_size(0)
+    , m_clip(0.f)
 {
 }
 

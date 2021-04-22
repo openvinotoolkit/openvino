@@ -24,6 +24,7 @@ namespace ngraph
         {
         public:
             Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model);
+            Graph(const Graph& graph);
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -35,6 +36,7 @@ namespace ngraph
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
             const OpsetImports& get_opset_imports() const;
+            virtual ~Graph() = default;
 
         protected:
             Graph(const ONNX_NAMESPACE::GraphProto& proto,

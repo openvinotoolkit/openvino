@@ -20,85 +20,85 @@
 using namespace ngraph;
 using namespace std;
 
-//
-// As we are visualizing the graph, we will make some tweaks to the generated dot file to make
-// routing more tractable for Graphviz as well as (hopefully) more legible for the user.
-//
-// NOTE: It's possible, even likely, that better algorithms are available here. I just tried a
-// few different things without doing much research, and this seemed to work well. Please feel
-// free to improve on this. --amprocte
-//
-// -----------------
-//
-// The first tweak is to trim edges that, intuitively speaking, have long "skip distance". For
-// example:
-//
-// [Actual Graph Structure]      [Visualization]
-//    n0                             n0
-//    | \                            |  \
-//    n1 \                           n1  [to n50]
-//    |   |                          |
-//    n2  |                          n2
-//    |   |                          |
-//    n3  |                          n3
-//    |   |                          |
-//   ...  |                         ...  [from n0]
-//    |  /                           |  /
-//   n50                            n50
-//
-// This is useful for training graphs especially, which tend to have very long feed-forward edges
-// for intermediate values from fprop being stored for later reuse in the bprop phase.
-//
-// Efficiently detecting a "long skip" is a bit tricky. We want to come up with a metric that is
-// reasonably fast to compute, but does not result in cuts that will split the graph into multiple
-// components. The heuristic we are using for the jump distance between n and m is the maximum
-// difference in maximum path length from n and m to any result node that is reachable from both
-// n and m (or 0, if no such result node exists). Not sure if this is mathematically *guaranteed*
-// not to split graph components, but it seems to work well in practice.
-//
-// Formally:
-//
-// Compute-Heights-Above-Each-Parameter(N):
-//    Inputs: nodes N; define R={n in N | n is a Result node}
-//    Output: height_maps: map from N to (map from R to int)
-//
-//    height_maps is initially empty
-//
-//    for each r in R:
-//        Insert into height_map the map {r -> 1}
-//
-//    for each n in N in reverse topological ("results-first") order:
-//        for each user m of n:
-//            for each r in height_maps[m].keys:
-//                height_maps[n][r] := max(height_maps[n][r], height_maps[m][r]+1)
-//
-// Jump-Distance(n,m,height_maps):
-//     Inputs: n (source node), m (destination node), height_maps (pre-computed above)
-//     Output: jump_distance: int
-//
-//     jump_distance := 0
-//
-//     for each r in height_maps[n].keys:
-//         if r is in height_maps[m].keys:
-//             jump_distance := max(jump_distance, abs(height_maps[n][r] - height_maps[m][r]))
-//
-// Later on, if E is an edge from n to m, and Jump-Distance(n,m,height_map) > K (where K is kind
-// of arbitrary but currently set to 20), we will "cut" the edge as illustrated above.
-//
-// -----------------
-//
-// The second tweak aims to eliminate routing pressure from nodes that have large outdegree and
-// are connected to many otherwise-distant places in the graph. For this, the only thing we are
-// doing at the moment is to "float" Parameter and Constant nodes. This means that rather than
-// visualizing them as a single node (which might have very large outdegree as in, e.g., a
-// learning rate parameter being fed to many different places), we make a "copy" of the node at
-// each occurrence site (with a dashed outline).
-//
-// NOTE: This tweak could probably be extended to float other kinds of nodes with high out-degree.
-// (This situation is likely to arise after constant subexpression elimination.) Here one has to
-// be careful to avoid splitting the components. I have some rough ideas on how this could be
-// dealt with, but have not had time to implement them yet. --amprocte
-//
+/*
+ * As we are visualizing the graph, we will make some tweaks to the generated dot file to make
+ * routing more tractable for Graphviz as well as (hopefully) more legible for the user.
+ *
+ * NOTE: It's possible, even likely, that better algorithms are available here. I just tried a
+ * few different things without doing much research, and this seemed to work well. Please feel
+ * free to improve on this. --amprocte
+ *
+ * -----------------
+ *
+ * The first tweak is to trim edges that, intuitively speaking, have long "skip distance". For
+ * example:
+ *
+ * [Actual Graph Structure]      [Visualization]
+ *    n0                             n0
+ *    | \                            |  \
+ *    n1 \                           n1  [to n50]
+ *    |   |                          |
+ *    n2  |                          n2
+ *    |   |                          |
+ *    n3  |                          n3
+ *    |   |                          |
+ *   ...  |                         ...  [from n0]
+ *    |  /                           |  /
+ *   n50                            n50
+ *
+ * This is useful for training graphs especially, which tend to have very long feed-forward edges
+ * for intermediate values from fprop being stored for later reuse in the bprop phase.
+ *
+ * Efficiently detecting a "long skip" is a bit tricky. We want to come up with a metric that is
+ * reasonably fast to compute, but does not result in cuts that will split the graph into multiple
+ * components. The heuristic we are using for the jump distance between n and m is the maximum
+ * difference in maximum path length from n and m to any result node that is reachable from both
+ * n and m (or 0, if no such result node exists). Not sure if this is mathematically *guaranteed*
+ * not to split graph components, but it seems to work well in practice.
+ *
+ * Formally:
+ *
+ * Compute-Heights-Above-Each-Parameter(N):
+ *    Inputs: nodes N; define R={n in N | n is a Result node}
+ *    Output: height_maps: map from N to (map from R to int)
+ *
+ *    height_maps is initially empty
+ *
+ *    for each r in R:
+ *        Insert into height_map the map {r -> 1}
+ *
+ *    for each n in N in reverse topological ("results-first") order:
+ *        for each user m of n:
+ *            for each r in height_maps[m].keys:
+ *                height_maps[n][r] := max(height_maps[n][r], height_maps[m][r]+1)
+ *
+ * Jump-Distance(n,m,height_maps):
+ *     Inputs: n (source node), m (destination node), height_maps (pre-computed above)
+ *     Output: jump_distance: int
+ *
+ *     jump_distance := 0
+ *
+ *     for each r in height_maps[n].keys:
+ *         if r is in height_maps[m].keys:
+ *             jump_distance := max(jump_distance, abs(height_maps[n][r] - height_maps[m][r]))
+ *
+ * Later on, if E is an edge from n to m, and Jump-Distance(n,m,height_map) > K (where K is kind
+ * of arbitrary but currently set to 20), we will "cut" the edge as illustrated above.
+ *
+ * -----------------
+ *
+ * The second tweak aims to eliminate routing pressure from nodes that have large outdegree and
+ * are connected to many otherwise-distant places in the graph. For this, the only thing we are
+ * doing at the moment is to "float" Parameter and Constant nodes. This means that rather than
+ * visualizing them as a single node (which might have very large outdegree as in, e.g., a
+ * learning rate parameter being fed to many different places), we make a "copy" of the node at
+ * each occurrence site (with a dashed outline).
+ *
+ * NOTE: This tweak could probably be extended to float other kinds of nodes with high out-degree.
+ * (This situation is likely to arise after constant subexpression elimination.) Here one has to
+ * be careful to avoid splitting the components. I have some rough ideas on how this could be
+ * dealt with, but have not had time to implement them yet. --amprocte
+ */
 
 const int ngraph::pass::VisualizeTree::max_jump_distance = 20;
 
