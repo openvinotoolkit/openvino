@@ -127,6 +127,6 @@ namespace ngraph
                     cum_sum(it.second);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

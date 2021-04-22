@@ -131,12 +131,12 @@ namespace ngraph
             protected:
                 static Output<Node> wrap_values(const OutputVector& wrapped_values);
             };
-        }
+        } // namespace op
 
         NGRAPH_API
         std::shared_ptr<Node> any_input();
 
         NGRAPH_API
         std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

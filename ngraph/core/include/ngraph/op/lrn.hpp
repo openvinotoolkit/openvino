@@ -67,7 +67,7 @@ namespace ngraph
                 double m_bias;
                 size_t m_size;
             };
-        }
+        } // namespace v0
         using v0::LRN;
-    }
-}
+    } // namespace op
+} // namespace ngraph

@@ -60,7 +60,7 @@ namespace ngraph
             char* m_aligned_buffer;
             size_t m_byte_size;
         };
-    }
+    } // namespace runtime
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>
         : public DirectValueAccessor<std::shared_ptr<runtime::AlignedBuffer>>
@@ -72,4 +72,4 @@ namespace ngraph
             "AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

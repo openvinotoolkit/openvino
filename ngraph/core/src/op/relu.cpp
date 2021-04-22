@@ -58,7 +58,7 @@ namespace relu
         }
         return rc;
     }
-}
+} // namespace relu
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

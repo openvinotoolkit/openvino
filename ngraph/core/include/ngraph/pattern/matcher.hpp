@@ -272,5 +272,5 @@ namespace ngraph
             RPatternValueMap m_matches;
             Output<Node> m_match_root;
         };
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

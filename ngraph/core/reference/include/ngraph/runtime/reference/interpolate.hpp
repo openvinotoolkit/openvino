@@ -659,6 +659,6 @@ namespace ngraph
                 InterpolateEval<T> evaluator{attrs};
                 evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

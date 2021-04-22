@@ -91,6 +91,6 @@ namespace ngraph
 
                 double m_epsilon;
             };
-        } // namespace v0
-    }
-}
+        } // namespace v5
+    }     // namespace op
+} // namespace ngraph

@@ -17,6 +17,6 @@ namespace ngraph
             {
                 OutputVector image_scaler(const Node& node);
             }
-        }
-    }
-}
+        } // namespace op
+    }     // namespace onnx_import
+} // namespace ngraph

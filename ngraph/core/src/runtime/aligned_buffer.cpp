@@ -78,4 +78,4 @@ namespace ngraph
         : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value)
     {
     }
-}
+} // namespace ngraph

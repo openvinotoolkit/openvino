@@ -59,7 +59,7 @@ namespace sigmoid
         }
         return rc;
     }
-}
+} // namespace sigmoid
 
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

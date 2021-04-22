@@ -163,4 +163,4 @@ namespace ngraph
     /// Inserts the string `?` if `dimension` is dynamic; else inserts `dimension.get_length()`.
     NGRAPH_API
     std::ostream& operator<<(std::ostream& str, const Dimension& dimension);
-}
+} // namespace ngraph

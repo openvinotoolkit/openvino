@@ -41,6 +41,6 @@ namespace ngraph
 
                 void validate();
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

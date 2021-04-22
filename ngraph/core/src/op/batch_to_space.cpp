@@ -244,7 +244,7 @@ namespace
             flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
         return true;
     }
-}
+} // namespace
 
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const

@@ -67,6 +67,6 @@ namespace ngraph
                 AutoBroadcastSpec m_autob;
                 void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

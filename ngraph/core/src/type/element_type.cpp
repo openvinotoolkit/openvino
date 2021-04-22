@@ -209,8 +209,8 @@ namespace ngraph
         {
             return Type_t::bf16;
         }
-    }
-}
+    } // namespace element
+} // namespace ngraph
 
 std::ostream& element::operator<<(std::ostream& out, const element::Type& obj)
 {
@@ -333,7 +333,7 @@ namespace ngraph
                                         {"u64", element::Type_t::u64}});
         return enum_names;
     }
-}
+} // namespace ngraph
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
 

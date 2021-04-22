@@ -164,6 +164,6 @@ namespace ngraph
                 ///
                 bool m_linear_before_reset;
             };
-        }
-    }
-}
+        } // namespace v3
+    }     // namespace op
+} // namespace ngraph

@@ -70,9 +70,9 @@ namespace ngraph
                 bool evaluate_depth_to_space(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const;
             };
-        }
+        } // namespace v0
         using v0::DepthToSpace;
-    }
+    } // namespace op
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::v0::DepthToSpace::DepthToSpaceMode& type);
@@ -91,4 +91,4 @@ namespace ngraph
             "AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

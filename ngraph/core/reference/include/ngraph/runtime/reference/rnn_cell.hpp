@@ -115,6 +115,6 @@ namespace ngraph
                                        " is not supported.");
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

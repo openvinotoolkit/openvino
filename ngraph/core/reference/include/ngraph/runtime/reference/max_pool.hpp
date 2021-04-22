@@ -114,6 +114,6 @@ namespace ngraph
                     out[output_transform.index(out_coord)] = result;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

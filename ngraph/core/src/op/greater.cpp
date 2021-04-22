@@ -47,7 +47,7 @@ namespace greaterop
         }
         return rc;
     }
-}
+} // namespace greaterop
 
 //-------------------------------------- v1 ------------------------------------
 

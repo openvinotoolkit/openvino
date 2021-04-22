@@ -68,7 +68,7 @@ namespace ceiling
         }
         return rc;
     }
-}
+} // namespace ceiling
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

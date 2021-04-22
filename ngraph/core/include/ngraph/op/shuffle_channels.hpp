@@ -61,7 +61,7 @@ namespace ngraph
                 int64_t m_axis;
                 int64_t m_group;
             };
-        }
+        } // namespace v0
         using v0::ShuffleChannels;
-    }
-}
+    } // namespace op
+} // namespace ngraph

@@ -29,6 +29,6 @@ namespace ngraph
                         return (x - y) * (x - y);
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

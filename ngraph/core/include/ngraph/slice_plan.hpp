@@ -55,4 +55,4 @@ namespace ngraph
                                          const AxisSet& new_axis_mask,
                                          const AxisSet& shrink_axis_mask,
                                          const AxisSet& ellipsis_mask);
-}
+} // namespace ngraph

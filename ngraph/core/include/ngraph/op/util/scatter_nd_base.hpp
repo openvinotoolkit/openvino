@@ -41,6 +41,6 @@ namespace ngraph
                               const Output<Node>& indices,
                               const Output<Node>& updates);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

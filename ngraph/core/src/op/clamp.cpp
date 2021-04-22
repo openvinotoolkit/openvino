@@ -98,7 +98,7 @@ namespace clamp
         }
         return rc;
     }
-}
+} // namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

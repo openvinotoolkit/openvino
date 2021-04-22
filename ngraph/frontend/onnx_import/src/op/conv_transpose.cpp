@@ -215,7 +215,7 @@ namespace ngraph
                                    bias, bias_shape_node, false)
                             ->add_provenance_group_members_above({bias});
                     }
-                }
+                } // namespace
 
                 OutputVector conv_transpose(const Node& node)
                 {

@@ -28,6 +28,6 @@ namespace ngraph
                         return T(x - std::truncf(x / y) * y);
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

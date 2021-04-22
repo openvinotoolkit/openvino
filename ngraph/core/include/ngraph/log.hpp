@@ -167,4 +167,4 @@ namespace ngraph
 #define NGRAPH_DEBUG                                                                               \
     ::ngraph::NullLogger {}
 #endif
-}
+} // namespace ngraph

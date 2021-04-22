@@ -45,6 +45,6 @@ namespace ngraph
             protected:
                 int64_t m_batch_dims = 0;
             };
-        } // namespace utils
+        } // namespace util
     }     // namespace op
 } // namespace ngraph

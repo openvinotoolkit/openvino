@@ -88,6 +88,6 @@ namespace ngraph
                 }
             } // embeddingSegmentsSum
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

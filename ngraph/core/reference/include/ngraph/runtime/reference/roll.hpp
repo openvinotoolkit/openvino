@@ -89,6 +89,6 @@ namespace ngraph
                     start += last_dim;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -38,6 +38,6 @@ namespace ngraph
                 int m_data_lenght = 0;
                 int m_sha1_digest = 0;
             };
-        }
-    }
-}
+        } // namespace detail
+    }     // namespace onnx_import
+} // namespace ngraph

@@ -62,7 +62,7 @@ namespace tanhop
         }
         return rc;
     }
-}
+} // namespace tanhop
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

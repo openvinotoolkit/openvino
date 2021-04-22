@@ -365,4 +365,4 @@ namespace ngraph
         std::vector<int64_t> m_buffer;
         bool m_buffer_valid{false};
     };
-}
+} // namespace ngraph

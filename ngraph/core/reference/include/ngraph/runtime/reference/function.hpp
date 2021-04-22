@@ -19,5 +19,5 @@ namespace ngraph
                           const HostTensorVector& inputs,
                           HostTensorVector& outputs);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

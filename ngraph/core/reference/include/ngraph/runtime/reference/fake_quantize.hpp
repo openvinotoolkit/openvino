@@ -87,7 +87,7 @@ namespace ngraph
                         increment_current_dim(current_dims, shape, incremented_dim_number - 1);
                     }
                 }
-            }
+            } // namespace
 
             template <typename T>
             void fake_quantize(const T* arg,
@@ -230,6 +230,6 @@ namespace ngraph
                 }
                 std::fesetround(initial_round_mode);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

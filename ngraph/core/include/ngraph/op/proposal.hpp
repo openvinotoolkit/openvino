@@ -70,7 +70,7 @@ namespace ngraph
             protected:
                 ProposalAttrs m_attrs;
             };
-        }
+        } // namespace v0
 
         namespace v4
         {
@@ -95,8 +95,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 const ProposalAttrs& get_attrs() const { return m_attrs; }
             };
-        }
+        } // namespace v4
 
         using v0::Proposal;
-    }
-}
+    } // namespace op
+} // namespace ngraph

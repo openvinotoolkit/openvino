@@ -82,6 +82,6 @@ namespace ngraph
             std::shared_ptr<Node> collapse(const Output<Node>& value,
                                            const std::size_t start_axis,
                                            const std::size_t end_axis);
-        }
-    } // namespace  builder
+        } // namespace opset1
+    }     // namespace  builder
 } // namespace  ngraph

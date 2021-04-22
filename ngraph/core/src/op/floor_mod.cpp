@@ -66,7 +66,7 @@ namespace floor_mod
         }
         return rc;
     }
-}
+} // namespace floor_mod
 
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const

@@ -40,7 +40,7 @@ namespace ngraph
             private:
                 double m_alpha;
             };
-        }
+        } // namespace v0
         using v0::Elu;
     } // namespace op
 } // namespace ngraph

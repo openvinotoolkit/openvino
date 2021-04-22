@@ -247,7 +247,7 @@ namespace ngraph
                 static constexpr std::size_t s_gates_count{4};
                 static constexpr std::size_t s_peepholes_count{3};
             };
-        } // v0
+        } // namespace v0
 
         namespace v4
         {
@@ -388,7 +388,7 @@ namespace ngraph
 
                 static constexpr std::size_t s_gates_count{4};
             };
-        } // v4
+        } // namespace v4
     }     // namespace op
 
     NGRAPH_API

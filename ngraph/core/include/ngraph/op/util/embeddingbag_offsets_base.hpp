@@ -65,6 +65,6 @@ namespace ngraph
                 static constexpr int DEFAULT_INDEX = 3;
                 static constexpr int PER_SAMPLE_WEIGHTS = 4;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

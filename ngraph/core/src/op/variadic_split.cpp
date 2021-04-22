@@ -154,7 +154,7 @@ namespace variadic_split
 
         return true;
     }
-}
+} // namespace variadic_split
 
 bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inputs,
                                                     const HostTensorVector& outputs) const

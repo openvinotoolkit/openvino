@@ -95,8 +95,8 @@ namespace ngraph
                     {
                     }
                 };
-            }
-        }
+            } // namespace tensor
+        }     // namespace error
 
         namespace detail
         {
@@ -153,8 +153,8 @@ namespace ngraph
                                 return false;
                             }
                         }
-                    }
-                }
+                    } // namespace detail
+                }     // namespace
 
                 template <typename T>
                 inline std::vector<T> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
@@ -419,8 +419,8 @@ namespace ngraph
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
-            }
-        }
+            } // namespace tensor
+        }     // namespace detail
 
         class Tensor
         {
@@ -586,5 +586,5 @@ namespace ngraph
         {
             return (outs << "<Tensor: " << tensor.get_name() << ">");
         }
-    }
-}
+    } // namespace onnx_import
+} // namespace ngraph

@@ -1235,7 +1235,7 @@ namespace
     }
 
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
-}
+} // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 {

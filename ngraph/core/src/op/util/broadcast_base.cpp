@@ -475,7 +475,7 @@ namespace
         }
         return target_shape;
     }
-}
+} // namespace
 
 bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                  const HostTensorPtr& out,

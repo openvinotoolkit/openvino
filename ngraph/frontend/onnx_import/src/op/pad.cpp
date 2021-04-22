@@ -41,7 +41,7 @@ namespace
 
         return pad_mode;
     }
-}
+} // namespace
 namespace ngraph
 {
     namespace onnx_import

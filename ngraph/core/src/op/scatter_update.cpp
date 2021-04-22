@@ -39,7 +39,7 @@ namespace scatter_update
         auto data_ptr = in->get_data_ptr<ET>();
         return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
     }
-}
+} // namespace scatter_update
 
 #define GET_INDICES(a, ...)                                                                        \
     case element::Type_t::a:                                                                       \

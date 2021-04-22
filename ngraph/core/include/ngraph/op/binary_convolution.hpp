@@ -99,8 +99,8 @@ namespace ngraph
                 float m_pad_value;
                 PadType m_auto_pad;
             };
-        }
-    } // namespace op
+        } // namespace v1
+    }     // namespace op
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s,

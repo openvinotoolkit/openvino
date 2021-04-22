@@ -697,6 +697,6 @@ namespace ngraph
                                                    size_t /* target_element_count */)
             {
             }
-        }
-    }
-}
+        } // namespace v0
+    }     // namespace op
+} // namespace ngraph

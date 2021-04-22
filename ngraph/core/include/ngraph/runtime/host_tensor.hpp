@@ -19,7 +19,7 @@ namespace ngraph
         {
             class Constant;
         }
-    }
+    } // namespace op
     namespace runtime
     {
         class NGRAPH_API HostTensor : public ngraph::runtime::Tensor
@@ -121,5 +121,5 @@ namespace ngraph
             void* m_aligned_buffer_pool{nullptr};
             size_t m_buffer_size;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

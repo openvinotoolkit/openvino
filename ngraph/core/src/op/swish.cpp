@@ -117,7 +117,7 @@ namespace swish
         }
         return rc;
     }
-}
+} // namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

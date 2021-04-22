@@ -42,7 +42,7 @@ namespace ngraph
                                      const std::string& context_info,
                                      const std::string& explanation);
     };
-}
+} // namespace ngraph
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide

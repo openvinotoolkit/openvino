@@ -85,7 +85,7 @@ namespace scatter
         }
         return rc;
     }
-}
+} // namespace scatter
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const

@@ -41,7 +41,7 @@ namespace ngraph
             private:
                 void try_to_set_num_iterations_if_no_slice_inputs();
             };
-        }
+        } // namespace v0
         using v0::TensorIterator;
-    }
-}
+    } // namespace op
+} // namespace ngraph

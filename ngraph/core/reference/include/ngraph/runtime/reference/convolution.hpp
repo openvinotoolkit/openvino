@@ -234,7 +234,7 @@ namespace ngraph
                     NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape,
                                  "Incorrect output shape provided");
                 }
-            }
+            } // namespace
 
             template <typename T>
             void convolution(const T* in,

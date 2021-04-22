@@ -125,7 +125,7 @@ namespace ngraph
                         }
                     }
                 }
-            }
+            } // namespace details
 
             template <typename T_IN, typename T_F>
             void binary_convolution(const T_IN* in,

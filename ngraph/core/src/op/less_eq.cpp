@@ -66,7 +66,7 @@ namespace less_equalop
         }
         return rc;
     }
-}
+} // namespace less_equalop
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const

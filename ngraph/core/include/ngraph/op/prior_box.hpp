@@ -70,7 +70,7 @@ namespace ngraph
             private:
                 PriorBoxAttrs m_attrs;
             };
-        }
+        } // namespace v0
         using v0::PriorBox;
-    }
-}
+    } // namespace op
+} // namespace ngraph

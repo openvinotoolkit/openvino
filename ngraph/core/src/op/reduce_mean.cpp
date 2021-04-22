@@ -62,7 +62,7 @@ namespace mean
         }
         return rc;
     }
-}
+} // namespace mean
 
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const

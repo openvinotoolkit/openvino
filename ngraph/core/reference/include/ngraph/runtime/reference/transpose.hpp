@@ -56,6 +56,6 @@ namespace ngraph
                     out[i] = arg[in_position];
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

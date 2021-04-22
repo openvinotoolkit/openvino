@@ -61,7 +61,7 @@ namespace ngraph
                         }
                         return false;
                     }
-                }
+                } // namespace
 
                 OutputVector loop(const Node& node)
                 {

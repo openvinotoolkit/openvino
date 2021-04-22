@@ -55,7 +55,7 @@ namespace asinhop
         }
         return rc;
     }
-}
+} // namespace asinhop
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

@@ -74,4 +74,4 @@ namespace ngraph
         {
         }
     };
-}
+} // namespace ngraph

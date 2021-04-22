@@ -187,7 +187,7 @@ namespace reshapeop
                                   reshape_node->get_input_shape(0));
         }
     }
-}
+} // namespace reshapeop
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 

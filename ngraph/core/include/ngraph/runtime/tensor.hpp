@@ -84,5 +84,5 @@ namespace ngraph
             std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
             bool m_stale;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

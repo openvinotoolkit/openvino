@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = std::asin(arg[i]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -64,6 +64,6 @@ namespace ngraph
                 bool evaluate_reshape(const HostTensorVector& outputs,
                                       const HostTensorVector& inputs) const;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

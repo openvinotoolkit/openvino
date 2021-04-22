@@ -60,7 +60,7 @@ namespace
         }
         return rc;
     }
-}
+} // namespace
 
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const

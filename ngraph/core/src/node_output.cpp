@@ -191,4 +191,4 @@ namespace ngraph
                << "[" << output.get_index() << "]:" << output.get_element_type()
                << output.get_partial_shape();
     }
-}
+} // namespace ngraph

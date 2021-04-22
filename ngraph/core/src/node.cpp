@@ -552,7 +552,7 @@ namespace ngraph
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-}
+} // namespace ngraph
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {

@@ -57,7 +57,7 @@ namespace ngraph
                 {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
                 {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
                 {element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
-        }
+        } // namespace
 
         element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type)
         {
@@ -88,5 +88,5 @@ namespace ngraph
             return NG_2_ONNX_TYPES.count(ng_type) > 0;
         }
 
-    } // namespace onnx_editor
+    } // namespace onnx_common
 } // namespace ngraph

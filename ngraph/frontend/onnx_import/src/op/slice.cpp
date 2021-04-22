@@ -155,7 +155,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {

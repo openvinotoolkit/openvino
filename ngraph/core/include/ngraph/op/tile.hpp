@@ -40,6 +40,6 @@ namespace ngraph
                 bool evaluate_tile(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const;
             };
-        }
-    }
-}
+        } // namespace v0
+    }     // namespace op
+} // namespace ngraph

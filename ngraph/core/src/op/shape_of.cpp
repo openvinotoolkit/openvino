@@ -210,7 +210,7 @@ namespace shape_of
         }
         return true;
     }
-}
+} // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const

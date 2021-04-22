@@ -20,6 +20,6 @@ namespace ngraph
                     out[i] = static_cast<T>(!(arg[i]));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

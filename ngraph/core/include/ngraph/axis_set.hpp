@@ -58,4 +58,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const AxisSet& axis_set);
-}
+} // namespace ngraph

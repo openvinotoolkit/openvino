@@ -292,7 +292,7 @@ namespace ngraph
 
         return result;
     }
-}
+} // namespace ngraph
 
 std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
 {
@@ -394,7 +394,7 @@ namespace ngraph
 
         return output;
     }
-}
+} // namespace ngraph
 
 AxisVector ngraph::get_default_order(const Shape& shape)
 {

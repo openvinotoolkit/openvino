@@ -100,6 +100,6 @@ namespace ngraph
             protected:
                 ValuePredicate m_predicate;
             };
-        }
-    }
-}
+        } // namespace op
+    }     // namespace pattern
+} // namespace ngraph

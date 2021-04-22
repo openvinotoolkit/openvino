@@ -136,7 +136,7 @@ namespace
 
         return true;
     }
-}
+} // namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

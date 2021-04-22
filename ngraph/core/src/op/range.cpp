@@ -288,7 +288,7 @@ namespace rangeop
         }
         return rc;
     }
-}
+} // namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

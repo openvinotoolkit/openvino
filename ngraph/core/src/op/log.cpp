@@ -62,7 +62,7 @@ namespace logop
         }
         return rc;
     }
-}
+} // namespace logop
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

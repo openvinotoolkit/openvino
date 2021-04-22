@@ -97,4 +97,4 @@ namespace ngraph
                             const std::vector<element::Type>& parameter_element_types,
                             const std::vector<PartialShape>& parameter_shapes,
                             const std::vector<void*>& parameter_values);
-}
+} // namespace ngraph

@@ -174,6 +174,6 @@ namespace ngraph
                                       out[concat_desc->m_output_index]->get_element_type().size());
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

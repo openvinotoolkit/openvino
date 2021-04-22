@@ -152,7 +152,7 @@ namespace prior_box_clustered
         }
         return rc;
     }
-}
+} // namespace prior_box_clustered
 
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const

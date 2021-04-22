@@ -75,7 +75,7 @@ namespace notop
         }
         return rc;
     }
-}
+} // namespace notop
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const

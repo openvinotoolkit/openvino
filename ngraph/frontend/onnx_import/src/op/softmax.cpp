@@ -24,7 +24,7 @@ namespace ngraph
                 const bool special_zero = false;
                 return std::make_shared<default_opset::Reshape>(result, data_shape, special_zero);
             }
-        }
+        } // namespace
 
         namespace op
         {
@@ -68,7 +68,7 @@ namespace ngraph
 
                     return {result};
                 }
-            }
+            } // namespace set_1
             namespace set_7
             {
                 OutputVector softmax(const Node& node)
@@ -109,7 +109,7 @@ namespace ngraph
 
                     return {result};
                 }
-            }
-        }
-    }
-}
+            } // namespace set_7
+        }     // namespace op
+    }         // namespace onnx_import
+} // namespace ngraph

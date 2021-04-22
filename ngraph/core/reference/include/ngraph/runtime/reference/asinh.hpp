@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = std::asinh(arg[i]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

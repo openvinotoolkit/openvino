@@ -59,7 +59,7 @@ namespace hswish
         }
         return rc;
     }
-}
+} // namespace hswish
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

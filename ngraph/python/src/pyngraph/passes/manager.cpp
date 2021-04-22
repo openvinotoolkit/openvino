@@ -34,7 +34,7 @@ namespace
             return;
         }
     };
-}
+} // namespace
 
 void regclass_pyngraph_passes_Manager(py::module m)
 {

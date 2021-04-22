@@ -24,7 +24,7 @@ namespace ngraph
     {
         class Input;
         class Output;
-    }
+    } // namespace descriptor
 
     namespace op
     {
@@ -32,7 +32,7 @@ namespace ngraph
         {
             class Parameter;
         }
-    }
+    } // namespace op
 
     NGRAPH_API
     void traverse_nodes(const std::shared_ptr<const Function> p,
@@ -480,4 +480,4 @@ namespace ngraph
 
     NGRAPH_API
     bool replace_node_update_name(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
-}
+} // namespace ngraph

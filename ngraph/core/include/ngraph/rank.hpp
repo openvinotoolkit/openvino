@@ -13,4 +13,4 @@ namespace ngraph
     ///
     /// XXX: THIS TYPE IS EXPERIMENTAL AND THE ENTIRE DESIGN IS SUBJECT TO CHANGE.
     using Rank = Dimension;
-}
+} // namespace ngraph

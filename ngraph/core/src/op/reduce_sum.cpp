@@ -67,7 +67,7 @@ namespace reduce_sum
         }
         return rc;
     }
-}
+} // namespace reduce_sum
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const

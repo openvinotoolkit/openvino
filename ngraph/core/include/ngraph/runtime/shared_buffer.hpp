@@ -35,5 +35,5 @@ namespace ngraph
         private:
             T _shared_object;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

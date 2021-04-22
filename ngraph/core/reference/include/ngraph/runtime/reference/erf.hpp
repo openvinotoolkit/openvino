@@ -36,6 +36,6 @@ namespace ngraph
                     out[i] = std::round(std::erf(arg[i]));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

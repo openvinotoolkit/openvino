@@ -44,6 +44,6 @@ namespace ngraph
                 const AxisSet get_reduction_axes() const;
                 void set_reduction_axes(const AxisSet& reduction_axes);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

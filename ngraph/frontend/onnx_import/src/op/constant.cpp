@@ -158,7 +158,7 @@ namespace ngraph
                         default: throw error::tensor::invalid_data_type{tensor};
                         }
                     }
-                }
+                } // namespace
 
                 OutputVector constant(const onnx_import::Node& node)
                 {

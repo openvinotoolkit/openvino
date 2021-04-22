@@ -16,4 +16,4 @@ namespace ngraph
     void set_provenance_enabled(bool enabled);
     NGRAPH_API
     bool get_provenance_enabled();
-}
+} // namespace ngraph

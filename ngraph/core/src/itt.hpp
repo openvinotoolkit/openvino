@@ -22,9 +22,9 @@ namespace ngraph
             OV_ITT_DOMAIN(nGraph);
             OV_ITT_DOMAIN(nGraphPass_LT);
             OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
-        }
-    }
-}
+        } // namespace domains
+    }     // namespace itt
+} // namespace ngraph
 OV_CC_DOMAINS(ngraph_op);
 OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 

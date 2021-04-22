@@ -21,5 +21,5 @@ namespace ngraph
                         int64_t concatenation_axis,
                         size_t elem_size);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

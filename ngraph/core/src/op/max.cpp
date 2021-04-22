@@ -44,7 +44,7 @@ namespace maxop
         }
         return rc;
     }
-}
+} // namespace maxop
 
 NGRAPH_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
 

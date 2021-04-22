@@ -56,7 +56,7 @@ namespace ngraph
                 bool evaluate_space_to_batch(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const;
             };
-        }
+        } // namespace v1
         using v1::SpaceToBatch;
-    }
-}
+    } // namespace op
+} // namespace ngraph

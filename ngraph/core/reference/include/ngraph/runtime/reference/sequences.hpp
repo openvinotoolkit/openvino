@@ -667,6 +667,6 @@ namespace ngraph
                                                sizeof(T));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

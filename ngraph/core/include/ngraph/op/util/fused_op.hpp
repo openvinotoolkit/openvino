@@ -47,6 +47,6 @@ namespace ngraph
                 ///
                 FusedOp(const OutputVector& args);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

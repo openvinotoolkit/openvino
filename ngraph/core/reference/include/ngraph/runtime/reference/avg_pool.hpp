@@ -235,6 +235,6 @@ namespace ngraph
                     std::fesetround(old_mode);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
