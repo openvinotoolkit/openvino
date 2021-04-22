@@ -101,7 +101,7 @@ static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file 
 
 #ifdef USE_REMOTE_MEM
 // @brief message for preallocing memory option
-static const char use_remote_mem_message[] = "Optional. Prealloc remote memory in device to execute infer request.";
+static const char use_remote_mem_message[] = "Optional. Prealloc remote memory in device to execute infer request. Useful in VPUX plugin.";
 #endif
 
 static const char shape_message[] = "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
@@ -257,14 +257,14 @@ static void showUsage() {
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
-#ifdef USE_REMOTE_MEM
-    std::cout << "    -use_remote_mem           " << use_remote_mem_message << std::endl;
-#endif
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16              " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
+#ifdef USE_REMOTE_MEM
+    std::cout << "    -use_remote_mem           " << use_remote_mem_message << std::endl;
+#endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;

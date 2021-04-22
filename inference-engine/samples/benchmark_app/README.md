@@ -93,7 +93,6 @@ Options:
     -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
     -layout                   Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
-    -use_remote_mem           Optional. Prealloc remote memory in device to execute infer request.
 
   CPU-specific performance options:
     -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
@@ -110,6 +109,9 @@ Options:
     -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
     -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 
+   VPUX-specific performance options:
+    -use_remote_mem           Optional. Prealloc remote memory in device to execute infer request.
+    Useful in VPUX plugin.
 
   Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.

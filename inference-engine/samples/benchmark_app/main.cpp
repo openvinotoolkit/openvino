@@ -123,12 +123,7 @@ T getMedianValue(const std::vector<T> &vec) {
 int main(int argc, char *argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-        Core ie;
         ExecutableNetwork exeNetwork;
-
-#ifdef USE_REMOTE_MEM
-        RemoteContextHelper remoteContextHelper;
-#endif
 
         // ----------------- 1. Parsing and validating input arguments -------------------------------------------------
         next_step();
@@ -181,6 +176,7 @@ int main(int argc, char *argv[]) {
         // ----------------- 2. Loading the Inference Engine -----------------------------------------------------------
         next_step();
 
+        Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
             const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
@@ -196,6 +192,7 @@ int main(int argc, char *argv[]) {
             config["GPU"][CONFIG_KEY(CONFIG_FILE)] = FLAGS_c;
         }
 #ifdef USE_REMOTE_MEM
+        RemoteContextHelper remoteContextHelper;
         if (FLAGS_d.find("VPUX") != std::string::npos) {
             remoteContextHelper.init(ie);
         }
