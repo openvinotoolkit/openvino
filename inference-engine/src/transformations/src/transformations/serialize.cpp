@@ -492,6 +492,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "BF16";
     case ::ngraph::element::Type_t::f64:
         return "FP64";
+    case ::ngraph::element::Type_t::i4:
+        return "I4";
     case ::ngraph::element::Type_t::i8:
         return "I8";
     case ::ngraph::element::Type_t::i16:
@@ -500,6 +502,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "I32";
     case ::ngraph::element::Type_t::i64:
         return "I64";
+    case ::ngraph::element::Type_t::u4:
+        return "U4";
     case ::ngraph::element::Type_t::u8:
         return "U8";
     case ::ngraph::element::Type_t::u16:
