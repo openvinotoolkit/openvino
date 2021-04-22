@@ -269,8 +269,8 @@ class Port:
                 if attrs['fw_tensor_debug_info'] is None:
                     return tensor_names_list
                 for attr in attrs['fw_tensor_debug_info']:
-                    if attr is not None and len(attr) >= 3:
-                        tensor_name = attr[2]
+                    if attr is not None and len(attr) >= 2:
+                        tensor_name = attr[1]
                         if tensor_name is not None and len(tensor_name) > 0:
                             tensor_names_list.append(tensor_name.replace(',', '\\,'))
             return tensor_names_list

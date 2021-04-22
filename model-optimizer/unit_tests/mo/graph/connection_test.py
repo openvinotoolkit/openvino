@@ -13,9 +13,9 @@ nodes = {
     **regular_op('Op2', {'type': 'Op2', 'kind': 'op', 'op': 'Op2'}),
     **regular_op('NewOp', {'type': 'NewOp', 'kind': 'op', 'op': 'NewOp'}),
 
-    'input_data': {'kind': 'data', 'fw_tensor_debug_info': [('input', 0, 'input')]},
-    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1')]},
-    'Op2_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op2', 0, 'Op2')]},
+    'input_data': {'kind': 'data', 'fw_tensor_debug_info': [('input', 'input')]},
+    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 'Op1')]},
+    'Op2_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op2', 'Op2')]},
     'NewOp_data': {'kind': 'data'},
 }
 
@@ -33,9 +33,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case1_merge(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         input_node = Node(graph, 'input')
         new_node = Node(graph, 'NewOp')
@@ -50,9 +50,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case1_source(self):
         graph = build_graph(nodes, [
-            ('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         input_node = Node(graph, 'input')
         new_node = Node(graph, 'NewOp')
@@ -67,7 +67,7 @@ class TestsFront(unittest.TestCase):
 
     def test_case1_dest(self):
         graph = build_graph(nodes, [
-            ('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
             ('input', 'NewOp', {'in': 0, 'out': 0})])
 
@@ -84,9 +84,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case2_merge(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -101,9 +101,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case2_source(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('input', 'NewOp', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -118,7 +118,7 @@ class TestsFront(unittest.TestCase):
 
     def test_case2_dest(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [('input', 'NewOp', {'in': 0, 'out': 0})])
 
         op1_node = Node(graph, 'Op1')
@@ -134,9 +134,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case3_merge(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -151,7 +151,7 @@ class TestsFront(unittest.TestCase):
 
     def test_case3_source(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [('NewOp', 'Op1', {'in': 0, 'out': 0})])
 
         op1_node = Node(graph, 'Op1')
@@ -167,9 +167,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case3_dest(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -184,9 +184,9 @@ class TestsFront(unittest.TestCase):
 
     def test_case4_merge(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
         graph_ref = build_graph(nodes, [
-            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input')]})])
+            ('NewOp', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input')]})])
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -427,7 +427,7 @@ class TestsMiddle(unittest.TestCase):
         graph_ref = build_graph(nodes, [('input', 'input_data'), ('NewOp', 'NewOp_data'), ('NewOp_data', 'Op1')])
 
         new_op_data = Node(graph_ref, 'NewOp_data')
-        new_op_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        new_op_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         input_data = Node(graph_ref, 'input_data')
         del input_data['fw_tensor_debug_info']
@@ -459,7 +459,7 @@ class TestsMiddle(unittest.TestCase):
         graph_ref = build_graph(nodes, [('input', 'input_data'), ('NewOp', 'NewOp_data'), ('NewOp_data', 'Op1')])
 
         new_op_data = Node(graph_ref, 'NewOp_data')
-        new_op_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        new_op_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         input_data = Node(graph_ref, 'input_data')
         del input_data['fw_tensor_debug_info']
@@ -478,7 +478,7 @@ class TestsMiddle(unittest.TestCase):
         graph_ref = build_graph(nodes, [('input', 'input_data'), ('NewOp', 'NewOp_data'), ('NewOp_data', 'Op1')])
 
         new_op_data = Node(graph_ref, 'NewOp_data')
-        new_op_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        new_op_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -507,7 +507,7 @@ class TestsMiddle(unittest.TestCase):
         graph_ref = build_graph(nodes, [('input', 'input_data'), ('NewOp', 'NewOp_data'), ('NewOp_data', 'Op1')])
 
         new_op_data = Node(graph_ref, 'NewOp_data')
-        new_op_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        new_op_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         op1_node = Node(graph, 'Op1')
         new_node = Node(graph, 'NewOp')
@@ -525,7 +525,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data'), ('input_data', 'Op2')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('input', 0, 'input'), ('Op1', 0, 'Op1')]
+        input_data['fw_tensor_debug_info'] = [('input', 'input'), ('Op1', 'Op1')]
 
         op1_data = Node(graph_ref, 'Op1_data')
         del op1_data['fw_tensor_debug_info']
@@ -544,7 +544,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data'), ('input_data', 'Op2')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        input_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         op1_node = Node(graph, 'Op1')
         op1_node.out_port(0).get_connection().set_source(op1_node.in_port(0).get_source(), "source")
@@ -560,7 +560,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data'), ('input_data', 'Op2')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('Op1', 0, 'Op1')]
+        input_data['fw_tensor_debug_info'] = [('Op1', 'Op1')]
 
         op1_data = Node(graph_ref, 'Op1_data')
         del op1_data['fw_tensor_debug_info']
@@ -579,7 +579,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('input', 0, 'input'), ('Op1', 0, 'Op1')]
+        input_data['fw_tensor_debug_info'] = [('input', 'input'), ('Op1', 'Op1')]
 
         op1_node = Node(graph, 'Op1')
         op1_node.in_port(0).get_connection().set_destination(op1_node.out_port(0).get_destination(), "merge")
@@ -595,7 +595,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('input', 0, 'input')]
+        input_data['fw_tensor_debug_info'] = [('input', 'input')]
 
         op1_node = Node(graph, 'Op1')
         op1_node.in_port(0).get_connection().set_destination(op1_node.out_port(0).get_destination(), "source")
@@ -611,7 +611,7 @@ class TestsMiddle(unittest.TestCase):
                                         ('Op1', 'Op1_data')])
 
         input_data = Node(graph_ref, 'input_data')
-        input_data['fw_tensor_debug_info'] = [('Op1', 0, 'Op1')]
+        input_data['fw_tensor_debug_info'] = [('Op1', 'Op1')]
 
         op1_node = Node(graph, 'Op1')
         op1_node.in_port(0).get_connection().set_destination(op1_node.out_port(0).get_destination(), "dest")

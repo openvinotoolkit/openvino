@@ -126,7 +126,7 @@ class TestFunction(unittest.TestCase):
         node_2 = Node(graph, 'add_data')
         node_3 = Node(graph, 'add_const_data')
 
-        assert node_1['fw_tensor_debug_info'] == [('abc', 0, 'abc'), ('def', 0, 'def')], 'Restored debug info is wrong!'
-        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 0, 'ghi,jkl')], 'Restored debug info is wrong!'
-        assert node_3['fw_tensor_debug_info'] == [('mno', 0, 'mno'), ('pqr,stu', 0, 'pqr,stu')],\
+        assert node_1['fw_tensor_debug_info'] == [('abc', 'abc'), ('def', 'def')], 'Restored debug info is wrong!'
+        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 'ghi,jkl')], 'Restored debug info is wrong!'
+        assert node_3['fw_tensor_debug_info'] == [('mno', 'mno'), ('pqr,stu', 'pqr,stu')],\
             'Restored debug info is wrong!'

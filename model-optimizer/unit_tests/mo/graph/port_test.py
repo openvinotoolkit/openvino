@@ -12,18 +12,18 @@ nodes = {
     **regular_op('Op2', {'type': 'Op2', 'kind': 'op', 'op': 'Op2'}),
     **regular_op('Op3', {'type': 'Op3', 'kind': 'op', 'op': 'Op3'}),
 
-    'input_data': {'kind': 'data', 'fw_tensor_debug_info': [('input', 0, 'input'), ('Op1', 0, 'Op1,Op2')]},
-    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1,Op2')]},
+    'input_data': {'kind': 'data', 'fw_tensor_debug_info': [('input', 'input'), ('Op1', 'Op1,Op2')]},
+    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 'Op1,Op2')]},
     'Op2_data': {'kind': 'data'},
-    'Op3_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op3', 0, 'Op3')]},
+    'Op3_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op3', 'Op3')]},
 }
 
 
 class TestsGetTensorNames(unittest.TestCase):
     def test_front(self):
         graph = build_graph(nodes,
-                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input'),
-                                                                                           ('Op1', 0, 'Op1,Op2')]})])
+                            [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input'),
+                                                                                           ('Op1', 'Op1,Op2')]})])
         graph.stage = 'front'
         input_node = Node(graph, 'input')
         self.assertTrue(input_node.out_port(0).get_tensor_names() == ['input', 'Op1\\,Op2'])
@@ -72,10 +72,9 @@ class TestsGetTensorNames(unittest.TestCase):
         self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])
 
     def test_reconnect_front_case1(self):
-        graph = build_graph(nodes, [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input'),
-                                                                                                  ('Op1', 0,
-                                                                                                   'Op1,Op2')]}),
-                                    ('Op3', 'Op2', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('Op3', 0, 'Op3')]})])
+        graph = build_graph(nodes, [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 'input'),
+                                                                                                  ('Op1', 'Op1,Op2')]}),
+                                    ('Op3', 'Op2', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('Op3', 'Op3')]})])
         graph.stage = 'front'
         input_node = Node(graph, 'input')
 
