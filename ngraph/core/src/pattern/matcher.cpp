@@ -32,7 +32,7 @@ namespace ngraph
                            ? node->output(0)
                            : std::make_shared<op::AnyOutput>(node)->output(0);
             }
-        }
+        } // namespace
 
         Matcher::Matcher(std::shared_ptr<Node> pattern_node)
             : m_pattern_node(make_node_output(pattern_node))
@@ -253,7 +253,7 @@ namespace ngraph
                 }
                 return result;
             }
-        }
+        } // namespace
 
         RecurrentMatcher::RecurrentMatcher(
             const Output<Node>& initial_pattern,
@@ -305,5 +305,5 @@ namespace ngraph
 
             return matched;
         }
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

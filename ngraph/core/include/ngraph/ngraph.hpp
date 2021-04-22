@@ -32,7 +32,7 @@ namespace ngraph
     /// \note Throws a runtime_error if there is an error during parsing
     NGRAPH_API
     void get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra);
-}
+} // namespace ngraph
 
 /// \namespace ngraph
 /// \brief The Intel nGraph C++ API.
