@@ -4,7 +4,6 @@
 from extensions.load.loader import Loader
 from mo.front.caffe import custom_layers_mapping, loader
 from mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
-from mo.front.caffe.extractors.utils import dim_to_shape
 from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
 from mo.front.extractor import extract_node_attrs
 from mo.graph.graph import Graph
