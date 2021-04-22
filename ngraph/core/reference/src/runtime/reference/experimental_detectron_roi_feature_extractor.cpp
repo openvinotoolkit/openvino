@@ -122,26 +122,50 @@ namespace
                                            int64_t roi_bin_grid_w,
                                            std::vector<PreCalc>& pre_calc)
     {
+        std::cout << "                Started pre_calc_for_bilinear_interpolate.\n";
+        std::cout << "                Arguments:\n";
+        std::cout << "                    height:         " << height << "\n";
+        std::cout << "                    width:          " << width << "\n";
+        std::cout << "                    pooled_height:  " << pooled_height << "\n";
+        std::cout << "                    pooled_width:   " << pooled_width << "\n";
+        std::cout << "                    iy_upper:       " << iy_upper << "\n";
+        std::cout << "                    ix_upper:       " << ix_upper << "\n";
+        std::cout << "                    roi_start_h:    " << roi_start_h << "\n";
+        std::cout << "                    roi_start_w:    " << roi_start_w << "\n";
+        std::cout << "                    bin_size_h:     " << bin_size_h << "\n";
+        std::cout << "                    bin_size_w:     " << bin_size_w << "\n";
+        std::cout << "                    roi_bin_grid_h: " << roi_bin_grid_h << "\n";
+        std::cout << "                    roi_bin_grid_w: " << roi_bin_grid_w << "\n";
+        std::cout << "                Calculation cycle:\n\n";
         int64_t pre_calc_index = 0;
         for (int64_t ph = 0; ph < pooled_height; ph++)
         {
+            std::cout << "                    ph: " << ph << "\n";
             for (int64_t pw = 0; pw < pooled_width; pw++)
             {
+                std::cout << "                        pw: " << pw << "\n";
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
+                    std::cout << "                            iy: " << iy << "\n";
                     const float yy = roi_start_h + ph * bin_size_h +
                         (iy + 0.5f) * bin_size_h /
                             static_cast<float>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                    std::cout << "                            yy: " << yy << "\n";
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
+                        std::cout << "                                ix:     " << ix << "\n";
                         const float xx = roi_start_w + pw * bin_size_w +
                             (ix + 0.5f) * bin_size_w / static_cast<float>(roi_bin_grid_w);
+                        std::cout << "                                xx:     " << xx << "\n";
 
                         float x = xx;
                         float y = yy;
+                        std::cout << "                                x:      " << x << "\n";
+                        std::cout << "                                y:      " << y << "\n";
                         // deal with: inverse elements are out of feature map boundary
                         if (y < -1.0 || y > height || x < -1.0 || x > width)
                         {
+                            std::cout << "Now inverse elements are out of feature map boundary.\n";
                             // empty
                             PreCalc pc;
                             pc.pos1 = 0;
@@ -158,11 +182,17 @@ namespace
                         }
                         y = std::max(y, 0.0f);
                         x = std::max(x, 0.0f);
+                        std::cout << "                                y:      " << y << "\n";
+                        std::cout << "                                x:      " << x << "\n";
 
                         int64_t y_low = static_cast<int64_t>(y);
                         int64_t x_low = static_cast<int64_t>(x);
                         int64_t y_high = 0;
                         int64_t x_high = 0;
+                        std::cout << "                                y_low:  " << y_low << "\n";
+                        std::cout << "                                x_low:  " << x_low << "\n";
+                        std::cout << "                                y_high: " << y_high << "\n";
+                        std::cout << "                                x_high: " << x_high << "\n";
 
                         if (y_low >= height - 1)
                         {
@@ -183,6 +213,13 @@ namespace
                         {
                             x_high = x_low + 1;
                         }
+                        std::cout << "                                After ifs:\n";
+                        std::cout << "                                y_low:  " << y_low << "\n";
+                        std::cout << "                                x_low:  " << x_low << "\n";
+                        std::cout << "                                y_high: " << y_high << "\n";
+                        std::cout << "                                x_high: " << x_high << "\n";
+                        std::cout << "                                y:      " << y << "\n";
+                        std::cout << "                                x:      " << x << "\n";
 
                         float ly = y - y_low;
                         float lx = x - x_low;
@@ -192,6 +229,14 @@ namespace
                         float w2 = hy * lx;
                         float w3 = ly * hx;
                         float w4 = ly * lx;
+                        std::cout << "                                ly:     " << ly << "\n";
+                        std::cout << "                                lx:     " << lx << "\n";
+                        std::cout << "                                hy:     " << hy << "\n";
+                        std::cout << "                                hx:     " << hx << "\n";
+                        std::cout << "                                w1:     " << w1 << "\n";
+                        std::cout << "                                w2:     " << w2 << "\n";
+                        std::cout << "                                w3:     " << w3 << "\n";
+                        std::cout << "                                w4:     " << w4 << "\n";
 
                         // save weights and indeces
                         PreCalc pc;
@@ -296,6 +341,7 @@ namespace
             // this is the key point of optimiation
             std::vector<PreCalc> pre_calc(
                 roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            std::cout << "            Calling pre_calc_for_bilinear_interpolate...\n";
             pre_calc_for_bilinear_interpolate(height,
                                               width,
                                               pooled_height,
