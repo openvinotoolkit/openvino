@@ -75,17 +75,6 @@ bool endsWith(const std::string &str, const std::string &suffix) {
     return false;
 }
 
-template<typename T>
-std::vector<T> reinterpret_vector(const std::vector<uint8_t>& a) {
-    PDPD_ASSERT(a.size() % sizeof(T) == 0);
-    std::vector<T> res;
-    res.reserve(a.size() / sizeof(T));
-    for (size_t i = 0; i < a.size(); i += sizeof(T)) {
-        res.push_back(*reinterpret_cast<const T*>(&a[i]));
-    }
-    return res;
-}
-
 } // namespace pdpd
 
 std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
@@ -99,40 +88,8 @@ std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<Tensor
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
     const auto& type = TYPE_MAP[tensor.data_type()];
-    switch (type) {
-        case element::f32:
-        {
-            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(float));    
-            return Constant::create(type, shape, pdpd::reinterpret_vector<float>(tensor_data));
-        }
-        break;
-        case element::f16:
-        {
-            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(float16));    
-            return Constant::create(type, shape, pdpd::reinterpret_vector<float16>(tensor_data));
-        }
-        break;
-        case element::i8:
-        {
-            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int8_t));    
-            return Constant::create(type, shape, pdpd::reinterpret_vector<int8_t>(tensor_data));
-        }
-        break;
-        case element::i32:
-        {
-            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int32_t));    
-            return Constant::create(type, shape, pdpd::reinterpret_vector<int32_t>(tensor_data));
-        }
-        break;
-        case element::i64:
-        {
-            auto tensor_data = model->readWeight(var_desc->name(), tensor_length * sizeof(int64_t));    
-            return Constant::create(type, shape, pdpd::reinterpret_vector<int64_t>(tensor_data));
-        }
-        break;
-        default:
-            PDPD_THROW("Unsupported type of constant.");
-    }
+    auto tensor_data = model->readWeight(var_desc->name(), tensor_length * type.size());    
+    return Constant::create(type, shape, &tensor_data[0]);
 }
 
 std::shared_ptr<Function>
