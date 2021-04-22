@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <mutex>
+#include <vector>
 
 namespace custom {
 

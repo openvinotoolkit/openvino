@@ -92,7 +92,7 @@ TEST(type_prop, shape_of_output_type_v3)
         auto sx = make_shared<op::v3::ShapeOf>(a, element::i8);
         FAIL() << "Invalid output_type not detected";
     }
-    catch (NodeValidationFailure)
+    catch (const NodeValidationFailure&)
     {
     }
     catch (...)
@@ -104,7 +104,7 @@ TEST(type_prop, shape_of_output_type_v3)
         auto sx = make_shared<op::v3::ShapeOf>(a, element::i16);
         FAIL() << "Invalid output_type not detected";
     }
-    catch (NodeValidationFailure)
+    catch (const NodeValidationFailure&)
     {
     }
     catch (...)
@@ -116,7 +116,7 @@ TEST(type_prop, shape_of_output_type_v3)
         auto sx = make_shared<op::v3::ShapeOf>(a, element::f32);
         FAIL() << "Invalid output_type not detected";
     }
-    catch (NodeValidationFailure)
+    catch (const NodeValidationFailure&)
     {
     }
     catch (...)

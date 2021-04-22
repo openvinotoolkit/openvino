@@ -127,6 +127,7 @@ set(SRC
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
+    type_prop/floor_mod.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
@@ -146,6 +147,7 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
@@ -332,6 +334,7 @@ set(MULTI_TEST_SRC
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
+    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
@@ -398,6 +401,7 @@ set(MULTI_TEST_SRC
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
+    backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
@@ -492,6 +496,10 @@ if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
 target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
+endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)

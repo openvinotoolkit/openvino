@@ -63,7 +63,7 @@ namespace coshop
         }
         return rc;
     }
-}
+} // namespace coshop
 
 bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

@@ -57,6 +57,6 @@ namespace ngraph
             std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
                                                    const Shape& axes_data_shape,
                                                    int64_t complex_data_rank);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

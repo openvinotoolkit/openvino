@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief a header file for IInferRequest interface
- * @file ie_iinfer_request.hpp
- */
-
 #pragma once
 
 #include <map>
@@ -29,7 +24,7 @@ public:
 
     struct SubRequestDesc {
         InferenceEngine::ExecutableNetwork  _network;
-        InferenceEngine::InferRequest::Ptr  _request;
+        InferenceEngine::InferRequest       _request;
         openvino::itt::handle_t             _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;

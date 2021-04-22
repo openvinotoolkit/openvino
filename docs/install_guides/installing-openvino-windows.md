@@ -16,11 +16,10 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
-   - [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
-   > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
+   - [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+   - [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
    - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
-   > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
+   > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
 
@@ -58,22 +57,22 @@ The following components are installed by default:
 | Component                                                                                          | Description                                                                                                                                                                                                                                   |
 |:---------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |[Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) |This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine.<br><strong>NOTE</strong>: Popular frameworks include such frameworks as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.         |
-|[Inference Engine](../IE_DG/inference_engine_intro.md)               |This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                 |
+|[Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               |This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                 |
 |[OpenCV\*](https://docs.opencv.org/master/)                                                         |OpenCV* community version compiled for Intel® hardware                                                                                                                                                                                         |
 |[Inference Engine Samples](../IE_DG/Samples_Overview.md)                             |A set of simple console applications demonstrating how to use Intel's Deep Learning Inference Engine in your applications.  |
-| [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
-| [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
+| [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
+| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 **Could Be Optionally Installed**
 
 [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
 configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader_README)
-* [Intel® Open Model Zoo](@ref omz_models_intel_index)
+* [Model Downloader](@ref omz_tools_downloader)
+* [Intel® Open Model Zoo](@ref omz_models_group_intel)
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Post-training Optimization Tool](@ref pot_README)
-* [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
+* [Accuracy Checker](@ref omz_tools_accuracy_checker)
 * [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
 
 Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
@@ -83,7 +82,6 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 **Hardware**
 
 * 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
-* Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
@@ -134,12 +132,9 @@ The screen example below indicates you are missing two dependencies:
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 ```sh
-cd C:\Program Files (x86)\Intel\openvino_2021\bin\
+"C:\Program Files (x86)\Intel\openvino_2021\bin\setupvars.bat"
 ```
-
-```sh
-setupvars.bat
-```
+> **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands, please use the Command Prompt instead.
 
 <strong>(Optional)</strong>: OpenVINO toolkit environment variables are removed when you close the Command Prompt window. As an option, you can permanently set the environment variables manually.
 
@@ -314,7 +309,7 @@ Use these steps to update your Windows `PATH` if a command you execute returns a
 
 5. If you need to add CMake to the `PATH`, browse to the directory in which you installed CMake. The default directory is `C:\Program Files\CMake`.
 
-6. If you need to add Python to the `PATH`, browse to the directory in which you installed Python. The default directory is `C:\Users\<USER_ID>\AppData\Local\Programs\Python\Python36\Python`.
+6. If you need to add Python to the `PATH`, browse to the directory in which you installed Python. The default directory is `C:\Users\<USER_ID>\AppData\Local\Programs\Python\Python36\Python`. Note that the `AppData` folder is hidden by default. To view hidden files and folders, see the [Windows 10 instructions](https://support.microsoft.com/en-us/windows/view-hidden-files-and-folders-in-windows-10-97fbc472-c603-9d90-91d0-1166d1d9f4b5). 
 
 7. Click **OK** repeatedly to close each screen.
 
@@ -350,11 +345,11 @@ To learn more about converting deep learning models, go to:
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-- [Introduction to Inference Engine](../IE_DG/inference_engine_intro.md)
+- [Introduction to Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
-- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
+- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - [Intel® Neural Compute Stick 2 Get Started](https://software.intel.com/en-us/neural-compute-stick/get-started)
 
 

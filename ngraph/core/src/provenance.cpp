@@ -12,4 +12,4 @@ namespace ngraph
 
     void set_provenance_enabled(bool enabled) { s_provenance_enabled = enabled; }
     bool get_provenance_enabled() { return s_provenance_enabled; }
-}
+} // namespace ngraph

@@ -65,13 +65,13 @@ struct CPUStreamsExecutor::Impl {
                     _impl->_streamIdQueue.pop();
                 }
             }
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             _numaNodeId = _impl->_config._streams
                 ? _impl->_usedNumaNodes.at(
                     (_streamId % _impl->_config._streams) /
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {

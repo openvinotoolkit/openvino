@@ -107,6 +107,6 @@ namespace ngraph
                     updates_indices_coord_iter++;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
