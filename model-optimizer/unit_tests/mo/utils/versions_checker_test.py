@@ -112,8 +112,7 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_4', '>=', '1.12.0', '1.20.0'),
                                  ]
 
-        ref_list = [('module_3', 'installed: 1.12.1', 'required: >= 1.12.0'),
-                    ('module_4', 'installed: 1.20.0', 'required: >= 1.12.0'),
+        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0')
                     ]
 
         not_satisfied_versions = []
