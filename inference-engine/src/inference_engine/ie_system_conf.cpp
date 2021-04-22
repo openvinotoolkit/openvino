@@ -4,7 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
-#include "ie_parallel.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 #include <iostream>
 #include <vector>
@@ -98,11 +98,7 @@ std::vector<int> getAvailableNUMANodes() { return {0}; }
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
-#if TBB_INTERFACE_VERSION >= 11100
-    return tbb::info::numa_nodes();
-#else
-    return {0};
-#endif
+    return custom::info::numa_nodes();
 }
 #endif
 
