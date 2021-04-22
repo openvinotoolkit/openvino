@@ -25,6 +25,11 @@ inline void PDPD_ASSERT(bool ex, const std::string& msg = "Unspecified error.") 
     if (!ex) throw std::runtime_error(msg);
 }
 
+inline void PDPD_THROW(const std::string& msg)
+{
+    throw std::runtime_error("ERROR: " + msg);
+}
+
 inline void NOT_IMPLEMENTED(const std::string& name = "Unspecified")
 {
     throw std::runtime_error(name + " is not implemented");
