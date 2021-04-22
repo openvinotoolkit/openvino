@@ -361,7 +361,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 result = (quantizedParams->_dst_quant.GetLevels() - 1) / (2 * absMax);
             }
             //
-            //result = MAX_VAL_2B_FEAT / absMax;
+//            result = MAX_VAL_2B_FEAT / absMax;
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -1184,42 +1184,30 @@ class ScaleFactorPerLayer<InferenceEngine::ConvolutionLayer*> : public ScaleFact
 template<>
 class ScaleFactorPerLayer<InferenceEngine::GemmLayer*> {
 public:
-    bool operator() (InferenceEngine::GemmLayer* gemmLayer, int weightsSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
+    bool operator() (InferenceEngine::GemmLayer* gemmLayer, int weightsSize, int inputSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
         if ( !gemmLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Gemm Layer pointer \n";
         }
-        auto PrevFunctionalLayer = [](InferenceEngine::CNNLayerPtr l, int idx = 0) {
-            auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](InferenceEngine::CNNLayerPtr ptr) {
-                return (LayerInfo(ptr).isNonFunctional());
-            });
-            gnalog() << "CNNNetPrevLayerSkipCertain for :: " << l->name << "returned: " << prevLayer->name << std::endl;
-            return prevLayer;
-        };
         auto in0 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 0);
         auto in1 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 1);
-        auto func_layer = PrevFunctionalLayer(in1);
-        if (LayerInfo(func_layer).isFakeQuantize()) {
-            func_layer = PrevFunctionalLayer(func_layer, 0);
-        }
-
-        gnalog() << "functional layer: " << func_layer->name << std::endl;
 
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*gemmLayer);
         auto quantParams1 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in1);
         auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
         quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-        if (LayerInfo(func_layer).isEltwise()) {
-            if (func_layer->insData[0].lock() == func_layer->insData[1].lock()) {
-                quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
-                quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-                quantData->_dst_quant.SetScale(
-                        quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale() * 0.9);
-            }
-        } else {
-            quantData->_dst_quant.SetScale(
-                    quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
+        if (quantData->_src_quant.IsStatsSet()) {
+            auto getScale = [&quantParams0](size_t i) {
+                return (quantParams0->_dst_quant.GetLevels() - 1) /
+                       (quantParams0->_dst_quant.GetMaxValues(false)[i] -
+                        quantParams0->_dst_quant.GetMinValues(false)[i]);
+            };
+            float min_channel_scale = getScale(0);
+            quantParams0->_dst_quant.SetScale(min_channel_scale);
+            quantData->_src_quant.SetScale(min_channel_scale);
         }
+        quantData->_dst_quant.SetScale(
+                quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
         return true;
     }
 };

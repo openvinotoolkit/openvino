@@ -15,7 +15,7 @@
 #include "ngraph_functions/builders.hpp"
 
 typedef std::tuple<
-        std::vector<size_t>,                // Input shape
+        std::vector<std::vector<size_t>>,                // Input shape
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
         std::map<std::string, std::string>  //Configuration
@@ -29,7 +29,7 @@ public:
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        std::vector<size_t> inputShape;
+        std::vector<std::vector<size_t>> inputShape;
         std::tie(inputShape, netPrecision, targetDevice, configuration) = obj.param;
 
         std::ostringstream result;
@@ -38,26 +38,23 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "_IS=" << CommonTestUtils::vec2str(inputShape[1]) << "_";
+        result << "_CS=" << CommonTestUtils::vec2str(inputShape[0]) << "_";
         return result.str();
     }
-
-//    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-//        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 1, 0, 10);
-//    }
 
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        std::vector<size_t> inputShape;
+        std::vector<std::vector<size_t>> inputShape;
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { {16, 2} });
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {1, 16}, {1.0f});
-//        auto clamp = std::make_shared<ngraph::opset1::Clamp>(params[0], 0.f, 0.5f);
+        auto params = ngraph::builder::makeParams(ngPrc, { inputShape[1] });
+        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], {0.0625f});
 
-        auto const_eltwise = ngraph::builder::makeConstant<float>(ngPrc, {1, 2}, {1.0f});
+        auto const_eltwise = ngraph::builder::makeConstant<float>(ngPrc,
+                {inputShape[0][0], inputShape[1][1]}, {1.0f});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(const_mult2, params[0], false, false);
 
         auto eltwise = std::make_shared<ngraph::opset1::Multiply>(matmul, const_eltwise);
@@ -85,11 +82,12 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
-const std::vector<std::vector<size_t>> input_shapes = {
-        {128, 1},
-//        {16, 2},
-//        {16, 4}
+const std::vector<std::vector<std::vector<size_t>>> input_shapes = {
+        {{1, 8}, {8, 1}},
+        {{128, 8}, {8, 1}},
+        {{8, 8}, {8, 8}}
 };
+
 
 INSTANTIATE_TEST_CASE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
                         ::testing::Combine(
