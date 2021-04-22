@@ -16,19 +16,32 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    args.add_argument('-m', '--model', required=True, type=str,
-                      help='Required. Path to an .xml or .onnx file with a trained model.')
+    args.add_argument('-m', '--model', required=True, type=str, help='Required. Path to an .xml or .onnx file with a trained model.')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an image file.')
-    args.add_argument('-l', '--extension', type=str, default=None,
-                      help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
-                      'Absolute path to a shared library with the kernels implementations.')
-    args.add_argument('-c', '--config', type=str, default=None,
-                      help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. '
-                      'Absolute path to operation description file (.xml).')
-    args.add_argument('-d', '--device', default='CPU', type=str,
-                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-                      'is acceptable. The sample will look for a suitable plugin for device specified. '
-                      'Default value is CPU.')
+    args.add_argument(
+        '-l',
+        '--extension',
+        type=str,
+        default=None,
+        help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
+        'Absolute path to a shared library with the kernels implementations.',
+    )
+    args.add_argument(
+        '-c',
+        '--config',
+        type=str,
+        default=None,
+        help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. ' 'Absolute path to operation description file (.xml).',
+    )
+    args.add_argument(
+        '-d',
+        '--device',
+        default='CPU',
+        type=str,
+        help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
+        'is acceptable. The sample will look for a suitable plugin for device specified. '
+        'Default value is CPU.',
+    )
     args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
 
     return parser.parse_args()
@@ -38,7 +51,7 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
-# ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
+    # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating Inference Engine')
     ie = IECore()
 
@@ -50,7 +63,7 @@ def main():
         log.info(f'Loading the {args.device} configuration: {args.config}')
         ie.set_config({'CONFIG_FILE': args.config}, args.device)
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
+    # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
     # (.xml and .bin files) or (.onnx file)
     net = ie.read_network(model=args.model)
@@ -62,7 +75,7 @@ def main():
         log.error('Sample supports only single output topologies')
         return -1
 
-# ---------------------------Step 3. Configure input & output----------------------------------------------------------
+    # ---------------------------Step 3. Configure input & output----------------------------------------------------------
     log.info('Configuring input and output blobs')
     # Get names of input and output blobs
     input_blob = next(iter(net.input_info))
@@ -85,22 +98,22 @@ def main():
     net.reshape({input_blob: image.shape})
     log.info(f'Input shape after reshape: {net.input_info[input_blob].input_data.shape}')
 
-# ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+    # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
 
-# ---------------------------Step 5. Create infer request--------------------------------------------------------------
-# load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-# instance which stores infer requests. So you already created Infer requests in the previous step.
+    # ---------------------------Step 5. Create infer request--------------------------------------------------------------
+    # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
+    # instance which stores infer requests. So you already created Infer requests in the previous step.
 
-# ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-# This sample changes a network input layer shape instead of a image shape. See Step 4.
+    # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
+    # This sample changes a network input layer shape instead of a image shape. See Step 4.
 
-# ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     res = exec_net.infer(inputs={input_blob: image})
 
-# ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # ---------------------------Step 8. Process output--------------------------------------------------------------------
     # Generate a label list
     if args.labels:
         with open(args.labels, 'r') as f:
@@ -126,8 +139,7 @@ def main():
             xmax = int(detection[5] * w)
             ymax = int(detection[6] * h)
 
-            log.info(f'Found: label = {label}, confidence = {confidence:.2f}, '
-                     f'coords = ({xmin}, {ymin}), ({xmax}, {ymax})')
+            log.info(f'Found: label = {label}, confidence = {confidence:.2f}, ' f'coords = ({xmin}, {ymin}), ({xmax}, {ymax})')
 
             # Draw a bounding box on a output image
             cv2.rectangle(output_image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
@@ -135,9 +147,8 @@ def main():
     cv2.imwrite('out.bmp', output_image)
     log.info('Image out.bmp was created!')
 
-# ----------------------------------------------------------------------------------------------------------------------
-    log.info('This sample is an API example, '
-             'for any performance measurements please use the dedicated benchmark_app tool\n')
+    # ----------------------------------------------------------------------------------------------------------------------
+    log.info('This sample is an API example, ' 'for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
 
 
