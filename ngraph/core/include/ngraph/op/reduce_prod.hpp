@@ -42,6 +42,6 @@ namespace ngraph
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

@@ -11,6 +11,7 @@ using namespace LayerTestsUtils;
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
 bool Summary::saveReportWithUniqueName = false;
+size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
 SummaryDestroyer Summary::destroyer;
 
@@ -20,6 +21,16 @@ SummaryDestroyer::~SummaryDestroyer() {
 
 void SummaryDestroyer::initialize(Summary *p) {
     p_instance = p;
+}
+
+Summary::Summary() {
+    opsets.push_back(ngraph::get_opset1());
+    opsets.push_back(ngraph::get_opset2());
+    opsets.push_back(ngraph::get_opset3());
+    opsets.push_back(ngraph::get_opset4());
+    opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
+    opsets.push_back(ngraph::get_opset7());
 }
 
 Summary &Summary::getInstance() {
@@ -66,6 +77,15 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
                 break;
         }
     }
+}
+
+std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
+    for (size_t i = 0; i < opsets.size(); i++) {
+        if (opsets[i].contains_type(type_info)) {
+            return std::to_string(i+1);
+        }
+    }
+    return "undefined";
 }
 
 std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
@@ -137,14 +157,6 @@ void Summary::saveReport() {
 
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
-    std::vector<ngraph::OpSet> opsets;
-    opsets.push_back(ngraph::get_opset1());
-    opsets.push_back(ngraph::get_opset2());
-    opsets.push_back(ngraph::get_opset3());
-    opsets.push_back(ngraph::get_opset4());
-    opsets.push_back(ngraph::get_opset5());
-    opsets.push_back(ngraph::get_opset6());
-    opsets.push_back(ngraph::get_opset7());
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto &opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
@@ -164,7 +176,7 @@ void Summary::saveReport() {
     char timeNow[80];
 
     time(&rawtime);
-    // cpplint require to use localtime_r instead which is not available in C++14
+    // cpplint require to use localtime_r instead which is not available in C++11
     timeinfo = localtime(&rawtime); // NOLINT
 
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
@@ -187,16 +199,16 @@ void Summary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + std::to_string(op.version);
+        std::string name = std::string(op.name) + "-" + getOpVersion(op);
         pugi::xml_node entry = opsNode.append_child(name.c_str());
-        (void)entry;
+        (void) entry;
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
+        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(it.second.passed);
@@ -208,7 +220,7 @@ void Summary::saveReport() {
 
     if (extendReport && file) {
         auto opStataFromReport = summary.getOpStatisticFromReport();
-        for (auto& item : opStataFromReport) {
+        for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
@@ -233,7 +245,13 @@ void Summary::saveReport() {
             }
         }
     }
-    bool result = doc.save_file(outputFilePath.c_str());
+
+    auto exitTime = std::chrono::system_clock::now() + std::chrono::seconds(saveReportTimeout);
+    bool result = false;
+    do {
+        result = doc.save_file(outputFilePath.c_str());
+    } while (!result && std::chrono::system_clock::now() < exitTime);
+
     if (!result) {
         std::string errMessage = "Failed to write report to " + outputFilePath;
         throw std::runtime_error(errMessage);

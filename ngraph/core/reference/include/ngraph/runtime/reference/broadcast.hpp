@@ -20,5 +20,5 @@ namespace ngraph
                            const AxisSet& broadcast_axes,
                            size_t elem_size);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph
