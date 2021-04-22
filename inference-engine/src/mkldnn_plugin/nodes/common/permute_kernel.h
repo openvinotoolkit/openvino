@@ -17,6 +17,7 @@ struct PermuteParams {
     InferenceEngine::SizeVector dst_block_order;
     InferenceEngine::SizeVector order;
     size_t data_size;
+    bool supported_dynamic_batch = false;
 };
 
 struct jit_permute_config_params {
@@ -26,8 +27,6 @@ struct jit_permute_config_params {
     InferenceEngine::SizeVector dst_strides;
     int n;
     int data_size;
-
-    bool supported_dynamic_batch = false;
 };
 
 struct jit_args_permute {

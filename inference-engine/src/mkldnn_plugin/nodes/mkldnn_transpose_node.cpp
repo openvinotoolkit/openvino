@@ -144,6 +144,7 @@ void MKLDNNTransposeNode::createPrimitive() {
     auto dstDesc = getChildEdgeAt(0)->getDesc();
     params.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
     params.dst_block_order = dstDesc.getBlockingDesc().getOrder();
+    params.supported_dynamic_batch = true;
 
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }

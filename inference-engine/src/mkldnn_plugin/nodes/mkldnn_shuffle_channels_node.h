@@ -9,11 +9,11 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "common/permute_utils.h"
+#include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
-class MKLDNNShuffleChannelsNode : public MKLDNNNode, PermuteUtils {
+class MKLDNNShuffleChannelsNode : public MKLDNNNode {
 public:
     MKLDNNShuffleChannelsNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNShuffleChannelsNode() override = default;
@@ -24,13 +24,14 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    void executeRef(const float* srcData, float* dstData);
-
     InferenceEngine::SizeVector dataDims;
     int dataRank;
     int axis;
     size_t group;
     size_t groupSize;
+
+    std::unique_ptr<PermuteKernel> permuteKernel;
+    bool supportDynamicBatch;
 };
 
 }  // namespace MKLDNNPlugin

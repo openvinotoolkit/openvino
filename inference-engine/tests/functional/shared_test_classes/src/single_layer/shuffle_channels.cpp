@@ -7,8 +7,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerTestParams> obj) {
-    ShuffleChannelsSpecificParams shuffleChannelsParams;
+std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj) {
+    shuffleChannelsSpecificParams shuffleChannelsParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -32,7 +32,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<Shu
 }
 
 void ShuffleChannelsLayerTest::SetUp() {
-    ShuffleChannelsSpecificParams shuffleChannelsParams;
+    shuffleChannelsSpecificParams shuffleChannelsParams;
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();

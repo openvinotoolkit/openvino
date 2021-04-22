@@ -4,6 +4,8 @@
 
 #include <shared_test_classes/single_layer/shuffle_channels.hpp>
 #include "test_utils/cpu_test_utils.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -11,20 +13,20 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        LayerTestsDefinitions::ShuffleChannelsLayerTestParams,
+        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet,
         CPUSpecificParams> ShuffleChannelsLayerCPUTestParamsSet;
 
 class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleChannelsLayerCPUTestParamsSet>,
                                      virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
-        LayerTestsDefinitions::ShuffleChannelsLayerTestParams basicParamsSet;
+        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::ShuffleChannelsLayerTest::getTestCaseName(
-                     testing::TestParamInfo<LayerTestsDefinitions::ShuffleChannelsLayerTestParams>(basicParamsSet, 0));
+                     testing::TestParamInfo<LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet>(basicParamsSet, 0));
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -33,13 +35,13 @@ public:
 
 protected:
     void SetUp() {
-        LayerTestsDefinitions::ShuffleChannelsLayerTestParams basicParamsSet;
+        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        LayerTestsDefinitions::ShuffleChannelsSpecificParams shuffleChannelsParams;
+        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
         std::vector<size_t> inputShape;
         Precision netPrecision;
         std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
