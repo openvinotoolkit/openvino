@@ -71,7 +71,7 @@ public:
     friend class InputModelWrapper;
 };
 
-//------------------ PLACE wrappers and trampolines -------------------
+//------------------ Input Model wrappers and trampolines -------------------
 // Base class for deriving on Python side, not derived from InputModel
 class PyInputModel
 {
