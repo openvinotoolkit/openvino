@@ -117,7 +117,7 @@ namespace transpose
                                       out_shape);
         return true;
     }
-}
+} // namespace transpose
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {

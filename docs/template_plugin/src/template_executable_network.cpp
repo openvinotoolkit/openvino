@@ -139,7 +139,6 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    InferenceEngine::IInferRequest::Ptr asyncRequest;
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);

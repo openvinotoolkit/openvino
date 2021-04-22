@@ -57,6 +57,6 @@ namespace ngraph
                                  const Output<Node>& pattern_value,
                                  const Output<Node>& graph_value) override;
             };
-        }
-    }
-}
+        } // namespace op
+    }     // namespace pattern
+} // namespace ngraph

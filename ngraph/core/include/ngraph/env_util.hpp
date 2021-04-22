@@ -35,4 +35,4 @@ namespace ngraph
     /// \return Returns the boolean value of the environment variable.
     NGRAPH_API
     bool getenv_bool(const char* env_var, bool default_value = false);
-}
+} // namespace ngraph

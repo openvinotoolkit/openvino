@@ -37,12 +37,12 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
             return false;
         }
 
-        auto axis = gather->get_axis();
 
-        if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+        if (!gather->is_axis_set()) {
             NGRAPH_DEBUG << "axis value not set";
             return false;
         }
+        auto axis = gather->get_axis();
 
         // case_1 : if the input tensor is of shape (4, 1, 4)
         // and axis = 1, then the gather would be simply
@@ -85,12 +85,12 @@ static bool simplify_gather_shapeof(shared_ptr<Node> node) {
     }
     auto gather_in_rank = gather->get_input_partial_shape(0).rank();
     auto indices_rank = gather->get_input_partial_shape(1).rank();
-    auto axis = gather->get_axis();
     if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() ||
-        axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+        !gather->is_axis_set()) {
         NGRAPH_DEBUG << gather << " cannot simplify gather->shapeof";
         return false;
     }
+    auto axis = gather->get_axis();
 
     auto zero_axis = opset3::Constant::create<int64_t>(element::i64, Shape{}, {0});
     NodeVector new_ops;

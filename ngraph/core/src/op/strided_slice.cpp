@@ -72,7 +72,7 @@ namespace
         return op::Constant::create(
             element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
     }
-}
+} // namespace
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -267,7 +267,7 @@ namespace strided_slice
                                                ellipsis_mask);
         return evaluate(in, slice_plan, out);
     }
-}
+} // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const

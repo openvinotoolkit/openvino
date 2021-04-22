@@ -75,6 +75,6 @@ namespace ngraph
                           converted_axes_order.data(),
                           output_shape);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
