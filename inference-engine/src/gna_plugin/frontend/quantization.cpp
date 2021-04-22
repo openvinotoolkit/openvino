@@ -3,7 +3,6 @@
 //
 
 #include <cstring>
-#include <iostream>
 #include <gna_plugin_log.hpp>
 #include <limits>
 #include "backend/gna_types.h"

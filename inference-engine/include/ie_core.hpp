@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <istream>
 #include <map>
 #include <memory>
 #include <string>

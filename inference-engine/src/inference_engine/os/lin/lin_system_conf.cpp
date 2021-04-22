@@ -6,7 +6,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <iostream>
 #include <sched.h>
 #include "ie_system_conf.h"
 #include "ie_parallel.hpp"
