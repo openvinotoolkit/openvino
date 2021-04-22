@@ -4,8 +4,9 @@
 import pytest
 
 import numpy as np
+import os
 
-from openvino.inference_engine import TensorDesc, Blob
+from openvino.inference_engine import TensorDesc, Blob, IECore
 from conftest import image_path
 
 
@@ -96,3 +97,27 @@ def test_incompatible_input_precision():
         Blob(tensor_desc, image)
     assert "Data type float64 of provided numpy array " \
            "doesn't match to TensorDesc precision FP32" in str(e.value)
+
+
+#issue 49903
+@pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
+def test_buffer_values_after_add_outputs(device):  
+    path_to_repo = os.environ["MODELS_PATH"]
+    test_net_xml_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
+    test_net_bin_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
+    ie_core = IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    net = ie_core.read_network(model=test_net_xml_fp16, weights=test_net_bin_fp16)
+    output_layer = "22"
+    net.add_outputs(output_layer)
+    exec_net = ie_core.load_network(net, device)
+    feed_dict = {
+        'data': np.random.normal(0, 1, (1, 3, 32, 32)).astype(np.float32)
+    }
+    result = exec_net.infer(feed_dict)
+    assert np.all(abs(result[output_layer])<30)
+    assert result[output_layer].dtype == np.float16
+    

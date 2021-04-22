@@ -1533,5 +1533,13 @@ cdef class BlobBuffer:
 
         return precision_to_format[name].encode()
 
-    def to_numpy(self):
-        return np.asarray(self)
+    def to_numpy(self): 
+        precision = deref(self.ptr).getTensorDesc().getPrecision()
+        name = bytes(precision.name()).decode()   
+        if name == "FP16":    
+            return np.asarray(self).view(dtype=np.float16)
+        else:
+            return np.asarray(self)
+
+
+
