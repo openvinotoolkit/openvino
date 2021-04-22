@@ -11,6 +11,7 @@ using namespace LayerTestsDefinitions;
 
 const char* targetDevice = "";
 std::vector<std::string> IRFolderPaths = {};
+const char* targetPluginName = "";
 
 namespace {
 INSTANTIATE_TEST_CASE_P(conformance,

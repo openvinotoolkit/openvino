@@ -17,6 +17,7 @@ static const char target_device_message[] = "Required. Specify the target device
                                             "Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. "
                                             "The application looks for a suitable plugin for the specified device.";
 static const char input_folders_message[] = "Required. Paths to the input folders with IRs. Delimiter is `,` symbol.";
+static const char target_plugin_message[] = "Optional. Name of plugin library. The example is MKLDNNPlugin. Use only with unregistered in IE Core devices";
 static const char output_folder_message[] = "Optional. Paths to the output folder to save report.  Default value is \".\"";
 static const char report_unique_name_message[] = "Optional. Allow to save report with unique name (report_pid_timestamp.xml). "
                                                  "Mutually exclusive with --extend_report. Default value is false";
@@ -25,6 +26,7 @@ static const char save_report_timeout_message[] = "Optional. Allow to try to sav
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(device, "CPU", target_device_message);
+DEFINE_string(plugin_lib_name, "", target_plugin_message);
 DEFINE_string(input_folders, ".", input_folders_message);
 DEFINE_string(output_folder, ".", output_folder_message);
 DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
@@ -48,4 +50,5 @@ static void showUsage() {
     std::cout << "    --device                         " << target_device_message << std::endl;
     std::cout << "    --input_folders \"<paths>\"        " << input_folders_message << std::endl;
     std::cout << "    --output_folder \"<path>\"         " << output_folder_message << std::endl;
+    std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
 }
