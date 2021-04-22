@@ -21,7 +21,7 @@ namespace ngraph
                 /// \return The vector containing Ngraph nodes producing output of ONNX TopK
                 ///         operation (both values and indices).
                 OutputVector topk(const Node& node);
-            }
+            } // namespace set_1
 
             /// \brief Performs TopK operation from ONNX version 1.5
             ///
