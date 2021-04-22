@@ -46,6 +46,7 @@ verified_operations = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FloorMod-1'
     'GRUSequence-5',
     'Gather-1',
     'GatherElements-6',
@@ -64,6 +65,7 @@ verified_operations = [
     'LogSoftmax-5',
     'Loop-5',
     'MVN-6',
+    'Maximum-1',
     'MaxPool-1',
     'Mish-4',
     'Multiply-1',
@@ -102,10 +104,26 @@ verified_operations = [
     'TopK-1',
     'TopK-3'
 ]
+
 pass_rate_avg = dict()
 general_pass_rate = dict()
 general_test_count = dict()
 general_passed_tests = dict()
+
+
+def update_passrates(results: ET.SubElement):
+    for device in results:
+        for op in device:
+            passed_tests = 0
+            total_tests = 0
+            for attrib in op.attrib:
+                if attrib == "passrate":
+                    continue
+                if attrib == "passed":
+                    passed_tests = int(op.attrib.get(attrib))
+                total_tests += int(op.attrib.get(attrib))
+            passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
+            op.set("passrate", str(round(passrate, 1)))
 
 
 def merge_xmls(xmls: list):
@@ -125,15 +143,27 @@ def merge_xmls(xmls: list):
                 results.append(device)
             else:
                 for entry in device:
-                    if device_results.find(entry.tag) is not None:
-                        current_timestamp = datetime.strptime(xml.attrib["timestamp"], "%d-%m-%Y %H:%M:%S")
-                        base_timestamp = datetime.strptime(summary.attrib["timestamp"], "%d-%m-%Y %H:%M:%S")
-                        if current_timestamp > base_timestamp:
-                            device_results.find(entry.tag).attrib = entry.attrib
+                    res_summary = device_results.find(entry.tag)
+                    if res_summary is not None:
+                        # workaround for unsaved reports
+                        total_tests_count_xml, total_tests_count_summary = (0, 0)
+                        for attr_name in device_results.find(entry.tag).attrib:
+                            if attr_name == "passrate":
+                                continue
+                            else:
+                                total_tests_count_xml += int(entry.attrib.get(attr_name))
+                                total_tests_count_summary += int(res_summary.attrib.get(attr_name))
+                        if total_tests_count_xml > total_tests_count_summary:
+                            for attr_name in device_results.find(entry.tag).attrib:
+                                if attr_name == "passrate":
+                                    continue
+                                else:
+                                    xml_value = int(entry.attrib.get(attr_name))
+                                    device_results.find(res_summary.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(entry)
+    update_passrates(results)
     return summary
-
 
 xmls = []
 for xml in args.xml:

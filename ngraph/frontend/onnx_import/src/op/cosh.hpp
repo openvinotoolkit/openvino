@@ -17,7 +17,7 @@ namespace ngraph
             {
                 OutputVector cosh(const Node& node);
             }
-        }
-    } // namespace onnx_import
+        } // namespace op
+    }     // namespace onnx_import
 
 } // namespace ngraph

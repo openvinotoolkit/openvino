@@ -704,7 +704,7 @@ namespace
 
         return ngraph::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
     }
-}
+} // namespace
 
 void op::v5::NonMaxSuppression::validate()
 {

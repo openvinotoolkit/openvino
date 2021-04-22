@@ -86,6 +86,6 @@ namespace ngraph
                 int64_t m_group;
                 int64_t m_deformable_group;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph
