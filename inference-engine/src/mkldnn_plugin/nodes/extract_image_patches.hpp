@@ -4,9 +4,8 @@
 #pragma once
 
 #include "base.hpp"
-#include "caseless.hpp"
-#include "ie_parallel.hpp"
 #include <vector>
+#include <set>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -40,7 +39,6 @@ struct jit_uni_extract_image_patches_kernel {
     virtual ~jit_uni_extract_image_patches_kernel() {}
 };
 
-using details::CaselessEq;
 
 class ExtractImagePatchesImpl : public ExtLayerBase {
 public:
@@ -56,8 +54,6 @@ private:
     std::shared_ptr<jit_uni_extract_image_patches_kernel> extract_image_patches_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
 };
-
-const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4};
 
 REG_FACTORY_FOR(ExtractImagePatchesImpl, ExtractImagePatches);
 

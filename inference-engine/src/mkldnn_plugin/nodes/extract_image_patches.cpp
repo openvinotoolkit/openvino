@@ -3,6 +3,8 @@
 //
 
 #include "extract_image_patches.hpp"
+#include "caseless.hpp"
+#include "ie_parallel.hpp"
 #include "list.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include <cstring>
@@ -486,6 +488,9 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
     }
     return OK;
 }
+
+const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4};
+
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine
