@@ -113,19 +113,18 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
                                                           << "\" with precision: \"" << precision
                                                           << "\" for device: \"" << device << "\""
                                                           << "\" with streams: \"" << nstreams);
+    if ((device != "CPU") && (device != "GPU"))
+        throw std::invalid_argument("This device is not supported");
+
     auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
-
         Core ie;
-        ie.GetVersions(device);
         std::map<std::string, std::string> config;
-
         const std::string key = device + "_THROUGHPUT_STREAMS";
+        InferRequest inferRequest;
+
         config[key] = std::to_string(nstreams);
-
-        if ((device != "CPU") && (device != "GPU"))
-            throw std::invalid_argument("This device is not supported");
-
+        ie.GetVersions(device);
         ie.SetConfig(config, device);
 
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
@@ -133,8 +132,6 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
         auto batchSize = cnnNetwork.getBatchSize();
         batchSize = batchSize != 0 ? batchSize : 1;
         const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-
-        InferRequest inferRequest;
 
         for (int counter = 0; counter < nstreams; counter++) {
             inferRequest = exeNetwork.CreateInferRequest();
@@ -146,7 +143,7 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
                 Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
         }
 
-        log_info("Memory consumption after Inference:");
+        log_info("Memory consumption after Inference with streams: \"" << nstreams);
         memCheckPipeline.record_measures(test_name);
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
