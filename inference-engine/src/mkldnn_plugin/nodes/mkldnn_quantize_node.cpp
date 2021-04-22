@@ -1014,6 +1014,9 @@ void MKLDNNQuantizeNode::init() {
 
         bool quantizationOnly = true;
 
+        std::cout << getName() << " | il: " << inputLowData[0] << " ih: " << inputHighData[0]
+                               << " ol: " << outputLowData[0] << " oh: " << outputHighData[0] << std::endl;
+
         for (int i = 0; i < cropLow.size(); i++) {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
 

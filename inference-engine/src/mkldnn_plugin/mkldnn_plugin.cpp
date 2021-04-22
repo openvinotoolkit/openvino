@@ -95,6 +95,11 @@
 #  include <windows.h>
 # else
 #  include <cpuid.h>
+#include <low_precision/add.hpp>
+#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
+#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
+#include <low_precision/fake_quantize.hpp>
+
 # endif
 #endif
 
@@ -319,8 +324,13 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+//            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
+//                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
+            .remove<AddTransformation, ngraph::opset1::Add>()
+            .remove<FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>());
+//            .remove<ConvolutionTransformation, ngraph::opset1::Convolution>()
+//            .removeCleanup<FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>()
+//            .removeCleanup<FuseMultiplyToFakeQuantizeTransformation, ngraph::opset1::Multiply>());
 
         transformer.transform(nGraphFunc);
     }
