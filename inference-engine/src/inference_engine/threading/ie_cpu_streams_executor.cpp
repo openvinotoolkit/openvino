@@ -80,8 +80,8 @@ struct CPUStreamsExecutor::Impl {
                            _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
                    } else {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
-                           ? custom::info::core_types().back() // runing on Big cores only
-                           : custom::info::core_types().front(); // runing on Little cores only
+                           ? custom::info::core_types().back() // running on Big cores only
+                           : custom::info::core_types().front(); // running on Little cores only
                        _taskArena.reset(new custom::task_arena{
                            custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
                        // TODO: REMOVE THE DEBUG PRINTF

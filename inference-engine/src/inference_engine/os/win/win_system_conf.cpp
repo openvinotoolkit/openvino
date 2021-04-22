@@ -40,10 +40,9 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         printf("type: %d %d concurency\n", tp, custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(tp)));
     }
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        const auto little_cores = core_types.front();
-        // assuming the Little cores feature no hyper-threading
-        printf("original getNumberOfCPUCores: %d \n", phys_cores);
-        phys_cores -= custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(little_cores));
+        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
+                                                               .set_core_type(core_types.back())
+                                                               .set_max_threads_per_core(1));
         // TODO: REMOVE THE DEBUG PRINTF
         printf("patched getNumberOfCPUCores: %d \n", phys_cores);
     }

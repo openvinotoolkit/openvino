@@ -86,9 +86,9 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        const auto little_cores = core_types.front();
-        // assuming the Little cores feature no hyper-threading
-        phys_cores -= custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(little_cores));
+        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
+                                                               .set_core_type(core_types.back())
+                                                               .set_max_threads_per_core(1));
     }
     #endif
     return phys_cores;
