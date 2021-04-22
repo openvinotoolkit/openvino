@@ -82,6 +82,10 @@ install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_VERSION})
 
+install(FILES requirements.txt
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
+        COMPONENT ${PYTHON_VERSION})
+
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_VERSION})
