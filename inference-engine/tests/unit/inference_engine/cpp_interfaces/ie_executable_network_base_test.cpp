@@ -63,7 +63,6 @@ TEST_F(ExecutableNetworkThreadSafeTests, returnErrorIfStartAsyncThrowsException)
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::runtime_error("")));
     EXPECT_NO_THROW(sts = req->StartAsync(&dsc));
     ASSERT_TRUE(StatusCode::OK == sts) << dsc.msg;
-    EXPECT_NO_THROW(sts = req->Wait(IInferRequest::WaitMode::RESULT_READY, &dsc));
+    EXPECT_NO_THROW(sts = req->Wait(InferRequest::WaitMode::RESULT_READY, &dsc));
     ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
 }
-

@@ -41,6 +41,6 @@ namespace ngraph
                 std::int64_t m_axis;
             };
 
-        } // namespace arg
+        } // namespace utils
     }     // namespace onnx_import
 } // namespace ngraph

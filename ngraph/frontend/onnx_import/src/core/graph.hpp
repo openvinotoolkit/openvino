@@ -24,6 +24,13 @@ namespace ngraph
         {
         public:
             Graph(std::unique_ptr<Model>&& model);
+            Graph() = delete;
+
+            Graph(const Graph&) = delete;
+            Graph(Graph&&) noexcept = default;
+
+            Graph& operator=(const Graph&) = delete;
+            Graph& operator=(Graph&&) noexcept = default;
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -35,6 +42,7 @@ namespace ngraph
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
             const OpsetImports& get_opset_imports() const;
+            virtual ~Graph() = default;
 
         protected:
             Graph(std::unique_ptr<Model>&& model, std::unique_ptr<GraphCache>&& cache);
@@ -53,8 +61,8 @@ namespace ngraph
 
         protected:
             ParameterVector m_parameters;
-            std::unique_ptr<GraphCache> m_cache;
             std::unique_ptr<Model> m_model;
+            std::unique_ptr<GraphCache> m_cache;    
 
         private:
             std::vector<Node> m_nodes;
@@ -77,6 +85,14 @@ namespace ngraph
             /// \brief      Return outputs which are on the edge the subgraph and the parent graph.
             /// \return     Vector of edge nodes from parent scope.
             const std::vector<Output<ngraph::Node>> get_outputs_from_parent() const;
+
+            Subgraph() = delete;
+
+            Subgraph(const Subgraph&) = delete;
+            Subgraph(Subgraph&&) noexcept = default;
+
+            Subgraph& operator=(const Subgraph&) = delete;
+            Subgraph& operator=(Subgraph&&) noexcept = default;
 
         private:
             std::vector<Output<ngraph::Node>> m_outputs_from_parent;

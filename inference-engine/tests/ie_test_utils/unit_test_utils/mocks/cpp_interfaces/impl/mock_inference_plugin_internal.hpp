@@ -7,7 +7,6 @@
 #include <map>
 #include <memory>
 
-#include <ie_iinfer_request.hpp>
 #include "mock_executable_network_internal.hpp"
 #include "ie_icore.hpp"
 #include <gmock/gmock.h>
