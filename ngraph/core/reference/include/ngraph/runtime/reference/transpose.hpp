@@ -35,6 +35,9 @@ namespace ngraph
             // Legacy function template to ensure backward compatibility
             // Can be removed after ARM plugin start using evaluate or no template function
             template <typename T, typename U>
+            NGRAPH_DEPRECATED(
+                "Traspose function with template types is deprecated, use function with char* "
+                "args.")
             void transpose(const T* arg, T* out, Shape arg_shape, const U* axes_order = nullptr)
             {
                 std::vector<std::int64_t> converted_axes_order(arg_shape.size());
