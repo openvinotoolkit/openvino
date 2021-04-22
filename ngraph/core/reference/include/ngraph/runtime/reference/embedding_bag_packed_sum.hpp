@@ -27,7 +27,7 @@ namespace ngraph
                 {
                     embDepth *= outShape[i];
                 }
-                memset(out, 0, shape_size(outShape) * sizeof(T));
+                std::fill(out, out + shape_size(outShape), T{0});
 
                 bool with_weights = (weights != nullptr);
                 size_t idx_idx = 0lu;
