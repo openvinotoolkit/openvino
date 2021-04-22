@@ -28,9 +28,22 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
                       'is acceptable. The sample will look for a suitable plugin for device specified. '
                       'Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Default 1')
+    args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1)')
+    args.add_argument('-qb', '--quantization_bits', default=16, type=int,
+                      help='Optional. Weight bits for quantization: 8 or 16 (default 16)')
 
     return parser.parse_args()
+
+
+def get_scale_factor(matrix: np.ndarray) -> float:
+    '''Get scale factor for quantization using utterance matrix'''
+    # Max to find scale factor
+    TARGET_MAX = 16384
+    max_val = np.max(matrix)
+    if max_val == 0:
+        return 1.0
+    else:
+        return TARGET_MAX / max_val
 
 
 def read_ark_file(file_name: str) -> list:
@@ -148,8 +161,25 @@ def main():
     net.batch_size = args.batch_size
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+    device_name = args.device
+    plugin_config = None
+
+    if 'GNA' in args.device:
+        device_name = 'GNA'
+        gna_device_mode = args.device if '_' in args.device else 'GNA_AUTO'
+        # Get a GNA scale factor
+        utterances = read_ark_file(args.input)
+        scale_factor = get_scale_factor(utterances[0])
+        log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
+
+        plugin_config = {
+            'GNA_DEVICE_MODE': gna_device_mode,
+            'GNA_PRECISION': f'I{args.quantization_bits}',
+            'GNA_SCALE_FACTOR': str(scale_factor),
+        }
+
     log.info('Loading the model to the plugin')
-    exec_net = ie.load_network(network=net, device_name=args.device)
+    exec_net = ie.load_network(net, device_name, plugin_config)
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
 # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
