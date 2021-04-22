@@ -132,7 +132,7 @@ namespace unsqueeze
         }
         return rc;
     }
-}
+} // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const

@@ -58,6 +58,6 @@ namespace ngraph
 
             } // embeddingBagPackedSum
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

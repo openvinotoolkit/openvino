@@ -147,7 +147,7 @@ namespace reverseop
         size_t axes_rank = in->get_element_count();
         std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
     }
-}
+} // namespace reverseop
 
 #define GET_AXES(a, ...)                                                                           \
     case element::Type_t::a:                                                                       \
