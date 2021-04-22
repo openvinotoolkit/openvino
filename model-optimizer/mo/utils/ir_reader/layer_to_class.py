@@ -11,6 +11,7 @@ from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
+from extensions.ops.dft import FFTBase
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.loop import Loop
@@ -18,7 +19,6 @@ from extensions.ops.psroipooling import DeformablePSROIPoolingOp
 from extensions.ops.scatter import Scatter
 from extensions.ops.scatternd import ScatterNDBase
 from extensions.ops.split import Split, VariadicSplit
-from extensions.ops.dft import DFT, IDFT
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.ops.clamp import AttributedClamp
@@ -49,8 +49,6 @@ custom_ops = {
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
     'Clamp': AttributedClamp,
-    'DFT': DFT,
-    'IDFT': IDFT,
 }
 
 
@@ -63,7 +61,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
-                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
