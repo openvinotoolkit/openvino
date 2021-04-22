@@ -207,7 +207,7 @@ namespace ngraph
 
                     int axis_correction{};
                 };
-            }
+            } // namespace
 
             void pad(const char* data,
                      const char* pad_value,
