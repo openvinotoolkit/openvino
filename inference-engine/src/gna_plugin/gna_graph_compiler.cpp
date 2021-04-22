@@ -920,6 +920,34 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
 
+    bool is2DPooling = false;
+    if (dnnComponents.components.size() > 0) {
+        const auto last = dnnComponents.components.back();
+        if (last.dnnComponent.operation == kDnnConvolutional2dOp) {
+            is2DPooling = true;
+        } else if (last.dnnComponent.operation == kDnnPiecewiselinearOp && dnnComponents.components.size() > 1) {
+            const auto& prev2 = *std::prev(dnnComponents.components.cend(), 2);
+            is2DPooling = prev2.dnnComponent.operation == kDnnConvolutional2dOp;
+        }
+    }
+
+    if (is2DPooling) {
+        if (pooling._kernel[X_AXIS] != pooling._kernel[Y_AXIS] ||
+            pooling._kernel[X_AXIS] > 3 ||
+            pooling._kernel[X_AXIS] < 1) {
+            THROW_GNA_EXCEPTION << "Layer 2DPooling: " << layer->name << " Pooling Window (WxH): " <<
+                pooling._kernel[X_AXIS] << "x" << pooling._kernel[Y_AXIS] << " not supported, only square windows up to 3x3 supported";
+        }
+        if (pooling._stride[X_AXIS] > pooling._kernel[X_AXIS] ||
+            pooling._stride[Y_AXIS] > pooling._kernel[Y_AXIS] ||
+            pooling._stride[X_AXIS] < 1 ||
+            pooling._stride[Y_AXIS] < 1) {
+            THROW_GNA_EXCEPTION << "Layer 2DPooling: " << layer->name << " Pooling Stride (WxH): " <<
+                pooling._stride[X_AXIS] << "x" << pooling._stride[Y_AXIS] << " not supported, Strides up to Pooling Window supported " <<
+                "wchich is " << pooling._kernel[X_AXIS] << "x" << pooling._kernel[Y_AXIS];
+        }
+    }
+
     auto& currentComponent = dnnComponents.addComponent(layer->name, "pooling");
 
     switch (pooling._type) {
