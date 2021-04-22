@@ -108,6 +108,7 @@ namespace transpose
             });
 
         out->set_shape(out_shape);
+        out->set_element_type(arg1->get_element_type());
         runtime::reference::transpose(arg1->get_data_ptr<char>(),
                                       out->get_data_ptr<char>(),
                                       arg1->get_shape(),
