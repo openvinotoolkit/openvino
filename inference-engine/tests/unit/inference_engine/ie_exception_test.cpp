@@ -58,15 +58,6 @@ TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
     ASSERT_THROW(IE_THROW(), std::exception);
 }
 
-TEST(ExceptionTests, CanThrowStatusCode) {
-    try {
-        IE_THROW(InferNotStarted);
-    }
-    catch (const InferenceEngine::InferNotStarted& iex) {
-        ASSERT_EQ(InferenceEngine::ExceptionToStatus(iex), InferenceEngine::StatusCode::INFER_NOT_STARTED);
-    }
-}
-
 #ifdef    NDEBUG  // disabled for debug as macros calls assert()
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfTrue) {
     ASSERT_NO_THROW(IE_ASSERT(true) << "shouldn't assert if true");

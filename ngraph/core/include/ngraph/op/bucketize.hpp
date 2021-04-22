@@ -52,7 +52,7 @@ namespace ngraph
                 element::Type m_output_type;
                 bool m_with_right_bound;
             };
-        }
+        } // namespace v3
         using v3::Bucketize;
-    }
-}
+    } // namespace op
+} // namespace ngraph

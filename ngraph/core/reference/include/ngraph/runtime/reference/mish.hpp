@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = arg[i] * std::tanh(std::log((std::exp(arg[i]) + 1.0)));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

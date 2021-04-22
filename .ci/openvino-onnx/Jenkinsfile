@@ -94,21 +94,19 @@ def prepare_repository(String workdir) {
 
 def updateModels() {
     sh """
-        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o -s ${ONNX_MODEL_ZOO_SHA}
+        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/models_data -o -s ${ONNX_MODEL_ZOO_SHA}
     """
 }
 
 def get_docker_container_name(Map configuration){
     println "RUN get_docker_container_name for ${configuration.name}"
-    docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
+    String docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
     return docker_container_name
 }
 
 def buildDockerImage(Map configuration, String workdir) {
-    println "Building docker image for workdir: ${workdir}"
-    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
     println "docker_image_tag: ${docker_image_tag}"
-    println "dziala"
     updateModels()
     sh """
         docker build --tag=${docker_image_tag} \
@@ -122,11 +120,9 @@ def buildDockerImage(Map configuration, String workdir) {
 
 def runTests(Map configuration, String workdir) {
     println "Run tests for ${configuration.name}"
-    docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
-    println "docker_image_tag run test: ${docker_image_tag}"
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
 
-    docker_container_name = get_docker_container_name(configuration)
-    println "docker_container_name: ${docker_container_name}"
+    String docker_container_name = get_docker_container_name(configuration)
 
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
@@ -139,7 +135,7 @@ def runTests(Map configuration, String workdir) {
     else {
         sh """
             docker run --name ${docker_container_name} \
-            --volume ${HOME}/ONNX_CI/data/model_zoo/onnx_model_zoo_${ONNX_MODEL_ZOO_SHA}:/root/.onnx/model_zoo/onnx_model_zoo \
+            --volume ${HOME}/ONNX_CI/models_data/model_zoo/onnx_model_zoo_${ONNX_MODEL_ZOO_SHA}:/root/.onnx/model_zoo/onnx_model_zoo \
             --volume ${HOME}/ONNX_CI/data/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
             ${docker_image_tag} /bin/bash -c "tox && tox -e zoo_models"
         """
@@ -150,7 +146,6 @@ def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        println "getConfigurationsMap: ${configuration.name}"
         configurationsMap[configuration.name] = {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
@@ -159,11 +154,11 @@ def getConfigurationsMap() {
 }
 
 CONFIGURATION_WORKFLOW = { configuration ->
-    node("OpenVino-test") {
+    node("OpenVINO-test") {
         try {
             PROJECT_NAME = "openvino"
             String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
-            println "CONFIGURATION_WORKFLOW: ${workdir}"
+
             stage("Clone repository") {
                     prepare_repository(workdir)
             }
@@ -185,13 +180,13 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 } else {
                     currentBuild.result = "FAILURE"
                 }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
+                def gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
                 notifyByEmail(gitPrInfo)
         }
         finally {
             stage("Cleanup") {
                 deleteDir()
-                docker_container_name = get_docker_container_name(configuration)
+                String docker_container_name = get_docker_container_name(configuration)
                 sh """
                     docker rm -f ${docker_container_name}
                 """
@@ -209,7 +204,7 @@ pipeline {
     stages {
         stage('Parallel CI') {
             steps {
-                // stopPreviousRunningBuilds()
+                stopPreviousRunningBuilds()
                 script {
                     parallelStagesMap = getConfigurationsMap()
                     parallel parallelStagesMap

@@ -11,7 +11,6 @@
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iasync_infer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "ie_plugin_cpp.hpp"
 
@@ -20,43 +19,32 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-template <class T>
-inline typename InferenceEngine::InferRequest make_infer_request(std::shared_ptr<T> impl) {
-    typename InferRequestBase::Ptr req(new InferRequestBase(impl));
-    return InferenceEngine::InferRequest(req);
-}
-
 
 class VariableStateTests : public ::testing::Test {
  protected:
     shared_ptr<MockIExecutableNetworkInternal> mockExeNetworkInternal;
-    shared_ptr<MockIAsyncInferRequestInternal> mockInferRequestInternal;
+    shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
-
-    struct TestPluginInternal : public MockIInferencePlugin {
-        TestPluginInternal(const std::shared_ptr<MockIExecutableNetworkInternal>& mockIExeNet_) : mockIExeNet{mockIExeNet_} {}
-        std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&) override {
-            return mockIExeNet;
-        }
-        QueryNetworkResult QueryNetwork(const CNNNetwork&, const std::map<std::string, std::string>&) const override {return {};}
-        std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    };
-    struct TestPlugin : public InferenceEngine::InferencePlugin {
-        TestPlugin(std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet) :
-            InferenceEngine::InferencePlugin(InferenceEngine::details::SOPointer<TestPluginInternal>{
-                new TestPluginInternal{mockIExeNet}}) {}
-    };
+    MockIInferencePlugin*                           mockIPlugin;
+    InferencePlugin                                 plugin;
+    ExecutableNetwork                               net;
+    InferRequest                                    req;
 
     virtual void SetUp() {
         mockExeNetworkInternal = make_shared<MockIExecutableNetworkInternal>();
-        mockInferRequestInternal = make_shared<MockIAsyncInferRequestInternal>();
+        mockInferRequestInternal = make_shared<MockIInferRequestInternal>();
         mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
+        ON_CALL(*mockExeNetworkInternal, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
+        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockExeNetworkInternal));
+        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        net = plugin.LoadNetwork({}, {});
+        req = net.CreateInferRequest();
     }
 };
 
 TEST_F(VariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockVariableStateInternal;
 
@@ -69,7 +57,6 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToA
 
 TEST_F(VariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).WillOnce(Return(toReturn));
@@ -81,7 +68,6 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppTo
 
 TEST_F(VariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAPI) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
     toReturn.push_back(mockVariableStateInternal);
@@ -95,7 +81,6 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAP
 
 TEST_F(VariableStateTests, VariableStatePropagatesReset) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -109,7 +94,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesReset) {
 
 TEST_F(VariableStateTests, VariableStatePropagatesExceptionsFromReset) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -123,7 +107,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesExceptionsFromReset) {
 
 TEST_F(VariableStateTests, VariableStatePropagatesGetName) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -137,7 +120,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetName) {
 
 TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -152,7 +134,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
 
 TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -168,7 +149,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
 
 TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -184,7 +164,6 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
 
 TEST_F(VariableStateTests, VariableStateCanPropagateSetState) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
     toReturn.push_back(mockVariableStateInternal);
@@ -204,7 +183,6 @@ TEST_F(VariableStateTests, VariableStateCanPropagateSetState) {
 
 TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_START
-    auto net = TestPlugin{mockExeNetworkInternal}.LoadNetwork({}, {});
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};
@@ -269,18 +247,16 @@ TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
 
 // Tests for InferRequest::QueryState
 TEST_F(VariableStateTests, InferRequestCanConvertOneVariableStateFromCppToAPI) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockVariableStateInternal;
 
-    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
 
     auto state = req.QueryState();
     ASSERT_EQ(state.size(), 1);
 }
 
 TEST_F(VariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).WillOnce(Return(toReturn));
@@ -290,23 +266,21 @@ TEST_F(VariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) 
 }
 
 TEST_F(VariableStateTests, InferRequestCanConvert2VariableStatesFromCPPtoAPI) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
     toReturn.push_back(mockVariableStateInternal);
 
-    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(3).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
 
     auto state = req.QueryState();
     ASSERT_EQ(state.size(), 2);
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesReset) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
-    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
     EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).Times(1);
 
     auto state = req.QueryState();
@@ -314,11 +288,10 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesReset) {
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
-    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
     EXPECT_CALL(*mockVariableStateInternal.get(), Reset()).WillOnce(Throw(std::logic_error("some error")));
 
     auto state = req.QueryState();
@@ -326,11 +299,10 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetName) {
-auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
-    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(2).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).Times(1).WillRepeatedly(Return(toReturn));
     EXPECT_CALL(*mockVariableStateInternal.get(), GetName()).WillOnce(Return("someName"));
 
     auto state = req.QueryState();
@@ -339,7 +311,6 @@ auto req = make_infer_request(mockInferRequestInternal);
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithZeroLen) {
     IE_SUPPRESS_DEPRECATED_START
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -356,7 +327,6 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithZeroLen) {
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_START
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -374,7 +344,6 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfOne) {
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_START
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -391,7 +360,6 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfTwo) {
 }
 
 TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
     toReturn.push_back(mockVariableStateInternal);
@@ -409,7 +377,6 @@ TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
 }
 
 TEST_F(VariableStateTests, InfReqVariableStateCanPropagateGetLastState) {
-    auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};

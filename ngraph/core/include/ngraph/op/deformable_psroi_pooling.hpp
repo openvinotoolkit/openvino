@@ -91,6 +91,6 @@ namespace ngraph
                 float m_trans_std = 1.f;
                 int64_t m_part_size = 1;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

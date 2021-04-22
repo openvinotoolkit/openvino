@@ -655,7 +655,7 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
 
     editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
 
-    EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_2:conv1/7x7_s2_1"}));
+    EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_1"}));
 }
 
 using TestEngine = test::INTERPRETER_Engine;
@@ -770,4 +770,25 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int16_t>(Shape{2, 2, 1}, {1, 4, 5, 8});
     test_case.run();
+}
+
+NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    const auto new_shape = PartialShape({1, 64, 112, 112});
+    editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
+    editor.set_input_shapes({{"conv1/7x7_s2_1", new_shape}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    const auto graph_inputs = editor.get_function()->get_parameters();
+    EXPECT_TRUE(
+        find_input(graph_inputs, "conv1/7x7_s2_1")->get_partial_shape().same_scheme(new_shape));
 }

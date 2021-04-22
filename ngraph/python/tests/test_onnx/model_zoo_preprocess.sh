@@ -83,6 +83,11 @@ function pull_and_postprocess_onnx_model_zoo() {
 }
 
 function update_onnx_models() {
+  if test `find $MODEL_ZOO_DIR/executing_$ONNX_SHA -mmin +60 2>/dev/null`;then
+        rm -rf $ONNX_MODELS_DIR
+        rm -f $MODEL_ZOO_DIR/executing_$ONNX_SHA
+  fi
+
     while [[ -f $MODEL_ZOO_DIR/executing_$ONNX_SHA ]];
         do
             echo "Onnx Models update are currently executing - sleeping 5 minutes"
