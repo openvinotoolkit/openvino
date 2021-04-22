@@ -32,8 +32,6 @@ Config::Config() {
 
         if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
             streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
-            // TODO: REMOVE THE DEBUG PRINTF
-            printf("%s stream get the HYBRID_AWARE as default! \n", streamExecutorConfig._name.c_str());
         }
     #endif
 
@@ -133,7 +131,7 @@ void Config::updateProperties() {
                 _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
             break;
             case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE});
+                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
             break;
         }
         if (collectPerfCounters == true)
