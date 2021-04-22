@@ -169,7 +169,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).Times(1);
     testRequest->StartAsync();
     taskExecutor->executeAll();
-    testRequest->Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    testRequest->Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(nullptr, exceptionPtr);
 }
 
@@ -183,7 +183,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed)
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
     testRequest->StartAsync();
     taskExecutor->executeAll();
-    EXPECT_THROW(testRequest->Wait(IInferRequest::WaitMode::RESULT_READY), std::exception);
+    EXPECT_THROW(testRequest->Wait(InferRequest::WaitMode::RESULT_READY), std::exception);
     ASSERT_NE(nullptr, exceptionPtr);
 }
 
@@ -192,5 +192,5 @@ TEST_F(InferRequestThreadSafeDefaultTests, canCatchExceptionIfAsyncRequestFailed
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
     testRequest->StartAsync();
-    EXPECT_THROW(testRequest->Wait(IInferRequest::WaitMode::RESULT_READY), std::exception);
+    EXPECT_THROW(testRequest->Wait(InferRequest::WaitMode::RESULT_READY), std::exception);
 }

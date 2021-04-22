@@ -338,8 +338,8 @@ namespace ngraph
             using OutputDescriptionPtr = std::shared_ptr<util::SubGraphOp::OutputDescription>;
             using InputDescriptionVector = std::vector<InputDescriptionPtr>;
             using OutputDescriptionVector = std::vector<OutputDescriptionPtr>;
-        }
-    }
+        } // namespace util
+    }     // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<
@@ -384,4 +384,4 @@ namespace ngraph
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

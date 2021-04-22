@@ -50,7 +50,7 @@ namespace ngraph
             private:
                 std::vector<NodeTypeInfo> m_wrapped_types;
             };
-        }
+        } // namespace op
 
         template <class... Args>
         std::shared_ptr<Node> wrap_type(const OutputVector& inputs,
@@ -71,5 +71,5 @@ namespace ngraph
         {
             return wrap_type<Args...>({}, pred);
         }
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

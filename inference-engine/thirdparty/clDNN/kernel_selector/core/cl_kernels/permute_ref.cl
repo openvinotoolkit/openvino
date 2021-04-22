@@ -14,9 +14,9 @@ KERNEL (permute_ref)(
 {
     //gws(x, y * z * w, b*f)
     const uint gid_0 = get_global_id(1);
-#if INPUT0_DIMS == 4 && OUTPUT0_DIMS == 4
+#if INPUT0_DIMS == 4
     const uint y = gid_0;
-#elif INPUT0_DIMS == 5 && OUTPUT0_DIMS == 5
+#elif INPUT0_DIMS == 5
     const uint z = gid_0 / INPUT0_SIZE_Y;
     const uint y = gid_0 % INPUT0_SIZE_Y;   
 #else
@@ -24,11 +24,11 @@ KERNEL (permute_ref)(
     const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
     const uint y = gid_0 % INPUT0_SIZE_Y;
 #endif
-    
+
     const uint x = get_global_id(0);
     const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
-    
+
     INPUT0_TYPE input_var = input[IN_IDX];
 
 #if HAS_FUSED_OPS

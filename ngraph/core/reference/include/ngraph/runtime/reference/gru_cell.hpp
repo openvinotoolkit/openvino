@@ -299,6 +299,6 @@ namespace ngraph
                                gate_shape,
                                op::AutoBroadcastSpec::NUMPY);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
