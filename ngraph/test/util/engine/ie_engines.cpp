@@ -59,6 +59,29 @@ namespace
         return ngraph::test::all_close<T>(test_results.first, test_results.second);
     }
 
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        NGRAPH_CHECK(test_results.first.size() == test_results.second.size(),
+                     "Number of expected and computed results don't match");
+
+        std::vector<double> expected_double(test_results.first.size());
+        std::vector<double> result_double(test_results.second.size());
+
+        for (size_t i = 0; i < test_results.first.size(); ++i)
+        {
+            expected_double[i] = static_cast<double>(test_results.first[i]);
+            result_double[i] = static_cast<double>(test_results.second[i]);
+        }
+
+        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    }
+
     /// Compares two blobs elementwise
     inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                   InferenceEngine::MemoryBlob::CPtr expected,
@@ -107,7 +130,10 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
-        default: IE_THROW() << "Not implemented yet";
+        case InferenceEngine::Precision::BF16:
+            return compare_blobs<bfloat16>(computed, expected, tolerance_bits);
+            break;
+        default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
 }; // namespace
