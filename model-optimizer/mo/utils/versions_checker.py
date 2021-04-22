@@ -61,7 +61,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     # check environment marker
     if len(splited_requirement) > 1:
         env_req = splited_requirement[1]
-        splited_env_req = re.split(r"==|>=|<=|>|<", env_req)
+        splited_env_req = re.split(r"==|>=|<=|>|<|~=", env_req)
         splited_env_req = [l.strip(',') for l in splited_env_req]
         env_marker = splited_env_req[0].strip(' ')
         if env_marker == 'python_version' and env_marker in env_setup:
@@ -69,7 +69,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
             env_req_version_list = []
             splited_required_versions = re.split(r",", env_req)
             for i, l in enumerate(splited_required_versions):
-                for comparison in ['==', '>=', '<=', '<', '>']:
+                for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                     if comparison in l:
                         required_version = splited_env_req[i + 1].strip(' ').replace('"', '')
                         env_req_version_list.append((env_marker, comparison, required_version))
