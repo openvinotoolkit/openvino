@@ -225,11 +225,25 @@ namespace
                                 const bool aligned,
                                 float* top_data)
     {
+        std::cout << "        Started ROIAlignForward_kernel.\n\n\n";
+        std::cout << "        Arguments:\n";
+        std::cout << "            level_rois_num: " << level_rois_num << "\n";
+        std::cout << "            spatial_scale:  " << spatial_scale << "\n";
+        std::cout << "            channels:       " << channels << "\n";
+        std::cout << "            height:         " << height << "\n";
+        std::cout << "            width:          " << width << "\n";
+        std::cout << "            pooled_height:  " << pooled_height << "\n";
+        std::cout << "            pooled_width:   " << pooled_width << "\n";
+        std::cout << "            sampling_ratio: " << sampling_ratio << "\n";
+        std::cout << "            aligned:        " << (aligned ? "true" : "false") << "\n\n";
+        std::cout << "        Calculations started...\n";
         int64_t roi_cols = 4;
         // (n, c, ph, pw) is an element in the pooled output
         for (int64_t n = 0; n < level_rois_num; ++n)
         {
+            std::cout << "            n:            " << n << "\n";
             int64_t index_n = n * channels * pooled_width * pooled_height;
+            std::cout << "            index_n:      " << index_n << "\n";
 
             // roi could have 4 or 5 columns
             const float* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -239,19 +253,29 @@ namespace
                 roi_batch_ind = static_cast<int64_t>(offset_bottom_rois[0]);
                 offset_bottom_rois++;
             }
+            std::cout << "            roi_batch_ind: " << roi_batch_ind << "\n";
 
             float offset = aligned ? 0.5f : 0.0f;
+            std::cout << "            offset:        " << offset << "\n";
             // Do not using rounding; this implementation detail is critical
             float roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
             float roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
             float roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
             float roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
+            std::cout << "            roi_start_w:   " << roi_start_w << "\n";
+            std::cout << "            roi_start_h:   " << roi_start_h << "\n";
+            std::cout << "            roi_end_w:     " << roi_end_w << "\n";
+            std::cout << "            roi_end_h:     " << roi_end_h << "\n";
 
             // Force malformed ROIs to be 1x1
             float roi_width = std::max(roi_end_w - roi_start_w, 1.0f);
             float roi_height = std::max(roi_end_h - roi_start_h, 1.0f);
             float bin_size_h = roi_height / static_cast<float>(pooled_height);
             float bin_size_w = roi_width / static_cast<float>(pooled_width);
+            std::cout << "            roi_width:     " << roi_width << "\n";
+            std::cout << "            roi_height:    " << roi_height << "\n";
+            std::cout << "            bin_size_h:    " << bin_size_h << "\n";
+            std::cout << "            bin_size_w:    " << bin_size_w << "\n";
 
             // We use roi_bin_grid to sample the grid and mimic integral
             int64_t roi_bin_grid_h =
@@ -261,9 +285,12 @@ namespace
             int64_t roi_bin_grid_w =
                 (sampling_ratio > 0) ? sampling_ratio
                                      : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
+            std::cout << "            roi_bin_grid_h: " << roi_bin_grid_h << "\n";
+            std::cout << "            roi_bin_grid_w: " << roi_height << "\n";
 
             // We do average (integral) pooling inside a bin
             const float count = static_cast<float>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
+            std::cout << "            count:          " << count << "\n";
 
             // we want to precalculate indeces and weights shared by all chanels,
             // this is the key point of optimiation
@@ -282,6 +309,16 @@ namespace
                                               roi_bin_grid_h,
                                               roi_bin_grid_w,
                                               pre_calc);
+            std::cout << "            pre_calc: [\n";
+            for (const auto& p : pre_calc)
+            {
+                std::cout << "            PreCalc{pos1: "
+                          << p.pos1 << ", pos2: " << p.pos2 << ", pos3: "
+                          << p.pos3 << ", pos4: " << p.pos4 << ", w1: "
+                          << p.w1 << ", w2: " << p.w2 << ", w3: " << p.w3
+                          << ", w4: " << p.w4 << "}\n";
+            }
+            std::cout << "                      ]\n";
 
             for (int64_t c = 0; c < channels; c++)
             {
@@ -551,12 +588,30 @@ namespace ngraph
                 float* output_rois_features,
                 float* output_rois)
             {
+                std::cout << std::string(80, '*') << "\n";
+                std::cout << "Input shapes: ";
+                for (const auto& s : input_shapes)
+                {
+                    std::cout << s << " ";
+                }
+                std::cout << "\n";
                 const int64_t output_dim = attrs.output_size;
                 const auto& pyramid_scales = attrs.pyramid_scales;
                 const int64_t sampling_ratio = attrs.sampling_ratio;
                 const bool aligned = attrs.aligned;
                 const int64_t pooled_height = output_dim;
                 const int64_t pooled_width = output_dim;
+                std::cout << "output_dim:      " << output_dim << "\n";
+                std::cout << "pooled_height:   " << pooled_height << "\n";
+                std::cout << "pooled_width:    " << pooled_width << "\n";
+                std::cout << "sampling_ratio:  " << sampling_ratio << "\n";
+                std::cout << "aligned:         " << (aligned ? "true" : "false") << "\n";
+                std::cout << "pyramid_scales: [";
+                for (auto s : pyramid_scales)
+                {
+                    std::cout << " " << s;
+                }
+                std::cout << " ]\n";
 
                 const int64_t levels_num =
                     static_cast<int64_t>(inputs.size() - input_features_start);
@@ -564,11 +619,21 @@ namespace ngraph
                 const int64_t channels_num =
                     static_cast<int64_t>(input_shapes[input_features_start][1]);
                 const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
+                std::cout << "levels_num:      " << levels_num << "\n";
+                std::cout << "num_rois:        " << num_rois << "\n";
+                std::cout << "channels_num:    " << channels_num << "\n";
+                std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n";
 
                 const float* input_rois = inputs[input_rois_port];
 
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
+                std::cout << "level_ids:             [";
+                for (auto r : level_ids)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
@@ -578,15 +643,38 @@ namespace ngraph
                         4,
                         reordered_rois.data(),
                         original_rois_mapping.data());
+                std::cout << "reordered_rois:        [";
+                for (auto r : reordered_rois)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << "original_rois_mapping: [";
+                for (auto r : original_rois_mapping)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
 
                 std::vector<int64_t> rois_per_level;
                 split_points(level_ids, rois_per_level, levels_num + 1);
+                std::cout << "rois_per_level:        [";
+                for (auto r : rois_per_level)
+                {
+                    std::cout << " " << r;
+                }
+                std::cout << " ]\n";
+                std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+                std::cout << "Calculation cycle:\n\n";
 
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
                 for (int64_t i = 0; i < levels_num; ++i)
                 {
+                    std::cout << "    i:                 " << i << "\n";
                     const int64_t level_rois_offset = rois_per_level[i];
                     const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
+                    std::cout << "    level_rois_offset: " << level_rois_offset << "\n";
+                    std::cout << "    level_rois_num:    " << level_rois_num << "\n";
                     if (level_rois_num > 0)
                     {
                         const float* featuremap = inputs[input_features_start + i];
@@ -594,6 +682,9 @@ namespace ngraph
                             static_cast<int64_t>(input_shapes[input_features_start + i][2]);
                         const int64_t featuremap_width =
                             static_cast<int64_t>(input_shapes[input_features_start + i][3]);
+                        std::cout << "    featuremap_height: " << featuremap_height << "\n";
+                        std::cout << "    featuremap_width:  " << featuremap_width << "\n";
+                        std::cout << "    Calling ROIAlignForward_kernel...\n";
                         ROIAlignForward_kernel(
                             level_rois_num,
                             featuremap,
@@ -607,6 +698,7 @@ namespace ngraph
                             &reordered_rois[4 * level_rois_offset],
                             aligned,
                             &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+                        std::cout << "\n\n";
                     }
                 }
 
@@ -618,30 +710,12 @@ namespace ngraph
                         output_rois_features,
                         dummy_mapping.data());
                 memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
-//                 std::cout << std::string(80, '*') << "\n";
-//                 std::cout << "Input shapes: ";
-//                 for (const auto& s : input_shapes)
-//                 {
-//                     std::cout << s << " ";
-//                 }
-//                 std::cout << "\n";
 //                 const int64_t output_dim = attrs.output_size;
 //                 const int64_t pooled_height = output_dim;
 //                 const int64_t pooled_width = output_dim;
 //                 const auto& pyramid_scales = attrs.pyramid_scales;
 //                 const int64_t sampling_ratio = attrs.sampling_ratio;
 //                 const bool aligned = attrs.aligned;
-//                 std::cout << "output_dim:      " << output_dim << "\n";
-//                 std::cout << "pooled_height:   " << pooled_height << "\n";
-//                 std::cout << "pooled_width:    " << pooled_width << "\n";
-//                 std::cout << "sampling_ratio:  " << sampling_ratio << "\n";
-//                 std::cout << "aligned:         " << (aligned ? "true" : "false") << "\n";
-//                 std::cout << "pyramid_scales: [";
-//                 for (auto s : pyramid_scales)
-//                 {
-//                     std::cout << " " << s;
-//                 }
-//                 std::cout << " ]\n";
 //
 //                 const int64_t levels_num =
 //                     static_cast<int64_t>(inputs.size() - input_features_start);
@@ -649,20 +723,10 @@ namespace ngraph
 //                 const int64_t channels_num =
 //                     static_cast<int64_t>(input_shapes[input_features_start][1]);
 //                 const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
-//                 std::cout << "levels_num:      " << levels_num << "\n";
-//                 std::cout << "num_rois:        " << num_rois << "\n";
-//                 std::cout << "channels_num:    " << channels_num << "\n";
-//                 std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n";
 //
 //                 const float* input_rois = inputs[input_rois_port];
 //                 std::vector<int64_t> level_ids(num_rois, 0);
 //                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
-//                 std::cout << "level_ids:             [";
-//                 for (auto r : level_ids)
-//                 {
-//                     std::cout << " " << r;
-//                 }
-//                 std::cout << " ]\n";
 //
 //                 std::vector<float> reordered_rois(4 * num_rois, 0);
 //                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
@@ -672,29 +736,10 @@ namespace ngraph
 //                         4,
 //                         reordered_rois.data(),
 //                         original_rois_mapping.data());
-//                 std::cout << "reordered_rois:        [";
-//                 for (auto r : reordered_rois)
-//                 {
-//                     std::cout << " " << r;
-//                 }
-//                 std::cout << " ]\n";
-//                 std::cout << "original_rois_mapping: [";
-//                 for (auto r : original_rois_mapping)
-//                 {
-//                     std::cout << " " << r;
-//                 }
-//                 std::cout << " ]\n";
 //
 //                 std::vector<int64_t> rois_per_level;
 //                 split_points(level_ids, rois_per_level, levels_num + 1);
-//                 std::cout << "rois_per_level:        [";
-//                 for (auto r : rois_per_level)
-//                 {
-//                     std::cout << " " << r;
-//                 }
-//                 std::cout << " ]\n";
 //
-//                 std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 //                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
 //                 for (int64_t i = 0; i < levels_num; ++i)
 //                 {
