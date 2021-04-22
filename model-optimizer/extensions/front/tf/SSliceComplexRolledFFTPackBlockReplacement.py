@@ -66,7 +66,6 @@ class SSliceComplexRolledFFTPackBlockReplacement(FrontReplacementSubgraph):
         roll.in_port(1).get_connection().set_destination(roll_before.in_port(1))
         roll.in_port(2).get_connection().set_destination(roll_before.in_port(2))
 
-        strided_slice_real = match['strided_slice_real']
         strided_slice_real.in_port(0).get_connection().set_destination(roll_before.in_port(0))
 
         tf_fft = match['fft']

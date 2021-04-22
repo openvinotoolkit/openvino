@@ -49,16 +49,3 @@ class AttributedRoll(Op):
 def roll_infer(node: Node):
     PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
     copy_shape_infer(node)
-
-
-class TFRoll(Op):
-    op = 'TFRoll'
-    enabled = False
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'infer': copy_shape_infer,
-            'in_ports_count': 3,
-            'out_ports_count': 1
-        }, attrs)
