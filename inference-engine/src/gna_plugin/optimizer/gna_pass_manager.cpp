@@ -138,7 +138,6 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 
     auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
     auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
-    auto gemm = dynamic_cast<InferenceEngine::GemmLayer *>(l.get());
 
     auto PrevFunctionalLayer = [](CNNLayerPtr l, int idx = 0) {
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](CNNLayerPtr ptr) {
@@ -231,13 +230,6 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
                 prevLayers.push_back(CNNNetPrevLayer(l, i));
             }
         }
-    } else if (gemm != nullptr) {
-        for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {
-            auto prev = PrevFunctionalLayer(l, i);
-            if (LayerInfo(prev).has32BOutput()) {
-                prevLayers.push_back(CNNNetPrevLayer(l, i));
-            }
-        }
     } else {
         // not eltwise or concat
         // other layers has 1 inputs - situation is easier
@@ -245,7 +237,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        auto prevLayer = PrevFunctionalLayer(l, LayerInfo(l).isGemm() ? 1 : 0);
 
         // No need to instert identity activation
         // when activation was already there before pooling
@@ -2172,14 +2164,16 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
             auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-//            if (insDatas.size() != 1) {
-//                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-//                    << LAYER_NAME(nextLayers[i]) << " is not correct";
-//            }
+            if (insDatas.size() == 0) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                    << LAYER_NAME(nextLayers[i]) << " is not correct";
+            }
 
             if (isFQFuseAllowed) {
-                nextLayers[i]->insData[insDatas.front()] = prevData;
-                getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+                for (int next_out = 0; next_out < insDatas.size(); next_out++) {
+                    nextLayers[i]->insData[insDatas.front()] = prevData;
+                    getInputTo(prevLayer->outData[next_out])[nextLayers[i]->name] = nextLayers[i];
+                }
             }
 
             propagateStatistics(quantParamsPrevLayer, nextLayers[i]);
@@ -2368,7 +2362,6 @@ int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
-        network.serialize(name + ".xml", name + ".bin");
 #ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,

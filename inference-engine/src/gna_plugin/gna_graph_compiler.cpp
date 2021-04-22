@@ -1346,19 +1346,23 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     IE_ASSERT(!layer->outData.empty());
     IE_ASSERT(layer->insData.size() == 2);
     auto input_1 = layer->insData[0].lock();
-    auto input_2 = layer->insData[1].lock();
+    auto input_2 = layer->insData[1].lock(); // the second input corresponds to ptr_weights in component
     auto outputs = *layer->outData.begin();
     auto inputPrecision = quantized ? Precision(Precision::I16) : input_1->getPrecision();
+    uint32_t noOfInputsDivisor = GNALimitations::noOfInputsDivisor;
 
-    uint32_t num_rows_in = FROM_IR_DIM(input_1, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(input_1, 2);
-    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
-    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+    auto in_dims = input_1->getDims();
+    auto batch_size = (in_dims.size() == 1) ? 1 : in_dims.front();
+    uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / batch_size;
+    uint32_t num_columns_in = batch_size;
+    uint32_t num_rows_out = GetDataDimSize(outputs, 1);
+    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
     uint32_t num_padding_out = 0;
 
-    void* ptr_input_1 = nullptr;
+    // Gemm gets two inputs
+    void* ptr_input_1 = nullptr; // the first input
     void* ptr_outputs = nullptr;
-    void* ptr_input_2 = nullptr;
+    void* ptr_input_2 = nullptr; // the second input corresponds to ptr_weights in component
     void* ptr_biases = nullptr;
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, ("affine"));
@@ -1388,8 +1392,8 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
                                  * input_2->getPrecision().size();
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
-    connectInput(layer, ptr_input_1, num_data_bytes_in_2);
-    connectInput(layer, ptr_input_2, num_data_bytes_in_1, 0, 1);
+    connectInput(layer, ptr_input_1, num_data_bytes_in_1);
+    connectInput(layer, ptr_input_2, num_data_bytes_in_2, 0, 1);
     if (gnaFlags->sw_fp32) {
         IE_ASSERT(quantized == nullptr);
         gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
