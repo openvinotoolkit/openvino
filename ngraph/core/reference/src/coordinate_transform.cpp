@@ -425,8 +425,6 @@ size_t CoordinateIterator::advance(size_t axis) noexcept
     if (m_oob)
         return m_target_shape.size();
 
-    bool carry_out = false;
-
     // Increment the target coordinate.
     do
     {
@@ -440,7 +438,6 @@ size_t CoordinateIterator::advance(size_t axis) noexcept
         else
         {
             m_coordinate[axis] = 0;
-            carry_out = true;
         }
     } while (axis-- > 0);
 

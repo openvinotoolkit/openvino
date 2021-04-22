@@ -76,6 +76,6 @@ namespace ngraph
                         out[output_transform.index(output_coord)] / count;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

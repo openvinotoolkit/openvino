@@ -21,5 +21,5 @@ namespace ngraph
                          const AxisSet& reversed_axes,
                          size_t elem_size);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

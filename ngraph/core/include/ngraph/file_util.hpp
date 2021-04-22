@@ -70,5 +70,5 @@ namespace ngraph
         /// \param path A path to file
         /// \return A sanitiazed path
         NGRAPH_API std::string sanitize_path(const std::string& path);
-    }
-}
+    } // namespace file_util
+} // namespace ngraph

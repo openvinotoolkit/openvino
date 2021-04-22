@@ -81,8 +81,8 @@ namespace ngraph
 
                 SpecialBodyPorts m_special_body_ports;
             };
-        }
-    }
+        } // namespace v5
+    }     // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
@@ -98,4 +98,4 @@ namespace ngraph
             "AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

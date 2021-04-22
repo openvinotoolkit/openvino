@@ -10,4 +10,4 @@ namespace ngraph
     {
         namespace default_opset = ngraph::opset7;
     }
-}
+} // namespace ngraph
