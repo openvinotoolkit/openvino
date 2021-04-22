@@ -9,6 +9,7 @@
 #include <ie_preprocess_data.hpp>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
+#include <cpp/ie_infer_request.hpp>
 
 #include <map>
 #include <memory>
@@ -41,7 +42,7 @@ public:
 
     /**
      * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
+     * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     virtual void Infer();
 
@@ -50,7 +51,7 @@ public:
      * @note
      *  * This method is used in IInferRequestInternal::Infer, which calls the common code first and after uses this
      * plugin dependent implementation.
-     *  * Blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
+     *  * Blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     virtual void InferImpl();
 
@@ -132,7 +133,7 @@ public:
      * becomes available, whichever comes first.
      * @param millis_timeout - maximum duration in milliseconds to block for
      * @note There are special cases when millis_timeout is equal some value of WaitMode enum:
-     * * STATUS_ONLY - immediately returns request status (IInferRequest::RequestStatus). It doesn't block or interrupt
+     * * STATUS_ONLY - immediately returns request status (InferRequest::StatusCode). It doesn't block or interrupt
      * current thread.
      * * RESULT_READY - waits until inference result becomes available
      * @return A status code

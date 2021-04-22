@@ -337,7 +337,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         }
 
         for (auto ir : irs) {
-            ir.Wait(IInferRequest::RESULT_READY);
+            ir.Wait(InferRequest::RESULT_READY);
         }
     }
 

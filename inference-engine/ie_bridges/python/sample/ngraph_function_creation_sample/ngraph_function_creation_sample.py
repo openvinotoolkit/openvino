@@ -6,6 +6,7 @@ import argparse
 import logging as log
 import struct as st
 import sys
+import typing
 from functools import reduce
 
 import cv2
@@ -15,7 +16,7 @@ from openvino.inference_engine import IECore, IENetwork
 
 
 def parse_args() -> argparse.Namespace:
-    '''Parse and return command line arguments'''
+    """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -33,7 +34,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_image(image_path: str) -> np.ndarray:
-    '''Read and return an image as grayscale (one channel)'''
+    """Read and return an image as grayscale (one channel)"""
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
     # Try to open image as ubyte
@@ -54,9 +55,9 @@ def read_image(image_path: str) -> np.ndarray:
 
 
 def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
-    '''Create a network on the fly from the source code using ngraph'''
+    """Create a network on the fly from the source code using ngraph"""
 
-    def shape_and_length(shape: list) -> (list, int):
+    def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
         return shape, length
 
@@ -204,8 +205,8 @@ def main():
         image = read_image(args.input[i])
 
         light_pixel_count = np.count_nonzero(image > 127)
-        darK_pixel_count = np.count_nonzero(image < 127)
-        is_light_image = (light_pixel_count - darK_pixel_count) > 0
+        dark_pixel_count = np.count_nonzero(image < 127)
+        is_light_image = (light_pixel_count - dark_pixel_count) > 0
 
         if is_light_image:
             log.warning(f'Image {args.input[i]} is inverted to white over black')

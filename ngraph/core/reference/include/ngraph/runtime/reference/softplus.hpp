@@ -24,6 +24,6 @@ namespace ngraph
                                                   : arg[i];
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

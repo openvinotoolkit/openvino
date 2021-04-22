@@ -9,22 +9,22 @@
 
 #pragma once
 
-#include <ie_iexecutable_network.hpp>
-#include <cpp/ie_executable_network.hpp>
-#include <cpp_interfaces/base/ie_variable_state_base.hpp>
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <ie_iexecutable_network.hpp>
+#include <cpp/ie_executable_network.hpp>
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 
 namespace InferenceEngine {
 
-IE_SUPPRESS_DEPRECATED_START_WIN
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief Executable network `noexcept` wrapper which accepts IExecutableNetworkInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_exec_network_api
@@ -110,6 +110,6 @@ public:
         return _impl;
     }
 };
-IE_SUPPRESS_DEPRECATED_END_WIN
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
