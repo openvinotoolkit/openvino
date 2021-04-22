@@ -82,7 +82,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
 }
 
 Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.inputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     return Datatype::F32;
 }
