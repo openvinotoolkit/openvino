@@ -83,7 +83,7 @@ namespace ngraph
                         --axis;
                     return axis;
                 }
-            }
+            } // namespace internal
 
             /// \brief Helper function to implement autobroadcasting elementwise binop references.
             ///
@@ -538,6 +538,6 @@ namespace ngraph
                 }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

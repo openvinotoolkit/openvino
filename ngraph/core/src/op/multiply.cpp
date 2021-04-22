@@ -47,7 +47,7 @@ namespace multiplyop
         }
         return rc;
     }
-}
+} // namespace multiplyop
 
 // ------------------------------------ v1 -------------------------------------
 
