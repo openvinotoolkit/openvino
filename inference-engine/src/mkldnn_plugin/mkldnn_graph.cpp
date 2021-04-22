@@ -362,23 +362,8 @@ void MKLDNNGraph::InitGraph() {
 #endif
 
 #if !defined(NDEBUG) && defined(PRINT_GRAPH_INFO)
-    for (auto &graphNode : graphNodes) {
-        std::cout << "name: " << graphNode->getName() << " [ ";
-        if (graphNode->parentEdges.size() > 0) {
-            auto prnt_out_desc = graphNode->parentEdges[0].lock()->getOutputDesc();
-            std::cout << "in: " << prnt_out_desc.getPrecision().name()
-                      << "/l=" << prnt_out_desc.getLayout()
-                    << "; ";
-        }
-        if (graphNode->childEdges.size() > 0) {
-            auto chld_in_desc = graphNode->childEdges[0].lock()->getInputDesc();
-            std::cout << "out: " << chld_in_desc.getPrecision().name()
-                      << "/l=" << chld_in_desc.getLayout();
-        }
-        std::cout << " ]"  << std::endl;
-    }
+    printGraphInfo();
 #endif
-
     ExecuteConstantNodesOnly();
 }
 
@@ -1241,4 +1226,22 @@ void MKLDNNGraph::dumpToDotFile(std::string file) const {
 
     dump_graph_as_dot(*this, dot);
     dot.close();
+}
+
+void MKLDNNGraph::printGraphInfo() const {
+    for (auto &graphNode : graphNodes) {
+        std::cout << "name: " << graphNode->getName() << " [ ";
+        if (graphNode->parentEdges.size() > 0) {
+            auto prnt_out_desc = graphNode->parentEdges[0].lock()->getOutputDesc();
+            std::cout << "in: " << prnt_out_desc.getPrecision().name()
+                      << "/l=" << prnt_out_desc.getLayout()
+                      << "; ";
+        }
+        if (graphNode->childEdges.size() > 0) {
+            auto chld_in_desc = graphNode->childEdges[0].lock()->getInputDesc();
+            std::cout << "out: " << chld_in_desc.getPrecision().name()
+                      << "/l=" << chld_in_desc.getLayout();
+        }
+        std::cout << " ]"  << std::endl;
+    }
 }

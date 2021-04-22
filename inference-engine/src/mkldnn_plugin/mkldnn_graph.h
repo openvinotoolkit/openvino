@@ -213,6 +213,8 @@ protected:
 
 private:
     void dumpToDotFile(std::string file) const;
+    void printGraphInfo() const;
+
     struct ParsedLayer {
         MKLDNNNodePtr parent;
         InferenceEngine::CNNLayerPtr cnnLayer;
