@@ -40,6 +40,16 @@
 #include "utils/debug_capabilities.h"
 #include "utils/node_dumper.h"
 
+
+/*****************************************************
+ * Debug capability
+ *  - PRINT_GRAPH_INFO : Define it to enable printing
+ *    additional information to std output.
+ *
+ * @todo Align with CPU_DEBUG_CAPS implementation
+ *****************************************************/
+// #define PRINT_GRAPH_INFO
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -345,7 +355,7 @@ void MKLDNNGraph::InitGraph() {
     if (!config.dumpToDot.empty())
         dumpToDotFile(config.dumpToDot + "_init.dot");
 
-#ifndef DUMP_INTERNAL_BLOBS
+#ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }

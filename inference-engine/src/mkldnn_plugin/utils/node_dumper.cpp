@@ -149,53 +149,38 @@ void NodeDumper::dumpInternalBlobs(const MKLDNNNodePtr& node) const {
 }
 
 bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node) const {
-    bool shouldBeDumped = false;
-    const std::string& filterById = dumpFilters[FILTER::BY_EXEC_ID];
+    if (dumpFilters.empty())
+        return false;
 
-    if (!filterById.empty()) {                              // filter by exec id env set
-        std::stringstream ss(filterById);
+    if (dumpFilters.count(FILTER::BY_EXEC_ID)) {                              // filter by exec id env set
+        std::stringstream ss(dumpFilters.at(FILTER::BY_EXEC_ID));
         int id;
+        bool matched = false;
         while (ss >> id) {
             if (node->getExecIndex() == id) // exec id matches
-                shouldBeDumped = true;
+                matched = true;
         }
 
-        if (!shouldBeDumped)
+        if (!matched)
             return false;
     }
 
-    const std::string& filterByType = dumpFilters[FILTER::BY_TYPE];
-
-    if (!filterByType.empty()) {                           // filter by type env set
-        if (NameFromType(node->getType()) != filterByType) // type does not match
+    if (dumpFilters.count(FILTER::BY_TYPE)) { // filter by type env set
+        if (NameFromType(node->getType()) != dumpFilters.at(FILTER::BY_TYPE)) // type does not match
             return false;
-        else
-            shouldBeDumped = true;
     }
 
-    const std::string& filterByLayerType = dumpFilters[FILTER::BY_LAYER_TYPE];
-
-    if (!filterByLayerType.empty()) {                // filter by type env set
-        if (node->getTypeStr() != filterByLayerType) // layer type does not match
+    if (dumpFilters.count(FILTER::BY_LAYER_TYPE)) { // filter by layer type env set
+        if (node->getTypeStr() != dumpFilters.at(FILTER::BY_LAYER_TYPE)) // layer type does not match
             return false;
-        else
-            shouldBeDumped = true;
     }
 
-    const std::string& filterByName = dumpFilters[FILTER::BY_NAME];
-
-    try {
-        if (!filterByName.empty()) {                                          // filter by name env set
-            if (!std::regex_match(node->getName(), std::regex(filterByName))) // name does not match
-                return false;
-            else
-                shouldBeDumped = true;
-        }
-    } catch (const std::regex_error& e) {
-        std::cout << e.what() << " " << e.code() << "\n";
+    if (dumpFilters.count(FILTER::BY_NAME)) { // filter by name env set
+        if (!std::regex_match(node->getName(), std::regex(dumpFilters.at(FILTER::BY_NAME)))) // name does not match
+            return false;
     }
 
-    return shouldBeDumped;
+    return true;
 }
 } // namespace MKLDNNPlugin
 #endif // CPU_DEBUG_CAPS

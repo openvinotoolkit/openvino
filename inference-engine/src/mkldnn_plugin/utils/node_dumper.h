@@ -6,7 +6,7 @@
 
 #include "mkldnn_node.h"
 
-#include <array>
+#include <unordered_map>
 #include <string>
 
 namespace MKLDNNPlugin {
@@ -47,7 +47,7 @@ private:
         COUNT,
     };
 
-    std::array<std::string, FILTER::COUNT> dumpFilters;
+    std::unordered_map<FILTER, std::string> dumpFilters;
 };
 } // namespace MKLDNNPlugin
 #endif // CPU_DEBUG_CAPS
