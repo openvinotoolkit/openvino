@@ -16,26 +16,6 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 
-namespace
-{
-    template <ngraph::element::Type_t Type,
-              typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
-    ngraph::fundamental_type_for<Type>
-        value_in_range(const ngraph::fundamental_type_for<Type>& value)
-    {
-        NGRAPH_CHECK(0 <= value && value <= 15, "assigned value out of range u4 values");
-        return value;
-    }
-
-    template <ngraph::element::Type_t Type,
-              typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
-    ngraph::fundamental_type_for<Type>
-        value_in_range(const ngraph::fundamental_type_for<Type>& value)
-    {
-        NGRAPH_CHECK(-8 <= value && value <= 7, "assigned value out of range i4 values");
-        return value;
-    }
-}
 namespace ngraph
 {
     namespace op
@@ -365,36 +345,36 @@ namespace ngraph
 
             private:
                 template <element::Type_t Type,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type != element::Type_t::u1 &&
                                                       Type != element::Type_t::u4 &&
                                                       Type != element::Type_t::i4,
                                                   bool>::type = true>
-                DataStorageType get_element_value(size_t index) const
+                StorageDataType get_element_value(size_t index) const
                 {
                     return get_data_ptr<Type>()[index];
                 }
 
                 template <element::Type_t Type,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u1, bool>::type = true>
-                DataStorageType get_element_value(size_t index) const
+                StorageDataType get_element_value(size_t index) const
                 {
                     return (get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1;
                 }
 
                 template <element::Type_t Type,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
-                DataStorageType get_element_value(size_t index) const
+                StorageDataType get_element_value(size_t index) const
                 {
                     return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
                 }
 
                 template <element::Type_t Type,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::i4, bool>::type = true>
-                DataStorageType get_element_value(size_t index) const
+                StorageDataType get_element_value(size_t index) const
                 {
                     const uint8_t i4data =
                         (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
@@ -494,7 +474,7 @@ namespace ngraph
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type != element::Type_t::u1 &&
                                                       Type != element::Type_t::u4 &&
                                                       Type != element::Type_t::i4,
@@ -502,29 +482,29 @@ namespace ngraph
                 void fill_data(const T& value)
                 {
                     const auto size = shape_size(m_shape);
-                    const auto v = static_cast<DataStorageType>(value);
+                    const auto v = static_cast<StorageDataType>(value);
                     std::fill_n(get_data_ptr_nc<Type>(), size, v);
                 }
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u1, bool>::type = true>
                 void fill_data(const T& value)
                 {
-                    const DataStorageType v = value ? 0xFF : 0x00;
+                    const StorageDataType v = value ? 0xFF : 0x00;
                     std::fill_n(get_data_ptr_nc<Type>(), mem_size(), v);
                 }
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u4 ||
                                                       Type == element::Type_t::i4,
                                                   bool>::type = true>
                 void fill_data(const T& value)
                 {
-                    uint8_t v = value;
+                    uint8_t v = value_in_range<Type>(value);
                     v &= 0x0F;
                     v += v << 4;
                     std::fill_n(get_data_ptr_nc<Type>(), mem_size(), v);
@@ -558,7 +538,7 @@ namespace ngraph
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type != element::Type_t::u1 &&
                                                       Type != element::Type_t::u4 &&
                                                       Type != element::Type_t::i4,
@@ -568,13 +548,13 @@ namespace ngraph
                     auto p = get_data_ptr_nc<Type>();
                     for (size_t i = 0; i < source.size(); i++)
                     {
-                        p[i] = static_cast<DataStorageType>(source[i]);
+                        p[i] = static_cast<StorageDataType>(source[i]);
                     }
                 }
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u4 ||
                                                       Type == element::Type_t::i4,
                                                   bool>::type = true>
@@ -587,19 +567,19 @@ namespace ngraph
                         const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
                         const auto v2 = value_in_range<Type>(source[i * 2 + 1]) & 0x0F;
                         const auto v = (v1 << 4) | v2;
-                        p[i] = static_cast<DataStorageType>(v);
+                        p[i] = static_cast<StorageDataType>(v);
                     }
                     if (source.size() % 2)
                     {
                         const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
                         const auto v = v1 << 4;
-                        p[i] = static_cast<DataStorageType>(v);
+                        p[i] = static_cast<StorageDataType>(v);
                     }
                 }
 
                 template <element::Type_t Type,
                           typename T,
-                          typename DataStorageType = fundamental_type_for<Type>,
+                          typename StorageDataType = fundamental_type_for<Type>,
                           typename std::enable_if<Type == element::Type_t::u1, bool>::type = true>
                 void write_buffer(const std::vector<T>& source)
                 {
@@ -613,7 +593,7 @@ namespace ngraph
                             const uint8_t b = source[i * 8 + j] ? 0x01 << (7 - j) : 0;
                             v |= b;
                         }
-                        p[i] = static_cast<DataStorageType>(v);
+                        p[i] = static_cast<StorageDataType>(v);
                     }
                     uint8_t v{};
                     for (unsigned j = 0; j != source.size() % 8; j++)
@@ -621,7 +601,7 @@ namespace ngraph
                         const uint8_t b = source[i * 8 + j] ? 0x01 << (7 - j) : 0;
                         v |= b;
                     }
-                    p[i] = static_cast<DataStorageType>(v);
+                    p[i] = static_cast<StorageDataType>(v);
                 }
 
                 template <typename T>
@@ -663,6 +643,27 @@ namespace ngraph
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
 #endif
+                }
+                template <
+                    ngraph::element::Type_t Type,
+                    typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
+                static ngraph::fundamental_type_for<Type>
+                    value_in_range(const ngraph::fundamental_type_for<Type>& value)
+                {
+                    NGRAPH_CHECK(0 <= value && value <= 15,
+                                 "assigned value out of range u4 values");
+                    return value;
+                }
+
+                template <
+                    ngraph::element::Type_t Type,
+                    typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
+                static ngraph::fundamental_type_for<Type>
+                    value_in_range(const ngraph::fundamental_type_for<Type>& value)
+                {
+                    NGRAPH_CHECK(-8 <= value && value <= 7,
+                                 "assigned value out of range i4 values");
+                    return value;
                 }
 
                 bool are_all_data_elements_bitwise_identical() const;

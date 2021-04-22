@@ -385,6 +385,26 @@ TEST(constant, int4_vector_broadcast_positive_number)
     EXPECT_EQ(0x30, p[1] & 0xF0);
 }
 
+TEST(constant, int4_input_value_validation)
+{
+    Shape shape{2};
+    EXPECT_THROW(op::Constant c(element::i4, shape, 8), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, -9), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{-9}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{8}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{-9, 1}),
+                 ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{8, 2}),
+                 ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}),
+                 ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}),
+                 ::ngraph::CheckFailure);
+}
+
 //
 // int8
 //
@@ -888,6 +908,26 @@ TEST(constant, uint4_vector_broadcast)
     const auto second_byte = p[1] & 0xF0;
     EXPECT_EQ(0x11, first_byte);
     EXPECT_EQ(0x10, second_byte);
+}
+
+TEST(constant, uint4_input_value_validation)
+{
+    Shape shape{2};
+    EXPECT_THROW(op::Constant c(element::u4, shape, 16), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, -1), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{-1}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{16}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{-1, 1}),
+                 ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{16, 2}),
+                 ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}),
+                 ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}),
+                 ::ngraph::CheckFailure);
 }
 
 //
