@@ -8,9 +8,10 @@
 #pragma once
 
 #include <format_reader.h>
+
 #include <functional>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace FormatReader {
 /**
@@ -19,15 +20,16 @@ namespace FormatReader {
  */
 class Registry {
 private:
-    typedef std::function<Reader *(const std::string &filename)> CreatorFunction;
+    typedef std::function<Reader*(const std::string& filename)> CreatorFunction;
     static std::vector<CreatorFunction> _data;
+
 public:
     /**
      * \brief Create reader
      * @param filename - path to input data
      * @return Reader for input data or nullptr
      */
-    static Reader *CreateReader(const char *filename);
+    static Reader* CreateReader(const char* filename);
 
     /**
      * \brief Registers reader in fabric
@@ -40,7 +42,7 @@ public:
  * \class Register
  * \brief Registers reader in fabric
  */
-template<typename To>
+template <typename To>
 class Register {
 public:
     /**
@@ -48,7 +50,7 @@ public:
      * @return Register object
      */
     Register() {
-        Registry::RegisterReader([](const std::string &filename) -> Reader * {
+        Registry::RegisterReader([](const std::string& filename) -> Reader* {
             return new To(filename);
         });
     }

@@ -4,6 +4,7 @@
 
 #include <format_reader_ptr.h>
 #include <gflags/gflags.h>
+#include <samples/classification_results.h>
 
 #include <inference_engine.hpp>
 #include <limits>
@@ -11,22 +12,21 @@
 #include <samples/args_helper.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
-#include <samples/classification_results.h>
 #include <string>
 #include <vector>
 
-#include "ngraph_function_creation_sample.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph_function_creation_sample.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;
 
 /**
-* @brief Checks input args
-* @param argc number of args
-* @param argv list of input arguments
-* @return bool status true(Success) or false(Fail)
-*/
+ * @brief Checks input args
+ * @param argc number of args
+ * @param argv list of input arguments
+ * @return bool status true(Success) or false(Fail)
+ */
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
 
@@ -38,12 +38,14 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     if (FLAGS_nt <= 0 || FLAGS_nt > 10) {
-        throw std::logic_error("Incorrect value for nt argument. It should be greater than 0 and less than 10.");
+        throw std::logic_error("Incorrect value for nt argument. It should be "
+                               "greater than 0 and less than 10.");
     }
 
     if (FLAGS_m.empty()) {
         showUsage();
-        throw std::logic_error("Path to a .bin file with weights for the trained model is required but not set. Please set -m option.");
+        throw std::logic_error("Path to a .bin file with weights for the trained model is required "
+                               "but not set. Please set -m option.");
     }
 
     if (FLAGS_i.empty()) {
@@ -55,12 +57,12 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 }
 
 /**
-* @brief Read file to the buffer
-* @param file_name string
-* @param buffer to store file content
-* @param maxSize length of file
-* @return none
-*/
+ * @brief Read file to the buffer
+ * @param file_name string
+ * @param buffer to store file content
+ * @param maxSize length of file
+ * @return none
+ */
 void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
     std::ifstream inputFile;
 
@@ -78,10 +80,10 @@ void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
 }
 
 /**
-* @brief Read .bin file with weights for the trained model
-* @param filepath string
-* @return weightsPtr tensor blob
-*/
+ * @brief Read .bin file with weights for the trained model
+ * @param filepath string
+ * @return weightsPtr tensor blob
+ */
 TBlob<uint8_t>::CPtr ReadWeights(std::string filepath) {
     std::ifstream weightFile(filepath, std::ifstream::ate | std::ifstream::binary);
     int64_t fileSize = weightFile.tellg();
@@ -100,126 +102,116 @@ TBlob<uint8_t>::CPtr ReadWeights(std::string filepath) {
 }
 
 /**
-* @brief Create ngraph function
-* @return Ptr to ngraph function
-*/
+ * @brief Create ngraph function
+ * @return Ptr to ngraph function
+ */
 std::shared_ptr<Function> createNgraphFunction() {
     TBlob<uint8_t>::CPtr weightsPtr = ReadWeights(FLAGS_m);
 
     if (weightsPtr->byteSize() != 1724336)
-        IE_THROW() << "Incorrect weights file. This sample works only with LeNet classification network.";
+        IE_THROW() << "Incorrect weights file. This sample works only with LeNet "
+                      "classification network.";
 
     // -------input------
-    std::vector<ptrdiff_t> padBegin{ 0, 0 };
-    std::vector<ptrdiff_t> padEnd{ 0, 0 };
+    std::vector<ptrdiff_t> padBegin {0, 0};
+    std::vector<ptrdiff_t> padEnd {0, 0};
 
-    auto paramNode = std::make_shared<op::Parameter>(
-        element::Type_t::f32, Shape(std::vector<size_t>{ {64, 1, 28, 28}}));
+    auto paramNode = std::make_shared<op::Parameter>(element::Type_t::f32, Shape(std::vector<size_t> {{64, 1, 28, 28}}));
     paramNode->set_friendly_name("Parameter");
 
     // -------convolution 1----
-    auto convFirstShape = Shape{ 20, 1, 5, 5 };
-    std::shared_ptr<Node> convolutionFirstConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, convFirstShape, weightsPtr->cbuffer().as<uint8_t*>());
+    auto convFirstShape = Shape {20, 1, 5, 5};
+    std::shared_ptr<Node> convolutionFirstConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, convFirstShape, weightsPtr->cbuffer().as<uint8_t*>());
 
-    std::shared_ptr<Node> convolutionNodeFirst = std::make_shared<op::v1::Convolution>(
-        paramNode->output(0), convolutionFirstConstantNode->output(0), Strides(SizeVector{ 1, 1 }),
-        CoordinateDiff(padBegin), CoordinateDiff(padEnd), Strides(SizeVector{ 1, 1 }));
+    std::shared_ptr<Node> convolutionNodeFirst =
+        std::make_shared<op::v1::Convolution>(paramNode->output(0), convolutionFirstConstantNode->output(0), Strides(SizeVector {1, 1}),
+                                              CoordinateDiff(padBegin), CoordinateDiff(padEnd), Strides(SizeVector {1, 1}));
 
     // -------Add--------------
-    auto addFirstShape = Shape{ 1, 20, 1, 1 };
+    auto addFirstShape = Shape {1, 20, 1, 1};
     auto offset = shape_size(convFirstShape) * sizeof(float);
-    std::shared_ptr<Node> addFirstConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, addFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> addFirstConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, addFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> addNodeFirst =
-        std::make_shared<op::v1::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
+    std::shared_ptr<Node> addNodeFirst = std::make_shared<op::v1::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
 
     // -------MAXPOOL----------
-    Shape padBeginShape{ 0, 0 };
-    Shape padEndShape{ 0, 0 };
+    Shape padBeginShape {0, 0};
+    Shape padEndShape {0, 0};
 
-    std::shared_ptr <Node> maxPoolingNodeFirst = std::make_shared<op::v1::MaxPool>(
-        addNodeFirst->output(0), std::vector<size_t>{2, 2}, padBeginShape, padEndShape,
-        std::vector<size_t>{2, 2}, op::RoundingType::CEIL, op::PadType::EXPLICIT);
+    std::shared_ptr<Node> maxPoolingNodeFirst =
+        std::make_shared<op::v1::MaxPool>(addNodeFirst->output(0), std::vector<size_t> {2, 2}, padBeginShape, padEndShape, std::vector<size_t> {2, 2},
+                                          op::RoundingType::CEIL, op::PadType::EXPLICIT);
 
     // -------convolution 2----
-    auto convSecondShape = Shape{ 50, 20, 5, 5 };
+    auto convSecondShape = Shape {50, 20, 5, 5};
     offset += shape_size(addFirstShape) * sizeof(float);
-    std::shared_ptr<Node> convolutionSecondConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, convSecondShape,
-        (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> convolutionSecondConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, convSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> convolutionNodeSecond = std::make_shared<op::v1::Convolution>(
-        maxPoolingNodeFirst->output(0), convolutionSecondConstantNode->output(0), Strides({ 1, 1 }),
-        CoordinateDiff(padBegin), CoordinateDiff(padEnd), Strides({ 1, 1 }));
+    std::shared_ptr<Node> convolutionNodeSecond =
+        std::make_shared<op::v1::Convolution>(maxPoolingNodeFirst->output(0), convolutionSecondConstantNode->output(0), Strides({1, 1}),
+                                              CoordinateDiff(padBegin), CoordinateDiff(padEnd), Strides({1, 1}));
 
     // -------Add 2------------
-    auto addSecondShape = Shape{ 1, 50, 1, 1 };
+    auto addSecondShape = Shape {1, 50, 1, 1};
     offset += shape_size(convSecondShape) * sizeof(float);
-    std::shared_ptr<Node> addSecondConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, addSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> addSecondConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, addSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> addNodeSecond =
-        std::make_shared<op::v1::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
+    std::shared_ptr<Node> addNodeSecond = std::make_shared<op::v1::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
 
     // -------MAXPOOL 2--------
-    std::shared_ptr<Node> maxPoolingNodeSecond = std::make_shared<op::v1::MaxPool>(
-        addNodeSecond->output(0), Strides{ 2, 2 }, padBeginShape, padEndShape, Shape{ 2, 2 },
-        op::RoundingType::CEIL, op::PadType::EXPLICIT);
+    std::shared_ptr<Node> maxPoolingNodeSecond = std::make_shared<op::v1::MaxPool>(addNodeSecond->output(0), Strides {2, 2}, padBeginShape, padEndShape,
+                                                                                   Shape {2, 2}, op::RoundingType::CEIL, op::PadType::EXPLICIT);
 
     // -------Reshape----------
-    auto reshapeFirstShape = Shape{ 2 };
+    auto reshapeFirstShape = Shape {2};
     auto reshapeOffset = shape_size(addSecondShape) * sizeof(float) + offset;
-    std::shared_ptr<Node> reshapeFirstConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::i64, reshapeFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
+    std::shared_ptr<Node> reshapeFirstConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::i64, reshapeFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
 
-    std::shared_ptr<Node> reshapeFirstNode =
-        std::make_shared<op::v1::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
+    std::shared_ptr<Node> reshapeFirstNode = std::make_shared<op::v1::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
 
     // -------MatMul 1---------
-    auto matMulFirstShape = Shape{ 500, 800 };
+    auto matMulFirstShape = Shape {500, 800};
     offset = shape_size(reshapeFirstShape) * sizeof(int64_t) + reshapeOffset;
-    std::shared_ptr<Node> matMulFirstConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, matMulFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> matMulFirstConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, matMulFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> matMulFirstNode =
-        std::make_shared<op::MatMul>(reshapeFirstNode->output(0), matMulFirstConstantNode->output(0), false, true);
+    std::shared_ptr<Node> matMulFirstNode = std::make_shared<op::MatMul>(reshapeFirstNode->output(0), matMulFirstConstantNode->output(0), false, true);
 
     // -------Add 3------------
-    auto addThirdShape = Shape{1, 500};
+    auto addThirdShape = Shape {1, 500};
     offset += shape_size(matMulFirstShape) * sizeof(float);
-    std::shared_ptr<Node> addThirdConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, addThirdShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> addThirdConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, addThirdShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> addThirdNode =
-        std::make_shared<op::v1::Add>(matMulFirstNode->output(0), addThirdConstantNode->output(0));
+    std::shared_ptr<Node> addThirdNode = std::make_shared<op::v1::Add>(matMulFirstNode->output(0), addThirdConstantNode->output(0));
 
     // -------Relu-------------
     std::shared_ptr<Node> reluNode = std::make_shared<op::Relu>(addThirdNode->output(0));
 
     // -------Reshape 2--------
-    auto reshapeSecondShape = Shape{ 2 };
-    std::shared_ptr<Node> reshapeSecondConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::i64, reshapeSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
+    auto reshapeSecondShape = Shape {2};
+    std::shared_ptr<Node> reshapeSecondConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::i64, reshapeSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
 
-    std::shared_ptr<Node> reshapeSecondNode =
-        std::make_shared<op::v1::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
+    std::shared_ptr<Node> reshapeSecondNode = std::make_shared<op::v1::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
 
     // -------MatMul 2---------
-    auto matMulSecondShape = Shape{ 10, 500 };
+    auto matMulSecondShape = Shape {10, 500};
     offset += shape_size(addThirdShape) * sizeof(float);
-    std::shared_ptr<Node> matMulSecondConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, matMulSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> matMulSecondConstantNode =
+        std::make_shared<op::Constant>(element::Type_t::f32, matMulSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
-    std::shared_ptr<Node> matMulSecondNode =
-        std::make_shared<op::MatMul>(reshapeSecondNode->output(0), matMulSecondConstantNode->output(0), false, true);
+    std::shared_ptr<Node> matMulSecondNode = std::make_shared<op::MatMul>(reshapeSecondNode->output(0), matMulSecondConstantNode->output(0), false, true);
 
     // -------Add 4------------
-    auto add4Shape = Shape{ 1, 10 };
+    auto add4Shape = Shape {1, 10};
     offset += shape_size(matMulSecondShape) * sizeof(float);
-    std::shared_ptr<Node> add4ConstantNode = std::make_shared<op::Constant>(
-        element::Type_t::f32, add4Shape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
+    std::shared_ptr<Node> add4ConstantNode = std::make_shared<op::Constant>(element::Type_t::f32, add4Shape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> add4Node = std::make_shared<op::v1::Add>(matMulSecondNode->output(0), add4ConstantNode->output(0));
 
@@ -229,26 +221,29 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------ngraph function--
     auto result_full = std::make_shared<op::Result>(softMaxNode->output(0));
 
-    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(
-        result_full, ngraph::ParameterVector{ paramNode }, "lenet");
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(result_full, ngraph::ParameterVector {paramNode}, "lenet");
 
     return fnPtr;
 }
 
 /**
- * @brief The entry point for inference engine automatic ngraph function creation sample
+ * @brief The entry point for inference engine automatic ngraph function
+ * creation sample
  * @file ngraph_function_creation_sample/main.cpp
  * @example ngraph_function_creation_sample/main.cpp
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get Inference Engine version ------------------------------------------------------
+        // ------------------------------ Get Inference Engine version
+        // ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
-        // ------------------------------ Parsing and validation of input arguments ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments
+        // ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
-        // ------------------------------ Read input -----------------------------------------------------------
+        // ------------------------------ Read input
+        // -----------------------------------------------------------
         /** This vector stores paths to the processed images **/
         std::vector<std::string> images;
         parseInputFilesArguments(images);
@@ -257,21 +252,26 @@ int main(int argc, char* argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core
+        // -------------------------------------
         slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
-        // ------------------------------ Get Available Devices ------------------------------------------------------
+        // ------------------------------ Get Available Devices
+        // ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        //--------------------------- Step 2. Create network using ngraph function -----------------------------------
+        //--------------------------- Step 2. Create network using ngraph function
+        //-----------------------------------
 
         CNNNetwork network(createNgraphFunction());
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 3. Configure input & output ---------------------------------------------
-        // --------------------------- Prepare input blobs -----------------------------------------------------
+        // --------------------------- Step 3. Configure input & output
+        // ---------------------------------------------
+        // --------------------------- Prepare input blobs
+        // -----------------------------------------------------
         slog::info << "Preparing input blobs" << slog::endl;
 
         InputsDataMap inputInfo = network.getInputsInfo();
@@ -294,8 +294,8 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
-                                                                inputInfoItem.second->getTensorDesc().getDims()[2]));
+            std::shared_ptr<unsigned char> data(
+                reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3], inputInfoItem.second->getTensorDesc().getDims()[2]));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             }
@@ -310,7 +310,8 @@ int main(int argc, char* argv[]) {
         size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
-        // --------------------------- Prepare output blobs -----------------------------------------------------
+        // --------------------------- Prepare output blobs
+        // -----------------------------------------------------
         slog::info << "Checking that the outputs are as the sample expects" << slog::endl;
         OutputsDataMap outputInfo(network.getOutputsInfo());
         std::string firstOutputName;
@@ -349,23 +350,27 @@ int main(int argc, char* argv[]) {
 
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 4. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading model to the device
+        // ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, FLAGS_d);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 5. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create infer request
+        // -------------------------------------------------
         slog::info << "Create infer request" << slog::endl;
         InferRequest infer_request = exeNetwork.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input
+        // --------------------------------------------------------
         /** Iterate over all the input blobs **/
         for (const auto& item : inputInfo) {
             /** Creating input blob **/
             Blob::Ptr input = infer_request.GetBlob(item.first);
 
-            /** Filling input tensor with images. First b channel, then g and r channels **/
+            /** Filling input tensor with images. First b channel, then g and r
+             * channels **/
             size_t num_channels = input->getTensorDesc().getDims()[1];
             size_t image_size = input->getTensorDesc().getDims()[2] * input->getTensorDesc().getDims()[3];
 
@@ -377,9 +382,9 @@ int main(int argc, char* argv[]) {
                 for (size_t pid = 0; pid < image_size; pid++) {
                     /** Iterate over all channels **/
                     for (size_t ch = 0; ch < num_channels; ++ch) {
-                        /**          [images stride + channels stride + pixel id ] all in bytes            **/
-                        data[image_id * image_size * num_channels + ch * image_size + pid] =
-                            imagesData.at(image_id).get()[pid * num_channels + ch];
+                        /**          [images stride + channels stride + pixel id ] all in
+                         * bytes            **/
+                        data[image_id * image_size * num_channels + ch * image_size + pid] = imagesData.at(image_id).get()[pid * num_channels + ch];
                     }
                 }
             }
@@ -387,12 +392,14 @@ int main(int argc, char* argv[]) {
         inputInfo = {};
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 7. Do inference ---------------------------------------------------------
+        // --------------------------- Step 7. Do inference
+        // ---------------------------------------------------------
         slog::info << "Start inference" << slog::endl;
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 8. Process output -------------------------------------------------------
+        // --------------------------- Step 8. Process output
+        // -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
 
         const Blob::Ptr outputBlob = infer_request.GetBlob(firstOutputName);
@@ -400,8 +407,8 @@ int main(int argc, char* argv[]) {
         /** Validating -nt value **/
         const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than "
-                       << resultsCnt + 1 << " and more than 0).\n           Maximal value " << resultsCnt << " will be used.";
+            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " << resultsCnt + 1
+                       << " and more than 0).\n           Maximal value " << resultsCnt << " will be used.";
             FLAGS_nt = resultsCnt;
         }
 
@@ -428,7 +435,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     slog::info << "This sample is an API example, for performance measurements, "
-                 "use the dedicated benchmark_app tool"
-                << slog::endl;
+                  "use the dedicated benchmark_app tool"
+               << slog::endl;
     return 0;
 }

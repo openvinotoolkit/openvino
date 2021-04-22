@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
 #include <time.h>
 
+#include <fstream>
+#include <iostream>
 #include <samples/slog.hpp>
+#include <sstream>
+#include <string>
 
 /**
  * @class CsvDumper
@@ -36,7 +36,7 @@ public:
      * @param enabled - True if dumping is enabled by default.
      * @param name - name of file to dump to. File won't be created if first parameter is false.
      */
-    explicit CsvDumper(bool enabled = true, const std::string& name = "") : canDump(enabled) {
+    explicit CsvDumper(bool enabled = true, const std::string& name = ""): canDump(enabled) {
         if (!canDump) {
             return;
         }
@@ -58,12 +58,12 @@ public:
     }
 
     /**
-     * @brief Overloads operator to organize streaming values to file. Does nothing if dumping is disabled
-     *        Adds delimiter at the end of value provided
+     * @brief Overloads operator to organize streaming values to file. Does nothing if dumping is
+     * disabled Adds delimiter at the end of value provided
      * @param add - value to add to dump
      * @return reference to same object
      */
-    template<class T>
+    template <class T>
     CsvDumper& operator<<(const T& add) {
         if (canDump) {
             file << add << delimiter;

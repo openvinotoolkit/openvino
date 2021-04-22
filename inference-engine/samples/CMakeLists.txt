@@ -191,10 +191,10 @@ include(CMakeParseArguments)
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
 #               [OPENCV_DEPENDENCIES <opencv modules>]
-#               [EXCLUDE_CPPLINT]
+#               [EXCLUDE_CLANG_FORMAT]
 #
 macro(ie_add_sample)
-    set(options EXCLUDE_CPPLINT)
+    set(options EXCLUDE_CLANG_FORMAT)
     set(oneValueArgs NAME)
     set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES)
     cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
@@ -211,13 +211,13 @@ macro(ie_add_sample)
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
-    source_group("src" FILES ${IE_SAMPLES_SOURCES})
-    if(IE_SAMPLES_HEADERS)
-        source_group("include" FILES ${IE_SAMPLES_HEADERS})
+    source_group("src" FILES ${IE_SAMPLE_SOURCES})
+    if(IE_SAMPLE_HEADERS)
+        source_group("include" FILES ${IE_SAMPLE_HEADERS})
     endif()
 
     # Create executable file from sources
-    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLES_HEADERS})
+    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     if(IE_SAMPLE_OPENCV_DEPENDENCIES)
         target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
     endif()
@@ -248,12 +248,8 @@ macro(ie_add_sample)
     endif()
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
-    if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
-        if(c_sample)
-            set(custom_filters "-readability/casting")
-        endif()
-        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
-                           CUSTOM_FILTERS ${custom_filters})
+    if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     endif()
 endmacro()
 
