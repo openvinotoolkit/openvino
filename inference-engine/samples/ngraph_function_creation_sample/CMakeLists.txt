@@ -4,12 +4,9 @@
 
 set(TARGET_NAME "ngraph_function_creation_sample")
 
-file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file (GLOB MAIN_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
-
 ie_add_sample(NAME ngraph_function_creation_sample
-              SOURCES ${MAIN_SRC}
-              HEADERS ${MAIN_HEADERS}
+              SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
+              HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_function_creation_sample.hpp"
               DEPENDENCIES format_reader ie_samples_utils)
 
 find_package(ngraph REQUIRED)
