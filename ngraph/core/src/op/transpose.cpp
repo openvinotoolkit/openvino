@@ -79,18 +79,6 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
 
 namespace transpose
 {
-    template <element::Type_t ET>
-    std::vector<int64_t> get_vector(const HostTensorPtr& arg)
-    {
-        std::vector<int64_t> rc;
-        auto p = arg->get_data_ptr<ET>();
-        for (size_t i = 0; i < shape_size(arg->get_shape()); i++)
-        {
-            rc.push_back(p[i]);
-        }
-        return rc;
-    }
-
     bool evaluate_transpose(const HostTensorPtr& arg1,
                             const HostTensorPtr& arg2,
                             const HostTensorPtr& out)
