@@ -62,7 +62,7 @@ namespace ngraph
         protected:
             ParameterVector m_parameters;
             std::unique_ptr<Model> m_model;
-            std::unique_ptr<GraphCache> m_cache;    
+            std::unique_ptr<GraphCache> m_cache;
 
         private:
             std::vector<Node> m_nodes;
