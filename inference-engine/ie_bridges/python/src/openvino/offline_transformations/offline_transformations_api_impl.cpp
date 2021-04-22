@@ -5,6 +5,7 @@
 #include "offline_transformations_api_impl.hpp"
 
 #include <moc_transformations.hpp>
+#include <pot_transformations.hpp>
 #include <pruning.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -18,6 +19,12 @@
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::MOCTransformations>(cf);
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::string device) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::POTTransformations>(std::move(device));
     manager.run_passes(network.actual->getFunction());
 }
 
