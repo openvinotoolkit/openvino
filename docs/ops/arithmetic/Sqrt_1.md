@@ -2,13 +2,11 @@
 
 **Versioned name**: *Sqrt-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Sqrt* performs element-wise square root operation with given tensor.
 
-**Attributes**:
-
-    No attributes available.
+**Attributes**: *Sqrt* operation has no attributes.
 
 **Inputs**
 
