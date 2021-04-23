@@ -289,11 +289,11 @@ SubCComputation::SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar
 MeanValueSubtractComputation::MeanValueSubtractComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& mean, test::Scalar const& std)
     : FluidComputation(new Priv{ []()-> cv::GComputation{
                                     cv::GMat in;
-                                    cv::GScalar mean;
-                                    cv::GScalar std;
-                                    cv::GMat out = (in - mean) / std;
-//                                    cv::GMat out; // = (in - mean) / std;
-                                    return cv::GComputation(cv::GIn(in, mean, std), cv::GOut(out));
+                                    cv::GScalar _mean;
+                                    cv::GScalar _std;
+                                    cv::GMat out = (in - _mean) / _std;
+
+                                    return cv::GComputation(cv::GIn(in, _mean, _std), cv::GOut(out));
                                 }()
                                 , cv::GRunArgs{cv::GRunArg{to_own(inMat)}, cv::GRunArg{to_own(mean)}, cv::GRunArg{to_own(std)}}
                                 , {to_own(outMat)}
