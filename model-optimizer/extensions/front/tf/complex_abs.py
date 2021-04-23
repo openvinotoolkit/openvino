@@ -29,13 +29,15 @@ class ComplexAbs(FrontReplacementSubgraph):
         complex_abs = match['abs']
         complex_abs_name = complex_abs.soft_get('name', complex_abs.id)
 
-        pow0 = create_op_with_const_inputs(graph, Pow, {1: np.float32(2.0)}, {})
-        pow1 = create_op_with_const_inputs(graph, Pow, {1: np.float32(2.0)}, {})
+        pow0 = create_op_with_const_inputs(graph, Pow, {1: np.float32(2.0)},
+                                           {'name': complex_abs_name + '/real_part_squared'})
+        pow1 = create_op_with_const_inputs(graph, Pow, {1: np.float32(2.0)},
+                                           {'name': complex_abs_name + '/imag_part_squared'})
 
         cmp.in_port(0).get_connection().set_destination(pow0.in_port(0))
         cmp.in_port(1).get_connection().set_destination(pow1.in_port(0))
 
-        add = Add(graph, {}).create_node([pow0, pow1])
+        add = Add(graph, {'name': complex_abs_name + '/squared_abs'}).create_node([pow0, pow1])
         sqrt = create_op_with_const_inputs(graph, Pow, {1: np.float32(0.5)}, {})
         add.out_port(0).connect(sqrt.in_port(0))
 
