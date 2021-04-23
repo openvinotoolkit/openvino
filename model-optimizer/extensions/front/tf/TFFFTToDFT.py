@@ -39,50 +39,6 @@ class TFFFTToDFT(FrontReplacementSubgraph):
         if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
             dft_node['need_insert_transposes_for_dft'] = True
 
-        # strided_slice_real = match['strided_slice_real']
-        # strided_slice_imag = match['strided_slice_imag']
-        #
-        # real_input = strided_slice_real.in_port(0).get_source().node
-        # imag_input = strided_slice_imag.in_port(0).get_source().node
-        # if real_input.soft_get('name', real_input.id) != imag_input.soft_get('name', imag_input.id):
-        #     log.debug('The pattern does not correspond to (i)fftxd with shift. Different inputs.')
-        #     return
-        #
-        # roll = match['roll']
-        # unroll = match['unroll']
-        # roll_name = roll.soft_get('name', roll.id)
-        # unroll_name = unroll.soft_get('name', unroll.id)
-        #
-        # roll_before = Roll(graph, {}).create_node()
-        # roll_after = Roll(graph, {}).create_node()
-        #
-        # self.correct_roll_axes(roll)
-        # self.correct_roll_axes(unroll)
-        #
-        # roll.in_port(1).get_connection().set_destination(roll_before.in_port(1))
-        # roll.in_port(2).get_connection().set_destination(roll_before.in_port(2))
-        #
-        # strided_slice_real.in_port(0).get_connection().set_destination(roll_before.in_port(0))
-        #
-        # tf_fft = match['fft']
-        # tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
-        #
-        # unroll.in_port(1).get_connection().set_destination(roll_after.in_port(1))
-        # unroll.in_port(2).get_connection().set_destination(roll_after.in_port(2))
-        #
-        # dft_node = create_dft_from_tffft(graph, tf_fft, roll_before)
-        # dft_node.out_port(0).connect(roll_after.in_port(0))
-        #
-        # pack = match['pack']
-        # pack.out_port(0).get_connection().set_source(roll_after.out_port(0))
-        #
-        # rename_nodes([(roll, roll_name + '/to_be_removed'), (roll_before, roll_name)])
-        # rename_nodes([(unroll, unroll_name + '/to_be_removed'), (roll_after, unroll_name)])
-        # rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
-        #
-        # if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
-        #     dft_node['need_insert_transposes_for_dft'] = True
-
 
 def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:
     num_of_dims = tffft.soft_get('num_of_dimensions', 1)
