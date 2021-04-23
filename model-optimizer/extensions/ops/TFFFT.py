@@ -15,8 +15,8 @@ class TFFFT(Op):
     The attribute 'num_of_dimensions' is equal to number of transformed axes, i.e. 1 for FFT and IFFT, 2 for FFT2D and
     IFFT2D, 3 for FFT3D and IFFT3D.
 
-    The transformation SSliceComplexRolledFFTPackBlockReplacement converts the operation TFFFT into MO DFT (if the
-    attribute 'is_inverse' is False) or MO IDFT (otherwise).
+    The transformation TFFFTToDFT converts the operation TFFFT into MO DFT (if the attribute 'is_inverse' is False),
+    or into MO IDFT (otherwise).
     """
     op = 'TFFFT'
 

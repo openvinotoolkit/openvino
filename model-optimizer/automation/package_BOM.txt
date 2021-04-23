@@ -472,6 +472,7 @@ extensions/front/tf/rfcn_support_api_v1.10.json
 extensions/front/tf/rfcn_support_api_v1.13.json
 extensions/front/tf/rfcn_support_api_v1.14.json
 extensions/front/tf/roll_ext.py
+extensions/front/tf/RollRealImagPackReplacement.py
 extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
@@ -496,13 +497,14 @@ extensions/front/tf/ssd_toolbox_detection_output.json
 extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
 extensions/front/tf/SSDToolboxDetectionOutput.py
-extensions/front/tf/SSliceComplexRolledFFTPackBlockReplacement.py
+extensions/front/tf/SSliceComplexRollReplacement.py
 extensions/front/tf/swap_deconv_inputs.py
 extensions/front/tf/swish_ext.py
 extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFFFTToDFT.py
 extensions/front/tf/TFResizeToInterpolate.py
 extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
