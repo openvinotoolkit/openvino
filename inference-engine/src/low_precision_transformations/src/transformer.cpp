@@ -45,6 +45,7 @@
 #include "low_precision/prelu.hpp"
 #include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
+#include "low_precision/shuffle_channels.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
@@ -228,6 +229,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<PReluTransformation, opset1::PRelu>(params).
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
+        add<ShuffleChannelsTransformation, opset1::ShuffleChannels>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
         add<SplitTransformation, opset1::Split>(params).
         add<StridedSliceTransformation, opset1::StridedSlice>(params).
