@@ -15,8 +15,6 @@ class FFTBase(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': self.op,
-            'op': self.op,
             'out_ports_count': 1,
             'version': self.version,
             'infer': self.infer
@@ -100,9 +98,6 @@ class DFT(FFTBase):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
-            'out_ports_count': 1,
-            'version': 'opset7',
-            'infer': self.infer
         }
         mandatory_props.update(attrs)
         super().__init__(graph, mandatory_props)
@@ -119,9 +114,6 @@ class IDFT(FFTBase):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
-            'out_ports_count': 1,
-            'version': 'opset7',
-            'infer': self.infer
         }
         mandatory_props.update(attrs)
         super().__init__(graph, mandatory_props)
