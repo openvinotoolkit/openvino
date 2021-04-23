@@ -118,14 +118,16 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
 
     auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
-        Core ie;
+
         std::map<std::string, std::string> config;
         const std::string key = device + "_THROUGHPUT_STREAMS";
-        InferRequest inferRequest;
+        config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
 
-        config[key] = std::to_string(nstreams);
+        Core ie;
         ie.GetVersions(device);
         ie.SetConfig(config, device);
+
+        InferRequest inferRequest;
 
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
