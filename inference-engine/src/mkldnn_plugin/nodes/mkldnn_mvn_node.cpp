@@ -511,8 +511,8 @@ private:
     Xbyak::Reg64 reg_load_table = r15;
     Xbyak::Reg64 reg_load_store_mask = rcx;
 
-    Vmm vmm_val = Vmm(0);
-    Vmm vmm_mean = Vmm(1);
+    Vmm vmm_val = Vmm(1);
+    Vmm vmm_mean = Vmm(0);
     Vmm vmm_variance_inv = Vmm(2);
     Vmm vmm_zero = Vmm(3);
 
