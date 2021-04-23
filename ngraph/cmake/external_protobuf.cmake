@@ -93,14 +93,14 @@ else()
         if(TARGET libprotoc)
             list(APPEND _proto_libs libprotoc)
             set_target_properties(libprotoc PROPERTIES
-                COMPILE_FLAGS "-Wno-unused-variable -Wno-sign-compare")
+                COMPILE_FLAGS "-Wno-all -Wno-unused-variable")
         endif()
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
         set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
-            COMPILE_FLAGS "-Wno-unused-variable -Wno-sign-compare -Wno-inconsistent-missing-override")
+            COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override")
     endif()
 
     if(NGRAPH_USE_PROTOBUF_LITE)

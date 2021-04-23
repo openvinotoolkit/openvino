@@ -27,7 +27,7 @@ namespace ngraph
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
                 OutputVector reduce_sum(const Node& node);
-            }
+            } // namespace set_13
             namespace set_1
             {
                 /// \brief      Compute the log sum of the input tensor's elements along the

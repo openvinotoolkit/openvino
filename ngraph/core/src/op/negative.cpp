@@ -59,7 +59,7 @@ namespace negativeop
         }
         return rc;
     }
-}
+} // namespace negativeop
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

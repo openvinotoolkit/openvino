@@ -11,7 +11,6 @@
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_system_conf.h>
-#include <ie_iinfer_request.hpp>
 
 #include <exception>
 #include <future>
@@ -164,14 +163,14 @@ public:
     /**
      * @brief Waits for completion of all pipeline stages
      *        If the pipeline raises an exception it will be rethrown here
-     * @param millis_timeout A timeout is `ms` to wait or special enum value of IInferRequest::WaitMode
+     * @param millis_timeout A timeout is `ms` to wait or special enum value of InferRequest::WaitMode
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {
-        if (millis_timeout < IInferRequest::WaitMode::RESULT_READY) {
+        if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
             IE_THROW(ParameterMismatch)
                 << " Timeout can't be less "
-                << IInferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
+                << InferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
         }
         auto status = std::future_status::deferred;
 
@@ -186,11 +185,11 @@ public:
         }
 
         switch (millis_timeout) {
-        case IInferRequest::WaitMode::RESULT_READY: {
+        case InferRequest::WaitMode::RESULT_READY: {
             future.wait();
             status = std::future_status::ready;
         } break;
-        case IInferRequest::WaitMode::STATUS_ONLY: {
+        case InferRequest::WaitMode::STATUS_ONLY: {
             status = future.wait_for(std::chrono::milliseconds {0});
         } break;
         default: {
@@ -213,7 +212,7 @@ public:
     void Infer() override {
         DisableCallbackGuard disableCallbackGuard{this};
         InferImpl([&] {Infer_ThreadUnsafe();});
-        Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+        Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     }
 
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {
