@@ -78,5 +78,5 @@ namespace ngraph
             RTMap m_rt_info;
             std::vector<Input*> m_inputs;
         };
-    }
-}
+    } // namespace descriptor
+} // namespace ngraph

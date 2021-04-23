@@ -9,7 +9,9 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
@@ -17,6 +19,8 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_int32_float32)
 {
@@ -104,61 +108,35 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bool)
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bf16)
 {
-    Shape shape_a{1, 1, 3, 5};
-
-    // input data
-    vector<float> a_data = {
+    const vector<float> a_data = {
         0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto convert = make_shared<op::Convert>(A, element::bf16);
-    auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, a_data);
-    auto result = backend->create_tensor(element::bf16, shape_a);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<bfloat16>{
-                  0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5}),
-              read_vector<bfloat16>(result));
+    const auto A = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 5});
+    const auto convert = make_shared<op::Convert>(A, element::bf16);
+    const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(a_data);
+    test_case.add_expected_output<bfloat16>(
+        std::vector<bfloat16>(std::begin(a_data), std::end(a_data)));
+
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_float32)
 {
-    Shape shape_a{1, 1, 3, 5};
-
-    // input data
-    vector<bfloat16> a_data = {
+    const vector<bfloat16> a_data = {
         0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5};
 
-    auto A = make_shared<op::Parameter>(element::bf16, shape_a);
-    auto convert = make_shared<op::Convert>(A, element::f32);
-    auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::bf16, shape_a);
-    copy_data(a, a_data);
-    auto result = backend->create_tensor(element::f32, shape_a);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<float>{0.5f,
-                             1.5f,
-                             0.5f,
-                             2.5f,
-                             1.5f,
-                             0.5f,
-                             3.5f,
-                             2.5f,
-                             0.5f,
-                             0.5f,
-                             2.5f,
-                             0.5f,
-                             0.5f,
-                             0.5f,
-                             1.5f}),
-              read_vector<float>(result));
+    const auto A = make_shared<op::Parameter>(element::bf16, Shape{1, 1, 3, 5});
+    const auto convert = make_shared<op::Convert>(A, element::f32);
+    const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<bfloat16>(a_data);
+    test_case.add_expected_output<float>(std::vector<float>(std::begin(a_data), std::end(a_data)));
+
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_fp16_float32)
