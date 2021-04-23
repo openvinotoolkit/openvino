@@ -32,13 +32,13 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 Run the application with the <code>-h</code> option to see the usage message:
 
-```
+```sh
 python style_transfer_sample.py -h
 ```
 
 Usage message:
 
-```
+```sh
 usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l EXTENSION] [-c CONFIG] [-d DEVICE]
                                 [--original_size] [--mean_val_r MEAN_VAL_R]
@@ -79,20 +79,20 @@ Options:
 ```
 
 To run the sample, you need specify a model and image:
- - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
- - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
-> * By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 >
-> * Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> * The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-```
+```sh
 python style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.png <path_to_image>/cat.jpg -d GPU
 ```
 
@@ -100,7 +100,7 @@ python style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx
 
 The sample application logs each step in a standard output stream and creates an output image (`out_0.bmp`) or a sequence of images (`out_0.bmp`, .., `out_<n>.bmp`) that are redrawn in the style of the style transfer model used.
 
-```
+```sh
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: models\fast-neural-style-mosaic-onnx.onnx
 [ INFO ] Configuring input and output blobs
@@ -115,10 +115,10 @@ The sample application logs each step in a standard output stream and creates an
 
 ## See Also
 
-* [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
-* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
 [IECore.add_extension]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967

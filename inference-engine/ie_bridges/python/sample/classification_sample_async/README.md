@@ -1,4 +1,4 @@
-# Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
+# Image Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
 This sample demonstrates how to do inference of image classification networks using Asynchronous Inference Request API.  
 Models with only 1 input and output are supported.
@@ -30,13 +30,13 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 Run the application with the <code>-h</code> option to see the usage message:
 
-```
+```sh
 python classification_sample_async.py -h
 ```
 
 Usage message:
 
-```
+```sh
 usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
                                       [-l EXTENSION] [-c CONFIG] [-d DEVICE]
                                       [--labels LABELS] [-nt NUMBER_TOP]
@@ -67,20 +67,21 @@ Options:
 ```
 
 To run the sample, you need specify a model and image:
- - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
- - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+
+- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
-> * By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 >
-> * Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> * The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-```
+```sh
 python classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp <path_to_image>/car.bmp -d GPU
 ```
 
@@ -88,7 +89,7 @@ python classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-```
+```sh
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: models\alexnet.xml
 [ INFO ] Configuring input and output blobs
@@ -133,10 +134,10 @@ The sample application logs each step in a standard output stream and outputs to
 
 ## See Also
 
-* [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
-* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
 [IECore.add_extension]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967
