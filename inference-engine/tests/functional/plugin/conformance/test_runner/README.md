@@ -44,8 +44,8 @@ devices.
 > ```
 > All arguments after `--` symbol is forwarding to `conformanceTests` target.
 > 
-> After using `--report_unique_name` argument please run [the merge xml script](./../../../..
-> /ie_test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py) 
+> After using `--report_unique_name` argument please run
+> [the merge xml script](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py) 
 > to aggregate the results to one report.
 > The example of usage is:
 > ```
