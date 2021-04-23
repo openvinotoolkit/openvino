@@ -9,6 +9,7 @@
 #include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_concat_node.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
@@ -264,59 +265,63 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
 
         if (ndims == 4) {
-//            if (IC == 1 && groupOC == 1) {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            } else if (IC == 3 || IC == 1) {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw8c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            } else {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw16c);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw8c);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw8c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            }
-//
-//            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
-//            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
-//            createDescriptor({in_candidate}, {out_candidate});
+            if (IC == 1 && groupOC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else if (IC == 3 || IC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw16c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw8c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
 
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
+            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
+            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
             createDescriptor({in_candidate}, {out_candidate});
+
+            if (isNspcAvailable()) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
         } else if (ndims == 5) {
-//            if (IC == 1 && groupOC == 1) {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            } else if (IC == 3 || IC == 1) {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw8c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            } else {
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw16c);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw8c);
-//                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw8c);
-//                createDescriptor({in_candidate}, {out_candidate});
-//            }
-//
-//            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
-//            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
-//            createDescriptor({in_candidate}, {out_candidate});
+            if (IC == 1 && groupOC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else if (IC == 3 || IC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw16c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw8c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
 
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
+            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
+            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
             createDescriptor({in_candidate}, {out_candidate});
+
+            if (isNspcAvailable()) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
         }
     }
 }
@@ -753,6 +758,78 @@ InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
     }
 
     return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+}
+
+void MKLDNNConvolutionNode::selectOptimalPrimitiveDescriptor() {
+    // use the default choice
+    MKLDNNNode::selectOptimalPrimitiveDescriptor();
+
+    auto nspcPartialDesc = PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector());
+    auto selectedSpd = getSelectedPrimitiveDescriptor();
+    if (!selectedSpd) {
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getName();
+    }
+
+    // nspc pd has been already chosen
+    if (nspcPartialDesc == PartialBlkDesc::extractFrom(selectedSpd->getConfig().inConfs[0].desc)) {
+        return;
+    }
+
+    // Additional heuristic that forces the convolution to be executed with nspc layout in the accuracy aware quantized networks
+    bool hasNspcOutput = false;
+    for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        auto childNode = getChildEdgeAt(i)->getChild();
+        if (childNode->getType() == Convolution) {
+            if (auto childConv = std::dynamic_pointer_cast<MKLDNNConvolutionNode>(childNode)) {
+                hasNspcOutput = childConv->canBeExecutedInInt8();
+            }
+        }
+    }
+
+    if (hasNspcOutput) {
+        auto type = selectedSpd->getImplementationType(); // prevent less optimized implementation
+        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
+            if (type == supportedType) {
+                if (nspcPartialDesc == PartialBlkDesc::extractFrom(getSupportedPrimitiveDescriptors()[i].getConfig().outConfs[0].desc)) {
+                    selectPrimitiveDescriptorByIndex(i);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+bool MKLDNNConvolutionNode::isNspcAvailable() const {
+    using impl::cpu::x64::mayiuse;
+    // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
+    auto * convLayer = dynamic_cast<ConvolutionLayer*>(getCnnLayer().get());
+    if (convLayer == nullptr)
+        IE_THROW() << "Cannot convert convolution layer.";
+
+    auto& inpDims = convLayer->input()->getDims();
+
+    if (isDW) {
+        // 1d equivalent cases are painfully slow
+        if (1 == inpDims[inpDims.size() - 2]) {
+            return false;
+        }
+    } else {
+        // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than 2048
+        size_t IC = inpDims[1];
+        size_t OC = convLayer->_out_depth;
+        if (std::max(IC, OC) >= 2048) {
+            return false;
+        }
+        if (!mayiuse(impl::cpu::x64::avx)) {
+            // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much better than the gemm
+            if ((IC % 8) || (OC % 8)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);
