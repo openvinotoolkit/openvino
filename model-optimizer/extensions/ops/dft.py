@@ -50,6 +50,17 @@ class FFTBase(Op):
 
     @staticmethod
     def canonicalize_axes(axes, input_rank):
+        """
+        FFT operation supports for negative axes to transform. More precisely, according to the FFT operation
+        specification, axes should be integers from -(r - 1) to (r - 2) inclusively, where r = rank(data).
+        A negative axis 'a' is interpreted as an axis 'r - 1 + a'. The reason is the following: real input
+        tensor of the shape [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
+        [n_0, ..., n_{r - 1}]. Hence, we need to 'canonicalize' axes using the formula 'r - 1 + a'.
+
+        :param axes: axes to canonicalize
+        :param input_rank: input tensor rank
+        :return: canonicalized axes
+        """
         result = axes.copy()
         for i, axis in enumerate(axes):
             if axis < 0:
