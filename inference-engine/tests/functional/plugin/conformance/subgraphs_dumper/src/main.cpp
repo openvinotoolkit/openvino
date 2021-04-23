@@ -12,6 +12,7 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "ops_cache.hpp"
+#include "op_cloner.hpp"
 #include "gflag_config.hpp"
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,7 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
+    SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
     std::vector<std::string> input_folder_content;
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
     for (const auto &dir : dirs) {

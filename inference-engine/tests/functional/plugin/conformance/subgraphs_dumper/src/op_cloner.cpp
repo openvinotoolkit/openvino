@@ -70,7 +70,7 @@ void get_port_range(const std::shared_ptr<ngraph::op::Constant> &constant_input,
     }
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, OPInfo &meta) {
     ngraph::OutputVector op_inputs;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
@@ -81,7 +81,7 @@ const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &n
             float weights_size =
                     static_cast<float>(ngraph::shape_size(constant->get_shape()) *
                                        constant->get_element_type().size()) / (1024 * 1024);
-            if (weights_size > 2) {
+            if (weights_size > ClonersMap::constant_size_threshold_mb) {
                 std::cerr << "Constant with size " << weights_size << " detected on port " << i << " of OP " << node
                           << std::endl
                           << "The constant will be replaced with parameter and initial data ranges meta info"
@@ -128,7 +128,7 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
             float weights_size =
                     static_cast<float>(ngraph::shape_size(constant_input->get_shape()) *
                                        constant_input->get_element_type().size()) / (1024 * 1024);
-            if (weights_size > 2) {
+            if (weights_size > ClonersMap::constant_size_threshold_mb) {
                 std::cerr << "Constant with size " << weights_size << " detected on port " << i << " of OP " << node
                           << std::endl
                           << "The constant will be replaced with parameter and initial data ranges meta info"
@@ -157,46 +157,46 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
 }
 
 // Clone nodes requiring weights randomization
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Convolution> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Convolution> &node, OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::GroupConvolution> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::GroupConvolution> &node, OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node>
+std::shared_ptr<ngraph::Node>
 clone(const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData> &node, OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node>
+std::shared_ptr<ngraph::Node>
 clone(const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> &node, OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v0::MatMul> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v0::MatMul> &node, OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Add> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Add> &node, OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Multiply> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Multiply> &node, OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Subtract> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Subtract> &node, OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Power> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Power> &node, OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
 template<typename opType>
-const std::shared_ptr<ngraph::Node> clone_node(const std::shared_ptr<ngraph::Node> &node, OPInfo &meta) {
+std::shared_ptr<ngraph::Node> clone_node(const std::shared_ptr<ngraph::Node> &node, OPInfo &meta) {
     return clone(ngraph::as_type_ptr<opType>(node), meta);
 }
 }  // namespace
@@ -214,4 +214,5 @@ const ClonersMap::cloners_map_type ClonersMap::cloners{
 };
 #undef NGRAPH_OP
 
+float ClonersMap::constant_size_threshold_mb = 0.5;
 }  // namespace SubgraphsDumper

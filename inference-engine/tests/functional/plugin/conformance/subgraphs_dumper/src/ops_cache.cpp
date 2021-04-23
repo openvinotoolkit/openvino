@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
 #include <sstream>
-#include <thread>
 #include <ngraph/validation_util.hpp>
 #include <ops_cache.hpp>
 #include <op_cloner.hpp>
@@ -107,8 +105,6 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             auto cnn_net = InferenceEngine::CNNNetwork(function);
             cnn_net.serialize(xml_path, bin_path);
             serialize_meta_info(op.second, meta_info);
-            // TODO: WA to check bin files creation problem
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         } catch (std::exception &e) {
             std::cerr << "Failed to serialize function related to op" << op.first << std::endl
                       << "Exception occurred: " << e.what() << std::endl;
