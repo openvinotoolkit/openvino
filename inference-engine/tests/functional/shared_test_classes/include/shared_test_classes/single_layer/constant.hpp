@@ -20,7 +20,6 @@ using constantParamsTuple = typename std::tuple<
     std::vector<std::string>,    // Constant elements
     std::string>;                // Device name
 
-// Multichannel
 class ConstantLayerTest : public testing::WithParamInterface<constantParamsTuple>,
                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
