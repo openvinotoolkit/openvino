@@ -14,7 +14,7 @@
 
 **Outputs**
 
-* **1**: The result of element-wise sqrt operation. A tensor of type T.
+* **1**: The result of element-wise sqrt operation. A tensor of type T and shape equal to the input shape.
 
 **Types**
 
