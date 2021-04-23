@@ -192,16 +192,14 @@ void calculate_i420_to_rgb(const  uchar **srcY,
                            const  uchar *srcV,
                                   uchar **dstRGBx,
                                     int width);
-
-void copyRow_8U(const uint8_t in[],
-                uint8_t out[],
-                int length);
-
-void copyRow_32F(const float in[],
-                 float out[],
-                 int length);
-
 }  // namespace avx
+
+
+template<typename isa_tag_t, typename T>
+void chanToPlaneRowImpl(isa_tag_t, const T* in, int chan, int chs, T* out, int length);
+
+extern template void chanToPlaneRowImpl(avx2_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
+extern template void chanToPlaneRowImpl(avx2_tag, const float*   in, int chan, int chs, float  * out, int length);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

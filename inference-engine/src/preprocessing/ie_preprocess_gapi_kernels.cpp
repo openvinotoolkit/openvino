@@ -789,78 +789,34 @@ struct is_isa_present {
 };
 
 template<typename T>
-static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, int length) {
-// AVX512 implementation of wide universal intrinsics is slower than AVX2.
-// It is turned off until the cause isn't found out.
-#if 0
-    #ifdef HAVE_AVX512
-    if (with_cpu_x86_avx512f()) {
-        if (std::is_same<T, uint8_t>::value && chs == 1) {
-            avx512::copyRow_8U(in, out, length);
-            return;
-        }
-
-        if (std::is_same<T, float>::value && chs == 1) {
-            avx512::copyRow_32F(reinterpret_cast<const float*>(in),
-                                reinterpret_cast<float*>(out),
-                                length);
-            return;
-        }
+struct chanToPlaneImplF {
+    using f_t = void (*)(const T* in, int chan, int chs, T* out, int length);
+    template<typename isa_tag_t>
+    f_t operator()(type_to_type<isa_tag_t>){
+        return [](const T* in, int chan, int chs, T* out, int length) -> void{
+            chanToPlaneRowImpl(isa_tag_t{}, in, chan, chs, out, length);
+        };
     }
-    #endif  // HAVE_AVX512
-#endif
+};
 
-    #ifdef HAVE_AVX2
-    if (with_cpu_x86_avx2()) {
-        if (std::is_same<T, uint8_t>::value && chs == 1) {
-            avx::copyRow_8U(in, out, length);
-            return;
-        }
 
-        if (std::is_same<T, float>::value && chs == 1) {
-            avx::copyRow_32F(reinterpret_cast<const float*>(in),
-                             reinterpret_cast<float*>(out),
-                             length);
-            return;
-        }
-    }
-    #endif  // HAVE_AVX2
-    #ifdef HAVE_SSE
-    if (with_cpu_x86_sse42()) {
-        if (std::is_same<T, uint8_t>::value && chs == 1) {
-            copyRow_8U(in, out, length);
-            return;
-        }
-
-        if (std::is_same<T, float>::value && chs == 1) {
-            copyRow_32F(reinterpret_cast<const float*>(in),
-                        reinterpret_cast<float*>(out),
-                        length);
-            return;
-        }
-    }
-    #endif  // HAVE_SSE
-
-    #ifdef HAVE_NEON
-    if (std::is_same<T, uint8_t>::value && chs == 1) {
-        neon::copyRow_8U(in, out, length);
-        return;
-    }
-
-    if (std::is_same<T, float>::value && chs == 1) {
-        neon::copyRow_32F(reinterpret_cast<const float*>(in),
-                          reinterpret_cast<float*>(out),
-                          length);
-        return;
-    }
-    #endif  // HAVE_NEON
-
-    const auto inT  = reinterpret_cast<const T*>(in);
-          auto outT = reinterpret_cast<      T*>(out);
-
+template<typename T>
+void chanToPlaneRowImpl(scalar_tag, const T*   in, int chan, int chs, T* out, int length) {
     for (int x = 0; x < length; x++) {
-        outT[x] = inT[x*chs + chan];
+        out[x] = in[x*chs + chan];
     }
+}
+
+template<typename T>
+static void chanToPlaneRowISADisp(const T* in, int chan, int chs, T* out, int length) {
+    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
+    // So, disable it for now.
+    using isas = remove_t<isas_set, avx512_tag>;
+
+    const auto chanToPlaneRowImplFunc = type_dispatch<isas>(is_isa_present{}, chanToPlaneImplF<T>{}, nullptr);
+    GAPI_DbgAssert(chanToPlaneRowImplFunc);
+
+    chanToPlaneRowImplFunc(in, chan, chs, out, length);
 }
 
 //    GAPI_OCV_KERNEL(OCVChanToPlane, ChanToPlane) {
@@ -893,11 +849,35 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
 //        }
 //    };
 
+namespace {
+
+using chan_to_plane_supported_types = typelist<uint8_t, float>;
+
+struct typed_chan_to_plane_row {
+    using p_f = void (*)(const uint8_t* in, int chan, int chs, uint8_t* out, int length);
+
+    template <typename type>
+    p_f operator()(type_to_type<type> ) {
+        return [](const uint8_t* in, int chan, int chs, uint8_t* out, int length){
+            const auto inT  = reinterpret_cast<const type*>(in);
+                  auto outT = reinterpret_cast<      type*>(out);
+
+            chanToPlaneRowISADisp(inT, chan, chs, outT, length);
+        };
+    }
+};
+} //namespace
+
 GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View& in, int chan,
                     cv::gapi::fluid::Buffer& out) {
-        const auto rowFunc = (in.meta().depth == CV_8U) ? &chanToPlaneRow<uint8_t> : &chanToPlaneRow<float>;
+        GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
         rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
     }
 };
