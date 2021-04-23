@@ -1393,7 +1393,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
+        bool isSutableMVN = (node->getType() == MVN);
 
         if (isSutableMVN) {
             auto *mvnLayer = dynamic_cast<MVNLayer *>(node->getCnnLayer().get());
@@ -1406,7 +1406,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
         }
     };
 
-    auto isSutableChildNode = [](MKLDNNNodePtr node) {
+    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
         if (!node->getCnnLayer())
             return false;
 
@@ -1420,9 +1420,11 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
             if (eltwiseNode == nullptr)
                 IE_THROW() << "Cannot get eltwise node " << node->getName();
 
-            return ((eltwiseNode->getOpType() == MulAdd) ||
-                    (eltwiseNode->getOpType() == Prelu) ||
-                     eltwiseNode->getOpType() == Relu);
+            return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Tanh, Logistic, Square, Abs, Sqrt,
+                                                      Linear, BoundedRelu, SoftRelu, Relu6, Exp, Clamp, Swish,
+                                                      Hswish, Mish, Hsigmoid, Round, Erf}) ||
+                    ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
+                     (eltwiseNode->getOpType() == Prelu));
         }
 
         return false;
