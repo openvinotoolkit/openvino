@@ -10,7 +10,7 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type T and arbitrary shape. **Required.**
 
 **Outputs**
 
