@@ -7,7 +7,7 @@
 #include <stack>
 
 #include "ngraph/check.hpp"
-#include "onnx_editor/detail/subgraph_extraction.hpp"
+#include "subgraph_extraction.hpp"
 
 using namespace ngraph::onnx_editor;
 
