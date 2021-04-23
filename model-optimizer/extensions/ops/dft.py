@@ -26,12 +26,12 @@ class FFTBase(Op):
             '(I)DFT node {} must have 2 or 3 inputs'.format(node_name)
 
         src_shape = node.in_port(0).data.get_shape()
-        assert src_shape is not None
+        assert src_shape is not None, 'The input data shape of (I)DFT node {} must not be None'.format(node_name)
         assert src_shape[-1] == 2, \
             'The last dimension of input shape of (I)DFT node {} should be equal to 2'.format(node_name)
 
         input_rank = len(src_shape)
-        assert input_rank >= 2, 'The input rank of (I)DFT should be greater or equal to 2'.format(node_name)
+        assert input_rank >= 2, 'The input rank of (I)DFT node {} should be greater or equal to 2'.format(node_name)
 
         axes = FFTBase.get_axes(node)
         assert input_rank >= len(axes) + 1, \
