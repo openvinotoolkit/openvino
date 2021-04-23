@@ -210,10 +210,6 @@ bool ConvolutionBackpropDataTransformation::canBeTransformed(const Transformatio
         return false;
     }
 
-    if (updatePrecisions && !NetworkHelper::checkZeroPoint(dequantization.subtract)) {
-        return false;
-    }
-
     if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
         return false;
     }
