@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -23,6 +24,8 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 }
 
 bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "DepthToSpaceTransformation");
+
     std::shared_ptr<Node> depthToSpace = m.get_match_root();
     if (!canBeTransformed(context, depthToSpace)) {
         return false;

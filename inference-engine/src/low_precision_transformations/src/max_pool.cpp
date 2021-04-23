@@ -5,9 +5,11 @@
 #include "low_precision/max_pool.hpp"
 
 #include <memory>
+
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -43,6 +45,8 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "MaxPoolTransformation");
+
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }

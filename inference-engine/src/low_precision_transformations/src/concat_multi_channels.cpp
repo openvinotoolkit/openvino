@@ -13,6 +13,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -42,6 +43,8 @@ void ConcatMultiChannelsTransformation::registerMatcherIn(GraphRewrite& pass, Tr
 }
 
 bool ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "ConcatMultiChannelsTransformation");
+
     std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(m.get_match_root());
     if (!canBeTransformed(context, concat)) {
         return false;

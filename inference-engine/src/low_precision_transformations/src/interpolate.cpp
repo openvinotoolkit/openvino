@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -33,6 +34,8 @@ void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, Transforma
 }
 
 bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "InterpolateTransformation");
+
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;

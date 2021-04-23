@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -75,6 +76,8 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
 }
 
 bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "TransposeTransformation");
+
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(context, transpose)) {
         return false;
