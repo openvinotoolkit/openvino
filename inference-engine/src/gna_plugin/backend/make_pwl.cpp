@@ -37,18 +37,18 @@ void make_gna_pwl(const DnnActivation  fun,
             gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
             if (fun == kActSigmoid) {
                 gnalog() <<  "=========================== Sigmoid Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > 0) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-pwl[0].b / pwl[0].m))) & XBASEMASK;
             } else if (fun == kActTanh) {
                 gnalog() <<  "=========================== Tanh Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
                     static_cast<int16_t>(-1.0 * out_scale);
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
             } else {
                 gnalog() << "=========================== SoftSign Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
                     static_cast<int16_t>(-1.0 * out_scale);
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
@@ -82,7 +82,7 @@ void make_gna_pwl(const DnnActivation  fun,
                          << "\n";
             }
             // insert extra segment for xvalues > u_bound
-            auto maxVal = fun.fqParams.set ? *fun.fqParams.input_high : 1.0;
+            auto maxVal = (fun.fqParams.set && *fun.fqParams.input_high <= 1) ? *fun.fqParams.input_high : 1.0;
             gna_pwl[n_segments - 1].xBase =
                     ((uint32_t) (in_scale * (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
             gna_pwl[n_segments - 1].yBase = FLOAT_TO_INT16(maxVal * out_scale);

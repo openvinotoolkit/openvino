@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
+#include <iostream>
 #include <string>
 #include <vector>
-#include <gflags/gflags.h>
-#include <iostream>
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
@@ -19,9 +20,9 @@ static const char input_message[] = "Required. Path to a folder with images or p
 static const char model_message[] = "Required. Path to a .bin file with weights for the trained model.";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown below). " \
-"Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify HETERO plugin. " \
-"Sample will look for a suitable plugin for device specified.";
+static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown below). "
+                                            "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify HETERO plugin. "
+                                            "Sample will look for a suitable plugin for device specified.";
 
 /// @brief message for top results number
 static const char ntop_message[] = "Number of top results. The default value is 10.";

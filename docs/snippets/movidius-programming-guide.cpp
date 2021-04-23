@@ -2,14 +2,13 @@
 
 int main() {
 InferenceEngine::Core core;
-InferenceEngine::IInferRequest::CompletionCallback callback = nullptr;
 int numRequests = 42;
 int i = 1;
 auto network = core.ReadNetwork("sample.xml");
 auto executable_network = core.LoadNetwork(network, "CPU");
 //! [part0]
 struct Request {
-    InferenceEngine::InferRequest::Ptr inferRequest;
+    InferenceEngine::InferRequest inferRequest;
     int frameidx;
 };
 //! [part0]
@@ -21,16 +20,16 @@ std::vector<Request> request(numRequests);
 
 //! [part2]
 // initialize infer request pointer – Consult IE API for more detail.
-request[i].inferRequest = executable_network.CreateInferRequestPtr();
+request[i].inferRequest = executable_network.CreateInferRequest();
 //! [part2]
 
 //! [part3]
 // Run inference
-request[i].inferRequest->StartAsync();
+request[i].inferRequest.StartAsync();
 //! [part3]
 
 //! [part4]
-request[i].inferRequest->SetCompletionCallback(callback);
+request[i].inferRequest.SetCompletionCallback([] () {});
 //! [part4]
 
 return 0;

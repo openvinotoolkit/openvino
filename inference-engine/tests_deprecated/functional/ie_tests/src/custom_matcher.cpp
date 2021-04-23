@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
 #include "custom_matcher.hpp"
-#include "ie_iexecutable_network.hpp"
 
 using namespace InferenceEngine;
 
@@ -189,7 +188,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                             inferRequests[i].StartAsync();
                         }
                         for (int i = 0; i != requestProcessed; i++) {
-                            inferRequests[i].Wait(IInferRequest::RESULT_READY);
+                            inferRequests[i].Wait(InferRequest::RESULT_READY);
                         }
                         sts = OK;
                     }
