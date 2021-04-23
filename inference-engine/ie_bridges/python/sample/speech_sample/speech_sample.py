@@ -136,6 +136,22 @@ def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: st
             return result
 
 
+def compare_with_reference(result: np.ndarray, reference: np.ndarray):
+    error_matrix = np.absolute(result - reference)
+
+    max_error = np.max(error_matrix)
+    sum_error = np.sum(error_matrix)
+    avg_error = sum_error / error_matrix.size
+    sum_square_error = np.sum(np.square(error_matrix))
+    avg_rms_error = np.sqrt(sum_square_error / error_matrix.size)
+    stdev_error = np.sqrt(sum_square_error / error_matrix.size - avg_error * avg_error)
+
+    log.info(f'max error: {max_error}')
+    log.info(f'avg error: {avg_error}')
+    log.info(f'avg rms error: {avg_rms_error}')
+    log.info(f'stdev error: {stdev_error}')
+
+
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
@@ -188,7 +204,7 @@ def main():
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     utterances = read_ark_file(args.input)
     if args.reference:
-        scores = read_ark_file(args.reference)
+        references = read_ark_file(args.reference)
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
@@ -201,14 +217,13 @@ def main():
         infer_times.append(default_timer() - start_infer_time)
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
-    for i in range(len(utterances)):
+    for i in range(len(results)):
         log.info(f'Utterance {i}')
         log.info(f'Frames in utterance: {utterances[i].shape[0]}')
         log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
 
         if args.reference:
-            error_matrix = results[i] - scores[i]
-            log.info(f'max error: {np.max(error_matrix)}')
+            compare_with_reference(results[i], references[i])
 
         log.info('')
 
