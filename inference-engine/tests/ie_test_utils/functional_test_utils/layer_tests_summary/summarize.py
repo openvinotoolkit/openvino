@@ -169,7 +169,9 @@ def merge_xmls(xml_paths: list):
                                 continue
                             total_tests_count_xml += int(op_result.attrib.get(attr_name))
                             total_tests_count_summary += int(current_op_res.attrib.get(attr_name))
-                        if total_tests_count_xml > total_tests_count_xml:
+                        if "Group" in op_result.tag and 'GNA' in device.tag:
+                            a = None
+                        if total_tests_count_xml > total_tests_count_summary:
                             logger.warning(f'Test counter is different in {op_result.tag} for {device.tag}'\
                                            f'({total_tests_count_xml} vs {total_tests_count_xml})')
                             for attr_name in device_results.find(op_result.tag).attrib:
@@ -192,6 +194,7 @@ def collect_statistic(root: ET.Element):
     general_pass_rate = dict()
     general_test_count = dict()
     general_passed_tests = dict()
+    op_res = dict()
 
     results = dict()
     for device in root.find("results"):
@@ -208,15 +211,32 @@ def collect_statistic(root: ET.Element):
             pass_rate_avg[device.tag] += pass_rate
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
-            general_test_count[device.tag] += (
-                    int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +
-                    int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
+            device_general_test_count = \
+                int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +\
+                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            general_test_count[device.tag] += device_general_test_count
             general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
 
+            if op in op_res.keys():
+                op_res[op].update({device.tag: device_general_test_count})
+            else:
+                op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] /= len(results[device.tag])
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+
+    logger.info("Test number comparison between devices is started")
+    for op in op_res:
+        op_counter = None
+        is_not_printed = True
+        for dev in op_res[op]:
+            if op_counter is None:
+                op_counter = op_res[op][dev]
+            elif op_counter != op_res[op][dev] and is_not_printed:
+                is_not_printed = False
+                logger.warning(f'{op} : {op_res[op]}')
+    logger.info("Test number comparison between devices is completed")
 
     devices = results.keys()
     logger.info("Statistic collecting is completed")
