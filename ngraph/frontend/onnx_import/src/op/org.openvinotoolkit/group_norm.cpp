@@ -25,7 +25,7 @@ namespace ngraph
                     // This function creates a shape to which we need to reshape the input
                     // before normalization.
                     // If data shape is [N,C,H,W], the function returns
-                    // [N, num_groups, C // num_groups, H, W]
+                    // [N * num_groups, C // num_groups, H, W]
                     std::shared_ptr<ngraph::Node>
                         create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
                     {
@@ -38,9 +38,11 @@ namespace ngraph
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
                             default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
+                        // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
+                        // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
+                        // The reason is the lack of support for 5D MVN input by some plugins.
                         ngraph::OutputVector new_shape{
-                            splits[0],
-                            num_groups_const,
+                            std::make_shared<default_opset::Multiply>(splits[0], num_groups_const),
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
 
                         for (size_t i = 2; i < rank_size; i++)
@@ -49,8 +51,8 @@ namespace ngraph
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
-                }
-            } // detail
+                } // namespace
+            }     // namespace detail
 
             namespace set_1
             {
@@ -73,7 +75,7 @@ namespace ngraph
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
                     const auto reduction_axes =
-                        common::get_monotonic_range_along_node_rank(data_reshaped, 2);
+                        common::get_monotonic_range_along_node_rank(data_reshaped, 1);
 
                     auto mvn =
                         std::make_shared<default_opset::MVN>(data_reshaped,
@@ -84,15 +86,35 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
-                    const auto& rank = data.get_partial_shape().rank();
-                    NGRAPH_CHECK(rank.is_static());
-                    auto data_rank_size = rank.get_length();
+                    const auto& scale_shape = scale.get_partial_shape();
+                    NGRAPH_CHECK(scale_shape.rank().is_static());
+                    auto scale_rank = scale_shape.rank().get_length();
 
-                    result = std::make_shared<default_opset::Multiply>(
-                        result,
-                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size));
-                    result = std::make_shared<default_opset::Add>(
-                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank_size));
+                    const auto& bias_shape = bias.get_partial_shape();
+                    NGRAPH_CHECK(bias_shape.rank().is_static());
+                    auto bias_rank = bias_shape.rank().get_length();
+
+                    const auto data_rank =
+                        std::make_shared<default_opset::ShapeOf>(data_shape_node);
+
+                    if (scale_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Multiply>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Multiply>(result, scale);
+                    }
+                    if (bias_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Add>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Add>(result, bias);
+                    }
 
                     return {result};
                 }

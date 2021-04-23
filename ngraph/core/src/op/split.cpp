@@ -137,7 +137,7 @@ namespace split
         evaluate(data_tensor, outputs, axis, num_splits);
         return true;
     }
-}
+} // namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

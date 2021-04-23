@@ -42,10 +42,10 @@ namespace ngraph
             private:
                 bool m_needs_default_layout{false};
             };
-        }
+        } // namespace v0
 
         using v0::Result;
-    }
+    } // namespace op
     using ResultVector = std::vector<std::shared_ptr<op::Result>>;
 
     template <>
@@ -62,4 +62,4 @@ namespace ngraph
     protected:
         ResultVector& m_ref;
     };
-}
+} // namespace ngraph

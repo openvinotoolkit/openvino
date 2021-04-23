@@ -117,14 +117,13 @@ namespace swish
         }
         return rc;
     }
-}
+} // namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_Swish_evaluate);
     NGRAPH_CHECK(
-        this,
         validate_host_tensor_vector(outputs, 1) &&
-            (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
+        (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
     return swish::evaluate_swish(inputs, outputs[0]);
 }

@@ -1033,7 +1033,7 @@ void QuantizeValidator::parseParams(CNNLayer* layer) {
         IE_THROW() << "Layer is not instance of QuantizeLayer class";
     }
 
-    casted->levels = casted->GetParamAsInt("levels", 1);
+    casted->levels = casted->GetParamAsSizeT("levels", 1);
 
     if (casted->levels <= 1) {
         IE_THROW() << layer->name << ": Incorrect value for parameter levels = " << casted->levels
