@@ -6,6 +6,7 @@ import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
+from openvino.inference_engine.ie_api import blob_from_file
 from ..conftest import model_path, plugins_path
 import os
 import pytest
@@ -83,9 +84,7 @@ def test_read_network():
 def test_read_network_from_memory():
     ie_core = IECore()
     model = open(test_net_xml).read()
-    array = np.fromfile(test_net_bin,dtype=np.uint8)
-    tensor_desc = TensorDesc("U8", array.shape, "C")
-    blob = Blob(tensor_desc,array)
+    blob = blob_from_file(test_net_bin)
     net = ie_core.read_network(model, blob)
     assert isinstance(net, IENetwork) 
 
