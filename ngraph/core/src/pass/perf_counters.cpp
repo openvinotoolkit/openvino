@@ -16,5 +16,5 @@ namespace ngraph
                 return it->second;
             return m_counters[&type_inf] = openvino::itt::handle(type_inf.name);
         }
-    }
-}
+    } // namespace pass
+} // namespace ngraph

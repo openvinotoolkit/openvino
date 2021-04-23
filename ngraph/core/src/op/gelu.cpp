@@ -182,7 +182,7 @@ namespace gelu
         }
         return rc;
     }
-}
+} // namespace gelu
 
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

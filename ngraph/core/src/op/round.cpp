@@ -62,7 +62,7 @@ namespace roundop
         }
         return rc;
     }
-}
+} // namespace roundop
 
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
