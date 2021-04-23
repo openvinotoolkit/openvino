@@ -42,8 +42,6 @@ xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support dif
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
 xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Det")
-xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
