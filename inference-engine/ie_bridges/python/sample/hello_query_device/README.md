@@ -22,7 +22,7 @@ The sample queries all available Inference Engine devices and prints their suppo
 
 The sample has no command-line parameters. To see the report, run the following command:
 
-```
+```sh
 python hello_query_device.py
 ```
 
@@ -30,7 +30,7 @@ python hello_query_device.py
 
 For example:
 
-```
+```sh
 [ INFO ] Creating Inference Engine
 [ INFO ] Available devices:
 [ INFO ] CPU :
@@ -104,7 +104,7 @@ For example:
 
 ## See Also
 
-* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
 [IECore.get_metric]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#af1cdf2ecbea6399c556957c2c2fdf8eb
