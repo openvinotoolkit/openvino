@@ -4,7 +4,6 @@
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
-from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 
@@ -78,7 +77,7 @@ class FFTBase(Op):
         src_shape = node.in_port(0).data.get_shape()
         assert src_shape is not None
         input_rank = len(src_shape)
-        if len(node.in_ports()) == 3:
+        if node.is_in_port_connected(2):
             signal_size = node.in_port(2).get_source().data.get_value()
         else:
             axes = FFTBase.get_axes(node)
