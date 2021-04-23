@@ -25,6 +25,5 @@ class TFFFT(Op):
             'op': self.op,
             'out_ports_count': 1,
             'in_ports_count': 1,
-            'infer': copy_shape_infer
         }
         super().__init__(graph, mandatory_props, attrs)
