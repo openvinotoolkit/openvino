@@ -41,7 +41,7 @@ class FFTBase(Op):
         assert len(set(axes)) == len(axes), '(I)DFT node {} axes must be unique.'.format(node_name)
 
         output_shape = int64_array(src_shape)
-        if len(node.in_ports()) != 2:
+        if node.is_in_port_connected(2):
             signal_size = FFTBase.get_signal_size(node)
             signal_size = FFTBase.canonicalize_signal_size(signal_size, axes, src_shape)
             output_shape[axes] = signal_size
