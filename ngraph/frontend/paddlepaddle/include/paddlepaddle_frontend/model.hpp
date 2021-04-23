@@ -18,8 +18,6 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
-//#include "place.hpp"
-
 namespace ngraph {
 namespace frontend {
 

@@ -200,7 +200,7 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
-    // Ensure that it doesn't expected old outputs
+    // Ensure that it doesn't contain expected old outputs
     for (const auto& name : m_param.m_oldOutputs) {
         EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
                                  [&](const std::shared_ptr<ngraph::Node>& node) {
@@ -215,4 +215,22 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
                                      return node->get_friendly_name().find(name) != std::string::npos;
                                  }) != ops.end()) << "Name not found:" << name;
     }
+}
+
+TEST_P(FrontEndCutModelTest, testSetTensorValue) {
+    ASSERT_NO_THROW(doLoadFromFile());
+    Place::Ptr place;
+    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_param.m_tensorValueName));
+    ASSERT_NO_THROW(m_inputModel->setTensorValue(place, &m_param.m_tensorValue[0]));
+
+    std::shared_ptr<ngraph::Function> function;
+    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
+    auto ops = function->get_ordered_ops();
+
+    // Ensure that it doesn't contain old input
+    auto name = m_param.m_op_before_name;
+    EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
+                             [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 return node->get_friendly_name().find(name) != std::string::npos;
+                             }) == ops.end()) << "Name shall not exist:" << name;
 }
