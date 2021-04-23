@@ -737,48 +737,24 @@ CV_ALWAYS_INLINE void calcRowArea_impl(T dst[], const T *src[], const Size& inSz
 
 //------------------------------------------------------------------------------
 
-#if MANUAL_SIMD
 template <typename VecT, typename T>
-CV_ALWAYS_INLINE void copyRow_impl(const T in[], T out[], int l) {
-    VecT r;
-    r = vx_load(&in[l]);
-    vx_store(&out[l], r);
-}
-#endif
-
-CV_ALWAYS_INLINE void copyRow_8U_impl(const uint8_t in[], uint8_t out[], int length) {
+CV_ALWAYS_INLINE void copyRow_Impl(const T in[], T out[], int length) {
     int l = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    const int nlanes = VecT::nlanes;
+
+    auto copy_row = [](const T in[], T out[], int l) {
+        VecT r = vx_load(&in[l]);
+        vx_store(&out[l], r);
+    };
 
     for (; l <= length - nlanes; l += nlanes) {
-        copyRow_impl<v_uint8>(in, out, l);
+        copy_row(in, out, l);
     }
 
     if (l < length && length >= nlanes) {
-        copyRow_impl<v_uint8>(in, out, length - nlanes);
-        l = length;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[l] = in[l];
-    }
-}
-
-CV_ALWAYS_INLINE void copyRow_32F_impl(const float in[], float out[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    for (; l <= length - nlanes; l += nlanes) {
-        copyRow_impl<v_float32>(in, out, l);
-    }
-
-    if (l < length && length >= nlanes) {
-        copyRow_impl<v_float32>(in, out, length - nlanes);
+        copy_row(in, out, length - nlanes);
         l = length;
     }
 #endif
@@ -925,6 +901,17 @@ using vector_type_of_t = typename vector_type_of<isa_tag_t, scalar_t>::type;
 template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using type = v_uint8;  };
 template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
 
+template<typename isa_tag_t, typename T>
+void chanToPlaneRowImpl(isa_tag_t, const T* in, int chan, int chs, T* out, int length) {
+    if (chs == 1) {
+        copyRow_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, out, length);
+        return;
+    }
+
+    for (int x = 0; x < length; x++) {
+        out[x] = in[x*chs + chan];
+    }
+}
 
 }  // namespace kernels
 }  // namespace gapi

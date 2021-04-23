@@ -119,14 +119,6 @@ void calcRowArea_32F(float dst[], const float *src[], const Size& inSz,
     calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
-void copyRow_8U(const uint8_t in[], uint8_t out[], int length) {
-    copyRow_8U_impl(in, out, length);
-}
-
-void copyRow_32F(const float in[], float out[], int length) {
-    copyRow_32F_impl(in, out, length);
-}
-
 // Resize (bi-linear, 32F)
 void calcRowLinear_32F(float* dst[],
                        const float* src0[],
@@ -708,6 +700,9 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     }
 }
 }  // namespace neon
+
+template void chanToPlaneRowImpl(neon_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
+template void chanToPlaneRowImpl(neon_tag, const float*   in, int chan, int chs, float  * out, int length);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

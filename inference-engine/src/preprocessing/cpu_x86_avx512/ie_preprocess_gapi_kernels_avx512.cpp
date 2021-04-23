@@ -636,14 +636,6 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
     calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
-void copyRow_8U(const uint8_t in[], uint8_t out[], int length) {
-    copyRow_8U_impl(in, out, length);
-}
-
-void copyRow_32F(const float in[], float out[], int length) {
-    copyRow_32F_impl(in, out, length);
-}
-
 void calcRowLinear_32F(float *dst[],
                        const float *src0[],
                        const float *src1[],
@@ -657,6 +649,9 @@ void calcRowLinear_32F(float *dst[],
 }
 
 }  // namespace avx512
+
+template void chanToPlaneRowImpl(avx512_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
+template void chanToPlaneRowImpl(avx512_tag, const float*   in, int chan, int chs, float  * out, int length);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
