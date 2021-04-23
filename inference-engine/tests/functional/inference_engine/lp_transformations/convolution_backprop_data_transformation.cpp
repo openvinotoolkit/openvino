@@ -202,6 +202,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             true
         }
     },
+    // QDq version
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+            {{ngraph::element::f32}, { 2.f }, { 0.01f }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
+            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "DISABLED_CONSTANT_FOLDING" }  }, {}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            true
+        }
+    },
     // without zero point
     {
         LayerTransformation::createParamsU8I8(),
@@ -219,6 +239,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {},
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            true
+        }
+    },
+    // QDq version
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {{ngraph::element::f32}, {}, { 0.01f }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {1}}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true
         }
     },

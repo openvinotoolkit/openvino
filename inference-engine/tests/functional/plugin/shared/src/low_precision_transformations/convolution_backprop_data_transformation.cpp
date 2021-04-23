@@ -25,7 +25,8 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::Test
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
         outputShape << "_" <<
         param.fakeQuantizeOnData << "_" <<
-        param.fakeQuantizeOnWeights;
+        param.fakeQuantizeOnWeights << "_" <<
+        param.dequantizationOnWeights;
     return result.str();
 }
 
@@ -59,8 +60,6 @@ void ConvolutionBackpropDataTransformation::SetUp() {
         outputShape,
         param.fakeQuantizeOnData,
         weights);
-
-    validate();
 }
 
 void ConvolutionBackpropDataTransformation::Run() {
@@ -69,16 +68,6 @@ void ConvolutionBackpropDataTransformation::Run() {
     const auto params = std::get<5>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
-}
-
-void ConvolutionBackpropDataTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    ngraph::Shape outputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionBackpropDataTransformationParam param;
-    std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = this->GetParam();
 }
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {
