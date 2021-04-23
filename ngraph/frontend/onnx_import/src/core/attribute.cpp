@@ -44,7 +44,7 @@ namespace ngraph
                         model_proto->mutable_graph()->mutable_input(carried_dependency.first);
                     auto subgraph_in_tensor_type =
                         subgraph_in->mutable_type()->mutable_tensor_type();
-                    if (subgraph_in_tensor_type->has_elem_type())
+                    if (!subgraph_in_tensor_type->has_elem_type())
                     {
                         subgraph_in_tensor_type->set_elem_type(
                             onnx_common::ng_to_onnx_data_type(carried_type));
