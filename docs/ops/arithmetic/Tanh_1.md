@@ -6,15 +6,21 @@
 
 **Short description**: Tanh element-wise activation function.
 
-**Attributes**: has no attributes
+**Attributes**:
+
+    No attributes available.
 
 **Inputs**:
 
-*   **1**: Input tensor x of any floating point type. Required.
+* **1**: A tensor of type T. **Required.**
 
 **Outputs**:
 
-*   **1**: Result of Tanh function applied to the input tensor *x*. Floating point tensor with shape and type matching the input tensor.
+* **1**: The result of element-wise tanh operation. A tensor of type T.
+
+**Types**
+
+* *T*: any numeric type.
 
 **Detailed description**
 
@@ -23,3 +29,24 @@ element in the output tensor with the following formula:
 \f[
 tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
 \f]
+
+**Examples**
+
+*Example 1*
+
+```xml
+<layer ... type="Tanh">
+    <input>
+        <port id="0">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </output>
+</layer>
+```
