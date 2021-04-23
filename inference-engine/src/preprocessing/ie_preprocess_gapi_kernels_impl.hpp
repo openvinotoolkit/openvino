@@ -34,6 +34,12 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 
+struct avx512_tag {};
+struct avx2_tag {};
+struct sse42_tag {};
+struct neon_tag {};
+struct scalar_tag {};
+
 template<typename DST, typename SRC> static inline DST saturate_cast(SRC x);
 template<> inline short saturate_cast(int x) { return (std::min)(SHRT_MAX, (std::max)(SHRT_MIN, x)); }
 template<> inline short saturate_cast(float x) { return saturate_cast<short>(static_cast<int>(std::rint(x))); }

@@ -468,15 +468,86 @@ struct type_to_type {};
 template <typename typelist>
 struct type_dispatch_impl;
 
+//FIXME: add test for type_dispatch
 template <template<typename ...> class typelist, typename... type>
 struct type_dispatch_impl<typelist<type...>> {
     template <typename result_t, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t>
     static result_t dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value) {
         result_t res = default_value;
 
-        std::initializer_list<int> ({(type_id == type_to_id(type_to_type<type>{}) ? (res = type_to_value(type_to_type<type>{})), 0 : 0)...});
+        bool matched = false;
+        std::initializer_list<int> ({
+            !matched && (type_id == type_to_id(type_to_type<type>{})) ?
+                    (matched = true, res = type_to_value(type_to_type<type>{})), 0
+                    : 0
+            ...
+        });
         return res;
     }
+
+    template <typename result_t, typename default_t, typename pred_t, typename type_to_value_t>
+    static result_t dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value) {
+        result_t res = default_value;
+
+        bool matched = false;
+        std::initializer_list<int> ({
+            !matched && pred(type_to_type<type>{}) ?
+                    (matched = true, res = type_to_value(type_to_type<type>{})), 0
+                    : 0
+            ...
+        });
+        return res;
+    }
+};
+
+template<typename left_typelsist, typename right_typelsist>
+struct concat;
+
+template<typename left_typelsist, typename right_typelsist>
+using concat_t = typename concat<left_typelsist, right_typelsist>::type;
+
+template<template<typename ...> class left_list, typename ... left_types, template<typename ...> class right_list, typename ... right_types>
+struct concat<left_list<left_types...>, right_list<right_types...>>{
+    using type = left_list<left_types... , right_types...>;
+};
+
+template< class T, class U >
+using is_same_t = typename std::is_same<T, U>::type;
+
+template<bool C, class T, class E> struct if_c_impl;
+
+template<class T, class E> struct if_c_impl<true, T, E> {
+    using type = T;
+};
+
+template<class T, class E> struct if_c_impl<false, T, E> {
+    using type = E;
+};
+
+template<bool C, class T, class E>
+using if_c = typename if_c_impl<C, T, E>::type;
+
+template<class C, class T, class E>
+using if_ = typename if_c_impl<C::value != 0, T, E>::type;
+
+template<typename typelist, typename type>
+struct remove;
+
+template<typename typelist, typename type>
+using remove_t = typename remove<typelist, type>::type;
+
+
+template<template<typename ...> class list, typename head_t, typename ... types, typename t>
+struct remove<list<head_t, types...>, t> {
+    using type = concat_t<
+            if_<is_same_t<head_t, t>, list<>, list<head_t>>,
+            remove_t<list<types...>, t>
+            >;
+};
+
+template<template<typename ...> class list, typename t>
+struct remove<list<>, t> {
+    using type = list<>;
 };
 
 }  // namespace
@@ -490,6 +561,13 @@ result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_val
                                                                      std::forward<default_t>(default_value));
 }
 
+template <typename typelist, typename default_t, typename pred_t, typename type_to_value_t,
+          typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
+result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
+    return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<pred_t>(pred),
+                                                                     std::forward<type_to_value_t>(type_to_value),
+                                                                     std::forward<default_t>(default_value));
+}
 namespace {
 
 struct cv_type_id {
@@ -668,6 +746,47 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
 };
 
 //----------------------------------------------------------------------
+using isas_set = typelist<
+#ifdef HAVE_AVX512
+        avx512_tag,
+#endif
+#ifdef HAVE_AVX2
+        avx2_tag,
+#endif
+#ifdef HAVE_SSE
+        sse42_tag,
+#endif
+#ifdef HAVE_NEON
+        neon_tag,
+#endif
+        //scalar "ISA" have to be the last one in the list,
+        //as the search for supported ISA is performed until first match
+        scalar_tag>;
+#ifdef HAVE_AVX512
+bool is_present(avx512_tag) { return with_cpu_x86_avx512f(); }
+#endif  // HAVE_AVX512
+
+#ifdef HAVE_AVX2
+bool is_present(avx2_tag)   { return with_cpu_x86_avx2();    }
+#endif  // HAVE_AVX2
+
+#ifdef HAVE_SSE
+bool is_present(sse42_tag)  { return with_cpu_x86_sse42();   }
+#endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+bool is_present(neon_tag)   { return true; }
+#endif  // HAVE_NEON
+
+//scalar version of kernels is always available
+bool is_present(scalar_tag) { return true; }
+
+struct is_isa_present {
+    template< typename isa_tag_t>
+    bool operator()(type_to_type<isa_tag_t>) {
+        return is_present(isa_tag_t{});
+    }
+};
 
 template<typename T>
 static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, int length) {

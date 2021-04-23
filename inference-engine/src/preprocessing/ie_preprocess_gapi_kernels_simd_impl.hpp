@@ -916,6 +916,16 @@ CV_ALWAYS_INLINE void calcRowLinear_32FC1(float *dst[],
     }
 }
 
+template<typename isa_tag_t, typename scalar_t>
+struct vector_type_of;
+
+template<typename isa_tag_t, typename scalar_t>
+using vector_type_of_t = typename vector_type_of<isa_tag_t, scalar_t>::type;
+
+template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using type = v_uint8;  };
+template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
+
+
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
