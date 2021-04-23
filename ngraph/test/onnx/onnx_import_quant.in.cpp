@@ -123,6 +123,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_input.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<uint8_t>{0});              // x
+    test_case.add_input(std::vector<float>{2.0f});             // scale
+    test_case.add_input(std::vector<uint8_t>{128});            // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-256.0f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint8)
 {
     auto function = onnx_import::import_onnx_model(
