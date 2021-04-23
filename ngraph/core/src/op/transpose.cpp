@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "ngraph/op/transpose.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 
 using namespace std;
