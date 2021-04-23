@@ -59,22 +59,16 @@ public:
         const std::vector<int64_t>& constantValues,
         const bool keepDims) {
         const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-        const auto dequantization = makeFakeQuantize(input, precision, fqOnData);
+        const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
         const auto constant = std::make_shared<ngraph::opset1::Constant>(
             ngraph::element::i32,
             ngraph::Shape{ constantValues.size() },
             constantValues);
 
-        const auto reducePrecision = dequantization->get_output_element_type(0);
-        const std::shared_ptr<Node> reduce = std::make_shared<ngraph::op::TypeRelaxed<ReduceType>>(
-            std::vector<element::Type>{ reducePrecision, constant->get_element_type() },
-            std::vector<element::Type>{ reducePrecision },
-            ngraph::op::TemporaryReplaceOutputType(dequantization, reducePrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
-            keepDims);
-
+        const auto reduce = std::make_shared<ReduceType>(fakeQuantize, constant, keepDims);
         reduce->set_friendly_name("Output");
+
         const auto result = std::make_shared<ngraph::opset1::Result>(reduce);
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
