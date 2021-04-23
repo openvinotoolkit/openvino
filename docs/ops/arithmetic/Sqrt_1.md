@@ -23,7 +23,7 @@
 *Sqrt* does the following with the input tensor *a*:
 
 \f[
-a_{i} = sqrt(a_{i})
+a_{i} = \sqrt{a_{i}}
 \f]
 
 **Examples**
