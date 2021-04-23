@@ -13,7 +13,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include "ngraph_ops/type_relaxed.hpp"
 
 #include <ngraph/runtime/reference/convert.hpp>
 
@@ -56,7 +56,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node> & node, ngraph::el
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                element::TypeVector{element::boolean, element::boolean}, element::TypeVector{to});
+                                                                       element::TypeVector{element::boolean, element::boolean}, element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -71,7 +71,7 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ngraph::Node> & node, ngr
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                element::TypeVector{element::boolean}, element::TypeVector{to});
+                                                                       element::TypeVector{element::boolean}, element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -83,29 +83,29 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(ConvertPrecision);
     type_to_fuse_map type_to_fuse {
-        {opset4::Parameter::type_info, fuse_type_to_parameter},
-        {opset4::Convert::type_info, fuse_type_to_convert},
-        {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
-        {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
-        {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
-        {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
-        {opset6::CTCGreedyDecoderSeqLen::type_info, fuse_type_to_ctc_greedy_decoder_seq_len},
-        {opset4::TopK::type_info, fuse_type_to_topk},
-        {opset4::NonZero::type_info, fuse_type_to_nonzero},
-        {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
-        {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
-        {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
-        {opset4::GreaterEqual::type_info, fuse_type_to_binary_comparision<opset4::GreaterEqual>},
-        {opset4::Less::type_info, fuse_type_to_binary_comparision<opset4::Less>},
-        {opset4::LessEqual::type_info, fuse_type_to_binary_comparision<opset4::LessEqual>},
-        {opset4::LogicalAnd::type_info, fuse_type_to_logical<opset4::LogicalAnd>},
-        {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
-        {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
-        {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
-        {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
-        {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
-        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
+            {opset4::Parameter::type_info, fuse_type_to_parameter},
+            {opset4::Convert::type_info, fuse_type_to_convert},
+            {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
+            {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
+            {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
+            {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
+            {opset6::CTCGreedyDecoderSeqLen::type_info, fuse_type_to_ctc_greedy_decoder_seq_len},
+            {opset4::TopK::type_info, fuse_type_to_topk},
+            {opset4::NonZero::type_info, fuse_type_to_nonzero},
+            {opset4::Bucketize::type_info, fuse_type_to_bucketize},
+            {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
+            {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
+            {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
+            {opset4::GreaterEqual::type_info, fuse_type_to_binary_comparision<opset4::GreaterEqual>},
+            {opset4::Less::type_info, fuse_type_to_binary_comparision<opset4::Less>},
+            {opset4::LessEqual::type_info, fuse_type_to_binary_comparision<opset4::LessEqual>},
+            {opset4::LogicalAnd::type_info, fuse_type_to_logical<opset4::LogicalAnd>},
+            {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
+            {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
+            {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
+            {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
+            {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
+            {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
     };
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
@@ -121,14 +121,14 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
     std::function<void(const std::shared_ptr<Function> &)> register_constants =
             [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
-        for (auto & node : f->get_ordered_ops()) {
-            for (auto & input : node->inputs()) {
-                if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
-                    const_to_internal_output[const_node].emplace_back(input);
+                for (auto & node : f->get_ordered_ops()) {
+                    for (auto & input : node->inputs()) {
+                        if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                            const_to_internal_output[const_node].emplace_back(input);
+                        }
+                    }
                 }
-            }
-        }
-    };
+            };
 
     auto convert_node_output_precision = [this, &const_to_internal_output, &type_to_fuse](const std::shared_ptr<ngraph::Node> & node) {
         for (auto output : node->outputs()) {
@@ -163,30 +163,30 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
     std::function<void(const std::shared_ptr<Function> &)> convert_function_precision =
             [this, &const_to_internal_output,
-                   &register_constants,
-                   &convert_node_output_precision,
-                   &convert_node_input_precision,
-                   &convert_function_precision] (const std::shared_ptr<Function> & f) {
-        // Iterate over all nodes in topological order and then iterate over node outputs.
-        // If output type mismatch given type we try to fuse type into this operation
-        // otherwise we insert Convert operation.
-        for (auto &node : f->get_ordered_ops()) {
-            transformation_callback(node);
-            // Recursively apply transformation for sub-graph based operations
-            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-                if (auto sub_graph = sub_graph_node->get_function()) {
-                    convert_function_precision(sub_graph);
+                    &register_constants,
+                    &convert_node_output_precision,
+                    &convert_node_input_precision,
+                    &convert_function_precision] (const std::shared_ptr<Function> & f) {
+                // Iterate over all nodes in topological order and then iterate over node outputs.
+                // If output type mismatch given type we try to fuse type into this operation
+                // otherwise we insert Convert operation.
+                for (auto &node : f->get_ordered_ops()) {
+                    transformation_callback(node);
+                    // Recursively apply transformation for sub-graph based operations
+                    if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                        if (auto sub_graph = sub_graph_node->get_function()) {
+                            convert_function_precision(sub_graph);
+                        }
+                    }
+                    convert_node_input_precision(node);
                 }
-            }
-            convert_node_input_precision(node);
-        }
-        // Register internal constants only after fixing input type that could lead to nodes replacement
-        register_constants(f);
+                // Register internal constants only after fixing input type that could lead to nodes replacement
+                register_constants(f);
 
-        for (auto &node : f->get_ordered_ops()) {
-            convert_node_output_precision(node);
-        }
-    };
+                for (auto &node : f->get_ordered_ops()) {
+                    convert_node_output_precision(node);
+                }
+            };
 
     convert_function_precision(f);
     f->validate_nodes_and_infer_types();
@@ -305,7 +305,7 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node> & node, ngraph:
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
-                element::TypeVector{}, element::TypeVector{to});
+                                                                                     element::TypeVector{}, element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -318,8 +318,8 @@ bool extend_select_type(const std::shared_ptr<ngraph::Node> & node, ngraph::elem
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset4::Select>(node)) {
         auto relaxed_op = std::make_shared<op::TypeRelaxed<opset4::Select>>(*casted,
-                element::TypeVector{element::boolean},
-                element::TypeVector{});
+                                                                            element::TypeVector{element::boolean},
+                                                                            element::TypeVector{});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -478,9 +478,9 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
 std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constant>& constant, element::Type to) {
     // Supported integer precisions
     static const std::unordered_set<element::Type_t, EnumClassHash> supported_integer_precisions = {
-        element::i4,
-        element::u4,
-        element::u1
+            element::i4,
+            element::u4,
+            element::u1
     };
     // Get source element type and source data
     auto src_type = constant->get_element_type();
@@ -515,24 +515,24 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
         // Source type at the current moment always less than 1 byte
         // Select the right destination type
         switch (to.size()) {
-        case 1:
-            convert_lp_value<uint8_t, uint8_t>(src_data[src_idx], dst_data[dst_idx], src_off, src_type.bitwidth(),
-                                               dst_off, to.bitwidth(), src_type.is_signed());
-            break;
-        case 2:
-            convert_lp_value<uint8_t, uint16_t>(src_data[src_idx], reinterpret_cast<uint16_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
-                                                dst_off, to.bitwidth(), src_type.is_signed());
-            break;
-        case 4:
-            convert_lp_value<uint8_t, uint32_t>(src_data[src_idx], reinterpret_cast<uint32_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
-                                                dst_off, to.bitwidth(), src_type.is_signed());
-            break;
-        case 8:
-            convert_lp_value<uint8_t, uint64_t>(src_data[src_idx], reinterpret_cast<uint64_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
-                                                dst_off, to.bitwidth(), src_type.is_signed());
-            break;
-        default:
-            throw ngraph_error("Unsupported element size!");
+            case 1:
+                convert_lp_value<uint8_t, uint8_t>(src_data[src_idx], dst_data[dst_idx], src_off, src_type.bitwidth(),
+                                                   dst_off, to.bitwidth(), src_type.is_signed());
+                break;
+            case 2:
+                convert_lp_value<uint8_t, uint16_t>(src_data[src_idx], reinterpret_cast<uint16_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                    dst_off, to.bitwidth(), src_type.is_signed());
+                break;
+            case 4:
+                convert_lp_value<uint8_t, uint32_t>(src_data[src_idx], reinterpret_cast<uint32_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                    dst_off, to.bitwidth(), src_type.is_signed());
+                break;
+            case 8:
+                convert_lp_value<uint8_t, uint64_t>(src_data[src_idx], reinterpret_cast<uint64_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                    dst_off, to.bitwidth(), src_type.is_signed());
+                break;
+            default:
+                throw ngraph_error("Unsupported element size!");
         }
         // Calculate offsets and indexes
         if (src_type.bitwidth() < 8) {

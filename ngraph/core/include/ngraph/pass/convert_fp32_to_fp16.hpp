@@ -10,21 +10,11 @@ namespace ngraph
 {
     namespace pass
     {
-        class NGRAPH_API ConvertFP32ToFP16 : public ngraph::pass::GraphRewrite
+        class NGRAPH_API ConvertFP32ToFP16 : public ngraph::pass::FunctionPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;
-            ConvertFP32ToFP16()
-                : GraphRewrite()
-            {
-                convert_constants_precision();
-                convert_parameters_precision();
-            }
-
-        private:
-            void convert_constants_precision();
-
-            void convert_parameters_precision();
+            bool run_on_function(std::shared_ptr<ngraph::Function>) override;
         };
     } // namespace pass
 } // namespace ngraph
