@@ -88,7 +88,8 @@
 # define _IE_SUPPRESS_DEPRECATED_END_MSVC
 #endif
 
-#if defined __GNUC__ && (__GNUC__ <= 4 || defined __i386__ || defined __arm__ || defined __aarch64__)
+#if defined __GNUC__ && (__GNUC__ <= 4 || (__GNUC__ == 5 && __GNUC_MINOR__ <= 5) || \
+                         (defined __i386__ || defined __arm__ || defined __aarch64__))
 # define _IE_SUPPRESS_DEPRECATED_START_GCC IE_SUPPRESS_DEPRECATED_START
 # define _IE_SUPPRESS_DEPRECATED_END_GCC IE_SUPPRESS_DEPRECATED_END
 #else

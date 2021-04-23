@@ -39,15 +39,13 @@ std::map <std::string, InferenceEngine::Layout> layout_map = {{"ANY",     Infere
 }                                                   \
 
 
-uint32_t getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::Ptr actual) {
+uint32_t getOptimalNumberOfRequests(const InferenceEngine::ExecutableNetwork & actual) {
     try {
-        InferenceEngine::ResponseDesc response;
-        InferenceEngine::Parameter parameter_value;
-        IE_CHECK_CALL(actual->GetMetric(METRIC_KEY(SUPPORTED_METRICS), parameter_value, &response));
+        auto parameter_value = actual.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as < std::vector < std::string >> ();
-        std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
+        const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
         if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            IE_CHECK_CALL(actual->GetMetric(key, parameter_value, &response));
+            parameter_value = actual.GetMetric(key);
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
@@ -292,35 +290,23 @@ void InferenceEnginePython::IEExecNetwork::infer() {
 }
 
 InferenceEnginePython::IENetwork InferenceEnginePython::IEExecNetwork::GetExecGraphInfo() {
-    InferenceEngine::ResponseDesc response;
-    InferenceEngine::ICNNNetwork::Ptr graph;
-    IE_CHECK_CALL(actual->GetExecGraphInfo(graph, &response));
-    return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(graph));
+    return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(actual.GetExecGraphInfo()));
 }
 
 PyObject *InferenceEnginePython::IEExecNetwork::getMetric(const std::string &metric_name) {
-    InferenceEngine::Parameter parameter;
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetMetric(metric_name, parameter, &response));
-    return parse_parameter(parameter);
+    return parse_parameter(actual.GetMetric(metric_name));
 }
 
 PyObject *InferenceEnginePython::IEExecNetwork::getConfig(const std::string &name) {
-    InferenceEngine::Parameter parameter;
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetConfig(name, parameter, &response));
-    return parse_parameter(parameter);
+    return parse_parameter(actual.GetConfig(name));
 }
 
 void InferenceEnginePython::IEExecNetwork::exportNetwork(const std::string &model_file) {
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->Export(model_file, &response));
+    actual.Export(model_file);
 }
 
 std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNetwork::getInputs() {
-    InferenceEngine::ConstInputsDataMap inputsDataMap;
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetInputsInfo(inputsDataMap, &response));
+    InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
     std::map <std::string, InferenceEngine::DataPtr> pyInputs;
     for (const auto &item : inputsDataMap) {
         pyInputs[item.first] = item.second->getInputData();
@@ -329,9 +315,7 @@ std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNe
 }
 
 std::map <std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::IEExecNetwork::getInputsInfo() {
-    InferenceEngine::ConstInputsDataMap inputsDataMap;
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetInputsInfo(inputsDataMap, &response));
+    InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
     std::map <std::string, InferenceEngine::InputInfo::CPtr> pyInputs;
     for (const auto &item : inputsDataMap) {
         pyInputs[item.first] = item.second;
@@ -340,9 +324,7 @@ std::map <std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::
 }
 
 std::map <std::string, InferenceEngine::CDataPtr> InferenceEnginePython::IEExecNetwork::getOutputs() {
-    InferenceEngine::ConstOutputsDataMap outputsDataMap;
-    InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetOutputsInfo(outputsDataMap, &response));
+    InferenceEngine::ConstOutputsDataMap outputsDataMap = actual.GetOutputsInfo();
     std::map <std::string, InferenceEngine::CDataPtr> pyOutputs;
     for (const auto &item : outputsDataMap) {
         pyOutputs[item.first] = item.second;
@@ -525,7 +507,7 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
         infer_request.index = i;
         request_queue_ptr->setRequestIdle(i);
         infer_request.request_queue_ptr = request_queue_ptr;
-        IE_CHECK_CALL(actual->CreateInferRequest(infer_request.request_ptr, &response))
+        infer_request.request_ptr = actual.CreateInferRequest();
         IE_CHECK_CALL(infer_request.request_ptr->SetUserData(&infer_request, &response));
         infer_request.request_ptr->SetCompletionCallback(latency_callback);
     }

@@ -23,7 +23,6 @@
 
 #include <ie_extension.h>
 #include <ie_core.hpp>
-#include <ie_iexecutable_network.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -128,7 +127,7 @@ struct InferRequestWrap {
 
 
 struct IEExecNetwork {
-    InferenceEngine::IExecutableNetwork::Ptr actual;
+    InferenceEngine::ExecutableNetwork actual;
     std::vector<InferRequestWrap> infer_requests;
     std::string name;
     IdleInferRequestQueue::Ptr  request_queue_ptr;

@@ -22,8 +22,7 @@ disable_deprecated_warnings()
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
-file(GLOB OTHER_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
+file(GLOB OTHER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
 
 foreach(PYX_FILE ${OTHER_SOURCES})
