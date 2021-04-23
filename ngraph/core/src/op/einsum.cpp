@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cctype>
 #include <ngraph/validation_util.hpp>
-#include <regex>
 #include <string>
 #include <unordered_map>
 
@@ -28,38 +27,55 @@ op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation)
     constructor_validate_and_infer_types();
 }
 
-void op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
-                                    std::string& output_subscript) const
+bool op::v7::Einsum::is_subscript_correct(const std::string& subscript, bool& is_ellipsis_met)
+{
+    is_ellipsis_met = false;
+    auto subscript_length = subscript.length();
+    for (size_t ch_idx = 0; ch_idx < subscript_length; ++ch_idx)
+    {
+        if (is_ellipsis_met == false && ((subscript_length - ch_idx) > 2) &&
+            (subscript.substr(ch_idx, 3).compare("...") == 0))
+        {
+            // mark that ellipsis is met once
+            is_ellipsis_met = true;
+
+            // make additional increment since ellipsis consists of three dots.
+            ch_idx += 2;
+        }
+        else if (std::isalpha(subscript[ch_idx]) == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void op::v7::Einsum::parse_equation(const std::string& equation,
+                                    std::vector<std::string>& input_subscripts,
+                                    std::string& output_subscript)
 {
     NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
 
-    // create regular expression to match subscript that consists of either alphabetical letters
-    // only or alphabetical letters with one ellisis
-    const std::regex subscript_regex("[A-Za-z]*|[A-Za-z]*\\.\\.\\.[A-Za-z]*");
-
-    // create regular expression to match ellipsis label
-    const std::regex ellipsis_regex("\\.\\.\\.");
-
     // split equation to input subscripts and an output subscript
-    auto pos_output_delimeter = m_equation.find("->");
-    auto input_subscripts_str = m_equation.substr(0, pos_output_delimeter);
+    auto pos_output_delimeter = equation.find("->");
+    auto input_subscripts_str = equation.substr(0, pos_output_delimeter);
 
     // split the input subscripts into a vector of input subscripts
     bool is_ellipsis_met = false;
-    std::smatch ellipsis_match;
     input_subscripts.clear();
     std::istringstream input;
     input.str(input_subscripts_str);
     for (std::string input_subscript; std::getline(input, input_subscript, ',');)
     {
+        bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
-        NODE_VALIDATION_CHECK(this,
-                              std::regex_match(input_subscript, subscript_regex) == true,
-                              "Input subscript of Einsum equation must consist of either only "
-                              "alphabetic letters or alphabetic letters with one ellipsis.");
+        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met) == true,
+                     "Input subscript of Einsum equation must consist of either only "
+                     "alphabetic letters or alphabetic letters with one ellipsis.");
 
-        // figure out if ellipsis is met in input subscript
-        if (std::regex_search(input_subscript, ellipsis_match, ellipsis_regex) == true)
+        // mark that ellipsis is met at least in one input subscript
+        if (local_is_ellipsis_met == true)
         {
             is_ellipsis_met = true;
         }
@@ -88,24 +104,22 @@ void op::v7::Einsum::parse_equation(std::vector<std::string>& input_subscripts,
     }
     else
     {
-        output_subscript = m_equation.substr(pos_output_delimeter + 2);
+        output_subscript = equation.substr(pos_output_delimeter + 2);
+        bool local_is_ellipsis_met = false;
 
         // check that the output subscript has the correct format
-        NODE_VALIDATION_CHECK(this,
-                              std::regex_match(output_subscript, subscript_regex) == true,
-                              "Output subscript of Einsum equation must consist of either only "
-                              "alphabetic letters or alphabetic letters with one ellipsis.");
+        NGRAPH_CHECK(is_subscript_correct(output_subscript, local_is_ellipsis_met),
+                     "Output subscript of Einsum equation must consist of either only "
+                     "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        std::regex_search(output_subscript, ellipsis_match, ellipsis_regex);
-        NODE_VALIDATION_CHECK(this,
-                              is_ellipsis_met == false || ellipsis_match.size() == 1,
-                              "Output subscript of Einsum equation must contain one ellipsis if "
-                              "ellipsis is met in any input subscript.");
+        NGRAPH_CHECK(is_ellipsis_met == false || local_is_ellipsis_met == true,
+                     "Output subscript of Einsum equation must contain one ellipsis if "
+                     "ellipsis is met in any input subscript.");
     }
 }
 
-std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript) const
+std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript)
 {
     NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
 
@@ -127,7 +141,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
         }
         else
         {
-            NODE_VALIDATION_CHECK(this, false, "Einsum equation has invalid label.");
+            NGRAPH_CHECK(false, "Einsum equation has invalid label.");
         }
     }
 
@@ -158,7 +172,7 @@ void op::v7::Einsum::validate_and_infer_types()
     // check that equation has correct format and extract input and output subscripts
     std::vector<std::string> input_subscripts;
     std::string output_subscript;
-    parse_equation(input_subscripts, output_subscript);
+    parse_equation(m_equation, input_subscripts, output_subscript);
 
     // a number of input subscripts must match with a number of input tensors
     NODE_VALIDATION_CHECK(

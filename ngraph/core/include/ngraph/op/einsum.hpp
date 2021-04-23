@@ -38,26 +38,43 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-            private:
-                std::string m_equation;
-
-                /// \brief      Check equation format and extracts input subscripts and output
-                /// subscript
+                /// \brief      Check correctness of equation format and extract input subscripts
+                /// and output subscript
+                ///
+                /// \param      equation              Equation to be parsed and checked
                 ///
                 /// \param      input_subscripts      A vector of extracted input subscripts
+                ///
                 /// \param      output_subscript      An output subscript
                 ///
-                void parse_equation(std::vector<std::string>& input_subscripts,
-                                    std::string& output_subscript) const;
+                static void parse_equation(const std::string& equation,
+                                           std::vector<std::string>& input_subscripts,
+                                           std::string& output_subscript);
 
                 /// \brief      Extract labels (from subscript) that can be alphabetic letters or
                 /// ellipsis
                 ///
                 /// \param      subscript      Subscript
                 ///
-                /// \return     A vector of extracted labels from the input subscript
+                /// \return     A vector of extracted labels from the input subscript in the order
+                /// of appearence
                 ///
-                std::vector<std::string> extract_labels(const std::string& subscript) const;
+                static std::vector<std::string> extract_labels(const std::string& subscript);
+
+            private:
+                /// \brief      Check that a subscript contains only alphabetic letters or
+                /// alphabetic letters with one ellipsis
+                ///
+                /// \param      subscripts          A subscript to check its format
+                ///
+                /// \param      is_ellipsis_met     Marker if ellipsis is met in the subscript
+                ///
+                /// \return     true - correct subscript, false - otherwise
+                ///
+                static bool is_subscript_correct(const std::string& subscript,
+                                                 bool& is_ellipsis_met);
+
+                std::string m_equation;
             };
         } // namespace v7
     }     // namespace op

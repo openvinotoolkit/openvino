@@ -256,7 +256,7 @@ TEST(type_prop, einsum_incorrectequation_invalidlabels)
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect number of input subscripts";
     }
-    catch (const NodeValidationFailure& error)
+    catch (const CheckFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
