@@ -149,7 +149,7 @@ TEST(op_eval, eval_duplicated_axes_transpose)
 
     const std::vector<float> data{1, 2, 3, 4, 5, 6};
     std::vector<size_t> data_shape{2, 3, 1};
-    const std::vector<int32_t> perm{1, 2, 2};
+    const std::vector<int32_t> perm{2, 1, 2};
     try
     {
         auto result_tensor = make_shared<HostTensor>();
