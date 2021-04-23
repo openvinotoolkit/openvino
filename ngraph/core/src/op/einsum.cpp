@@ -79,12 +79,12 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     {
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
-        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met) == true,
+        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met),
                      "Input subscript of Einsum equation must consist of either only "
                      "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // mark that ellipsis is met at least in one input subscript
-        if (local_is_ellipsis_met == true)
+        if (local_is_ellipsis_met)
         {
             is_ellipsis_met = true;
         }
@@ -114,15 +114,15 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     else
     {
         output_subscript = equation.substr(pos_output_delimeter + 2);
-        bool local_is_ellipsis_met = false;
+        bool output_is_ellipsis_met = false;
 
         // check that the output subscript has the correct format
-        NGRAPH_CHECK(is_subscript_correct(output_subscript, local_is_ellipsis_met),
+        NGRAPH_CHECK(is_subscript_correct(output_subscript, output_is_ellipsis_met),
                      "Output subscript of Einsum equation must consist of either only "
                      "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        NGRAPH_CHECK(is_ellipsis_met == false || local_is_ellipsis_met == true,
+        NGRAPH_CHECK(is_ellipsis_met == output_is_ellipsis_met,
                      "Output subscript of Einsum equation must contain one ellipsis if "
                      "ellipsis is met in any input subscript.");
     }
@@ -232,7 +232,7 @@ void op::v7::Einsum::validate_and_infer_types()
                                                                current_sub_pshape,
                                                                op::AutoBroadcastType::NUMPY);
                         NODE_VALIDATION_CHECK(this,
-                                              is_broadcast_success == true,
+                                              is_broadcast_success,
                                               "Input dimensions labeled with ellipsis for Einsum "
                                               "must be broadcastable.");
                     }

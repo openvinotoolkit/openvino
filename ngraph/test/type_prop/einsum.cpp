@@ -321,3 +321,29 @@ TEST(type_prop, einsum_incorrectequation_notbroadcastableshapes)
         FAIL() << "Equation format check failed";
     }
 }
+
+TEST(type_prop, einsum_incorrectequation_missedellipsis)
+{
+    std::string equation = "a...b,b...->a";
+    Shape input1_shape{11, 1, 4, 3};
+    Shape input2_shape{3, 11, 7, 5};
+    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
+
+    try
+    {
+        auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Non-broadcastable shapes covered by ellipsis";
+    }
+    catch (const CheckFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Output subscript of Einsum equation must contain one "
+                                         "ellipsis if ellipsis is met in any input subscript."));
+    }
+    catch (...)
+    {
+        FAIL() << "Equation format check failed";
+    }
+}
