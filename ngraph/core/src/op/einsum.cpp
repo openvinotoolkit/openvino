@@ -27,7 +27,16 @@ op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation)
     constructor_validate_and_infer_types();
 }
 
-bool op::v7::Einsum::is_subscript_correct(const std::string& subscript, bool& is_ellipsis_met)
+/// \brief      Check that a subscript contains only alphabetic letters or
+/// alphabetic letters with one ellipsis
+///
+/// \param      subscripts          A subscript to check its format
+///
+/// \param      is_ellipsis_met     Marker if ellipsis is met in the subscript
+///
+/// \return     true - correct subscript, false - otherwise
+///
+bool is_subscript_correct(const std::string& subscript, bool& is_ellipsis_met)
 {
     is_ellipsis_met = false;
     auto subscript_length = subscript.length();

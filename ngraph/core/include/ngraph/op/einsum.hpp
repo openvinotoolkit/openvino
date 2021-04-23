@@ -62,18 +62,6 @@ namespace ngraph
                 static std::vector<std::string> extract_labels(const std::string& subscript);
 
             private:
-                /// \brief      Check that a subscript contains only alphabetic letters or
-                /// alphabetic letters with one ellipsis
-                ///
-                /// \param      subscripts          A subscript to check its format
-                ///
-                /// \param      is_ellipsis_met     Marker if ellipsis is met in the subscript
-                ///
-                /// \return     true - correct subscript, false - otherwise
-                ///
-                static bool is_subscript_correct(const std::string& subscript,
-                                                 bool& is_ellipsis_met);
-
                 std::string m_equation;
             };
         } // namespace v7
