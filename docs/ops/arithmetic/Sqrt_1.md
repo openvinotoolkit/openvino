@@ -34,6 +34,23 @@ a_{i} = \sqrt{a_{i}}
 <layer ... type="Sqrt">
     <input>
         <port id="0">
+            <dim>2</dim> <!-- input values: [4.0, 9.0] -->
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>2</dim> <!-- output values: [2.0, 3.0] -->
+        </port>
+    </output>
+</layer>
+```
+
+*Example 2*
+
+```xml
+<layer ... type="Sqrt">
+    <input>
+        <port id="0">
             <dim>256</dim>
             <dim>56</dim>
         </port>
