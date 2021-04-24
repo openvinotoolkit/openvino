@@ -41,6 +41,7 @@
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/dft.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/einsum.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
