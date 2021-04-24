@@ -42,6 +42,6 @@ namespace ngraph
             protected:
                 std::set<Node*> m_static_nodes;
             };
-        }
-    }
-}
+        } // namespace op
+    }     // namespace pattern
+} // namespace ngraph

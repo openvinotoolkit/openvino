@@ -77,10 +77,18 @@ protected:
 
         std::shared_ptr<ngraph::Node> secondaryInput;
         if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
-            eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
             eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
             std::vector<float> data(ngraph::shape_size(shape_input_secondary));
             data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
+            secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
+        } else if (eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD)  {
+            int negative_data_size = ngraph::shape_size(shape_input_secondary) / 2;
+            int positive_data_size = ngraph::shape_size(shape_input_secondary) - negative_data_size;
+            std::vector<float> negative_data(negative_data_size);
+            std::vector<float> data(positive_data_size);
+            negative_data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(negative_data_size, -10, -2);
+            data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(positive_data_size, 10, 2);
+            data.insert(data.end(), negative_data.begin(), negative_data.end());
             secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
         } else {
             secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);

@@ -3,18 +3,17 @@
 //
 
 #ifdef USE_OPENCV
-#include "opencv_wraper.h"
-#include <fstream>
-#include <iostream>
+    #include "opencv_wraper.h"
 
-#include <opencv2/opencv.hpp>
-
-#include <samples/slog.hpp>
+    #include <fstream>
+    #include <iostream>
+    #include <opencv2/opencv.hpp>
+    #include <samples/slog.hpp>
 
 using namespace std;
 using namespace FormatReader;
 
-OCVReader::OCVReader(const string &filename) {
+OCVReader::OCVReader(const string& filename) {
     img = cv::imread(filename);
     _size = 0;
 
@@ -22,8 +21,8 @@ OCVReader::OCVReader(const string &filename) {
         return;
     }
 
-    _size   = img.size().width * img.size().height * img.channels();
-    _width  = img.size().width;
+    _size = img.size().width * img.size().height * img.channels();
+    _width = img.size().width;
     _height = img.size().height;
 }
 

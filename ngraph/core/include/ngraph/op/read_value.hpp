@@ -77,7 +77,7 @@ namespace ngraph
             private:
                 std::string m_variable_id;
             };
-        }
+        } // namespace v3
 
         namespace v6
         {
@@ -114,6 +114,6 @@ namespace ngraph
                     return m_variable->get_info().variable_id;
                 }
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph
