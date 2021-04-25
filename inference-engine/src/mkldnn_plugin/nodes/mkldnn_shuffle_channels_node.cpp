@@ -93,10 +93,8 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
 
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
         if (canUseBlocked()) {
-            if (impl_desc_type::jit_avx512 == impl_type)
-                supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
-            else
-                supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
         }
     }
     supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
@@ -127,7 +125,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     int batchRank = axis;
     int spatialRank = dataRank - axis - 1;
 
-    // 2 for decompose axis dim, 1 for composed spatial dim
+    // 2 for decomposed axis dim, 1 for composed spatial dim
     int reshapedRank = batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
     PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
@@ -154,7 +152,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
     const int channelDim = 1;
     if (isBlocked) {
-        size_t blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+        size_t blkSize = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims().back();
         size_t CB = div_up(dataDims[1], blkSize);
         SizeVector srcBlockedDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
         if (axis > channelDim) {  // axis on spatial

@@ -17,7 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<int> axes = {-4, -3, -2, -1, 0, 1, 2, 3};
-const std::vector<int> groups = {2, 3, 10};
+const std::vector<int> groups = {2, 3, 6};
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
         ::testing::ValuesIn(axes),
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
+                ::testing::Values(std::vector<size_t >({12, 18, 30, 36})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 

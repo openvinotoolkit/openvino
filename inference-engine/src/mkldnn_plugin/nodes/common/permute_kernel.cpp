@@ -134,8 +134,8 @@ private:
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    Vmm vmm = Vmm(0);
-    Xbyak::Xmm xmm = Xbyak::Xmm(0);
+    Vmm vmm = Vmm(1);
+    Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {

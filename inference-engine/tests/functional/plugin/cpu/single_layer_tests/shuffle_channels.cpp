@@ -142,13 +142,13 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
-        ::testing::ValuesIn({-4, -2, 0, 1, 2, 3}),
-        ::testing::ValuesIn({2, 5, 15})
+        ::testing::ValuesIn(std::vector<int>{-4, -2, 0, 1, 2, 3}),
+        ::testing::ValuesIn(std::vector<int>{2, 4, 8})
 );
 
 const auto shuffleChannelsParams5D = ::testing::Combine(
-        ::testing::ValuesIn({-5, -1, 0, 1, 2, 3, 4}),
-        ::testing::ValuesIn({2, 4, 10})
+        ::testing::ValuesIn(std::vector<int>{-5, -1, 0, 1, 2, 3, 4}),
+        ::testing::ValuesIn(std::vector<int>{2, 3, 6})
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
@@ -160,7 +160,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
+                ::testing::Values(std::vector<size_t >({16, 24, 32, 40})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice4D())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
@@ -174,19 +174,19 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerCPUTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({20, 20, 20, 20, 20})),
+                ::testing::Values(std::vector<size_t >({12, 18, 12, 18, 24})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice5D())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
 
 const auto shuffleChannelsParams4DBlock = ::testing::Combine(
-        ::testing::ValuesIn({-4, -2, -1, 0, 2, 3}),
-        ::testing::ValuesIn({2, 5, 15})
+        ::testing::ValuesIn(std::vector<int>{-4, -2, -1, 0, 2, 3}),
+        ::testing::ValuesIn(std::vector<int>{2, 4, 8})
 );
 
 const auto shuffleChannelsParams5DBlock = ::testing::Combine(
-        ::testing::ValuesIn({-5, -2, -1, 0, 2, 3, 4}),
-        ::testing::ValuesIn({2, 4, 10})
+        ::testing::ValuesIn(std::vector<int>{-5, -2, -1, 0, 2, 3, 4}),
+        ::testing::ValuesIn(std::vector<int>{2, 3, 6})
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTest,
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTes
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
+                ::testing::Values(std::vector<size_t >({40, 32, 24, 16})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice4DBlock())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
@@ -212,7 +212,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5DBlock, ShuffleChannelsLayerCPUTes
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({20, 20, 20, 20, 20})),
+                ::testing::Values(std::vector<size_t >({18, 12, 18, 12, 30})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice5DBlock())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
