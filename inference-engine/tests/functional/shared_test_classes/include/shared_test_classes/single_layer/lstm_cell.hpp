@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <gtest/gtest.h>
 #include <tuple>
 #include <string>
 #include <vector>
@@ -26,7 +27,7 @@ using LSTMCellParams = typename std::tuple<
         std::string>;                      // Device name
 
 class LSTMCellTest : public testing::WithParamInterface<LSTMCellParams >,
-                    virtual public LayerTestsUtils::LayerTestsCommon {
+                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMCellParams> &obj);
 
