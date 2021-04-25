@@ -304,7 +304,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     if (useLpt) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
-        auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
+        auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
@@ -316,7 +316,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         });
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisionsOnActivation);
+        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions);
         manager.run_passes(nGraphFunc);
         // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
     }

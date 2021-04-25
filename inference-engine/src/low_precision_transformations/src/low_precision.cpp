@@ -141,10 +141,15 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     ngraph::pass::Manager manager;
     manager.register_pass<PullReshapeThroughDequantization>(supportedTypes);
     manager.register_pass<PullTransposeThroughDequantization>(supportedTypes);
-    //prerequisites.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    //manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
+    manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions); // <= MatcherPass in one GraphRewrite
+    //manager.register_pass<ngraph::pass::low_precision::MarkupPrecisionPreserved>(); // <= MatcherPass in one GraphRewrite
     manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
+    // think about decomposition later:
+    // 1. the attribute creation
+    // 2. propagation
+    // 3. the attribute value set
     manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
     manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
 

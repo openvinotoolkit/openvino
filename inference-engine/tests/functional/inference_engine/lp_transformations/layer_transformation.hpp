@@ -128,6 +128,39 @@ public:
     }
 
     template <class Attribute>
+    static bool checkIfOutputAttributesSharedValuesAreTheSame(const NodeVector& nodes) {
+        std::shared_ptr<Variant> first = nullptr;
+        for (auto node : nodes) {
+            for (auto output : node->outputs()) {
+                auto& rt = output.get_rt_info();
+                const std::string& name = VariantWrapper<Attribute>::type_info.name;
+                auto it = rt.find(name);
+                if (it == rt.end()) {
+                    return false;
+                }
+
+                auto value = it->second;
+                if (first == nullptr) {
+                    first = value;
+                } else {
+                    const auto attribute1 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(value)->get();
+                    assert(attribute1 != nullptr);
+                    const auto sharedValue1 = attribute1->sharedValue;
+
+                    const auto attribute2 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(first)->get();
+                    assert(attribute2 != nullptr);
+                    const auto sharedValue2 = attribute2->sharedValue;
+
+                    if (sharedValue1 != sharedValue2) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    template <class Attribute>
     static bool checkIfAttributesAreTheSame(const NodeVector& nodes) {
         Variant* first = nullptr;
         for (auto node : nodes) {

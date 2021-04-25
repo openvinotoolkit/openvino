@@ -14,11 +14,18 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/rt_info/shared_attribute.hpp"
 
-class PrecisionsAttribute {
+class PrecisionsAttribute;
+
+class PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
 public:
-    PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions) : precisions(precisions) {}
     std::set<ngraph::element::Type> precisions;
+};
+
+class PrecisionsAttribute : public SharedAttribute<PrecisionsSharedValue> {
+public:
+    PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions);
 };
 
 extern template class TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;

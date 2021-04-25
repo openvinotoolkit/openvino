@@ -16,6 +16,8 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
+#include "rt_info/shared_attribute.hpp"
+#include "rt_info/precisions_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
@@ -277,6 +279,17 @@ public:
         }
     }
 
+    template <typename SharedValueType, typename SharedAttributeType>
+    static void reassign(
+        const std::shared_ptr<SharedValueType>& sharedValue,
+        const std::vector<std::shared_ptr<SharedAttributeType>>& attributes) {
+        for (const auto attribute : attributes) {
+            //auto sharedAttribute = std::dynamic_pointer_cast<SharedAttribute>(attribute);
+            attribute->sharedValue = sharedValue;
+            sharedValue->attributes.push_back(attribute);
+        }
+    }
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
 
@@ -397,6 +410,13 @@ void mergeAndReplace(
             node->get_rt_info()[ngraph::VariantWrapper<T>::type_info.name] = newAttribute;
         }
     }
+}
+
+template <typename ... Args>
+std::shared_ptr<PrecisionsAttribute> make_shared_attribute(Args&& ... args) {
+    std::shared_ptr<PrecisionsAttribute> attribute = std::make_shared<PrecisionsAttribute>(std::forward<Args>(args)...);
+    attribute->sharedValue->attributes.push_back(attribute);
+    return attribute;
 }
 
 }  // namespace low_precision

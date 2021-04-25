@@ -29,23 +29,24 @@ class OperationPrecisionRestriction {
 public:
     using PrecisionsByPort = std::vector<std::pair<size_t, std::set<ngraph::element::Type>>>;
 
-    std::string name;
-    int64_t version;
+    ngraph::Node::type_info_t operationType;
+    bool specifyVersion;
     std::vector<std::pair<size_t, std::set<ngraph::element::Type>>> precisionsByPort;
 
     OperationPrecisionRestriction() = default;
     OperationPrecisionRestriction(
-        const std::string& name,
-        const uint64_t version,
+        const ngraph::Node::type_info_t operationType,
+        const bool specifyVersion,
         const PrecisionsByPort& precisionsByPort) :
-        name(name), version(version), precisionsByPort(precisionsByPort) {}
+        operationType(operationType),
+        specifyVersion(specifyVersion),
+        precisionsByPort(precisionsByPort) {}
 
     template <typename T>
     static OperationPrecisionRestriction create(
         const PrecisionsByPort& precisionsByPort,
-        const bool specifiedVersion = false) {
-        const ngraph::Node::type_info_t& typeInfo = T::get_type_info_static();
-        return OperationPrecisionRestriction(typeInfo.name, specifiedVersion ? typeInfo.version : -1ll, precisionsByPort);
+        const bool specifyVersion = false) {
+        return OperationPrecisionRestriction(T::get_type_info_static(), specifyVersion, precisionsByPort);
     }
 };
 

@@ -15,6 +15,10 @@
 
 using namespace ngraph;
 
+PrecisionsAttribute::PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions) {
+    sharedValue->precisions = precisions;
+}
+
 template class ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
 constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info;
@@ -25,10 +29,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttrib
 
 void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(
     std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes) {
-    auto my = this->get()->precisions;
+    auto my = this->get()->sharedValue->precisions;
 
     for (auto attribute : attributes) {
-        auto attributeValues = attribute->get()->precisions;
+        auto attributeValues = attribute->get()->sharedValue->precisions;
         std::set<element::Type> result;
         set_intersection(
             attributeValues.begin(),
@@ -39,7 +43,7 @@ void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(
         my = result;
     }
 
-    this->get()->precisions = my;
+    this->get()->sharedValue->precisions = my;
 }
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
@@ -52,15 +56,33 @@ std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
 #ifdef _DEBUG
     const size_t rawPointer = (size_t)m_value.get();
     ss << rawPointer << ": ";
+
+    const size_t sharedValueRawPointer = (size_t)m_value->sharedValue.get();
+    ss << "sharedValue: " << sharedValueRawPointer;
+
+    bool firstAttribute = true;
+    ss << ", attributes: [";
+    for (auto& attribute : m_value->sharedValue->attributes) {
+        if (!firstAttribute) {
+            ss << ", ";
+        }
+        ss << (size_t)attribute.get();
+        firstAttribute = false;
+    }
+    ss << "], ";
 #endif
 
-    bool first = true;
-    for (const auto& value : m_value->precisions) {
-        if (!first) {
+    bool firstPrecision = true;
+
+    ss << "precisions: [";
+    for (const auto& value : m_value->sharedValue->precisions) {
+        if (!firstPrecision) {
             ss << ", ";
         }
         ss << value;
-        first = false;
+        firstPrecision = false;
     }
+    ss << "]";
+
     return ss.str();
 }

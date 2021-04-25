@@ -69,7 +69,7 @@ DataPrecision getDataPrecision(std::shared_ptr<opset1::FakeQuantize> layer) {
     }
 
     auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
-    std::set<element::Type>& precisions = attribute->get()->precisions;
+    std::set<element::Type>& precisions = attribute->get()->sharedValue->precisions;
 
     ngraph::element::Type precision;
     bool hasZeroPoint;
@@ -84,7 +84,7 @@ DataPrecision getDataPrecision(std::shared_ptr<opset1::FakeQuantize> layer) {
             precision = precisionDetailsAtOutputIntervals.precision;
             hasZeroPoint = precisionDetailsAtOutputIntervals.hasZeroPoint;
         }
-        attribute->get()->precisions = { precision };
+        attribute->get()->sharedValue->precisions = { precision };
     } else {
         precision = *precisions.begin();
         LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(quantizationDetails);
@@ -106,7 +106,7 @@ bool enabled(const std::shared_ptr<ngraph::Node> node) {
         auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (it != rt.end()) {
             const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
-            return !attribute->get()->precisions.empty();
+            return !attribute->get()->sharedValue->precisions.empty();
         }
     }
     return true;

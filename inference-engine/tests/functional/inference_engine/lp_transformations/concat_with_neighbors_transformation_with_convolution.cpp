@@ -127,7 +127,7 @@ public:
             })
         });
 
-// #define VISUALIZE_TREE
+//#define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
 
         ngraph::pass::Manager manager;
@@ -233,7 +233,7 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) << "PrecisionsAttribute are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) << "PrecisionsAttribute are not the same";
 
     const auto referenceFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(referenceFunction);
     // TODO: not completed
@@ -320,7 +320,7 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
 
 const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
+    //{ 4, 3, 9, 9 }
 };
 
 INSTANTIATE_TEST_CASE_P(
