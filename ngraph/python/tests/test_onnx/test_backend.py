@@ -8,6 +8,7 @@ import onnx.backend.test
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
 from tests import (BACKEND_NAME,
+                   ENABLE_COMPLIANCE_REPORT,
                    xfail_issue_33488,
                    xfail_issue_33512,
                    xfail_issue_33535,
@@ -79,7 +80,10 @@ OpenVinoTestBackend.backend_name = BACKEND_NAME
 
 # This is a pytest magic variable to load extra plugins
 # Uncomment the line below to enable the ONNX compatibility report
-# pytest_plugins = "onnx.backend.test.report",
+# pytest_plugins = "onnx.backend.test.report"
+
+if ENABLE_COMPLIANCE_REPORT:
+    pytest_plugins = ["tests.coverage.compliance"]
 
 # import all test cases at global scope to make them visible to python.unittest
 backend_test = onnx.backend.test.BackendTest(OpenVinoTestBackend, __name__)

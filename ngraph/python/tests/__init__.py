@@ -17,6 +17,10 @@ MODEL_ZOO_DIR = None
 # test.MODEL_ZOO_XFAIL is a configuration variable which enable xfails for model zoo.
 MODEL_ZOO_XFAIL = False
 
+# test.ENABLE_COMPLIANCE_REPORT controls the execution of ONNX compliance report
+# executed for the test_backend.py file
+ENABLE_COMPLIANCE_REPORT = False
+
 
 def xfail_test(reason="Mark the test as expected to fail", strict=True):
     return pytest.mark.xfail(reason=reason, strict=strict)

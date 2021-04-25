@@ -31,6 +31,11 @@ def pytest_addoption(parser):
         action="store_true",
         help="treat model zoo known issues as xfails instead of failures",
     )
+    parser.addoption(
+        "--measure_compliance",
+        action="store_true",
+        help="enable internal ONNX standard compliance reporting plugin",
+    )
 
 
 def pytest_configure(config):
@@ -38,6 +43,7 @@ def pytest_configure(config):
     tests.BACKEND_NAME = backend_name
     tests.MODEL_ZOO_DIR = Path(config.getvalue("model_zoo_dir"))
     tests.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
+    tests.ENABLE_COMPLIANCE_REPORT = config.getvalue("measure_compliance")
 
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
