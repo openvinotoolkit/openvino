@@ -18,7 +18,7 @@ In addition, demo scripts, code samples and demo applications are provided to he
 * **[Code Samples](../IE_DG/Samples_Overview.md)** - Small console applications that show you how to:
     * Utilize specific OpenVINO capabilities in an application.
     * Perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more.
-* **[Demo Applications](@ref omz_demos_README)** - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
+* **[Demo Applications](@ref omz_demos)** - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
 
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
 This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for macOS*](../install_guides/installing-openvino-macos.md).
@@ -48,9 +48,9 @@ The primary tools for deploying your models and applications are installed to th
 | `~intel_models/` | Symbolic link to the `intel_models` subfolder of the `open_model_zoo` folder.|
 | `model_optimizer/`                      | Model Optimizer directory. Contains configuration scripts, scripts to run the Model Optimizer and other files. See the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).|
 | `ngraph/`                               | nGraph directory. Includes the nGraph header and library files. |
-| `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_intel_index) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
+| `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_group_intel) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`demos/`        | Demo applications for inference scenarios. Also includes documentation and build scripts.| 
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel).|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`models`        | Intel's trained and public models that can be obtained with Model Downloader.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`tools/`        | Model Downloader and Accuracy Checker tools. |
 | `tools/`                                | Contains a symbolic link to the Model Downloader folder and auxiliary tools to work with your models: Calibration tool, Benchmark and Collect Statistics tools.|
@@ -200,7 +200,7 @@ Inputs you need to specify when using a code sample or demo application:
 
 To perform sample inference, run the Image Classification code sample and Security Barrier Camera demo application that are automatically compiled when you run the Image Classification and Inference Pipeline demo scripts. The binary files are in the `~/inference_engine_samples_build/intel64/Release` and `~/inference_engine_demos_build/intel64/Release` directories, respectively.
 
-You can also build all available sample code and demo applications from the source files delivered with the OpenVINO toolkit. To learn how to do this, see the instructions in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos_README) sections.
+You can also build all available sample code and demo applications from the source files delivered with the OpenVINO toolkit. To learn how to do this, see the instructions in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos) sections.
 
 ### <a name="download-models"></a> Step 1: Download the Models
 
@@ -210,7 +210,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README). 
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader). 
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, and other resources.
 - Train your own model.
         
@@ -422,7 +422,7 @@ classid probability label
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
-> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you run the Inference Pipeline demo scripts. If you want to build it manually, see the instructions in the [Demo Applications Overview](@ref omz_demos_README) section.
+> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you run the Inference Pipeline demo scripts. If you want to build it manually, see the instructions in the [Demo Applications Overview](@ref omz_demos) section.
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IRs:
 

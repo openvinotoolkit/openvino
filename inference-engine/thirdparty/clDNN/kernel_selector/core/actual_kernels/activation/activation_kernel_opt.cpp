@@ -27,12 +27,35 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     return k;
 }
 
+static size_t GetTotalSize(const activation_params& params) {
+    const auto input = params.inputs[0];
+    size_t totalSize = input.LogicalSize();
+    switch (params.inputs[0].GetLayout()) {
+        case DataLayout::b_fs_yx_fsv4:
+            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 4);
+            break;
+        case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::b_fs_zyx_fsv16:
+            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 16);
+            break;
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::b_fs_zyx_fsv32:
+        case DataLayout::fs_b_yx_fsv32:
+            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 32);
+            break;
+        case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        case DataLayout::bs_fs_yx_bsv16_fsv16:
+            totalSize = (totalSize / (input.Feature().v * input.Batch().v)) * Align(input.Feature().v, 16) * Align(input.Batch().v, 16);
+            break;
+        default: break;
+    }
+    return totalSize;
+}
+
 ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const activation_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    const auto totalSize = params.inputs[0].LogicalSize();
-
-    dispatchData.gws = { totalSize / NUM_COLS_WI, 1, 1 };
+    dispatchData.gws = { GetTotalSize(params) / NUM_COLS_WI, 1, 1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -50,16 +73,12 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
 
     const activation_params& params = static_cast<const activation_params&>(p);
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && params.output.Feature().v % 16 != 0)
-        return false;
-
-    const auto totalSize = params.inputs[0].LogicalSize();
+    const auto totalSize = GetTotalSize(params);
     if ((totalSize % NUM_COLS_WI) != 0 ||
         (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
         (params.output.GetFirstElementOffset() % NUM_COLS_WI) != 0) {
         return false;
     }
-
 
     if (params.output.GetLayout() != params.inputs[0].GetLayout())
         return false;

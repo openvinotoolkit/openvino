@@ -1,8 +1,8 @@
-# Object Detection C++ Sample SSD {#openvino_inference_engine_samples_object_detection_sample_ssd_README}
+# Object Detection SSD C++ Sample {#openvino_inference_engine_samples_object_detection_sample_ssd_README}
 
 This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API.
 
-Object Detection C++ sample SSD application demonstrates how to use the following Inference Engine C++ API in applications:
+Object Detection SSD C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---

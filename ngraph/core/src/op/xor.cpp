@@ -71,7 +71,7 @@ namespace logxor
         }
         return rc;
     }
-}
+} // namespace logxor
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
