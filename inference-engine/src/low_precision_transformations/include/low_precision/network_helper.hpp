@@ -412,9 +412,9 @@ void mergeAndReplace(
     }
 }
 
-template <typename ... Args>
-std::shared_ptr<PrecisionsAttribute> make_shared_attribute(Args&& ... args) {
-    std::shared_ptr<PrecisionsAttribute> attribute = std::make_shared<PrecisionsAttribute>(std::forward<Args>(args)...);
+template <typename T, typename ... Args>
+std::shared_ptr<T> make_shared_attribute(Args&& ... args) {
+    std::shared_ptr<T> attribute = std::make_shared<T>(std::forward<Args>(args)...);
     attribute->sharedValue->attributes.push_back(attribute);
     return attribute;
 }

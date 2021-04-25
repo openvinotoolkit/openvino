@@ -61,8 +61,6 @@ void setRestriction(
                 }
             }
 
-            auto sharedAttribute = ngraph::pass::low_precision::make_shared_attribute(item.second);
-
             auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
             auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
 
