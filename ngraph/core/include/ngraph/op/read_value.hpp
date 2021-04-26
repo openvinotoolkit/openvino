@@ -57,7 +57,7 @@ namespace ngraph
             private:
                 std::string m_variable_id;
             };
-        }
+        } // namespace v3
 
         namespace v6
         {
@@ -101,6 +101,6 @@ namespace ngraph
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

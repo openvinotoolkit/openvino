@@ -846,7 +846,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         bool isSupportedParams = layer->_group == 1 &&
                 is1x1Convolution(layer) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
                 everyone_is(1, layer->_stride[X_AXIS], layer->_stride[Y_AXIS]) &&
-                one_of(layer->outData[0].get()->getPrecision(), Precision::FP32) &&
+                everyone_is(Precision::FP32, layer->insData[0].lock()->getPrecision(), layer->outData[0].get()->getPrecision()) &&
                 node->getChildEdgeAt(0)->getDims().ndims() == 4;
         if (!isSupportedParams) return false;
 
@@ -862,10 +862,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         if (parentLayer == nullptr)
             IE_THROW() << "Cannot get convolution layer " << parentNode->getName();
 
-        if (parentLayer->outData[0].get()->getPrecision() != childLayer->outData[0].get()->getPrecision())
+        if (!everyone_is(Precision::FP32, parentLayer->outData[0].get()->getPrecision(), childLayer->insData[0].lock()->getPrecision(),
+                childLayer->outData[0].get()->getPrecision()))
             return false;
 
-        if (parentLayer->precision != childLayer->precision)
+        if (!everyone_is(Precision::FP32, parentLayer->precision, childLayer->precision))
             return false;
 
         auto parentOutputPrecision = !parentNode->fusedWith.empty()
@@ -876,7 +877,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
                 ? childNode->fusedWith[childNode->fusedWith.size() - 1]->getCnnLayer()->outData[0].get()->getPrecision()
                 : childNode->getCnnLayer()->outData[0].get()->getPrecision();
 
-        if (parentOutputPrecision != childOutputPrecision)
+        if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
             return false;
 
         auto* childConvolutionNode = dynamic_cast<MKLDNNConvolutionNode*>(childNode.get());
@@ -1392,7 +1393,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
+        bool isSutableMVN = (node->getType() == MVN);
 
         if (isSutableMVN) {
             auto *mvnLayer = dynamic_cast<MVNLayer *>(node->getCnnLayer().get());
@@ -1405,7 +1406,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
         }
     };
 
-    auto isSutableChildNode = [](MKLDNNNodePtr node) {
+    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
         if (!node->getCnnLayer())
             return false;
 
@@ -1419,9 +1420,11 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
             if (eltwiseNode == nullptr)
                 IE_THROW() << "Cannot get eltwise node " << node->getName();
 
-            return ((eltwiseNode->getOpType() == MulAdd) ||
-                    (eltwiseNode->getOpType() == Prelu) ||
-                     eltwiseNode->getOpType() == Relu);
+            return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Tanh, Logistic, Square, Abs, Sqrt,
+                                                      Linear, BoundedRelu, SoftRelu, Relu6, Exp, Clamp, Swish,
+                                                      Hswish, Mish, Hsigmoid, Round, Erf}) ||
+                    ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
+                     (eltwiseNode->getOpType() == Prelu));
         }
 
         return false;
@@ -2051,7 +2054,7 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
             return false;
 
         for (int i = 0; i < scalesBlob->size(); i++)
-            if (scalesBufferPtr[i] <= 0.f)
+            if (scalesBufferPtr[i] == 0.f)
                 return false;
 
         const std::vector<float>& cropLowData = quantizeNode->getCropLow();
@@ -2066,27 +2069,49 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
 
         for (int i = 0; i < newCropLow.size(); i++) {
             float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
-
-            newCropLow[i] = (cl - shiftsBufferPtr[i]) / scalesBufferPtr[i];
-        }
-
-        for (int i = 0; i < newCropHigh.size(); i++) {
             float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
 
-            newCropHigh[i] = (ch - shiftsBufferPtr[i]) / scalesBufferPtr[i];
+            float newCL = (cl - shiftsBufferPtr[i]) / scalesBufferPtr[i];
+            float newCH = (ch - shiftsBufferPtr[i]) / scalesBufferPtr[i];
+
+            newCropLow[i] = std::min(newCL, newCH);
+            newCropHigh[i] = std::max(newCL, newCH);
+            if (std::isinf(newCropLow[i])) {
+                newCropLow[i] = std::numeric_limits<float>::lowest();
+            }
+            if (std::isinf(newCropHigh[i])) {
+                newCropHigh[i] = std::numeric_limits<float>::max();
+            }
         }
+
+        std::vector<float> zeroShift(newInputScale.size(), 0.f);
 
         for (int i = 0; i < newInputScale.size(); i++) {
             float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
 
             newInputScale[i] = isc * scalesBufferPtr[i];
+            if (std::abs(newInputScale[i]) < std::numeric_limits<float>::min()) {
+                newInputScale[i] = 0.f;
+                // zero value have to be shifted if it's not in input range
+                float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
+                float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
+                if (0.f < cl) {
+                    zeroShift[i] = isc * cl;
+                }
+                if (ch < 0.f) {
+                    zeroShift[i] = isc * ch;
+                }
+            }
         }
 
         for (int i = 0; i < newInputShift.size(); i++) {
             float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
             float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
 
-            newInputShift[i] = ish + shiftsBufferPtr[i] * isc;
+            newInputShift[i] = ish + shiftsBufferPtr[i] * isc + zeroShift[i];
+            if (std::abs(newInputShift[i]) < std::numeric_limits<float>::min()) {
+                newInputShift[i] = 0.f;
+            }
         }
 
         quantizeNode->setCropLow(newCropLow);

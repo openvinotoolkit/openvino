@@ -54,7 +54,7 @@ namespace ngraph
             private:
                 std::string m_variable_id;
             };
-        }
+        } // namespace v3
         namespace v6
         {
             /// \brief Assign operation sets an input value to the variable with `variable_id`
@@ -91,6 +91,6 @@ namespace ngraph
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

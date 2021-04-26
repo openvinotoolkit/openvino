@@ -211,7 +211,8 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
     std::vector<std::string> result;
     for (auto &&folderPath : folderPaths) {
         if (!CommonTestUtils::directoryExists(folderPath)) {
-            continue;
+            std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
+            throw std::runtime_error(msg);
         }
         auto fileListByPattern = getFileListByPattern(folderPath);
         result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());
