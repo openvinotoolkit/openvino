@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
-    if (custom_plugin_cfg_msg && (device_name == "GPU" || device_name == "MYRIAD" || device_name == "HDDL")) {
+    if (custom_plugin_cfg_msg && (strcmp(device_name, "GPU") == 0 || strcmp(device_name, "MYRIAD") == 0 || strcmp(device_name, "HDDL") == 0)) {
         // Config for device plugin custom extension is loaded from an .xml
         // description
         ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
