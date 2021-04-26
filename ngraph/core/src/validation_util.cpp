@@ -582,7 +582,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // messages.
     std::stringstream ss;
     bool first = true;
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         if (!first)
         {
@@ -596,7 +596,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // Infer output element type.
     element::Type et_result{input_element_type};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               element::Type::merge(et_result, et_result, inp.m_element_type),
@@ -606,14 +606,15 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // Extract channel dimension from input shape.
     Dimension channel_dim{Dimension::dynamic()};
 
-    NODE_VALIDATION_CHECK(node,
-                          input_shape.is_dynamic() || input_shape.rank().get_length() >= 2,
-                          "Input argument must have rank of at least 2 (input argument shape: ",
-                          input_shape,
-                          ").");
-
-    if (input_shape.rank().is_static())
+    Rank input_rank = input_shape.rank();
+    if (input_rank.is_static())
     {
+        NODE_VALIDATION_CHECK(node,
+                              input_rank.get_length() >= 2,
+                              "Input argument must have rank of at least 2 (input argument shape: ",
+                              input_shape,
+                              ").");
+
         channel_dim = input_shape[1];
     }
 
@@ -621,7 +622,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // "channel_dim".
     PartialShape channel_shape{PartialShape::dynamic()};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               PartialShape::merge_into(channel_shape, inp.m_shape),
