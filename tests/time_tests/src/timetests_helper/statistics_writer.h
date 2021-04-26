@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <stdexcept>
+#include <map>
 
 /**
  * @brief Class response for writing provided statistics
@@ -19,6 +20,8 @@
 class StatisticsWriter {
 private:
   std::ofstream statistics_file;
+  std::map<std::pair<int, std::string>, std::pair<std::string, float>> time_structure;
+  int order_count = 0;
 
   StatisticsWriter() = default;
   StatisticsWriter(const StatisticsWriter &) = delete;
@@ -47,11 +50,37 @@ public:
   }
 
   /**
+   * @brief Compute order for statistics operations.
+   */
+  void addOrderCount() {
+    order_count++;
+  }
+
+  void deleteOrderCount() {
+    order_count--;
+  }
+
+  /**
+   * @brief Writes statistics in map structure.
+   */
+  void addToTimeStructure(const std::pair<std::string, float> &record, int &order_number) {
+    std::string tabs = "";
+    for (int i = 0; i < order_count - 1; ++i) {
+      tabs += "  ";
+    }
+    time_structure.insert({std::make_pair(order_number, tabs), record});
+  }
+
+  /**
    * @brief Writes provided statistics in YAML format.
    */
-  void write(const std::pair<std::string, float> &record) {
+  void write() {
     if (!statistics_file)
       throw std::runtime_error("Statistic file path isn't set");
-    statistics_file << record.first << ": " << record.second << "\n";
+    for (auto& x: time_structure) {
+      statistics_file << (x.first).second << "- " << (x.second).first << ":" << '\n'
+                      << (x.first).second << "  " << "- " << (x.second).second << '\n';
+    }
+    statistics_file << "---" << '\n' << "# Time in microseconds";
   }
 };

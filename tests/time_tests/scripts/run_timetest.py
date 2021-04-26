@@ -55,6 +55,22 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
+def parse_stats(stats: list, res: dict):
+    """Parse raw statistics from nested list to flatten dict"""
+    for element in stats:
+        if isinstance(element, int):
+            for k, v in res.items():
+                if v is None:
+                    res.update({k: element})
+        else:
+            for k, v in element.items():
+                if len(v) == 1:
+                    res.update({k: v[0]})
+                else:
+                    res.update({k: None})
+                    parse_stats(v, res)
+
+
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
     return {step_name: {"avg": statistics.mean(duration_list),
@@ -87,16 +103,21 @@ def run_timetest(args: dict, log=None):
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
 
-        # Read raw statistics
+        # Read statistics from yml
         with open(tmp_stats_path, "r") as file:
-            raw_data = yaml.safe_load(file)
+            raw_data = list(yaml.load_all(file))
 
         os.unlink(tmp_stats_path)
-        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
+
+        # Refactoring raw data from yml
+        flatten_dict = {}
+        parse_stats(raw_data[0], flatten_dict)
+
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_dict))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
-                     for step_name, duration in raw_data.items())
+                     for step_name, duration in flatten_dict.items())
 
     # Remove outliers
     filtered_stats = filter_timetest_result(stats)

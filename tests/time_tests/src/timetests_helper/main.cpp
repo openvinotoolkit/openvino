@@ -39,7 +39,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  * @brief Function calls `runPipeline` with mandatory time tracking of full run
  */
 int _runPipeline() {
-  SCOPED_TIMER(full_run);
+  SCOPED_TIMER(full_run, 0);
   return runPipeline(FLAGS_m, FLAGS_d);
 }
 
@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
   if (!parseAndCheckCommandLine(argc, argv))
     return -1;
 
+  auto status =  _runPipeline();
   StatisticsWriter::Instance().setFile(FLAGS_s);
-  return _runPipeline();
+  StatisticsWriter::Instance().write();
+  return status;
 }

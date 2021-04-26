@@ -14,16 +14,19 @@ using time_point = std::chrono::high_resolution_clock::time_point;
 
 namespace TimeTest {
 
-Timer::Timer(const std::string &timer_name) {
+Timer::Timer(const std::string &timer_name, int order_number) {
   name = timer_name;
+  order = order_number;
   start_time = std::chrono::high_resolution_clock::now();
+  StatisticsWriter::Instance().addOrderCount();
 }
 
 Timer::~Timer() {
   float duration = std::chrono::duration_cast<std::chrono::microseconds>(
                        std::chrono::high_resolution_clock::now() - start_time)
                        .count();
-  StatisticsWriter::Instance().write({name, duration});
+  StatisticsWriter::Instance().addToTimeStructure({name, duration}, order);
+  StatisticsWriter::Instance().deleteOrderCount();
 }
 
 } // namespace TimeTest
