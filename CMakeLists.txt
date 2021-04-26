@@ -148,6 +148,7 @@ build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
+add_subdirectory(tools)
 
 #
 # Shellcheck
