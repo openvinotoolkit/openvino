@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # parser.add_argument("--apply_pruning", action="store_true")
     parser.add_argument("--input_model")
     args = parser.parse_args()
-    path_to_model = args.path_to_model
+    path_to_model = args.input_model
 
     try:
         from openvino.inference_engine import IECore, read_network, read_network_without_extensions # pylint: disable=import-error
