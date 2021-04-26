@@ -285,7 +285,7 @@ namespace roi_alinop
 
         return rc;
     }
-} // namespace
+} // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
