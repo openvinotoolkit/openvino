@@ -276,9 +276,9 @@ shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
                                           'shape': int64_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
 
-shaped_input = lambda name, shape: {**regular_op(name, {'op': 'Parameter', 'shape': shape,
-                                                        'infer': Parameter.infer}),
-                                    **shaped_data(name + '_d', shape)}
+shaped_parameter = lambda name, shape: {**regular_op(name, {'op': 'Parameter', 'shape': shape,
+                                                            'infer': Parameter.infer}),
+                                        **shaped_data(name + '_d', shape)}
 
 result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result',
                                                                      'infer': lambda x: 0}}

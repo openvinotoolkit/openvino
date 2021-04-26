@@ -9,8 +9,8 @@ from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.middle.passes.infer import partial_infer
-from mo.utils.unittest.graph import build_graph
-from mo.utils.unittest.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, shaped_input
+from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
+    shaped_parameter, build_graph
 
 
 class TestGatherPartialInfer(unittest.TestCase):
@@ -43,8 +43,8 @@ class TestGatherPartialInfer(unittest.TestCase):
     @staticmethod
     def build_and_test_shape_inference(data_shape, indices_shape, axis, batch_dims, ref_shape):
         nodes = {
-            **shaped_input('data', int64_array(data_shape)),
-            **shaped_input('indices', int64_array(indices_shape)),
+            **shaped_parameter('data', int64_array(data_shape)),
+            **shaped_parameter('indices', int64_array(indices_shape)),
             **valued_const_with_data('axis', int64_array(axis)),
             **regular_op_with_empty_data('gather', {'op': 'Gather', 'batch_dims': batch_dims, 'infer': Gather.infer}),
             **result('res'),
