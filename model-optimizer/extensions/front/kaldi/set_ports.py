@@ -31,8 +31,8 @@ class SetPortsPattern(FrontReplacementSubgraph):
             out_ports_count = node.out_ports_count if node.has_valid('out_ports_count') else len(outputs)
 
             if len(outputs) > out_ports_count > 1:
-                raise Error("Node have more children then it should: " +
-                            "should be {} but there is {}".format(out_ports_count, len(outputs)))
+                raise Error("Node {} have more children then it should: " +
+                            "should be {} but there is {}".format(node_id, out_ports_count, len(outputs)))
 
             node['_in_ports'] = {}
             node['_out_ports'] = {}

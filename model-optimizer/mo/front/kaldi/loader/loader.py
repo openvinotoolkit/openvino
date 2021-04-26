@@ -168,6 +168,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     # for each output Identity node is added, and tensor name for the output is kept
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
+    assert output_layer is not None, "Output layer not found in graph"
     add_outputs_identity(graph, [output_layer], lambda g, output, fake_output: g.create_edge(
         Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
