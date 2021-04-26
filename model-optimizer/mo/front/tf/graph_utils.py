@@ -185,3 +185,20 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
     else:
         raise Error('Unknown post-processing activation function "{}".'.format(activation_function))
     return activation_node
+
+
+def correct_roll_axes(roll: Node):
+    axes_node = roll.in_port(2).get_source().node
+    if axes_node.soft_get('type') != 'Const':
+        return
+    axes = axes_node.soft_get('value', None)
+    if axes is None:
+        return
+
+    corrected_axes = axes.copy()
+    for i, axis in enumerate(axes):
+        if axis < 0:
+            corrected_axes[i] = axis - 1
+
+    axes_node.value = int64_array(corrected_axes)
+    mark_input_as_in_correct_layout(roll, 2)

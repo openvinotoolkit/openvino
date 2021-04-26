@@ -4,12 +4,11 @@
 
 import logging as log
 
-from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout
 from extensions.ops.roll import Roll
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, Node, rename_nodes
+from mo.front.tf.graph_utils import correct_roll_axes
+from mo.graph.graph import Graph, rename_nodes
 
 
 class SSliceComplexRoll(FrontReplacementSubgraph):
@@ -73,7 +72,7 @@ class SSliceComplexRoll(FrontReplacementSubgraph):
 
         new_roll = Roll(graph, {}).create_node()
 
-        self.correct_roll_axes(roll)
+        correct_roll_axes(roll)
 
         roll.in_port(1).get_connection().set_destination(new_roll.in_port(1))
         roll.in_port(2).get_connection().set_destination(new_roll.in_port(2))
@@ -83,20 +82,3 @@ class SSliceComplexRoll(FrontReplacementSubgraph):
         roll.out_port(0).get_connection().set_source(new_roll.out_port(0))
 
         rename_nodes([(roll, roll_name + '/to_be_removed'), (new_roll, roll_name)])
-
-    @staticmethod
-    def correct_roll_axes(roll: Node):
-        axes_node = roll.in_port(2).get_source().node
-        if axes_node.soft_get('type') != 'Const':
-            return
-        axes = axes_node.soft_get('value', None)
-        if axes is None:
-            return
-
-        corrected_axes = axes.copy()
-        for i, axis in enumerate(axes):
-            if axis < 0:
-                corrected_axes[i] = axis - 1
-
-        axes_node.value = int64_array(corrected_axes)
-        mark_input_as_in_correct_layout(roll, 2)
