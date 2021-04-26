@@ -149,6 +149,14 @@ namespace ngraph
                 {
                     return m_output_descriptions[index];
                 }
+                void set_input_descriptions(int index, MultiSubgraphInputDescriptionVector inputs) 
+                {
+                    m_input_descriptions[index] = inputs;
+                }
+                void set_output_descriptions(int index, MultiSubgraphOutputDescriptionVector outputs)
+                {
+                    m_output_descriptions[index] = outputs;
+                }
                 void reserve_bodies(int num_bodies);
                 MultiSubGraphOp(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp(MultiSubGraphOp&&) = default;
@@ -163,7 +171,7 @@ namespace ngraph
                 Input<Node> input_for_value(const Output<Node>& value);
 
                 MultiSubGraphOp() = default;
-
+                MultiSubGraphOp(const OutputVector& args, size_t bodies_index);
                 explicit MultiSubGraphOp(const OutputVector& args);
 
                 std::vector<std::shared_ptr<Function>> m_bodies;
@@ -218,7 +226,7 @@ namespace ngraph
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::"
             "OutputDescription>>>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }

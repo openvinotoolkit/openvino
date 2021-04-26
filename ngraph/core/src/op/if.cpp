@@ -12,32 +12,48 @@
 #include <algorithm>
 #include <iterator>
 
+#include "ngraph/runtime/reference/if.hpp"
+
 using namespace std;
 using namespace ngraph;
 constexpr NodeTypeInfo op::v0::If::type_info;
 
-op::v0::If::If(const OutputVector& values)
-    : op::util::MultiSubGraphOp(values)
+
+op::v0::If::If()
+    : If(OutputVector())
 {
-    //Check value with index 0
 }
 
-op::v0::If::If(const Output<Node>& execution_condition) {
+op::v0::If::If(const OutputVector& values)
+    : op::util::MultiSubGraphOp(values, 2)
+{
+    m_bodies.resize(2);
+    m_input_descriptions.resize(2);
+    m_output_descriptions.resize(2);
+}
+
+
+op::v0::If::If(const Output<Node>& execution_condition): If() {
     set_argument(0, execution_condition);
+  
 }
 
 bool op::v0::If::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_If_visit_attributes);
     if (m_bodies.size() != 2) {
-        m_bodies = std::vector<std::shared_ptr<ngraph::Function>>(2);
+        m_bodies.resize(2);
+        m_input_descriptions.resize(2);
+        m_output_descriptions.resize(2);
     }
-    visitor.on_attribute("port_map",m_input_descriptions[then_body_index]);
-    visitor.on_attribute("else_port_map", m_input_descriptions[else_body_index]); 
-  /*  visitor.on_attribute("then_body", m_bodies[then_body_index]);
-    visitor.on_attribute("input_descriptions", m_input_descriptions);
-    visitor.on_attribute("output_descriptions", m_output_descriptions);
-    */
+    m_bodies[then_body_index] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
+    m_bodies[else_body_index] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
+    visitor.on_attribute("then_body", m_bodies[then_body_index]);
+    visitor.on_attribute("else_body", m_bodies[else_body_index]);
+    visitor.on_attribute("then_inputs", m_input_descriptions[then_body_index]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[else_body_index]);
+    visitor.on_attribute("then_outputs", m_output_descriptions[then_body_index]);
+    visitor.on_attribute("else_outputs", m_output_descriptions[else_body_index]);
     return true;
 }
 
@@ -130,11 +146,11 @@ void op::v0::If::validate_and_infer_types()
                     out_shape = Shape(1);
                 }
 
-                set_output_type(output_descr->m_body_value_index, body_value.get_element_type(), out_shape);
+                set_output_type(output_descr->m_output_index, body_value.get_element_type(), out_shape);
             }
             else
             {
-                set_output_type(output_descr->m_body_value_index, body_value.get_element_type(),
+                set_output_type(output_descr->m_output_index, body_value.get_element_type(),
                                 PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         }
@@ -297,5 +313,13 @@ void op::v0::If::set_invariant_input(
                 input_index, m_bodies[else_body_index]->get_parameter_index(else_parameter)));
     }
     validate_and_infer_types();
+}
+
+bool op::v0::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v0_If_evaluate);
+    runtime::reference::if_reference(
+        m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
+    return true;
 }
 

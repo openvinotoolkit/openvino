@@ -58,6 +58,14 @@ op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args)
 
 }
 
+op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t bodies_index)
+    : MultiSubGraphOp(args)
+{
+    m_bodies.resize(bodies_index);
+    m_input_descriptions.resize(bodies_index);
+    m_output_descriptions.resize(bodies_index);
+}
+
 Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value)
 {
     auto input_index = get_input_size();

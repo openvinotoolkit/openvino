@@ -28,7 +28,7 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 If(const Output<Node>& execution_condition);
-                If() = default;
+                If();
                 explicit If(const OutputVector& values);
 
                 std::shared_ptr<Node>
@@ -51,6 +51,8 @@ namespace ngraph
                 void set_invariant_input(const Output<Node>& value,
                                          const std::shared_ptr<Parameter>& then_parameter,
                                          const std::shared_ptr<Parameter>& else_parameter);
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
             private:
                 void validate_and_infer_type_body(
                     std::shared_ptr<Function> body,
