@@ -39,22 +39,22 @@ InputModelTensorflow::InputModelTensorflow (const std::string& _path) : path(_pa
     std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
 }
 
-std::vector<Place::Ptr> InputModelTensorflow::getInputs () const {
+std::vector<IPlace::Ptr> InputModelTensorflow::getInputs () const {
 // TODO: Cache results
-    std::vector<Place::Ptr> result;
-    for (size_t i = 0; i < graph_def->node_size(); ++i) {
+    std::vector<IPlace::Ptr> result;
+    for (size_t i = 0; i < (size_t) graph_def->node_size(); ++i) {
         if (graph_def->node(i).op() == "Placeholder")
             result.push_back(std::make_shared<PlaceTensorflow>(graph_def->node(i).name()));
     }
     return result;
 }
 
-void InputModelTensorflow::setPartialShape (Place::Ptr place, const ngraph::PartialShape& pshape) {
+void InputModelTensorflow::setPartialShape (IPlace::Ptr place, const ngraph::PartialShape& pshape) {
     auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
     partialShapes[place_tf->name] = pshape;
 }
 
-std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (InputModel::Ptr model) const
+std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (IInputModel::Ptr model) const
 {
     auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
     std::cerr << "[ INFO ] FrontEndTensorflow::convert invoked\n";

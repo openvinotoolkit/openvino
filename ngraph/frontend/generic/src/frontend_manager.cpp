@@ -3,6 +3,8 @@
 //
 
 #include <ngraph/except.hpp>
+#include <frontend_manager/frontend_manager.hpp>
+
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 #include "onnx_import/onnx.hpp"
 #endif
@@ -30,6 +32,163 @@ namespace ngraph
 
         #define FRONT_END_ASSERT(EXPRESSION) \
             { if (!(EXPRESSION)) throw "AssertionFailed"; }
+
+        // ------------ TODO: ONNX FrontEnd Stub ------
+#if defined(NGRAPH_ONNX_IMPORT_ENABLE) && defined(NGRAPH_ONNX_EDITOR_ENABLE)
+        class PlaceInputEdgeONNX : public IPlace
+        {
+        public:
+
+            onnx_editor::InputEdge edge;
+
+            PlaceInputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
+                    edge(_operationNodeIndex, _sourceTensorName)
+            {}
+        };
+
+        class PlaceOutputEdgeONNX : public IPlace
+        {
+        public:
+
+            onnx_editor::OutputEdge edge;
+
+            PlaceOutputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
+                    edge(_operationNodeIndex, _targetTensorName)
+            {}
+
+
+        };
+
+        class InputModelONNX;
+
+        class PlaceTensorONNX : public IPlace
+        {
+            std::string tensorName;
+            const InputModelONNX* model;
+
+        public:
+
+            PlaceTensorONNX (const std::string& _tensorName, const InputModelONNX* _model) : tensorName(_tensorName), model(_model){}
+
+            virtual std::vector<std::string> getNames () const override
+            {
+                return std::vector<std::string>(1, tensorName);
+            }
+
+            virtual std::vector<IPlace::Ptr> getConsumingPorts () const override;
+            virtual IPlace::Ptr getProducingPort () const override;
+        };
+
+        class InputModelONNX : public IInputModel
+        {
+
+        public:
+            // TODO: Move to private
+            onnx_editor::ONNXModelEditor editor;
+
+            InputModelONNX (const std::string& model_path) : editor(model_path) {}
+
+            IPlace::Ptr getPlaceByTensorName (const std::string& tensorName) const override
+            {
+                if(!editor.validate_tensor_name(tensorName)) {
+                    std::cerr << " [ ERROR ] Node with name " << tensorName << " is not valid for a given model\n";
+                    return nullptr;
+                }
+                return std::make_shared<PlaceTensorONNX>(tensorName, this);
+            }
+
+            std::vector<IPlace::Ptr> getInputs () const override {
+                auto inputs = editor.model_inputs();
+                std::vector<IPlace::Ptr> outputs;
+                outputs.reserve(inputs.size());
+                for(auto const& input: inputs)
+                {
+                    outputs.push_back(std::make_shared<PlaceTensorONNX>(input, this));
+                }
+                return outputs;
+            }
+
+            void setPartialShape (IPlace::Ptr IPlace, const ngraph::PartialShape& shape) override
+            {
+                std::map<std::string, ngraph::PartialShape> m;
+                m[IPlace->getNames()[0]] = shape;
+                editor.set_input_shapes(m);
+            }
+
+            void extractSubgraph (const std::vector<IPlace::Ptr>& inputs, const std::vector<IPlace::Ptr>& outputs) override
+            {
+                std::cerr << "\nTTTTTTTTTTTTT\n";
+                std::cerr << "inputs.size() = " << inputs.size() << "\n";
+                // Current implementation is limited by tensor places only, each input tensor should be consumed by a single op only
+                // TODO Extend to non tensor inputs/outputs and remove other limitations
+                std::vector<onnx_editor::InputEdge> onnx_inputs;
+                onnx_inputs.reserve(inputs.size());
+                for(const auto& input: inputs)
+                {
+                    std::cerr << "[] = " << input.get() << "\n";
+                    // TODO check if input is a tensor
+                    auto inputPorts = input->getConsumingPorts();
+                    std::cerr << "{1}\n";
+                    NGRAPH_CHECK(inputPorts.size() == 1);
+                    std::cerr << "{2}\n";
+                    auto inputPort = inputPorts.front();
+                    std::cerr << "{3}\n";
+                    auto onnxInputEdge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(inputPort);
+                    NGRAPH_CHECK(onnxInputEdge);
+                    onnx_inputs.push_back(onnxInputEdge->edge);
+                }
+                std::cerr << "{4}\n";
+
+                std::vector<onnx_editor::OutputEdge> onnx_outputs;
+                onnx_outputs.reserve(outputs.size());
+                for(const auto& output: outputs)
+                {
+                    // TODO check if output is a tensor
+                    auto outputPort = output->getProducingPort();
+                    auto onnxOutputEdge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(outputPort);
+                    NGRAPH_CHECK(onnxOutputEdge);
+                    onnx_outputs.push_back(onnxOutputEdge->edge);
+                }
+
+                editor.cut_graph_fragment(onnx_inputs, onnx_outputs);
+            }
+        };
+
+        std::vector<IPlace::Ptr> PlaceTensorONNX::getConsumingPorts () const
+        {
+            // ONNX specific code to find a node indices for all operations that consume a given tensor name
+            std::vector<IPlace::Ptr> result;
+            for(int i: model->editor.find_consumeing_node_idxs(tensorName))
+            {
+                result.push_back(std::make_shared<PlaceInputEdgeONNX>(tensorName, i));
+            }
+            return result;
+        }
+
+        IPlace::Ptr PlaceTensorONNX::getProducingPort () const
+        {
+            return std::make_shared<PlaceOutputEdgeONNX>(model->editor.find_producing_node_idx(tensorName), tensorName);
+        }
+
+        class FrontEndONNX : public IFrontEnd
+        {
+        public:
+
+            FrontEndONNX ()
+            {
+            }
+
+            virtual IInputModel::Ptr loadFromFile (const std::string& path) const override
+            {
+                return std::make_shared<InputModelONNX>(path);
+            }
+
+            virtual std::shared_ptr<ngraph::Function> convert (IInputModel::Ptr model) const override
+            {
+                return onnx_import::import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor.model_path());
+            }
+        };
+#endif
 
         //-------- PlaceImpl -----------------------
         class PlaceImpl {

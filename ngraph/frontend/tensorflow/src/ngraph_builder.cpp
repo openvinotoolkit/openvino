@@ -41,7 +41,7 @@ static bool VecStrCmp(const std::vector<string>& a,
   return a == b;
 }
 
-static Status ValidateInputCount(const TFNodeDecoder* op, int32_t count) {
+static Status ValidateInputCount(const TFNodeDecoder* op, uint32_t count) {
   if (op->num_inputs() != count) {
       std::ostringstream buf;
       buf << "\"" << op->name() << "\" requires " << count <<
@@ -52,7 +52,7 @@ static Status ValidateInputCount(const TFNodeDecoder* op, int32_t count) {
   return Status::OK();
 }
 
-static Status ValidateInputCountMin(const TFNodeDecoder* op, int32_t count) {
+static Status ValidateInputCountMin(const TFNodeDecoder* op, uint32_t count) {
   if (op->num_inputs() < count) {
       std::ostringstream buf;
       buf << "\"" << op->name() << "\" requires at least " <<
@@ -692,7 +692,7 @@ static Status TranslateAddNOp(const TFNodeDecoder* op, const std::vector<const T
                               Builder::OpMap& ng_op_map) {
   std::vector<ng::Output<ng::Node>> ng_arg_vec(op->num_inputs());
 
-  for (int inp_idx = 0; inp_idx < op->num_inputs(); inp_idx++)
+  for (size_t inp_idx = 0; inp_idx < op->num_inputs(); inp_idx++)
     TF_RETURN_IF_ERROR(
         GetInputNode(ng_op_map, op, inp_idx, ng_arg_vec[inp_idx]));
   auto ng_addn = std::accumulate(
@@ -857,7 +857,7 @@ static Status TranslateBiasAddOp(
   if (tf_data_format == "NCHW") {
     auto channel_dim = ng_input_shape[1];
     std::vector<int64_t> target_shape(ng_input_shape.size());
-    for (int64_t i = 0; i < ng_input_shape.size(); i++) {
+    for (size_t i = 0; i < ng_input_shape.size(); i++) {
       if (i == 1) {
         target_shape[i] = channel_dim;
       } else {
@@ -918,7 +918,7 @@ static Status TranslateConcatV2Op(
 
   ng::OutputVector ng_args;
 
-  for (int i = 0; i < op->num_inputs() - 1; i++) {
+  for (size_t i = 0; i < op->num_inputs() - 1; i++) {
     ng::Output<ng::Node> ng_arg;
     TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, i, ng_arg));
     ng_args.push_back(ng_arg);
@@ -1498,7 +1498,7 @@ static Status TranslateGatherV2Op(
   } else {
     axis = tf_axis[0] + ng_input_rank;
   }
-  if (axis < 0 || axis >= ng_input_rank) {
+  if (axis < 0 || axis >= (int) ng_input_rank) {
       std:ostringstream buf;
       buf << "Expected axis in the range [-" <<
               ng_input_rank << ", " << ng_input_rank <<
@@ -2040,7 +2040,7 @@ static Status TranslatePackOp(const TFNodeDecoder* op, const std::vector<const T
       std::vector<int64_t>({tf_axis}));
 
   ng::OutputVector ng_concat_inputs;
-  for (int32_t i = 0; i < op->num_inputs(); ++i) {
+  for (size_t i = 0; i < op->num_inputs(); ++i) {
     ng::Output<ng::Node> ng_input;
     TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, i, ng_input));
     auto unsqueezed_input =
@@ -2312,7 +2312,7 @@ static Status TranslateSliceOp(
     if (begin_vec[i] > end_vec[i])
       err_stream << "upper < lower: upper = " << end_vec[i]
                  << ", lower = " << begin_vec[i] << "\n";
-    if (begin_vec[i] > ng_input_shape[i])
+    if (begin_vec[i] > (int) ng_input_shape[i])
       err_stream << "dim < upper: dim = " << ng_input_shape[i]
                  << ", upper = " << end_vec[i] << "\n";
 
@@ -2463,7 +2463,7 @@ static Status TranslateSplitVOp(
     split_lengths_vec[idx] = shape[split_dim] - length;
   }
 
-  if ((!has_one_neg && length != shape[split_dim]) ||
+  if ((!has_one_neg && length != (int) shape[split_dim]) ||
       (has_one_neg && split_lengths_vec[idx] < 0)) {
     return errors::InvalidArgument(
         "The length of size_splits must sum to the value of the dimension "
@@ -2562,7 +2562,7 @@ static Status TranslateStridedSliceOp(
     if (mask == 0) {
       return vec;
     }
-    for (auto i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) {
       if ((unsigned char)(mask >> i & 0x01) == 1) {
         vec[i] = 1;
       }
@@ -2885,7 +2885,7 @@ public:
     {\
         const auto& list = node_def->attr().at(name).list();\
         x->reserve(/*node_def->attr().at(name).FIELD##_size()*/list.FIELD##_size());\
-        for(size_t i = 0; i < list.FIELD##_size(); ++i)\
+        for(size_t i = 0; i < (size_t) list.FIELD##_size(); ++i)\
         {\
             x->push_back(list.FIELD(i));\
         }\
