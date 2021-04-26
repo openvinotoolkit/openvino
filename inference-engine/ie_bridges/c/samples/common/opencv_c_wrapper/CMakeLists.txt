@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-project(OpenCV_C_Wraper)
-set(TARGET_NAME opencv_c_wraper)
+project(OpenCV_C_Wrapper)
+set(TARGET_NAME opencv_c_wrapper)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)

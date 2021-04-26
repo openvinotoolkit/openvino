@@ -12,7 +12,7 @@
 #include <utility>
 
 #include <mvnc.h>
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 
 #include <ie_parameter.hpp>
 
