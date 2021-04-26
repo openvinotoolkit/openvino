@@ -47,4 +47,4 @@ namespace ngraph
     protected:
         std::shared_ptr<ngraph::Variable> m_variable;
     };
-}
+} // namespace ngraph

@@ -106,4 +106,4 @@ namespace ngraph
         /// Required values for evaluating ngraph::function containing Variables.
         std::shared_ptr<VariableContext> m_variable_context;
     };
-}
+} // namespace ngraph

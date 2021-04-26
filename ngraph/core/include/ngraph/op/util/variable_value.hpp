@@ -64,4 +64,4 @@ namespace ngraph
         HostTensorPtr m_value;
     };
     using VariableValuePtr = std::shared_ptr<VariableValue>;
-}
+} // namespace ngraph
