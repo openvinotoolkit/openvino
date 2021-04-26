@@ -11,7 +11,8 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engin
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
@@ -84,3 +85,5 @@ install(TARGETS ${INSTALLED_TARGETS}
 install(PROGRAMS __init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
         COMPONENT ${PYTHON_VERSION})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
