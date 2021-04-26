@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 #include "myriad_executor.h"
 
 #include <functional>

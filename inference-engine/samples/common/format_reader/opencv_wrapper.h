@@ -4,7 +4,7 @@
 
 /**
  * \brief Image reader
- * \file opencv_wraper.h
+ * \file opencv_wrapper.h
  */
 #pragma once
 

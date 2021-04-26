@@ -6,7 +6,7 @@
 
 #include "description_buffer.hpp"
 #include "myriad_executable_network.h"
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
 #include <memory>
 #include <string>

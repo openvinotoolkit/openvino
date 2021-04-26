@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 
 #include <ie_common.h>
 

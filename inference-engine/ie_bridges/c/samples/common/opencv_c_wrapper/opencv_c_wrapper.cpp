@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "opencv_c_wraper.h"
+#include "opencv_c_wrapper.h"
 
 #ifndef USE_OPENCV
 

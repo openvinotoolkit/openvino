@@ -32,10 +32,10 @@ public:
 
     static std::string getMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
         const auto &rtInfo = node->get_rt_info();
-        using MemoryFormatsWraper = VariantWrapper<MemoryFormatsType>;
-        if (!rtInfo.count(MemoryFormatsWraper::type_info.name)) return "";
-        const auto &attr = rtInfo.at(MemoryFormatsWraper::type_info.name);
-        MemoryFormatsType mem_format = as_type_ptr<MemoryFormatsWraper>(attr)->get();
+        using MemoryFormatsWrapper = VariantWrapper<MemoryFormatsType>;
+        if (!rtInfo.count(MemoryFormatsWrapper::type_info.name)) return "";
+        const auto &attr = rtInfo.at(MemoryFormatsWrapper::type_info.name);
+        MemoryFormatsType mem_format = as_type_ptr<MemoryFormatsWrapper>(attr)->get();
         return mem_format.getMemoryFormats();
     }
 
