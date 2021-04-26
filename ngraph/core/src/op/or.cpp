@@ -64,7 +64,7 @@ namespace logor
         }
         return rc;
     }
-}
+} // namespace logor
 
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const

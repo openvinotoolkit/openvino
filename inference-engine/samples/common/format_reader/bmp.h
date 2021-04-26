@@ -8,9 +8,10 @@
  */
 #pragma once
 
+#include <format_reader.h>
+
 #include <memory>
 #include <string>
-#include <format_reader.h>
 
 #include "register.h"
 
@@ -24,22 +25,22 @@ private:
     static Register<BitMap> reg;
 
     typedef struct BmpHeaderType {
-        unsigned short type   = 0u;              /* Magic identifier            */
-        unsigned int size     = 0u;              /* File size in bytes          */
+        unsigned short type = 0u; /* Magic identifier            */
+        unsigned int size = 0u;   /* File size in bytes          */
         unsigned int reserved = 0u;
-        unsigned int offset   = 0u;              /* Offset to image data, bytes */
+        unsigned int offset = 0u; /* Offset to image data, bytes */
     } BmpHeader;
 
     typedef struct BmpInfoHeaderType {
-        unsigned int size = 0u;                  /* Header size in bytes      */
-        int width = 0, height = 0;               /* Width and height of image */
-        unsigned short planes = 0u;              /* Number of colour planes   */
-        unsigned short bits = 0u;                /* Bits per pixel            */
-        unsigned int compression = 0u;           /* Compression type          */
-        unsigned int imagesize = 0u;             /* Image size in bytes       */
-        int xresolution = 0, yresolution = 0;    /* Pixels per meter          */
-        unsigned int ncolours = 0u;              /* Number of colours         */
-        unsigned int importantcolours = 0u;      /* Important colours         */
+        unsigned int size = 0u;               /* Header size in bytes      */
+        int width = 0, height = 0;            /* Width and height of image */
+        unsigned short planes = 0u;           /* Number of colour planes   */
+        unsigned short bits = 0u;             /* Bits per pixel            */
+        unsigned int compression = 0u;        /* Compression type          */
+        unsigned int imagesize = 0u;          /* Image size in bytes       */
+        int xresolution = 0, yresolution = 0; /* Pixels per meter          */
+        unsigned int ncolours = 0u;           /* Number of colours         */
+        unsigned int importantcolours = 0u;   /* Important colours         */
     } BmpInfoHeader;
 
 public:
@@ -48,9 +49,8 @@ public:
      * @param filename - path to input data
      * @return BitMap reader object
      */
-    explicit BitMap(const std::string &filename);
-    virtual ~BitMap() {
-    }
+    explicit BitMap(const std::string& filename);
+    virtual ~BitMap() {}
 
     /**
      * \brief Get size

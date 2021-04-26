@@ -33,5 +33,5 @@ namespace ngraph
             }
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph
