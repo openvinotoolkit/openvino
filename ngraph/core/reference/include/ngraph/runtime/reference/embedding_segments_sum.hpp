@@ -31,7 +31,7 @@ namespace ngraph
                 {
                     embDepth *= outShape[i];
                 }
-                memset(out, 0, shape_size(outShape) * sizeof(T));
+                std::fill(out, out + shape_size(outShape), T{0});
 
                 bool with_weights = (weights != nullptr);
 
@@ -62,7 +62,7 @@ namespace ngraph
                 if (defaultIndex != nullptr)
                 {
                     U defIndex = defaultIndex[0];
-                    if (defIndex < U(0) && defIndex >= embTableShape[0])
+                    if (defIndex < U(0) && static_cast<size_t>(defIndex) >= embTableShape[0])
                         throw ngraph_error(std::string("Invalid default index") +
                                            std::to_string(defIndex));
                     for (size_t obi = 0; obi < segments_num; obi++)
@@ -70,7 +70,7 @@ namespace ngraph
                         bool found = false;
                         for (size_t index = 0; index < indices_len; index++)
                         {
-                            if (segmentIds[index] == obi)
+                            if (static_cast<size_t>(segmentIds[index]) == obi)
                             {
                                 found = true;
                                 break;
@@ -88,6 +88,6 @@ namespace ngraph
                 }
             } // embeddingSegmentsSum
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

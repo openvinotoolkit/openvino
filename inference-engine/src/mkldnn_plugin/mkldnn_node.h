@@ -48,16 +48,18 @@ enum Type {
     Concatenation,
     Eltwise,
     Gemm,
-    Crop,
     Reshape,
     Tile,
     SimplerNMS,
     ROIAlign,
     ROIPooling,
     BatchNormalization,
+    DepthToSpace,
     Flatten,
     Pad,
     Permute,
+    SpaceToDepth,
+    StridedSlice,
     Copy,
     MemoryOutput,
     MemoryInput,
@@ -122,8 +124,6 @@ static std::string NameFromType(Type type) {
             return "Concatenation";
         case Depthwise:
             return "Depthwise";
-        case Crop:
-            return "Crop";
         case Reshape:
             return "Reshape";
         case Tile:
@@ -136,12 +136,18 @@ static std::string NameFromType(Type type) {
             return "ROIPooling";
         case BatchNormalization:
             return "BatchNormalization";
+        case DepthToSpace:
+            return "DepthToSpace";
         case Flatten:
             return "Flatten";
         case Pad:
             return "Pad";
         case Permute:
             return "Permute";
+        case SpaceToDepth:
+            return "SpaceToDepth";
+        case StridedSlice:
+            return "StridedSlice";
         case Copy:
             return "Copy";
         case MemoryOutput:

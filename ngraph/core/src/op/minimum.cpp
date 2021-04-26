@@ -52,7 +52,7 @@ namespace minimumop
         }
         return rc;
     }
-}
+} // namespace minimumop
 
 // ------------------------------ v1 -------------------------------------------
 

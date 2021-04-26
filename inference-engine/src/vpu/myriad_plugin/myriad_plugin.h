@@ -6,7 +6,7 @@
 
 #include "description_buffer.hpp"
 #include "myriad_executable_network.h"
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
 #include <memory>
 #include <string>
@@ -37,11 +37,11 @@ public:
 
     using ie::InferencePluginInternal::ImportNetwork;
 
-    ie::ExecutableNetwork ImportNetwork(
+    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             const std::string& modelFileName,
             const std::map<std::string, std::string>& config) override;
 
-    ie::ExecutableNetwork ImportNetwork(
+    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
             const std::map<std::string, std::string>& config) override;
 

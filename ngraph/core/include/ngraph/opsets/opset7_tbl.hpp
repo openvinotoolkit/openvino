@@ -42,7 +42,7 @@ NGRAPH_OP(ExtractImagePatches, ngraph::op::v3)
 NGRAPH_OP(FakeQuantize, ngraph::op::v0)
 NGRAPH_OP(Floor, ngraph::op::v0)
 NGRAPH_OP(FloorMod, ngraph::op::v1)
-NGRAPH_OP(Gather, ngraph::op::v1)
+NGRAPH_OP(Gather, ngraph::op::v7)
 NGRAPH_OP(GatherTree, ngraph::op::v1)
 NGRAPH_OP(Greater, ngraph::op::v1)
 NGRAPH_OP(GreaterEqual, ngraph::op::v1)
@@ -171,6 +171,7 @@ NGRAPH_OP(ReadValue, ngraph::op::v6) // new version
 
 // New operations added in opset7
 NGRAPH_OP(DFT, ngraph::op::v7)
+NGRAPH_OP(Einsum, ngraph::op::v7)
 NGRAPH_OP(Gelu, ngraph::op::v7)
 NGRAPH_OP(IDFT, ngraph::op::v7)
 NGRAPH_OP(Roll, ngraph::op::v7)

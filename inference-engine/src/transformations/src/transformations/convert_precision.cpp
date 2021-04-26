@@ -406,7 +406,7 @@ struct EnumClassHash {
  *    int4 [1011] -> int8 [00001011]
  *  * For signed types we copy all bits (except sign bit) to destination type and after
  *    that for negative values we set to 1 all higher bits:
- *    int4 [1011] -> int8 [11110011]
+ *    int4 [1011] -> int8 [11111011]
  *
  * @param src source value      !!! the type must be unsigned !!!
  * @param dst destination value !!! the type must be unsigned !!!
@@ -427,42 +427,29 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
     // dst     [10001111 00000100] offset 5 size 9
     // new_val [00000000 00000000]
     DST new_val = 0;
-    // If source type is signed
-    if (is_signed) {
-        // Get the sign of value
-        // sign [00000000]
-        // invert value in order to use XOR
-        SRC sign = (~(val >> (src_size - 1))) & 0b1;
-        // Calculate diff in order to clean bits which don't exist in the source value
-        // diff 5
-        size_t diff = sizeof(SRC)*8 - src_size + 1;
-        // Clean unnecessary bits
-        // val [10100000]
-        val = val << diff;
-        // val [00000101]
-        val = (val >> diff);
 
-        // Negative number
-        if (!sign) {
-            // val [11110101]
-            val |= (src_max << (diff - 1));
-            // new_val [00000001 11111111]
-            new_val = (sign << (dst_size - 1)) ^ (dst_max >> (sizeof(DST) * 8 - dst_size));
-            // new_val [00000001 11110101]
-            new_val &= (dst_max << sizeof(SRC)*8) | val;
-        } else {
-            // new_val [00000000 00000101]
-            new_val = val;
-        }
+    // Calculate diff in order to clean bits which don't exist in the source value
+    // diff 4
+    size_t diff = sizeof(SRC)*8 - src_size;
+    // Clean unnecessary bits
+    // val [11010000]
+    val = val << diff;
+    // val [00001101]
+    val = val >> diff;
+
+    // Get the sign of value
+    // sign [00000001]
+    SRC sign = (val >> (src_size - 1)) & 0b1;
+
+    // If source type is signed and negative
+    if (is_signed && sign) {
+        // val [11111101]
+        val |= src_max << diff;
+        // new_val [00000001 11111111]
+        new_val = dst_max >> (sizeof(DST) * 8 - dst_size);
+        // new_val [00000001 11111101]
+        new_val &= (dst_max << sizeof(SRC)*8) | val;
     } else {
-        // Calculate diff in order to clean bits which don't exist in the source value
-        // diff 4
-        size_t diff = sizeof(SRC)*8 - src_size;
-        // Clean unnecessary bits
-        // val [11010000]
-        val = val << diff;
-        // val [00001101]
-        val = val >> diff;
         // new_val [00000000 00001101]
         new_val = val;
     }
@@ -515,13 +502,16 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 
     // Convert values
     const auto size = shape_size(constant->get_shape());
+    size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
+    if (src_type.bitwidth() < 8) {
+        src_off = 8 - src_type.bitwidth();
+    }
+
+    if (to.bitwidth() < 8) {
+        dst_off = 8 - to.bitwidth();
+    }
+
     for (size_t i = 0; i < size; i++) {
-        // Calculate indexes
-        size_t dst_idx = i / ((to.size() * 8) / to.bitwidth());
-        size_t src_idx = i / ((src_type.size() * 8) / src_type.bitwidth());
-        // Calculate offsets inside the indexes
-        size_t dst_off = (to.size() * 8 - to.bitwidth()) - to.bitwidth() * (i % ((to.size() * 8) / to.bitwidth()));
-        size_t src_off = (src_type.size() * 8 - src_type.bitwidth()) - src_type.bitwidth() * (i % ((src_type.size() * 8) / src_type.bitwidth()));
         // Source type at the current moment always less than 1 byte
         // Select the right destination type
         switch (to.size()) {
@@ -543,6 +533,25 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
             break;
         default:
             throw ngraph_error("Unsupported element size!");
+        }
+        // Calculate offsets and indexes
+        if (src_type.bitwidth() < 8) {
+            if (src_off == 0) {
+                src_off = 8;
+                src_idx++;
+            }
+            src_off -= src_type.bitwidth();
+        } else {
+            src_idx++;
+        }
+        if (to.bitwidth() < 8) {
+            if (dst_off == 0) {
+                dst_off = 8;
+                dst_idx++;
+            }
+            dst_off -= to.bitwidth();
+        } else {
+            dst_idx++;
         }
     }
 

@@ -14,7 +14,6 @@
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
-#include "ie_iexecutable_network.hpp"
 
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
@@ -27,6 +26,10 @@
 #include "functional_test_utils/network_utils.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
+#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
+#include "ie_plugin_cpp.hpp"
 
 using namespace InferenceEngine;
 using namespace ::testing;
@@ -76,12 +79,12 @@ public:
     MOCK_METHOD3(LoadExeNetworkImpl, ExecutableNetworkInternal::Ptr(const CNNNetwork& network, RemoteContext::Ptr context,
                                                       const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD2(ImportNetworkImpl, ExecutableNetwork(std::istream& networkModel,
-                                        const std::map<std::string, std::string>& config));
+    MOCK_METHOD2(ImportNetworkImpl, ExecutableNetworkInternal::Ptr(std::istream& networkModel,
+                                                                   const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD3(ImportNetworkImpl, ExecutableNetwork(std::istream& networkModel,
-                                        const RemoteContext::Ptr& context,
-                                        const std::map<std::string, std::string>& config));
+    MOCK_METHOD3(ImportNetworkImpl, ExecutableNetworkInternal::Ptr(std::istream& networkModel,
+                                                                   const RemoteContext::Ptr& context,
+                                                                   const std::map<std::string, std::string>& config));
 
     MOCK_CONST_METHOD2(QueryNetwork, QueryNetworkResult(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config));
@@ -94,9 +97,12 @@ class MockExecutableNetwork : public ExecutableNetworkInternal {
 public:
     MockExecutableNetwork() {}
     MOCK_METHOD1(ExportImpl, void(std::ostream& networkModel));
-    MOCK_METHOD0(CreateInferRequest, IInferRequest::Ptr());
+    MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
+    MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
+    MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
+    MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
 };
 
 //------------------------------------------------------
@@ -140,7 +146,6 @@ public:
     bool                        m_remoteContext = false;
     using CNNCallback = std::function<void(CNNNetwork&)>;
     CNNCallback                 m_cnnCallback = nullptr;
-
 
     std::string get_mock_engine_name() {
         std::string mockEngineName("mock_engine");
@@ -240,6 +245,18 @@ public:
         ie.LoadNetwork(cnnNetwork, context, config);
     }
 
+    std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet() {
+        auto mock = std::make_shared<MockExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
+        EXPECT_CALL(*mock, GetConfig(PluginConfigParams::KEY_PERF_COUNT)).Times(AnyNumber()).WillRepeatedly(Return(Parameter{PluginConfigParams::NO}));
+        EXPECT_CALL(*mock, GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))).Times(AnyNumber()).WillRepeatedly(Return(Parameter{1u}));
+        auto ptr = std::make_shared<MockIInferRequestInternal>();
+        EXPECT_CALL(*ptr, SetCallback(_)).Times(AnyNumber());
+        EXPECT_CALL(*mock, CreateInferRequest()).Times(AnyNumber()).WillRepeatedly(Return(ptr));
+        return mock;
+    }
+
 private:
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
@@ -271,18 +288,12 @@ private:
         ON_CALL(plugin, ImportNetworkImpl(_, _, _)).
                 WillByDefault(Invoke([&](std::istream &istr, RemoteContext::Ptr,
                                          const std::map<std::string, std::string> &) {
-            auto mock = std::make_shared<MockIExecutableNetwork>();
-            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-            return ExecutableNetwork(mock);
+            return createMockIExecutableNet();
         }));
 
         ON_CALL(plugin, ImportNetworkImpl(_, _)).
                 WillByDefault(Invoke([&](std::istream &istr, const std::map<std::string, std::string> &) {
-            auto mock = std::make_shared<MockIExecutableNetwork>();
-            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-            return ExecutableNetwork(mock);
+            return createMockIExecutableNet();
         }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _)).
@@ -318,6 +329,25 @@ private:
                 .WillRepeatedly(Return(ConstInputsDataMap{}));
         EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber())
                 .WillRepeatedly(Return(ConstOutputsDataMap{}));
+        EXPECT_CALL(*net, GetConfig(PluginConfigParams::KEY_PERF_COUNT)).Times(AnyNumber())
+                .WillRepeatedly(Return(PluginConfigParams::NO));
+        EXPECT_CALL(*net, GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))).Times(AnyNumber())
+                .WillRepeatedly(Return((unsigned int) 1));
+        EXPECT_CALL(*net, GetMetric(METRIC_KEY(NETWORK_NAME))).Times(AnyNumber())
+                .WillRepeatedly(Return("mock_net"));
+        EXPECT_CALL(*net, GetMetric(METRIC_KEY(SUPPORTED_METRICS))).Times(AnyNumber())
+                .WillRepeatedly(Invoke([&](const std::string &) {
+            std::vector<std::string> res;
+            res.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+            res.push_back(METRIC_KEY(NETWORK_NAME));
+            return res;
+        }));
+        EXPECT_CALL(*net, CreateInferRequest()).Times(AnyNumber())
+                .WillRepeatedly(Invoke([&]() {
+            auto inferReq = std::make_shared<MockIInferRequestInternal>();
+            EXPECT_CALL(*inferReq, SetCallback(_)).Times(AnyNumber());
+            return inferReq;
+        }));
     }
 };
 
@@ -361,10 +391,10 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         int a;
         s >> a;
         EXPECT_EQ(customNumber, a);
-        auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        return ExecutableNetwork(mock);
+        auto mock = std::make_shared<MockExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
+        return mock;
     }));
 
     ON_CALL(*mockPlugin, ImportNetworkImpl(_, _)).
@@ -372,10 +402,10 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         int a;
         s >> a;
         EXPECT_EQ(customNumber, a);
-        auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        return ExecutableNetwork(mock);
+        auto mock = std::make_shared<MockExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
+        return mock;
     }));
 
     ON_CALL(*net, ExportImpl(_)).WillByDefault(Invoke([&] (std::ostream& s) {
@@ -1037,10 +1067,10 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
         int a;
         s >> a;
         EXPECT_EQ(customNumber, a);
-        auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        return ExecutableNetwork(mock);
+        auto mock = std::make_shared<MockExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
+        return mock;
     }));
 
     ON_CALL(*net, ExportImpl(_)).WillByDefault(Invoke([&] (std::ostream& s) {
@@ -1168,6 +1198,119 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, CommonTestUtils::DEVICE_HETERO);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+        });
+    }
+}
+
+// MULTI-DEVICE test
+// Test that it is safe to load multiple devices sharing same cache
+TEST_P(CachingTest, LoadMulti_race) {
+    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DEVICE_MAX_COUNT = 10;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    auto start = high_resolution_clock::now();
+    do {
+        std::string cacheDir = m_cacheDir + std::to_string(index);
+        MkDirGuard guard(cacheDir);
+        int devCount = 1 + index % (TEST_DEVICE_MAX_COUNT - 1); // try dynamic number of devices from 1 to max
+        deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+        deviceToLoad += ":mock.0";
+        for (int i = 1; i < devCount; i++) {
+            deviceToLoad += ",mock." + std::to_string(i);
+        }
+
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(devCount - 1);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheDir}});
+            ASSERT_NO_THROW(m_testFunction(ie));
+        });
+        index++;
+    } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_threads) {
+    const auto TEST_DURATION_MS = 2000;
+    const auto THREADS_COUNT = 4;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Multi plugin
+    }
+    auto start = high_resolution_clock::now();
+    int index = 0;
+    do {
+        std::string cacheDir = m_cacheDir + std::to_string(index);
+        MkDirGuard guard(cacheDir);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(THREADS_COUNT - 1);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheDir}});
+            std::vector<std::thread> threads;
+            for (int i = 0; i < THREADS_COUNT; i++) {
+                threads.emplace_back(([&]() { m_testFunction(ie); }));
+            }
+            for (int i = 0; i < THREADS_COUNT; i++) {
+                threads[i].join();
+            }
+        });
+        index++;
+    } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+// MULTI-DEVICE test
+// Test loading of devices with different architectures
+TEST_P(CachingTest, LoadMulti_Archs) {
+    const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
+            .WillRepeatedly(Invoke([&](const std::string &, const std::map<std::string, Parameter> &options) {
+                auto id = options.at("DEVICE_ID").as<std::string>();
+                if (std::stoi(id) < 2) {
+                    return "mock_first_architecture";
+                } else {
+                    return "mock_another_architecture";
+                }
+            }));
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Multi plugin
+    }
+
+    deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+    deviceToLoad += ":mock.0";
+    for (int i = 1; i < TEST_DEVICE_MAX_COUNT; i++) {
+        deviceToLoad += ",mock." + std::to_string(i);
+    }
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(2);
+
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT - 2)
+                .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &) {
+            return createMockIExecutableNet();
+        }));
+        EXPECT_CALL(*net, ExportImpl(_)).Times(2);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ASSERT_NO_THROW(m_testFunction(ie));
         });
     }
 }
