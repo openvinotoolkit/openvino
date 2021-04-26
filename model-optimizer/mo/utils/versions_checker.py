@@ -82,6 +82,13 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
                 # this python_version requirement is not satisfied to required environment
                 # and requirement for a dependency will be skipped
                 return version_list
+        elif env_marker == 'sys_platform':
+            splited_env_req[1] = splited_env_req[1].replace('\'', '')
+            splited_env_req[1] = splited_env_req[1].strip(' ')
+            if not sys.platform == splited_env_req[1]:
+                # this sys_platform requirement is not satisfied to required environment
+                # and requirement for a dependency will be skipped
+                return version_list
         else:
             log.error("{} is unsupported environment marker and it will be ignored".format(env_marker),
                       extra={'is_warning': True})
