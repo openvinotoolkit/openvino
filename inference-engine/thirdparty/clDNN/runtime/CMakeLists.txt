@@ -7,6 +7,25 @@
 set(CLDNN_BUILD__PROJ             "cldnn_runtime")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 
+if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
+  if (CLDNN_WITH_SYCL)
+  intel_config_flag_apply_settings(
+      CompilerOptions
+      CMAKE_CXX_FLAGS
+      ALL_PATTERN ""
+      SET_RAW
+        -stdlib=libstdc++
+    )
+  else()
+    intel_config_flag_apply_settings(
+        CompilerOptions
+        CMAKE_CXX_FLAGS
+        ALL_PATTERN ""
+        SET_RAW
+          -stdlib=libc++
+      )
+  endif()
+endif()
 # ========================================= Source/Header files ========================================
 
 set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -15,7 +34,7 @@ file(GLOB __CLDNN_Sources__main
     "${__CLDNN_Directory__main}/*.h"
     "${__CLDNN_Directory__main}/*.hpp"
     "${__CLDNN_Directory__main}/*.cpp"
-  )
+)
 
 file(GLOB __CLDNN_Sources__ocl
     "${__CLDNN_Directory__main}/ocl/*.h"
@@ -23,10 +42,24 @@ file(GLOB __CLDNN_Sources__ocl
     "${__CLDNN_Directory__main}/ocl/*.cpp"
 )
 
+file(GLOB __CLDNN_Sources__sycl
+    "${__CLDNN_Directory__main}/sycl/*.h"
+    "${__CLDNN_Directory__main}/sycl/*.hpp"
+    "${__CLDNN_Directory__main}/sycl/*.cpp"
+)
+
 set(__CLDNN_AllSources
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__ocl}
   )
+
+# if (CLDNN_WITH_OCL)
+# list(APPEND __CLDNN_AllSources ${__CLDNN_Sources__ocl})
+# endif()
+
+if (CLDNN_WITH_SYCL)
+  list(APPEND __CLDNN_AllSources ${__CLDNN_Sources__sycl})
+endif()
 
 # =============================================== Filters ==============================================
 

@@ -8,6 +8,21 @@ set(CLDNN__PROJ_NAME "clDNN")
 # Default languages: C, C++.
 project("${CLDNN__PROJ_NAME}")
 
+if (GPU_BACKEND STREQUAL "SYCL")
+  include("cmake/SYCL.cmake")
+  set(CLDNN_WITH_SYCL ON CACHE BOOL "SYCL engine is enabled/disabled" FORCE)
+  set(CLDNN_WITH_OCL ON CACHE BOOL "OCL engine is enabled/disabled" FORCE)
+  add_definitions(-DCLDNN_WITH_SYCL=1)
+  add_definitions(-DCLDNN_WITH_OCL=1)
+elseif(GPU_BACKEND STREQUAL "OCL")
+  set(CLDNN_WITH_SYCL OFF CACHE BOOL "SYCL engine is enabled/disabled" FORCE)
+  set(CLDNN_WITH_OCL ON CACHE BOOL "OCL engine is enabled/disabled" FORCE)
+  add_definitions(-DCLDNN_WITH_SYCL=0)
+  add_definitions(-DCLDNN_WITH_OCL=1)
+else()
+message(FATAL_ERROR "Unsupported GPU backend: ${GPU_BACKEND}")
+endif()
+
 # ======================================================================================================
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================

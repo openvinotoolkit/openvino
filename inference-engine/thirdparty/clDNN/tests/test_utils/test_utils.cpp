@@ -291,12 +291,12 @@ cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type
     priority_mode_types priority_mode = priority_mode_types::disabled;
     throttle_mode_types throttle_mode = throttle_mode_types::disabled;
     bool use_memory_pool = true;
-    bool use_unified_shared_memory = true;
+    bool use_unified_shared_memory = false;
     return engine_configuration(enable_profiling, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
 }
 
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type) {
-    return cldnn::engine::create(engine_types::ocl, runtime_types::ocl, get_test_engine_config(queue_type));
+    return cldnn::engine::create(engine_types::sycl, runtime_types::l0, get_test_engine_config(queue_type));
 }
 
 cldnn::engine& get_test_engine() {

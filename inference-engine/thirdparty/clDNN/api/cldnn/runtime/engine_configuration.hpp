@@ -22,11 +22,13 @@ namespace cldnn {
 /// @brief Defines available engine types
 enum class engine_types : int32_t {
     ocl,
+    sycl,
 };
 
 /// @brief Defines available runtime types
 enum class runtime_types : int32_t {
     ocl,
+    l0,
 };
 
 /// @brief Defines available priority mode types

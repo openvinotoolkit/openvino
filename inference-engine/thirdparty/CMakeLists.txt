@@ -18,6 +18,7 @@ if(ENABLE_LTO)
 endif()
 
 if (ENABLE_CLDNN)
+    set(GPU_BACKEND "SYCL" CACHE STRING "selected GPU backed (OCL/SYCL)" FORCE)
     if (ENABLE_TESTS AND ENABLE_CLDNN_TESTS)
         set(CLDNN__INCLUDE_TESTS ON CACHE BOOL "" FORCE)
     else()

@@ -6,7 +6,7 @@
 
 #include "cldnn/runtime/kernel.hpp"
 #include "cldnn/runtime/engine.hpp"
-#include "ocl/ocl_common.hpp"
+#include <CL/cl.h>
 
 #include <memory>
 
