@@ -34,22 +34,37 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
 #endif
 )
 {
-    const uint f_block = get_group_id(0);
-    const uint y = (uint)get_global_id(1) / BLOCKS_COUNT;
-    const uint x = ((uint)get_global_id(1) % BLOCKS_COUNT) * BLOCK_SIZE;
-    const uint b = get_global_id(2);
+    const uint f_block = (uint)get_group_id(0);
+    const uint zyx = (uint)get_global_id(1);
+    const uint b = (uint)get_global_id(2);
+    const uint x = (zyx % BLOCKS_COUNT) * BLOCK_SIZE;
+#if OUTPUT_DIMS == 5
+    const uint zy = zyx / BLOCKS_COUNT;
+    const uint z = zy / OUTPUT_SIZE_Y;
+    const uint y = zy % OUTPUT_SIZE_Y;
+#else
+    const uint z = 0;
+    const uint y = zyx / BLOCKS_COUNT;
+#endif
 
     // Output offset calculations:
     const uint output_x_pitch = FEATURE_SLICE_SIZE;
-    const uint output_y_pitch = output_x_pitch * (OUTPUT_PAD_BEFORE_SIZE_X +  OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
+    const uint output_y_pitch = output_x_pitch * (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
+#if OUTPUT_DIMS == 5
+    const uint output_z_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
+    const uint output_fs_pitch = output_z_pitch * (OUTPUT_PAD_BEFORE_SIZE_Z + OUTPUT_SIZE_Z + OUTPUT_PAD_AFTER_SIZE_Z);
+#else
+    const uint output_z_pitch = 0;
+    const uint output_fs_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
+#endif
     const uint output_total_f_size = OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM;
-    const uint output_fs_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y +  OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
     const uint output_b_pitch = output_fs_pitch * ((output_total_f_size + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
     const uint output_offset = b * output_b_pitch +
                                (f_block + output_fs_pad_before) * output_fs_pitch +
+                               (z + OUTPUT_PAD_BEFORE_SIZE_Z) * output_z_pitch +
                                (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
                                (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
