@@ -9,10 +9,6 @@ reporter = ComplianceReporter()
 
 
 def pytest_runtest_call(item):
-    """
-    Models are lazily-loaded so the proto is not available in the previous hooks
-    but the onnx_coverage marks containing ModelProto handles need to be collected here.
-    """
     reporter.collect_test_info(item)
 
 
