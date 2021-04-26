@@ -38,5 +38,5 @@ namespace ngraph
         ///
         bool is_supported_ng_type(const element::Type_t& ng_type);
 
-    } // namespace onnx_editor
+    } // namespace onnx_common
 } // namespace ngraph
