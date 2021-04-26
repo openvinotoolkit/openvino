@@ -32,7 +32,7 @@ namespace ngraph
                     std::vector<int> strides_3d = {1, 1, 1};
                     std::vector<int> new_input_3d = {1, 1, 1};
 
-                    for (int i = 0; i < strides.size(); ++i)
+                    for (size_t i = 0; i < strides.size(); ++i)
                     {
                         output_shape[i + 2] =
                             input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
@@ -120,7 +120,7 @@ namespace ngraph
                     convolution_ref::extend_to_3D(params, input_shape, filters_shape);
                 }
 
-                for (int i = 0; i < input_shape.size() - 2; ++i)
+                for (size_t i = 0; i < input_shape.size() - 2; ++i)
                 {
                     if (input_shape[i + 2] > 1 || filters_shape[i + 2] > 1)
                     {
@@ -147,7 +147,7 @@ namespace ngraph
 
                 // modify params.pads_end when output_shape was provided in ctor in order to
                 // calculate expected number of output elements
-                for (int i = 0; i < out_shape_3d.size(); i++)
+                for (size_t i = 0; i < out_shape_3d.size(); i++)
                 {
                     if (out_shape_3d[i] > 1)
                     {
