@@ -959,7 +959,16 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         }
     };
 
+    bool shouldPrintConstantNodes = false;
+
+#ifdef CPU_DEBUG_CAPS
+    shouldPrintConstantNodes = getConfig().debugCaps.shouldDumpConstNodes == "YES";
+#endif
+
     for (int i = 1; i < graphNodes.size(); i++) {
+        if (graphNodes[i]->isConstant() && !shouldPrintConstantNodes) {
+            continue;
+        }
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }

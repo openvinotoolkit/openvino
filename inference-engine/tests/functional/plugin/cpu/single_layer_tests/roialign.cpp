@@ -103,6 +103,8 @@ protected:
 
 TEST_P(ROIAlignLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
     Run();
     CheckPluginRelatedResults(executableNetwork, "ROIAlign");
 }

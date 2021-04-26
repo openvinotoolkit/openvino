@@ -53,7 +53,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
 
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
     auto ie = PluginCache::get().ie();
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, {{"DUMP_CONSTANT_NODES", "YES"}});
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();

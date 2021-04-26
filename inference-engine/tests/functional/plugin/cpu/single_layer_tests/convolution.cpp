@@ -125,6 +125,7 @@ protected:
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
     if (!inFmts.empty() && (inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {

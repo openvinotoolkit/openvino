@@ -23,7 +23,7 @@ public:
 
         InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
         targetDevice = CommonTestUtils::DEVICE_CPU;
-
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
                                     << "Indices vector size and provided indices shape doesn't fit each other";
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

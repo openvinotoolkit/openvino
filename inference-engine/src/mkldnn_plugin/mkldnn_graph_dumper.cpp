@@ -120,20 +120,27 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
     ngraph::ParameterVector params;
     ngraph::NodeVector to_hold;
 
+    bool shouldDumpConstantNodes = false;
+
+#ifdef CPU_DEBUG_CAPS
+    shouldDumpConstantNodes = graph.getConfig().debugCaps.shouldDumpConstNodes == "YES";
+#endif
+
     auto get_inputs = [&] (const MKLDNNNodePtr & node) {
-        auto pr_edges = node->getParentEdges();
-        ngraph::OutputVector inputs(pr_edges.size());
+        const auto& pr_edges = node->getParentEdges();
+        ngraph::OutputVector inputs(0);
 
         for (int i = 0; i < pr_edges.size(); i++) {
-            auto edge = node->getParentEdgeAt(i);
-            int pr_port = edge->getInputNum();
-            int ch_port = edge->getOutputNum();
-            auto pr_node = edge->getParent();
+            const auto& edge = node->getParentEdgeAt(i);
+            const int pr_port = edge->getInputNum();
+            const auto& pr_node = edge->getParent();
+
+            if (pr_node->isConstant() && !shouldDumpConstantNodes && !graph.getConfig().dumpConstNode) continue;
 
             IE_ASSERT(node2layer.count(pr_node) == 1);
-            auto pr = node2layer[pr_node];
+            const auto& pr = node2layer[pr_node];
 
-            inputs[ch_port] = pr->output(pr_port);
+            inputs.emplace_back(pr->output(pr_port));
         }
 
         return inputs;

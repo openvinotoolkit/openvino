@@ -24,6 +24,7 @@ public:
         readParam(blobDumpNodeType, "OV_CPU_BLOB_DUMP_NODE_TYPE");
         readParam(blobDumpNodeName, "OV_CPU_BLOB_DUMP_NODE_NAME");
         readParam(execGraphPath, "OV_CPU_EXEC_GRAPH_PATH");
+        readParam(shouldDumpConstNodes, "OV_CPU_DUMP_CONSTANT_NODES");
     }
 
     std::string blobDumpDir;
@@ -33,6 +34,7 @@ public:
     std::string blobDumpNodeType;
     std::string blobDumpNodeName;
     std::string execGraphPath;
+    std::string shouldDumpConstNodes;
 
 private:
     void readParam(std::string& param, const char* envVar) {

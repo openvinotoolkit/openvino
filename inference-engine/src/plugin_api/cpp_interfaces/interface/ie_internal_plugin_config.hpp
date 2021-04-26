@@ -57,6 +57,12 @@ DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
  */
 DECLARE_CONFIG_KEY(MULTI_WORK_MODE_AS_AUTO);
 
+/**
+ * @brief This key determines if constant nodes should be dumped
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(DUMP_CONSTANT_NODES);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
