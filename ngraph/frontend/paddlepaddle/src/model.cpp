@@ -24,9 +24,9 @@ public:
     void overrideAllOutputs (const std::vector<IPlace::Ptr>& outputs);
     void overrideAllInputs (const std::vector<IPlace::Ptr>& inputs);
     void extractSubgraph (const std::vector<IPlace::Ptr>& inputs, const std::vector<IPlace::Ptr>& outputs);
-    void setDefaultShape (IPlace::Ptr IPlace, const ngraph::Shape&);
-    void setPartialShape (IPlace::Ptr IPlace, const ngraph::PartialShape&);
-    void setElementType (IPlace::Ptr IPlace, const ngraph::element::Type&);
+    void setDefaultShape (IPlace::Ptr place, const ngraph::Shape&);
+    void setPartialShape (IPlace::Ptr place, const ngraph::PartialShape&);
+    void setElementType (IPlace::Ptr place, const ngraph::element::Type&);
     
     std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
     std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const { return m_op_places_blocks[i]; }
@@ -120,8 +120,8 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
 
             // Determine outputs and inputs
             if (op.type() == "feed") {
-                const auto& IPlace = op_place->getOutputPortPDPD("Out", 0);
-                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(IPlace->getTargetTensorPDPD());
+                const auto& place = op_place->getOutputPortPDPD("Out", 0);
+                const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place->getTargetTensorPDPD());
                 const auto& tensor_desc = var_place->getDesc()->type().lod_tensor().tensor();
                 const auto& dims = tensor_desc.dims();
 
@@ -129,8 +129,8 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
                 var_place->setPartialShape(PartialShape(std::vector<Dimension>(dims.begin(), dims.end())));
                 m_inputs.push_back(var_place);
             } else if (op.type() == "fetch") {
-                auto IPlace = op_place->getInputPortPDPD("X", 0);
-                m_outputs.push_back(IPlace->getSourceTensorPDPD());
+                auto place = op_place->getInputPortPDPD("X", 0);
+                m_outputs.push_back(place->getSourceTensorPDPD());
             }
         }
     }
@@ -209,31 +209,31 @@ void InputModelPDPD::InputModelPDPDImpl::extractSubgraph (const std::vector<IPla
     overrideAllOutputs(outputs);
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setDefaultShape (IPlace::Ptr IPlace, const ngraph::Shape& shape) {
+void InputModelPDPD::InputModelPDPDImpl::setDefaultShape (IPlace::Ptr place, const ngraph::Shape& shape) {
     NOT_IMPLEMENTED("setDefaultShape");
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setPartialShape (IPlace::Ptr IPlace, const ngraph::PartialShape& p_shape) {
-    if (auto var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(IPlace)) {
+void InputModelPDPD::InputModelPDPDImpl::setPartialShape (IPlace::Ptr place, const ngraph::PartialShape& p_shape) {
+    if (auto var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place)) {
         var_place->setPartialShape(p_shape);
-    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlacePDPD>(IPlace)) {
+    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlacePDPD>(place)) {
         in_port_place->getSourceTensorPDPD()->setPartialShape(p_shape);
-    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(IPlace)) {
+    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(place)) {
         out_port_place->getTargetTensorPDPD()->setPartialShape(p_shape);
     } else {
-        PDPD_THROW("Cannot set shape for this IPlace.");
+        PDPD_THROW("Cannot set shape for this place.");
     }
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setElementType (IPlace::Ptr IPlace, const ngraph::element::Type& type) {
-    if (auto var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(IPlace)) {
+void InputModelPDPD::InputModelPDPDImpl::setElementType (IPlace::Ptr place, const ngraph::element::Type& type) {
+    if (auto var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place)) {
         var_place->setElementType(type);
-    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlacePDPD>(IPlace)) {
+    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlacePDPD>(place)) {
         in_port_place->getSourceTensorPDPD()->setElementType(type);
-    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(IPlace)) {
+    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(place)) {
         out_port_place->getTargetTensorPDPD()->setElementType(type);
     } else {
-        PDPD_THROW("Cannot set type for this IPlace.");
+        PDPD_THROW("Cannot set type for this place.");
     }
 }
 
@@ -279,16 +279,16 @@ void InputModelPDPD::extractSubgraph (const std::vector<IPlace::Ptr>& inputs, co
     return _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelPDPD::setDefaultShape (IPlace::Ptr IPlace, const ngraph::Shape& shape) {
-    return _impl->setDefaultShape(IPlace, shape);
+void InputModelPDPD::setDefaultShape (IPlace::Ptr place, const ngraph::Shape& shape) {
+    return _impl->setDefaultShape(place, shape);
 }
 
-void InputModelPDPD::setPartialShape (IPlace::Ptr IPlace, const ngraph::PartialShape& p_shape) {
-    return _impl->setPartialShape(IPlace, p_shape);
+void InputModelPDPD::setPartialShape (IPlace::Ptr place, const ngraph::PartialShape& p_shape) {
+    return _impl->setPartialShape(place, p_shape);
 }
 
-void InputModelPDPD::setElementType (IPlace::Ptr IPlace, const ngraph::element::Type& type) {
-    return _impl->setElementType(IPlace, type);
+void InputModelPDPD::setElementType (IPlace::Ptr place, const ngraph::element::Type& type) {
+    return _impl->setElementType(place, type);
 }
 
 } // namespace frontend
