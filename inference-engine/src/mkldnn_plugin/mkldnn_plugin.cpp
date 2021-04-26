@@ -335,9 +335,14 @@ static void Transformation(CNNNetwork& clonedNetwork, bool useLPT) {
     TransformationToLegacy(clonedNetwork);
 }
 
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
+
 Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network) {
+    auto startTime = Time::now();
     float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-    // float L3_cache_size = mkldnn::utils::get_cache_size(3, true);
+    float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
+    std::cout<< "L3_cache_sizeL3_cache_size " << L3_cache_size << std::endl;
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
 
@@ -379,32 +384,33 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
 //    };
 
     float worst_case = NetworkPerfStats::memThresholdUnknown;
+    float worst_case_all = NetworkPerfStats::memThresholdUnknown;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
             // todo : bias data size (always fp)
             if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name)
                 && std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
-//                int inputs_data_size_bytes = 0;
-//                for (int i = 0; i < node->get_input_size(); i++) {
-//                    auto type = node->input_value(i).get_element_type();
-//                    const bool isINT8 = isLowPrecision(type); // bf16 tbd
-//                    const bool isBF16 = isHalfPrecision(type); // bf16 tbd
-//                    const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
-//                    ngraph::Input<ngraph::Node> input = node->input(i);
-//                    const auto shapeInput = input.get_shape();
-//                    const auto non_const = !get_constant_from_source(node->input_value(i));
-//                    const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
-//                                                                std::multiplies<int>());
-//                    const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
-//                    inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
-//                }
-//                // no need to track outputs, as these are inputs to some layers
-//                const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
-//                if (factor < worst_case) {
-//                    worst_case = factor;
-//                    std::cout << "TYPE: " << node->get_type_info().name << "  Name: " << node->get_friendly_name()
-//                              << " inputs_data_size_bytes " << inputs_data_size_bytes << ", factor: " << factor << std::endl;
-//                }
+                int inputs_data_size_bytes = 0;
+                for (int i = 0; i < node->get_input_size(); i++) {
+                    auto type = node->input_value(i).get_element_type();
+                    const bool isINT8 = isLowPrecision(type); // bf16 tbd
+                    const bool isBF16 = isHalfPrecision(type); // bf16 tbd
+                    const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
+                    ngraph::Input<ngraph::Node> input = node->input(i);
+                    const auto shapeInput = input.get_shape();
+                    const auto non_const = !get_constant_from_source(node->input_value(i));
+                    const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                                std::multiplies<int>());
+                    const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
+                    inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
+                }
+                // no need to track outputs, as these are inputs to some layers
+                const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
+                if (factor < worst_case_all) {
+                    worst_case_all = factor;
+                    std::cout << "TYPE: " << node->get_type_info().name << "  Name: " << node->get_friendly_name()
+                              << " inputs_data_size_bytes " << inputs_data_size_bytes << ", factor: " << factor << std::endl;
+                }
                 continue;
             }
             // todo: asymmetric conv (zero-point comes via Sub/Mul)
@@ -480,7 +486,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 total_convs++;
 
                 std::cout << " kernel is " << shape[2] << "x" << shape[3];
-                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 5 && shape[3] >= 5) {
+                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
                     std::cout << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
                     continue;
@@ -549,14 +555,18 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     std::cout << "Total DEconvs: " << total_deconvs<< ". Mem limited: " << mem_limited_deconvs << ". Compute: " << compute_deconvs << std::endl;
     // std::cout << "Total OTHER OPS: " << total_other_ops << ". Mem limited: " << mem_limited_other_ops << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
-    std::cout << "WORST CASE: " << worst_case << std::endl;
 
     NetworkPerfStats res;
     res.maxMemTolerance = worst_case;
     res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
     res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
-
+    if (!total_convs && !total_deconvs && !total_gemms) {
+        std::cout << "WORST CASE ALL: " << worst_case_all << std::endl;
+        res.maxMemTolerance = worst_case_all;
+    } else {
+        std::cout << "WORST CASE: " << worst_case << std::endl;
+    }
     auto time = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
     std::cout << "NetworkMemBandwidthTolerance time: " << time << " ms" << std::endl;
     return res;
