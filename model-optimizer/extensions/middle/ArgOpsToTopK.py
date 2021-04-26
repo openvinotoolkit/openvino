@@ -37,7 +37,7 @@ class ArgOpsToTopK(MiddleReplacementPattern):
         assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node_name)
         assert node.has_and_set('output_type'), 'The data type is not set for node "{}"'.format(node_name)
 
-        topk_mode = 'max' if node['op'] == 'ArgMax' else 'min'
+        topk_mode = 'max' if node.op == 'ArgMax' else 'min'
         topk_node = TopK(graph, {'axis': axis, 'mode': topk_mode, 'sort': 'index',
                                  'remove_values_output': node.has_and_set('remove_values_output'),
                                  'index_element_type': node.output_type}).create_node()

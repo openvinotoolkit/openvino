@@ -1,14 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import unittest
+
+import numpy as np
 
 from extensions.middle.ArgOpsToTopK import ArgOpsToTopK
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import regular_op_with_empty_data, result, shaped_const_with_data, build_graph, connect, \
-    valued_const_with_data, regular_op_with_shaped_data, regular_op, empty_data, connect_front
+from unit_tests.utils.graph import regular_op_with_empty_data, result, build_graph, connect, \
+    valued_const_with_data, regular_op, empty_data, connect_front
 
 nodes_attributes = {
     **regular_op_with_empty_data('input', {'op': 'Parameter', 'type': 'Parameter'}),
