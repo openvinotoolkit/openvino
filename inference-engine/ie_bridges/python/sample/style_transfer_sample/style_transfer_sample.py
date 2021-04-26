@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
         '--config',
         type=str,
         default=None,
-        help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. ' 'Absolute path to operation description file (.xml).',
+        help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. Absolute path to operation description file (.xml).',
     )
     args.add_argument(
         '-d',
@@ -146,7 +146,7 @@ def main():
         log.info(f'Image out_{i}.bmp created!')
 
     # ----------------------------------------------------------------------------------------------------------------------
-    log.info('This sample is an API example, ' 'for any performance measurements please use the dedicated benchmark_app tool\n')
+    log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
 
 

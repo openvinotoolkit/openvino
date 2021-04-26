@@ -120,7 +120,7 @@ def main():
     log.info('')
 
     # ----------------------------------------------------------------------------------------------------------------------
-    log.info('This sample is an API example, ' 'for any performance measurements please use the dedicated benchmark_app tool\n')
+    log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
 
 
