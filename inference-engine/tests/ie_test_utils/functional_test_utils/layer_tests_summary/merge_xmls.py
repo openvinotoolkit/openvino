@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 from utils import utils
 
-logger = get_logger('XmlMerger')
+logger = utils.get_logger('XmlMerger')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -75,7 +75,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
                 ET.SubElement(ops_list, op.tag)
 
         timestamp = aggregate_test_results(results, xml_reports)
-        update_passrates(results)
+        utils.update_passrates(results)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 
