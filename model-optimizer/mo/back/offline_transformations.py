@@ -7,7 +7,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--apply_low_latency", action="store_true")
     # parser.add_argument("--apply_pruning", action="store_true")
-    parser.add_argument("--path_to_model")
+    parser.add_argument("--input_model")
     args = parser.parse_args()
     path_to_model = args.path_to_model
 
