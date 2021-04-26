@@ -201,4 +201,4 @@ namespace ngraph
 
     constexpr DiscreteTypeInfo AttributeAdapter<
         std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::type_info;
-}
+} // namespace ngraph

@@ -64,7 +64,7 @@ namespace tanop
         }
         return rc;
     }
-}
+} // namespace tanop
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

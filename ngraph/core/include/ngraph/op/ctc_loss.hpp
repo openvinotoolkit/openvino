@@ -68,6 +68,6 @@ namespace ngraph
                 bool ctc_merge_repeated_;
                 bool unique_;
             };
-        }
-    }
-}
+        } // namespace v4
+    }     // namespace op
+} // namespace ngraph

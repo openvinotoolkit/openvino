@@ -26,6 +26,6 @@ namespace ngraph
                     out[i] = arg[i] / (1.0 + std::exp(-arg[i] * beta_value));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
