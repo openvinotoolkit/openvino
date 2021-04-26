@@ -10,6 +10,7 @@ import numpy as np
 from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
     mark_output_as_in_correct_layout
 from extensions.ops.activation_ops import Sigmoid
+from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
@@ -188,6 +189,11 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
 
 
 def correct_roll_axes(roll: Node):
+    """
+    This function corrects axes of TF Roll node, if this node is before or after of TF (I)FFT operation.
+    :param roll: Node to correct axes.
+    :return: None
+    """
     axes_node = roll.in_port(2).get_source().node
     if axes_node.soft_get('type') != 'Const':
         return
