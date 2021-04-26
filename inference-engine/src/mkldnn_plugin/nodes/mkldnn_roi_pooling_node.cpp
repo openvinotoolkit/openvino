@@ -220,7 +220,7 @@ private:
 
         for (int i = 0; i < c_blocks; i++) {
             int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
-            auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", src_c_off);
+            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", src_c_off);
 
             mov(aux_reg_input, reg_input);
 
@@ -574,7 +574,7 @@ void MKLDNNROIPoolingNode::execute() {
                         } else {
                             for (int h = hstart; h < hend; ++h) {
                                 for (int w = wstart; w < wend; ++w) {
-                                    T batch_data = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                                    float batch_data = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                                                 h * src_strides[2] + w * src_strides[3] + c];
 
                                     if (batch_data > dst[pool_index]) {
@@ -586,17 +586,17 @@ void MKLDNNROIPoolingNode::execute() {
                     }
                 }
             } else {
-                T roi_start_w_ = src_roi_ptr[1];
-                T roi_start_h_ = src_roi_ptr[2];
-                T roi_end_w_   = src_roi_ptr[3];
-                T roi_end_h_   = src_roi_ptr[4];
+                float roi_start_w_ = src_roi_ptr[1];
+                float roi_start_h_ = src_roi_ptr[2];
+                float roi_end_w_   = src_roi_ptr[3];
+                float roi_end_h_   = src_roi_ptr[4];
 
-                T height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
-                T width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
+                float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
+                float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
-                T in_y = (jpp.pooled_h > 1 ? (oh * height_scale + roi_start_h_ * (jpp.ih - 1)) :
+                float in_y = (jpp.pooled_h > 1 ? (oh * height_scale + roi_start_h_ * (jpp.ih - 1)) :
                               0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1));
-                T in_x = (jpp.pooled_w > 1 ? (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)) :
+                float in_x = (jpp.pooled_w > 1 ? (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)) :
                               0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1));
 
                 if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
@@ -635,20 +635,20 @@ void MKLDNNROIPoolingNode::execute() {
                         arg.bin_area = 1;
                     } else {
                         for (int c = 0; c < 1; c++) {
-                            const T top_left     = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                            const float top_left     = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                                                 top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const T top_right    = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                            const float top_right    = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                                                 top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                            const T bottom_left  = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                            const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                                                 bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const T bottom_right = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                            const float bottom_right = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                                                 bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                            const T top    = top_left + (top_right - top_left) * (in_x - left_x_index);
-                            const T bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+                            const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                            const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
                             dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                top + (bottom - top) * (in_y - top_y_index);
+                                    top + (bottom - top) * (in_y - top_y_index);
                         }
                     }
                 }
@@ -669,8 +669,6 @@ struct ROIPoolingContext {
 
 template<typename T>
 struct MKLDNNROIPoolingNode::ROIPoolingExecute {
-    // using dataT = typename T::type;
-
     void operator()(ROIPoolingContext & ctx) {
         ctx.node.execute<T>();
     }

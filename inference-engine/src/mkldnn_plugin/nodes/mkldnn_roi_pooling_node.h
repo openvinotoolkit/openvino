@@ -72,23 +72,23 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+private:
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    InferenceEngine::Precision runtimePrecision;
 
-private:
     size_t src_data_size;
     size_t dst_data_size;
-
-    InferenceEngine::Precision runtimePrecision;
 
     int pooled_h = 0;
     int pooled_w = 0;
     float spatial_scale = 0;
 
     jit_roi_pooling_params jpp = {};
-
     std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel = nullptr;
 
     std::string errorPrefix;

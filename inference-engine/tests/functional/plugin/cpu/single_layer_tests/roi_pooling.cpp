@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <shared_test_classes/single_layer/roi_pooling.hpp>
+#include "ie_common.h"
 #include "test_utils/cpu_test_utils.hpp"
+#include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -67,7 +69,21 @@ protected:
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                switch (inPrc) {
+                case Precision::FP32: {
+                    CommonTestUtils::fill_data_roi<float>
+                        (blob->buffer(), blob->size(), feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                    break;
+                }
+                case Precision::BF16: {
+                    CommonTestUtils::fill_data_roi<MKLDNNPlugin::bfloat16_t>
+                        (blob->buffer(), blob->size(), feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                    break;
+                }
+                default:
+                    IE_THROW() << "roi_pooling. Unsupported precision";
+                    break;
+                }
             } else {
                 blob = GenerateInput(*info);
             }
@@ -85,8 +101,6 @@ protected:
         InferenceEngine::SizeVector coordsShape;
         InferenceEngine::SizeVector poolShape;
         InferenceEngine::Precision netPrecision;
-
-        // threshold = 0.08f;
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -106,7 +120,8 @@ protected:
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "roi_pooling");
 
-        selectedType = getPrimitiveType() + "_" + netPrecision.name();
+        selectedType += "_";
+        selectedType += netPrecision.name();
     }
 
 private:
@@ -141,17 +156,24 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     return resCPUParams;
 }
 
-const std::vector<std::vector<size_t>> inShapes = {{1, 3, 8, 8}, {3, 4, 50, 50}};
+const std::vector<std::vector<size_t>> inShapes = {{1, 3, 8, 8},
+                                                   {3, 4, 50, 50}};
 
-const std::vector<std::vector<size_t>> pooledShapes_max = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
+const std::vector<std::vector<size_t>> pooledShapes_max = {{1, 1},
+                                                           {2, 2},
+                                                           {3, 3},
+                                                           {6, 6}};
 
-const std::vector<std::vector<size_t>> pooledShapes_bilinear = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
+const std::vector<std::vector<size_t>> pooledShapes_bilinear = {{1, 1},
+                                                                {2, 2},
+                                                                {3, 3},
+                                                                {6, 6}};
 
-const std::vector<std::vector<size_t>> coordShapes = {{1, 5}};
-                                                      // {3, 5},
-                                                      // {5, 5}};
+const std::vector<std::vector<size_t>> coordShapes = {{1, 5},
+                                                      {3, 5},
+                                                      {5, 5}};
 
-const std::vector<InferenceEngine::Precision> netPRCs = {InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> netPRCs = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
 
 const std::vector<float> spatial_scales = {0.625f, 1.f};
 
