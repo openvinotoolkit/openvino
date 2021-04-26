@@ -1545,6 +1545,9 @@ namespace
         case element::Type_t::f64:
             convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
             break;
+        case element::Type_t::bf16:
+            convert_v0::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
+            break;
         default: return false;
         }
         return true;

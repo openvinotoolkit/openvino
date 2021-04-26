@@ -86,6 +86,85 @@ class TestingVersionsChecker(unittest.TestCase):
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
+    def test_version_check_equal(self):
+        modules_versions_list = [('module_1', '==', '2.0', '2.0'),
+                                 ('module_2', '==', '2.0', '2.0.1'),
+                                 ]
+
+        ref_list = [('module_2', 'installed: 2.0.1', 'required: == 2.0'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
+
+    def test_version_check_less_equal(self):
+        modules_versions_list = [('module_1', '>=', '1.12.0', '1.09.2'),
+                                 ('module_2', '>=', '1.12.0', '1.12.0'),
+                                 ('module_3', '>=', '1.12.0', '1.12.1'),
+                                 ('module_4', '>=', '1.12.0', '1.20.0'),
+                                 ]
+
+        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
+
+    def test_version_check_greater_equal(self):
+        modules_versions_list = [('module_1', '>=', '1.12.0', '1.09.2'),
+                                 ('module_2', '>=', '1.12.0', '1.12.0'),
+                                 ('module_3', '>=', '1.12.0', '1.12.1'),
+                                 ('module_4', '>=', '1.12.0', '1.20.0'),
+                                 ]
+
+        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0')
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
+
+    def test_version_check_less(self):
+        modules_versions_list = [('module_1', '<', '1.11', '1.01'),
+                                 ('module_2', '<', '1.11', '1.10.1'),
+                                 ('module_3', '<', '1.11', '1.11'),
+                                 ('module_4', '<', '1.11', '1.20'),
+                                 ]
+
+        ref_list = [('module_3', 'installed: 1.11', 'required: < 1.11'),
+                    ('module_4', 'installed: 1.20', 'required: < 1.11'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
+
+    def test_version_check_greater(self):
+        modules_versions_list = [('module_1', '>', '1.11', '1.01'),
+                                 ('module_2', '>', '1.11', '1.11'),
+                                 ('module_3', '>', '1.11', '1.11.1'),
+                                 ('module_4', '>', '1.11', '1.20'),
+                                 ]
+
+        ref_list = [('module_1', 'installed: 1.01', 'required: > 1.11'),
+                    ('module_2', 'installed: 1.11', 'required: > 1.11'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
 
     def test_version_check_compatible(self):
         modules_versions_list = [('module_1', '~=', '1.2.3', '1.2.3'),
@@ -104,5 +183,5 @@ class TestingVersionsChecker(unittest.TestCase):
         not_satisfied_versions = []
 
         for name, key, required_version, installed_version in modules_versions_list:
-            version_check(name, installed_version, required_version, key, not_satisfied_versions, 0)
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
         self.assertEqual(not_satisfied_versions, ref_list)

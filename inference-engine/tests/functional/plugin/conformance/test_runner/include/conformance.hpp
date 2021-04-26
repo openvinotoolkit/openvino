@@ -5,6 +5,7 @@
 namespace ConformanceTests {
 
 extern const char* targetDevice;
+extern const char* targetPluginName;
 extern std::vector<std::string> IRFolderPaths;
 
 } // namespace ConformanceTests
