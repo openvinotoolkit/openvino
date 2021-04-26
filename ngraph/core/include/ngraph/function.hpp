@@ -83,7 +83,7 @@ namespace ngraph
                  const SinkVector& sinks,
                  const std::string& name = "");
 
-        virtual ~Function() {}
+        virtual ~Function() = default;
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
 
@@ -257,10 +257,10 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
-        ParameterVector m_parameters;
         // List of the nodes with side effect in graph.
         // These nodes are not outputs of graph but should not be removed even if have no children.
         SinkVector m_sinks;
+        ParameterVector m_parameters;
         VariableVector m_variables;
     };
 

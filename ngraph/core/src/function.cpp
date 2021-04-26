@@ -93,13 +93,13 @@ Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const VariableVector& variables,
                    const std::string& name)
-    : m_results(results)
+    : m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(results)
     , m_sinks(sinks)
     , m_parameters(parameters)
     , m_variables(variables)
-    , m_name(name)
-    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
-    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
     prerequirements(false, false);
 }
@@ -130,11 +130,11 @@ Function::Function(const ResultVector& results,
 }
 
 Function::Function(const OutputVector& results, const SinkVector& sinks, const string& name)
-    : m_results(as_result_vector(results))
-    , m_sinks(sinks)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(as_result_vector(results))
+    , m_sinks(sinks)
 {
     prerequirements(true, true);
 }
