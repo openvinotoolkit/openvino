@@ -7,7 +7,7 @@
 #include <stack>
 
 #include "ngraph/check.hpp"
-#include "onnx_editor/detail/subgraph_extraction.hpp"
+#include "subgraph_extraction.hpp"
 
 using namespace ngraph::onnx_editor;
 
@@ -159,8 +159,6 @@ namespace
                      edge.m_node_idx,
                      ". Cannot append a new graph input to this node.");
 
-        const std::string new_input_name = target_node.output(0) + ":" + edge.m_tensor_name;
-
         // if an edge is connected to an initializer, the initializer is removed and substituted
         // with an input
         if (is_graph_initializer(graph, edge.m_tensor_name))
@@ -173,10 +171,10 @@ namespace
             auto& new_input = *(graph.add_input());
             // copy the intermediate tensor properties to the newly created input
             new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
-            *(new_input.mutable_name()) = new_input_name;
+            *(new_input.mutable_name()) = edge.m_tensor_name;
             // attach the new graph input to the target node's input
-            *target_input = new_input_name;
-            return {true, InputEdge{edge.m_node_idx, new_input_name}};
+            *target_input = edge.m_tensor_name;
+            return {true, InputEdge{edge.m_node_idx, edge.m_tensor_name}};
         }
     }
 

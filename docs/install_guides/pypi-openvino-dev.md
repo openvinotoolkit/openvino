@@ -13,7 +13,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_README.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
 
 **The Runtime Package Includes the Following Components Installed by Dependency:**
 
@@ -30,11 +30,10 @@ The table below lists the supported operating systems and Python* versions requi
 | :------------------------------------------------------------| :---------------------------------------------------|
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Red Hat* Enterprise Linux* 8.2, 64-bit                     | 3.6, 3.7                                            |
-|   CentOS* 7.4, 64-bit                                        | 3.6, 3.7                                            |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7                                            |
+|   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
-|   Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions       | 3.6, 3.7, 3.8                  |
-|   Windows Server* 2016 or higher                             | 3.6, 3.7, 3.8                |
+|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
@@ -48,7 +47,7 @@ To avoid dependency conflicts, use a virtual environment. Skip this
 Create virtual environment:
 ```sh
 python -m pip install --user virtualenv 
-python -m venv openvino_env --system-site-packages
+python -m venv openvino_env
 ```
 
 > **NOTE**: On Linux and macOS, you may need to type `python3` instead of

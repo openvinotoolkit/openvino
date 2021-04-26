@@ -8,21 +8,21 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNExecNetwork;
 class MKLDNNAsyncInferRequest;
 
-class MKLDNNInferRequest : public InferenceEngine::InferRequestInternal {
+class MKLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<MKLDNNInferRequest> Ptr;
     explicit MKLDNNInferRequest(InferenceEngine::InputsDataMap      networkInputs,
                                 InferenceEngine::OutputsDataMap     networkOutputs,
                                 std::shared_ptr<MKLDNNExecNetwork>  execNetwork);
 
-    ~MKLDNNInferRequest() override;
+    ~MKLDNNInferRequest();
 
     void InferImpl() override;
 
@@ -34,7 +34,7 @@ public:
 
     void SetBatch(int batch = -1) override;
 
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
 
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
@@ -59,7 +59,7 @@ private:
     MKLDNNGraph*                        graph = nullptr;
     std::map<std::string, void*>        externalPtr;
     openvino::itt::handle_t             profilingTask;
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
     MKLDNNAsyncInferRequest*            _asyncRequest = nullptr;
 };
 }  // namespace MKLDNNPlugin

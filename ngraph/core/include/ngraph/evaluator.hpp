@@ -200,4 +200,4 @@ namespace ngraph
         op_handler m_default_handler;
         value_map& m_value_map;
     };
-}
+} // namespace ngraph

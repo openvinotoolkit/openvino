@@ -292,7 +292,7 @@ namespace ngraph
 
         return result;
     }
-}
+} // namespace ngraph
 
 std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
 {
@@ -335,7 +335,7 @@ bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank r
         }
     }
 
-    return (rank.is_dynamic() || permutation.size() == rank.get_length());
+    return (rank.is_dynamic() || static_cast<int64_t>(permutation.size()) == rank.get_length());
 }
 
 template <typename T>
@@ -394,7 +394,7 @@ namespace ngraph
 
         return output;
     }
-}
+} // namespace ngraph
 
 AxisVector ngraph::get_default_order(const Shape& shape)
 {
