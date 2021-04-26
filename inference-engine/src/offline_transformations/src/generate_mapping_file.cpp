@@ -30,12 +30,7 @@ bool ngraph::pass::GenerateMappingFile::run_on_function(std::shared_ptr<ngraph::
     };
 
     auto extract_name = [](const std::string & port_name) -> std::string {
-        std::string res;
-        for (auto ch : port_name) {
-            if (ch == ':') break;
-            res += ch;
-        }
-        return res;
+        return port_name.substr(0, port_name.find(':'));
     };
 
     for (auto && node : f->get_ordered_ops()) {
