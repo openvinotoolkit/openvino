@@ -84,6 +84,7 @@ def roll(
 
     return _get_node_factory_opset7().create("Roll", inputs)
 
+
 @nameable_op
 def Gather(
         data: NodeInput,
