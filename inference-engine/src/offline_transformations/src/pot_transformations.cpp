@@ -14,11 +14,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::POTTransformations, "POTTransformations", 0
 
 bool ngraph::pass::POTTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager(get_pass_config());
-    if (m_device == "CPU") {
-        // TODO: register CPU passes
-        // manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-    } else {
-        throw ngraph_error("Device name is unsupported");
+    if (m_device == "GNA") {
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     }
     manager.run_passes(f);
     return false;
