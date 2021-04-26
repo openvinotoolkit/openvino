@@ -40,7 +40,6 @@
 #include "utils/debug_capabilities.h"
 #include "utils/node_dumper.h"
 
-
 /*****************************************************
  * Debug capability
  *  - PRINT_GRAPH_INFO : Define it to enable printing

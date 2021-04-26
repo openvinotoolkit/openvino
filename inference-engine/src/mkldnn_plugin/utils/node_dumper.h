@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mkldnn_node.h"
+#include "utils/blob_dump.h"
 
 #include <unordered_map>
 #include <string>
@@ -21,20 +22,26 @@ namespace MKLDNNPlugin {
  */
 class NodeDumper {
 public:
-    NodeDumper(int _count) : count(_count) {
-        setup();
-    }
+    NodeDumper(int _count);
 
     void dumpInputBlobs(const MKLDNNNodePtr &node) const;
     void dumpOutputBlobs(const MKLDNNNodePtr &node) const;
 
 private:
-    void setup();
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
+    void dump(const BlobDumper& bd, const std::string& file) const;
     bool shouldBeDumped(const MKLDNNNodePtr &node) const;
 
-    bool shouldDumpAsText = false;
-    bool shouldDumpInternalBlobs = false;
+    enum class DUMP_FORMAT {
+        BIN,
+        TEXT,
+    };
+
+    DUMP_FORMAT parseDumpFormat(const std::string& format) const;
+    void formatNodeName(std::string& name) const;
+
+    DUMP_FORMAT dumpFormat;
+
     int count;
 
     std::string dumpDirName = "mkldnn_dump";
@@ -42,7 +49,6 @@ private:
     enum FILTER {
         BY_EXEC_ID,
         BY_TYPE,
-        BY_LAYER_TYPE,
         BY_NAME,
         COUNT,
     };
