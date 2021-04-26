@@ -22,8 +22,8 @@ class FrontEndCutModelTest : public ::testing::TestWithParam<CutModelParam> {
 public:
     CutModelParam                      m_param;
     ngraph::frontend::FrontEndManager  m_fem;
-    ngraph::frontend::FrontEnd::Ptr    m_frontEnd;
-    ngraph::frontend::InputModel::Ptr  m_inputModel;
+    ngraph::frontend::FrontEnd         m_frontEnd;
+    ngraph::frontend::InputModel       m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<CutModelParam> &obj);
 
@@ -31,6 +31,6 @@ public:
 protected:
     void initParamTest();
     void doLoadFromFile();
-    std::vector<ngraph::frontend::Place::Ptr> constructNewInputs() const;
-    std::vector<ngraph::frontend::Place::Ptr> constructNewOutputs() const;
+    std::vector<ngraph::frontend::Place> constructNewInputs() const;
+    std::vector<ngraph::frontend::Place> constructNewOutputs() const;
 };

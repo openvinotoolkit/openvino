@@ -30,8 +30,8 @@ public:
     BaseFEParam                        m_baseParam;
     PartShape                          m_partShape;
     ngraph::frontend::FrontEndManager  m_fem;
-    ngraph::frontend::FrontEnd::Ptr    m_frontEnd;
-    ngraph::frontend::InputModel::Ptr  m_inputModel;
+    ngraph::frontend::FrontEnd         m_frontEnd;
+    ngraph::frontend::InputModel       m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<PartialShapeParam> &obj);
 

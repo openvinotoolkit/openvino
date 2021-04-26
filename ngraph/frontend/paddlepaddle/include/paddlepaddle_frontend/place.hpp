@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/ifrontend_manager.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace paddle {
@@ -36,14 +36,14 @@ namespace frontend {
 class TensorPlacePDPD;
 class OpPlacePDPD;
 
-class PlacePDPD : public Place {
+class PlacePDPD : public IPlace {
 public:
-    PlacePDPD(const InputModel& input_model, const std::vector<std::string>& names)
+    PlacePDPD(const IInputModel& input_model, const std::vector<std::string>& names)
             : m_input_model(input_model),
               m_names(names) {
     }
 
-    explicit PlacePDPD(const InputModel& input_model) : PlacePDPD(input_model, std::vector<std::string>{}) {
+    explicit PlacePDPD(const IInputModel& input_model) : PlacePDPD(input_model, std::vector<std::string>{}) {
     }
 
     ~PlacePDPD() override = default;
@@ -58,12 +58,12 @@ public:
 
 private:
     std::vector<std::string> m_names;
-    const InputModel& m_input_model;
+    const IInputModel& m_input_model;
 };
 
 class InPortPlacePDPD : public PlacePDPD {
 public:
-    explicit InPortPlacePDPD(const InputModel& input_model)
+    explicit InPortPlacePDPD(const IInputModel& input_model)
             : PlacePDPD(input_model) {
     }
 
@@ -85,7 +85,7 @@ private:
 
 class OutPortPlacePDPD : public PlacePDPD {
 public:
-    explicit OutPortPlacePDPD(const InputModel& input_model)
+    explicit OutPortPlacePDPD(const IInputModel& input_model)
             : PlacePDPD(input_model) {
     }
 
@@ -104,11 +104,11 @@ private:
 
 class OpPlacePDPD : public PlacePDPD {
 public:
-    OpPlacePDPD(const InputModel& input_model,
+    OpPlacePDPD(const IInputModel& input_model,
                 const std::vector<std::string>& names,
                 const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc);
 
-    OpPlacePDPD(const InputModel& input_model,
+    OpPlacePDPD(const IInputModel& input_model,
                 const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc);
 
     void addInPort(const std::shared_ptr<InPortPlacePDPD>& input, const std::string& name) {
@@ -145,11 +145,11 @@ private:
 
 class TensorPlacePDPD : public PlacePDPD {
 public:
-    TensorPlacePDPD(const InputModel& input_model,
+    TensorPlacePDPD(const IInputModel& input_model,
                     const std::vector<std::string>& names,
                     const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc);
 
-    TensorPlacePDPD(const InputModel& input_model,
+    TensorPlacePDPD(const IInputModel& input_model,
                     const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc);
 
     void addProducingPort(const std::shared_ptr<OutPortPlacePDPD>& out_port) {
@@ -160,7 +160,7 @@ public:
         m_consuming_ports.push_back(in_port);
     }
 
-    std::vector<Place::Ptr> getConsumingPorts () const override;
+    std::vector<IPlace::Ptr> getConsumingPorts () const override;
 
     Ptr getProducingPort () const override;
 

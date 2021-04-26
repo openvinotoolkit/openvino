@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/ifrontend_manager.hpp>
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -11,13 +12,13 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-class FrontEndMock: public FrontEnd {
+class FrontEndMock: public IFrontEnd {
 public:
     FrontEndMock() = default;
     ~FrontEndMock() = default;
 
-    MOCK_CONST_METHOD1(loadFromFile, InputModel::Ptr(const std::string&));
-    MOCK_CONST_METHOD1(convert, std::shared_ptr<ngraph::Function>(InputModel::Ptr model));
+    MOCK_CONST_METHOD1(loadFromFile, IInputModel::Ptr(const std::string&));
+    MOCK_CONST_METHOD1(convert, std::shared_ptr<ngraph::Function>(IInputModel::Ptr model));
 };
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds)

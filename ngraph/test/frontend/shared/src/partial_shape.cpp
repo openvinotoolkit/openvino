@@ -33,12 +33,9 @@ void FrontEndPartialShapeTest::initParamTest() {
 
 void FrontEndPartialShapeTest::doLoadFromFile() {
     std::vector<std::string> frontends;
-    FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
     ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_baseParam.m_frontEndName));
-    ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_partShape.m_modelName));
-    ASSERT_NE(m_inputModel, nullptr);
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd.loadFromFile(m_partShape.m_modelName));
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -46,12 +43,8 @@ void FrontEndPartialShapeTest::doLoadFromFile() {
 TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
 {
     ASSERT_NO_THROW(doLoadFromFile());
-//    Place::Ptr place;
-//    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_partShape.m_tensorName));
-//    ASSERT_NE(place, nullptr);
-
     std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
+    ASSERT_NO_THROW(function = m_frontEnd.convert(m_inputModel));
     auto ops = function->get_ordered_ops();
     auto it = std::find_if(ops.begin(), ops.end(),
                  [&](const std::shared_ptr<ngraph::Node>& node) {
@@ -68,13 +61,12 @@ TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
 TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
 {
     ASSERT_NO_THROW(doLoadFromFile());
-    Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_partShape.m_tensorName));
-    ASSERT_NE(place, nullptr);
-    ASSERT_NO_THROW(m_inputModel->setPartialShape(place, PartialShape {m_partShape.m_newPartialShape}));
+    Place place;
+    ASSERT_NO_THROW(place = m_inputModel.getPlaceByTensorName(m_partShape.m_tensorName));
+    ASSERT_NO_THROW(m_inputModel.setPartialShape(place, PartialShape {m_partShape.m_newPartialShape}));
 
     std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
+    ASSERT_NO_THROW(function = m_frontEnd.convert(m_inputModel));
     auto ops = function->get_ordered_ops();
     auto it = std::find_if(ops.begin(), ops.end(),
                            [&](const std::shared_ptr<ngraph::Node>& node) {

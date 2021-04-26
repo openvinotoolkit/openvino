@@ -173,9 +173,10 @@ std::shared_ptr<Function>
     return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
 }
 
-std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert(InputModel::Ptr model) const {
+std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert(IInputModel::Ptr model) const {
     std::cerr << "[ INFO ] PFrontEndPDPD::convert invoked\n";
-    auto pdpd_model = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model);    
+    auto pdpd_model = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model);
+    PDPD_ASSERT(pdpd_model != nullptr, "Input Model is not a valid PDPD model");
     auto f = convert_model(pdpd_model);
     std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << "\n";
     return f;

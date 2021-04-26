@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/ifrontend_manager.hpp>
 
 #include "place.hpp"
 
 namespace ngraph {
 namespace frontend {
 
-class NGRAPH_API InputModelPDPD : public InputModel
+class NGRAPH_API InputModelPDPD : public IInputModel
 {
     friend class FrontEndPDPD;
     class InputModelPDPDImpl;
@@ -36,15 +36,15 @@ class NGRAPH_API InputModelPDPD : public InputModel
 
 public:
     explicit InputModelPDPD (const std::string& _path);
-    std::vector<Place::Ptr> getInputs () const override;
-    std::vector<Place::Ptr> getOutputs () const override;
-    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const override;
-    void overrideAllOutputs (const std::vector<Place::Ptr>& outputs) override;
-    void overrideAllInputs (const std::vector<Place::Ptr>& inputs) override;
-    void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
-    void setDefaultShape (Place::Ptr place, const ngraph::Shape&) override;
-    void setPartialShape (Place::Ptr place, const ngraph::PartialShape&) override;
-    void setElementType (Place::Ptr place, const ngraph::element::Type&) override;
+    std::vector<IPlace::Ptr> getInputs () const override;
+    std::vector<IPlace::Ptr> getOutputs () const override;
+    IPlace::Ptr getPlaceByTensorName (const std::string& tensorName) const override;
+    void overrideAllOutputs (const std::vector<IPlace::Ptr>& outputs) override;
+    void overrideAllInputs (const std::vector<IPlace::Ptr>& inputs) override;
+    void extractSubgraph (const std::vector<IPlace::Ptr>& inputs, const std::vector<IPlace::Ptr>& outputs) override;
+    void setDefaultShape (IPlace::Ptr place, const ngraph::Shape&) override;
+    void setPartialShape (IPlace::Ptr place, const ngraph::PartialShape&) override;
+    void setElementType (IPlace::Ptr place, const ngraph::element::Type&) override;
 
 };
 

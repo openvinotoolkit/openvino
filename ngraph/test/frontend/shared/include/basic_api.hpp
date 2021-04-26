@@ -18,8 +18,8 @@ public:
     std::string                        m_pathToModels;
     std::string                        m_modelFile;
     ngraph::frontend::FrontEndManager  m_fem;
-    ngraph::frontend::FrontEnd::Ptr    m_frontEnd;
-    ngraph::frontend::InputModel::Ptr  m_inputModel;
+    ngraph::frontend::FrontEnd         m_frontEnd;
+    ngraph::frontend::InputModel       m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<BasicTestParam> &obj);
 

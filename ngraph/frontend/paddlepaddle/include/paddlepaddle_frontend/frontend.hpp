@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/ifrontend_manager.hpp>
 
 #include "model.hpp"
 #include <ngraph/opsets/opset6.hpp>
@@ -24,7 +24,7 @@
 namespace ngraph {
 namespace frontend {
 
-class NGRAPH_API FrontEndPDPD : public FrontEnd
+class NGRAPH_API FrontEndPDPD : public IFrontEnd
 {
     static std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model);
     static std::shared_ptr<Node> make_const_node(const std::shared_ptr<TensorPlacePDPD>& place,
@@ -35,12 +35,12 @@ public:
     {
     }
 
-    virtual InputModel::Ptr loadFromFile (const std::string& path) const override
+    virtual IInputModel::Ptr loadFromFile (const std::string& path) const override
     {
         return std::make_shared<InputModelPDPD>(path);
     }
 
-    virtual std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
+    virtual std::shared_ptr<Function> convert (IInputModel::Ptr model) const override;
 };
 
 } // namespace frontend
