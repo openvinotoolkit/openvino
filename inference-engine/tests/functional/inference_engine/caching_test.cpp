@@ -1274,12 +1274,9 @@ TEST_P(CachingTest, Load_threads) {
 }
 
 // MULTI-DEVICE test
-// Test that loading of device with one architecture doesn't block loading of device with another architecture
+// Test loading of devices with different architectures
 TEST_P(CachingTest, LoadMulti_Archs) {
-    const auto IMPORT_DELAY_LONG_MS = 3000;
     const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
-    const auto IMPORT_DELAY_SHORT_MS = 100;
-    const auto EXP_MAX_EXEC_TIME_MS = 5500;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
@@ -1301,20 +1298,13 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         deviceToLoad += ",mock." + std::to_string(i);
     }
 
-    auto start = high_resolution_clock::now();
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(2);
 
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT - 2)
-                .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &opt) {
-            auto id = opt.at("DEVICE_ID");
-            if (std::stoi(id) < 2) {
-                std::this_thread::sleep_for(milliseconds(IMPORT_DELAY_LONG_MS));
-            } else {
-                std::this_thread::sleep_for(milliseconds(IMPORT_DELAY_SHORT_MS));
-            }
+                .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &) {
             return createMockIExecutableNet();
         }));
         EXPECT_CALL(*net, ExportImpl(_)).Times(2);
@@ -1323,7 +1313,6 @@ TEST_P(CachingTest, LoadMulti_Archs) {
             ASSERT_NO_THROW(m_testFunction(ie));
         });
     }
-    ASSERT_LT(duration_cast<milliseconds>(high_resolution_clock::now() - start).count(), EXP_MAX_EXEC_TIME_MS);
 }
 
 INSTANTIATE_TEST_CASE_P(CachingTest, CachingTest,
