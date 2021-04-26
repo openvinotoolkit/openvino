@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.arg_ops import arg_ops_infer
+from extensions.ops.argmax import arg_ops_infer
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 

@@ -65,24 +65,3 @@ class ArgMaxOp(Op):
             'top_k',
             'axis',
         ]
-
-
-class ArgMinOp(Op):
-    op = 'ArgMin'
-
-    def __init__(self, graph: Graph, attrs: dict):
-        mandatory_props = {
-            'type': None,
-            'op': self.op,
-            'infer': arg_ops_infer,
-            'output_type': np.int64,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
-        }
-        super().__init__(graph, mandatory_props, attrs)
-
-    def supported_attrs(self):
-        return [
-            'top_k',
-            'axis',
-        ]

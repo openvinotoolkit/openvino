@@ -642,7 +642,8 @@ extensions/ops/__init__.py
 extensions/ops/accum.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
-extensions/ops/arg_ops.py
+extensions/ops/argmax.py
+extensions/ops/argmin.py
 extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py

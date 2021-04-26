@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from extensions.ops.arg_ops import ArgMaxOp
+from extensions.ops.argmax import ArgMaxOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 
