@@ -77,6 +77,6 @@ namespace ngraph
             ///             The vector is output of VariadicSplit:v1 op
             ///
             OutputVector split(const Output<Node>& value, size_t num_splits, int64_t axis = 0);
-        }
-    } // namespace builder
+        } // namespace opset1
+    }     // namespace builder
 } // namespace ngraph

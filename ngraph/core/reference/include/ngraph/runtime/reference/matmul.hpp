@@ -65,7 +65,7 @@ namespace ngraph
                     std::swap(axes_order[rank - 1], axes_order[rank - 2]);
                     return axes_order;
                 }
-            }
+            } // namespace details
             /// \brief Reference kernel for matmul computation.
             ///
             /// \tparam T Type of input and output tensors.
@@ -253,6 +253,6 @@ namespace ngraph
                                  dot_output_shape);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

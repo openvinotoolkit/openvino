@@ -7,12 +7,11 @@ file(REMOVE "${OUTPUT_FILE}")
 execute_process(COMMAND ${CLANG_FORMAT} -style=file -output-replacements-xml ${INPUT_FILE}
     OUTPUT_VARIABLE STYLE_CHECK_RESULT
     )
-# Display the cpplint output to console (to parse it form IDE)
-message("${output}")
+
 file(WRITE "${OUTPUT_FILE}" "${STYLE_CHECK_RESULT}")
 
 if(NOT SKIP_RETURN_CODE)
     if("${STYLE_CHECK_RESULT}" MATCHES ".*<replacement .*")
-        message(FATAL_ERROR "[clang-format] Code style check failed for : ${INPUT_FILE}")
+        message(FATAL_ERROR "[clang-format] Code style check failed for: ${INPUT_FILE}")
     endif()
 endif()
