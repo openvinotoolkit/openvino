@@ -55,7 +55,7 @@ namespace acoshop
         }
         return rc;
     }
-}
+} // namespace acoshop
 
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

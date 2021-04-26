@@ -36,7 +36,7 @@ from utils import get_config_dictionary, get_layers_list, print_output_layers, i
 ###
 
 
-@error_handling('plugin of \'{plugin.device}\' device config \'{config}\' loading')
+@error_handling('plugin of \'{device}\' device config \'{config}\' loading')
 def set_plugin_config(core: IECore, device: str, config: str = None):
     core.set_config(get_config_dictionary(config_file=config), device_name=device)
 
@@ -68,7 +68,7 @@ def get_net(model: str, core: IECore):
     return net
 
 
-@error_handling('loading network to plugin of {plugin.device} device')
+@error_handling('loading network to plugin of {device} device')
 def get_exec_net(core, net, device):
     return core.load_network(network=net, device_name=device)
 
@@ -100,17 +100,17 @@ def get_model_info(net: IENetwork):
 ###
 
 
-@error_handling('processing inference on \'{device}\' device')
+@error_handling('processing inference')
 def get_infer_results(executable_network, inputs: dict):
     return executable_network.infer(inputs=inputs)
 
 
-@error_handling('getting performance counts from executable network on \'{device}\' device')
+@error_handling('getting performance counts from executable network')
 def get_perf_counts(executable_network):
     return executable_network.requests[0].get_perf_counts()
 
 
-@error_handling('getting inference results for outputs: \'{output}\'')
+@error_handling('getting inference results for outputs: \'{output}\' on \'{device}\' device')
 def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list):
     executable_network = get_exec_net(core=core, net=net, device=device)
     infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs)
@@ -128,7 +128,7 @@ def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list)
     return result
 
 
-@error_handling('getting inference results for outputs: \'{output}\'')
+@error_handling('getting inference results for outputs: \'{layers}\'')
 def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: dict,
                            ref_inputs: dict, core: IECore, device: str, ref_core: IECore, ref_device: str, layers: str,
                            num_of_iterations: int):

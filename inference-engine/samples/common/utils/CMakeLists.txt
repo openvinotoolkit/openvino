@@ -3,7 +3,7 @@
 #
 set(TARGET_NAME "ie_samples_utils")
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp" "*.h")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -17,3 +17,7 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
         gflags)
+
+if(COMMAND add_clang_format_target)
+    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+endif()

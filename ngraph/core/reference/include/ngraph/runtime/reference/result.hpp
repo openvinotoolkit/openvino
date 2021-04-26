@@ -21,6 +21,6 @@ namespace ngraph
             {
                 memcpy(out, arg, sizeof(T) * count);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

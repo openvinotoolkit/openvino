@@ -134,7 +134,7 @@ namespace ngraph
             };
 
             NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        } // namespace v0
 
         namespace v5
         {
@@ -194,7 +194,7 @@ namespace ngraph
             private:
                 direction m_direction;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 
 } // namespace ngraph
