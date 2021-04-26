@@ -5,8 +5,16 @@
 #include "shared_test_classes/single_layer/constant.hpp"
 
 namespace LayerTestsDefinitions {
+namespace {
+template <size_t N>
+std::vector<std::string> getElements(const std::vector<std::string>& v) {
+    const auto new_size = std::min(N, v.size());
+    return {begin(v), std::next(begin(v), new_size)};
+}
+}  // namespace
 
-std::string ConstantLayerTest::getTestCaseName(const testing::TestParamInfo<constantParamsTuple>& obj) {
+std::string ConstantLayerTest::getTestCaseName(
+    const testing::TestParamInfo<constantParamsTuple>& obj) {
     std::vector<size_t> data_shape;
     InferenceEngine::Precision data_precision;
     std::vector<std::string> data_elements;
@@ -17,7 +25,7 @@ std::string ConstantLayerTest::getTestCaseName(const testing::TestParamInfo<cons
     std::ostringstream result;
     result << "S=" << CommonTestUtils::vec2str(data_shape) << "_";
     result << "dataPRC=" << data_precision.name() << "_";
-    result << "dataValue=" << CommonTestUtils::vec2str(data_elements) << "_";
+    result << "dataValue=" << CommonTestUtils::vec2str(getElements<5>(data_elements)) << "_";
     return result.str();
 }
 

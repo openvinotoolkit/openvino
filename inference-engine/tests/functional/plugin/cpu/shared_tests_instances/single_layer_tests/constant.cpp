@@ -19,7 +19,6 @@ std::vector<std::vector<size_t>> shapes{
 };
 
 std::vector<InferenceEngine::Precision> precisions{
-    // InferenceEngine::Precision::U1, // missing type U1
     InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP64,
     InferenceEngine::Precision::U4,   InferenceEngine::Precision::U8,
@@ -28,7 +27,7 @@ std::vector<InferenceEngine::Precision> precisions{
     InferenceEngine::Precision::I16,  InferenceEngine::Precision::I32,
 };
 
-std::vector<std::string> data{"1", "2", "3", "4", "5", "6", "7", "1", "2", "3", "4", "5"};
+std::vector<std::string> data{"0", "1", "2", "3", "4", "5", "6", "7", "0", "1", "2", "3"};
 
 std::vector<InferenceEngine::Precision> precisionsWithNegativeValues{
     InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,

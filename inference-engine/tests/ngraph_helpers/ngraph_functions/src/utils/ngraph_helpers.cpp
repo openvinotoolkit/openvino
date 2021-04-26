@@ -501,6 +501,9 @@ std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t> &
     case element::Type_t::i64: {
         return convertPrecision<FromType, element::Type_t::i64>(output, elementsCount);
     }
+    case element::Type_t::u1: {
+        return convertPrecision<FromType, element::Type_t::u1>(output, elementsCount);
+    }
     case element::Type_t::u4: {
         return convertPrecision<FromType, element::Type_t::u4>(output, elementsCount);
     }
@@ -558,6 +561,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
     case element::Type_t::i64: {
         return convertPrecisionFrom<element::Type_t::i64>(output, toPrecision, elementsCount);
+    }
+    case element::Type_t::u1: {
+        return convertPrecisionFrom<element::Type_t::u1>(output, toPrecision, elementsCount);
     }
     case element::Type_t::u4: {
         return convertPrecisionFrom<element::Type_t::u4>(output, toPrecision, elementsCount);
