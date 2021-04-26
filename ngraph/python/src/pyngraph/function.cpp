@@ -19,10 +19,44 @@ void regclass_pyngraph_Function(py::module m)
     function.doc() = "ngraph.impl.Function wraps ngraph::Function";
     function.def(py::init<const std::vector<std::shared_ptr<ngraph::Node>>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
-                          const std::string&>());
+                          const std::string&>(),
+                 py::arg("results"),
+                 py::arg("parameters"),
+                 py::arg("name"),
+                 R"mydelimiter(
+                    Create Function.
+
+                    Parameters
+                    ----------
+                    results : List[Node]
+                        List of Nodes to be used as results.
+
+                    parameters : List[op.Parameter]
+                        List of parameters.
+
+                    name : str
+                        String to set as function's freindly name.
+                 )mydelimiter");
     function.def(py::init<const std::shared_ptr<ngraph::Node>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
-                          const std::string&>());
+                          const std::string&>(),
+                 py::arg("result"),
+                 py::arg("parameters"),
+                 py::arg("name"),
+                 R"mydelimiter(
+                    Create Function.
+
+                    Parameters
+                    ----------
+                    results : Node
+                        Node to be used as result.
+
+                    parameters : List[op.Parameter]
+                        List of parameters.
+
+                    name : str
+                        String to set as function's freindly name.
+                 )mydelimiter");
     function.def("get_output_size",
                  &ngraph::Function::get_output_size,
                  R"mydelimiter(
@@ -120,22 +154,22 @@ void regclass_pyngraph_Function(py::module m)
     function.def("get_parameters",
                  &ngraph::Function::get_parameters,
                  R"mydelimiter(
-                    Return the function parameters
+                    Return the function parameters.
 
                     Returns
                     ----------
                     get_parameters : ParameterVector
-                        ParameterVector containing function parameters
+                        ParameterVector containing function parameters.
                  )mydelimiter");
     function.def("get_results",
                  &ngraph::Function::get_results,
                  R"mydelimiter(
-                    Return a list of function outputs
+                    Return a list of function outputs.
 
                     Returns
                     ----------
                     get_results : ResultVector
-                        ResultVector containing function parameters
+                        ResultVector containing function parameters.
                  )mydelimiter");
     function.def("get_result",
                  &ngraph::Function::get_result,
@@ -162,7 +196,7 @@ void regclass_pyngraph_Function(py::module m)
                  R"mydelimiter(
                     Gets the friendly name for a function. If no
                     friendly name has been set via set_friendly_name
-                    then the function's unique name is returned
+                    then the function's unique name is returned.
 
                     Returns
                     ----------
@@ -187,7 +221,7 @@ void regclass_pyngraph_Function(py::module m)
                  &ngraph::Function::is_dynamic,
                  R"mydelimiter(
                     Returns true if any of the op's defined in the function 
-                    contains partial shape
+                    contains partial shape.
 
                     Returns
                     ----------
