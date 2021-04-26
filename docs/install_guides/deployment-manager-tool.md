@@ -22,8 +22,7 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
 
 ## Create Deployment Package Using Deployment Manager
 
-There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: <br>
-You can run the Deployment Manager tool in either Interactive or Standard CLI mode.
+There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: you can run the Deployment Manager tool in either interactive or standard CLI mode.
 
 ### Run Interactive Mode
 <details>
