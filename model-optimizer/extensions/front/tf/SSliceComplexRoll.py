@@ -41,8 +41,6 @@ class SSliceComplexRoll(FrontReplacementSubgraph):
 
     And, in such replacement, we should correct axes of Roll, because input data are real now. Namely, if
     there are negative axes for Roll, we need subtract 1 from such axes indices.
-
-    The transformation SSliceComplexRollReplacement performs such replacement.
     """
     enabled = True
 
@@ -66,7 +64,7 @@ class SSliceComplexRoll(FrontReplacementSubgraph):
 
         real_input = strided_slice_real.in_port(0).get_source().node
         imag_input = strided_slice_imag.in_port(0).get_source().node
-        if real_input.soft_get('name', real_input.id) != imag_input.soft_get('name', imag_input.id):
+        if real_input.id != imag_input.id:
             log.debug('The pattern does not correspond to Roll for complex tensor. Different inputs.')
             return
 
