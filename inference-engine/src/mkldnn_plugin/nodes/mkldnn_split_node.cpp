@@ -72,21 +72,19 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (dstFirstDims.size() != srcDims.size())
         THROW_ERROR << "sizes of input blob and sum of output blobs are not equal.";
 
-
     InferenceEngine::Precision inpPrecision = inpData->getPrecision();
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
-    // make primitive descriptor factory function for different configurations
     bool dynBatchSupport = true;
     if (axis < 1) {
         dynBatchSupport = false;
     }
 
-    //Set plain and taiC formats
+    //Set plain and tailC formats
     std::vector<TensorDescCreatorTypes> tdCreatorTypes{ TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::nspc };
 
     //Support channel blocked format
-    if (srcDims.ndims() > channelsPos) {
+    if (srcDims.ndims() > 2) {
         for (auto item : { std::make_pair(8lu, TensorDescCreatorTypes::nCsp8c), std::make_pair(16lu, TensorDescCreatorTypes::nCsp16c) }) {
             SizeVector blkDims = srcDims.ToSizeVector();
             if (blkDims[channelsPos] % item.first)
@@ -335,6 +333,9 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
 }
 
 void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
+    // Enforce the reference implementation for the planar layout if the implementation is in the impl priorities list.
+    // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
+    // the reference implementation when it is selected in a test to test that piece of code.
     if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
         auto plain = PartialBlkDesc::makePlain(getParentEdgeAt(0)->getDims().ToSizeVector());
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
