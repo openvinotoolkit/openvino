@@ -276,7 +276,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 status = subprocess.run([sys.executable, path_to_offline_transformations, "--input_model", orig_model_name], env=os.environ, timeout=10)
                 return_code = status.returncode
                 if return_code != 0 and not argv.silent:
-                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
+                    log.error("offline_transformations return code {}".format(return_code), extra={'is_warning': True})
         except Exception as e:
             pass
 
@@ -294,7 +294,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
         suffixes = [".xml", ".bin", ".mapping"]
         if return_code != 0:
-            print("[ WARNING ] Using fallback to produce IR")
+            log.error("Using fallback to produce IR.", extra={'is_warning': True})
             for suf in suffixes:
                 # remove existing files
                 path_to_file = orig_model_name + suf
