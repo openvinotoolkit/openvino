@@ -384,7 +384,7 @@ struct EngineInfo {
     uint64_t maxImage2dHeight = 0;
     std::string deviceId = "";
     std::string driverVersion = "";
-    std::shared_ptr<TuningCache> deviceCache;
+    std::string tuningCachePath = "cache.json";
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

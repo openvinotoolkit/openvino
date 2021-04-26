@@ -81,6 +81,8 @@
 #include "cldnn_itt.h"
 #include "gpu/gpu_config.hpp"
 
+#include "cldnn/runtime/device_query.hpp"
+
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -117,13 +119,13 @@ struct clDNNEngine::impl {
 };
 
 cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
-    auto device_info = device_map.begin()->second.get_info();
+    auto device_info = device_map.begin()->second->get_info();
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
             IE_THROW() << "Invalid device ID: " << val;
         }
-        device_info = device_map.at(val).get_info();
+        device_info = device_map.at(val)->get_info();
     }
 
     return device_info;
@@ -445,7 +447,8 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     RegisterPrimitives();
     // try loading clDNN engine and get info from it
     {
-        cldnn::device_query device_query;
+        // Set OCL runtime which should be always available
+        cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
     }
     // locate global custom kernel config
@@ -894,8 +897,8 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
     auto iter = device_map.find(device_id);
     auto device_info = iter != device_map.end() ?
-        iter->second.get_info() :
-        device_map.begin()->second.get_info();
+        iter->second->get_info() :
+        device_map.begin()->second->get_info();
 
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;

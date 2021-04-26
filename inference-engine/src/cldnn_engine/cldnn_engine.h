@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <api/engine.hpp>
+#include <cldnn/runtime/engine.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cldnn_remote_context.h"
@@ -22,7 +22,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     std::shared_ptr<impl> _impl;
 
     // key: device_id, value: cldnn device
-    std::map<std::string, cldnn::device> device_map;
+    std::map<std::string, cldnn::device::ptr> device_map;
     std::mutex engine_mutex;
 
     mutable CLDNNRemoteCLContext::Ptr m_defaultContext;

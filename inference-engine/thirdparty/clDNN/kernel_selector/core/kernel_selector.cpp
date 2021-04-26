@@ -13,6 +13,22 @@
 #include <vector>
 #include <tuple>
 #include <set>
+#include <iostream>
+
+#include "istreamwrapper.h"
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <SetupAPI.h>
+#include <devguid.h>
+#include <cstring>
+#else
+#include <unistd.h>
+#include <limits.h>
+#include <link.h>
+#include <dlfcn.h>
+#endif
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -25,9 +41,36 @@
 
 #define ENABLE_OFFLINE_TUNING_CACHE 1
 
+namespace {
+std::unique_ptr<kernel_selector::TuningCache> GetCacheFromFile(std::string tuning_cache_path) {
+    if (tuning_cache_path.compare("cache.json") == 0) {
+#ifdef _WIN32
+        char path[MAX_PATH];
+        HMODULE hm = NULL;
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            (LPCSTR)&GetCacheFromFile,
+            &hm);
+        GetModuleFileName(hm, path, sizeof(path));
+        std::string bin_path(path);
+        tuning_cache_path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
+#else
+        const char* device_info_failed_msg = "Device lookup failed";
+        Dl_info dl_info;
+        dladdr((void*)(device_info_failed_msg), &dl_info);  // NOLINT
+        std::string bin_path(dl_info.dli_fname);
+        tuning_cache_path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
+#endif
+    }
+
+    return std::unique_ptr<kernel_selector::TuningCache>(new kernel_selector::TuningCache(tuning_cache_path, false));
+}
+
+}  // namespace
+
 namespace kernel_selector {
 
 AutoTuner kernel_selector_base::autoTuner;
+std::unique_ptr<TuningCache> kernel_selector_base::offlineCache = nullptr;
 
 #ifdef ENABLE_ENV
 std::string strip(const std::string str) {
@@ -105,7 +148,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
     // TODO: find a better place to located this assignment
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
     }
 
     return kernelsData;
@@ -123,7 +166,14 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::tuple<std::string, int> cachedKernelConfig;
     if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
+        if (!offlineCache) {
+            try {
+                offlineCache = std::move(GetCacheFromFile(params.engineInfo.tuningCachePath));
+            } catch (std::exception& /* e */) {
+                offlineCache = std::unique_ptr<TuningCache>(new TuningCache());
+            }
+        }
+        cachedKernelConfig = autoTuner.LoadKernelOffline(offlineCache.get(), params);
 #else
         return GetNaiveBestKernel(params, options, kType);
 #endif
@@ -145,7 +195,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 if (kds.size() && kds[0].kernels.size()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
-                    kernelsData[0].kernels[0].layerID = params.layerID;
+                    kernelsData[0].kernels[0].params.layerID = params.layerID;
                 }
                 break;
             }
@@ -218,7 +268,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
         autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
                                 params,
                                 kernelName,
