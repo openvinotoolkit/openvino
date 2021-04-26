@@ -20,8 +20,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data,
@@ -139,11 +137,11 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
     // Finally squeeze data from respective dimensions.
     shared_ptr<Node> flat_node;
     Shape dispersed_shape{n_dim};
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         dispersed_shape.push_back(bs);
     }
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         dispersed_shape.push_back(data_shape.at(spatial_dim_index + i));
     }
@@ -161,7 +159,7 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
     {
         dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
         axes_order.push_back(1);
-        for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+        for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
         {
             axes_order.push_back(spatial_dims + i);
             axes_order.push_back(i);
@@ -181,7 +179,7 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
     {
         dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
         axes_order.push_back(spatial_dims + 1);
-        for (int i = 2; i < data_shape.size(); ++i)
+        for (size_t i = 2; i < data_shape.size(); ++i)
         {
             axes_order.push_back(spatial_dims + i);
             axes_order.push_back(i - 1);
@@ -214,7 +212,7 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
                                  elem_size);
 
     Shape squeezed_shape{n_dim, c_flat};
-    for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+    for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
     {
         squeezed_shape.push_back(data_shape.at(i) * bs);
     }
@@ -256,7 +254,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::DepthToSpace::DepthToSpaceMode op::DepthToSpace::mode_from_string(const std::string& mode) const
 {

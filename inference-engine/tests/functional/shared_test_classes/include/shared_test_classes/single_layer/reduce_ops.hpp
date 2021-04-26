@@ -32,6 +32,7 @@ class ReduceOpsLayerTest : public testing::WithParamInterface<reduceMeanParams>,
                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;

@@ -552,7 +552,7 @@ namespace ngraph
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-}
+} // namespace ngraph
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
@@ -1042,14 +1042,14 @@ AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref)
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

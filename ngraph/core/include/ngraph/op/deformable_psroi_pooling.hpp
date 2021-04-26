@@ -20,20 +20,21 @@ namespace ngraph
                 DeformablePSROIPooling() = default;
                 /// \brief Constructs a DeformablePSROIPooling operation
                 ///
-                /// \param input           Input tensor with feature maps
-                /// \param coords          Input tensor describing box consisting
-                ///                        of five element tuples
-                /// \param offsets         Input blob with transformation values
+                /// \param input           Input tensor with position sensitive score maps
+                /// \param coords          Input tensor with list of five element tuples
+                ///                        describing ROI coordinates
+                /// \param offsets         Input tensor with transformation values
                 /// \param output_dim      Pooled output channel number
-                /// \param group_size      Number of groups to encode position-sensitive score maps
+                /// \param group_size      Number of horizontal bins per row to divide ROI area,
+                ///                        it defines output width and height
                 /// \param spatial_scale   Multiplicative spatial scale factor to translate ROI
                 ///                        coordinates from their input scale to the scale used when
                 ///                        pooling
                 /// \param mode            Specifies mode for pooling.
-                /// \param spatial_bins_x  Specifies numbers of bins to divide the input feature
-                ///                         maps over width
-                /// \param spatial_bins_y  Specifies numbers of bins to divide the input feature
-                ///                        maps over height
+                /// \param spatial_bins_x  Specifies numbers of bins to divide ROI single
+                ///                        bin over width
+                /// \param spatial_bins_y  Specifies numbers of bins to divide ROI single
+                ///                        bin over height
                 /// \param no_trans        The flag that specifies whenever third input exists
                 ///                        and contains transformation (offset) values
                 /// \param trans_std       The value that all transformation (offset) values are
@@ -84,12 +85,12 @@ namespace ngraph
                 int64_t m_output_dim;
                 float m_spatial_scale;
                 int64_t m_group_size = 1;
-                std::string m_mode = "bilinear";
+                std::string m_mode = "bilinear_deformable";
                 int64_t m_spatial_bins_x = 1;
                 int64_t m_spatial_bins_y = 1;
                 float m_trans_std = 1.f;
                 int64_t m_part_size = 1;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

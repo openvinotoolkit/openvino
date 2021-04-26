@@ -17,7 +17,7 @@ namespace ngraph
             {
                 OutputVector log(const Node& node);
             }
-        }
+        } // namespace op
 
     } // namespace onnx_import
 

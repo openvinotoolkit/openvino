@@ -48,7 +48,7 @@ namespace subtract
         }
         return rc;
     }
-}
+} // namespace subtract
 
 // ------------------------------- v1 ------------------------------------------
 

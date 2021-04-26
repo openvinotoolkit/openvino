@@ -10,11 +10,6 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-TEST(ExecutableNetworkTests, throwsOnInitWithNull) {
-    std::shared_ptr<IExecutableNetwork> nlptr = nullptr;
-    ASSERT_THROW(ExecutableNetwork exec(nlptr), InferenceEngine::Exception);
-}
-
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::Exception);
@@ -33,11 +28,6 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedExport) {
 TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.Export(std::cout), InferenceEngine::Exception);
-}
-
-TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
-    ExecutableNetwork exec;
-    ASSERT_NO_THROW((void)static_cast<IExecutableNetwork::Ptr &>(exec));
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {

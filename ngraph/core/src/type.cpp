@@ -14,4 +14,4 @@ namespace std
         // don't use parent for hash calculation, it is not a part of type (yet)
         return ngraph::hash_combine(vector<size_t>{name_hash, version_hash});
     }
-}
+} // namespace std

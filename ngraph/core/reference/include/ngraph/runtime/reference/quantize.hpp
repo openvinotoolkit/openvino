@@ -8,8 +8,6 @@
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/shape_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace runtime
@@ -105,8 +103,6 @@ namespace ngraph
                     output[input_transform.index(input_coord)] = static_cast<QUANT>(qvalue);
                 }
             }
-        }
-    }
-}
-
-NGRAPH_SUPPRESS_DEPRECATED_END
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -2426,6 +2426,42 @@ CV_ALWAYS_INLINE v_uint8x16 v_gather_lines(const uchar src[], const short* mapsx
     return v_uint8x16(vreinterpretq_u8_s32(result));
 }
 
+CV_ALWAYS_INLINE void v_gather_pairs(const float src[], const int mapsx[], const int x,
+                                     v_float32x4& low, v_float32x4& high)
+{
+#if defined(__aarch64__)
+    float64x2_t l = {};
+    l = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x]]), l, 0);
+    l = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 1]]), l, 1);
+    low.val = vreinterpretq_f32_f64(l);
+
+    float64x2_t h = {};
+    h = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 2]]), h, 0);
+    h = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 3]]), h, 1);
+    high.val = vreinterpretq_f32_f64(h);
+#else
+    float32x4_t l = {};
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x]]), l, 0);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x] + 1]), l, 1);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 1]]), l, 2);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 1] + 1]), l, 3);
+    low.val = l;
+
+    float32x4_t h = {};
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 2]]), h, 0);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 2] + 1]), h, 1);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 3]]), h, 2);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 3] + 1]), h, 3);
+    high.val = h;
+#endif
+
+    return;
+}
+
+CV_ALWAYS_INLINE v_float32x4 v_fma(const v_float32x4& a, float b, const v_float32x4& c) {
+    return v_fma(a, v_setall_f32(b), c);
+}
+
 template<int imm>
 CV_ALWAYS_INLINE v_uint8x16 v_blend(const v_uint8x16& a, const v_uint8x16& b)
 {
@@ -2471,6 +2507,18 @@ CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mas
                                 vtbl2_u8(a_split, vget_high_u8(idx_masked))));
 
 #endif
+}
+
+CV_ALWAYS_INLINE void v_deinterleave(const v_float32x4& low, const v_float32x4& high,
+                                     v_float32x4& even, v_float32x4& odd) {
+    float32x4x2_t p1 = vzipq_f32(low.val, high.val);
+    float32x4_t tmp0 = p1.val[0];
+    float32x4_t tmp1 = p1.val[1];
+
+    float32x4x2_t p2 = vzipq_f32(tmp0, tmp1);
+    even.val = p2.val[0];
+    odd.val = p2.val[1];
+    return;
 }
 
 CV_ALWAYS_INLINE void v_deinterleave(const v_uint8x16& i0, const v_uint8x16& i1,
@@ -2556,6 +2604,24 @@ CV_ALWAYS_INLINE v_uint8x16 v_interleave_high(const v_uint8x16& a, const v_uint8
     uint8x16x2_t p = vzipq_u8(a.val, b.val);
     uint8x16_t v = p.val[1];
     return v_uint8x16(v);
+}
+
+CV_ALWAYS_INLINE void v_interleave(const v_int16x8& a, const v_int16x8& b,
+                                   v_int16x8& v1, v_int16x8& v2)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
+}
+
+CV_ALWAYS_INLINE void v_interleave(const v_int32x4& a, const v_int32x4& b,
+                                   v_int32x4& v1, v_int32x4& v2)
+{
+    int32x4x2_t p = vzipq_s32(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
 }
 
 template<int shift>

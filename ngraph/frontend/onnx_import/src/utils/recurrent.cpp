@@ -52,10 +52,8 @@ namespace ngraph
                 {
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     m_map[OpInput::B] =
                         std::make_shared<ngraph::op::v1::Add>(split_bias.at(0), split_bias.at(1));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 else
                 {
@@ -129,6 +127,6 @@ namespace ngraph
                 m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
             }
 
-        } // recurrent
-    }     // onnx_import
-} // ngraph
+        } // namespace recurrent
+    }     // namespace onnx_import
+} // namespace ngraph

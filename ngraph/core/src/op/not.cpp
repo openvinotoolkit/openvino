@@ -11,8 +11,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace ngraph;
 using namespace std;
 
@@ -77,7 +75,7 @@ namespace notop
         }
         return rc;
     }
-}
+} // namespace notop
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const

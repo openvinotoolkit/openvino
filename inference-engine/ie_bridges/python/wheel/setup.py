@@ -1,16 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
- http://www.apache.org/licenses/LICENSE-2.0
- This conversation was marked as resolved by dkurt
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import os.path
 import sys
@@ -22,7 +11,7 @@ from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from decouple import config
@@ -236,10 +225,10 @@ def set_rpath(rpath, executable):
     rpath_tool = ""
     if sys.platform == "linux":
         rpath_tool = "patchelf"
-        cmd = [rpath_tool, "--set-rpath", rpath,  executable]
+        cmd = [rpath_tool, "--set-rpath", rpath, executable]
     elif sys.platform == "darwin":
         rpath_tool = "install_name_tool"
-        cmd = [rpath_tool, "-add_rpath", rpath,  executable]
+        cmd = [rpath_tool, "-add_rpath", rpath, executable]
     else:
         sys.exit(f"Unsupported platform: {sys.platform}")
 
@@ -327,7 +316,7 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, "LICENSE")
 
-packages = find_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
 package_data = {}
 
 setup(

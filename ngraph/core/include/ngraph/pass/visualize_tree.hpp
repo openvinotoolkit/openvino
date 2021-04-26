@@ -61,5 +61,5 @@ namespace ngraph
             bool m_dot_only;
             static const int max_jump_distance;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph

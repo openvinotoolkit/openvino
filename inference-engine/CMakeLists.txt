@@ -78,14 +78,16 @@ if(UNIX)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 endif()
 
 # install C samples
@@ -105,7 +107,8 @@ endif()
 install(DIRECTORY ie_bridges/c/samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE)
+        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
+        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
 
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
@@ -136,7 +139,7 @@ endif()
 # Developer package
 #
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader gflags ie_samples_utils)
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
 
 # for Template plugin
