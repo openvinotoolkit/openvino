@@ -8,7 +8,7 @@
 
 #include "MnistUbyte.h"
 #include "bmp.h"
-#include "opencv_wraper.h"
+#include "opencv_wrapper.h"
 
 using namespace FormatReader;
 
