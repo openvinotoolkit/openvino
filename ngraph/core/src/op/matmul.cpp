@@ -122,7 +122,7 @@ namespace matmul
         // 4. Usual rules of the broadcasting are applied for batch dimensions.
         // Broadcast all batches (last two dimensions represent matrix),
         // expand dim with value 1 to bigger dim if dimensions are not equal.
-        for (auto i = 0; i < max_rank - 2; i++)
+        for (uint64_t i = 0; i < max_rank - 2; i++)
         {
             auto min_dim_val =
                 std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
@@ -246,7 +246,7 @@ namespace matmul
         }
         return rc;
     }
-} // namespace
+} // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

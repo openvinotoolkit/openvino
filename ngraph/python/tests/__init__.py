@@ -46,8 +46,6 @@ xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
-xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
-                                      "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
@@ -163,3 +161,5 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
+
+xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")

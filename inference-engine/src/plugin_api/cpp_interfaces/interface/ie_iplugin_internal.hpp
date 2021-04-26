@@ -14,7 +14,6 @@
 #include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
-#include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
 
 #include <blob_factory.hpp>

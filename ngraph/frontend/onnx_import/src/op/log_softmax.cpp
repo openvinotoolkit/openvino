@@ -62,7 +62,7 @@ namespace ngraph
 
                 return {result};
             }
-        }
+        } // namespace detail
 
         namespace op
         {
@@ -74,7 +74,7 @@ namespace ngraph
             namespace set_13
             {
                 OutputVector log_softmax(const Node& node) { return detail::log_softmax(node, -1); }
-            } // namespace set_1
+            } // namespace set_13
 
         } // namespace op
 

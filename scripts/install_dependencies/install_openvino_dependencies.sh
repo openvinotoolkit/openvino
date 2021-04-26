@@ -184,6 +184,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libopenexr24
         libtag-extras1
         python3-gi
+        python3-gi-cairo
         python3-gst-1.0
         vainfo
     )
