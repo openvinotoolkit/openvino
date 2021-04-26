@@ -514,6 +514,45 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_backprop_2D_1batch_2filter)
                     strides, padding, dilations, output_padding);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, convolution_backprop_2D_2batch_2filter)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+    const CoordinateDiff output_padding{0, 0};
+
+    const Shape inputs_shape{1, 2, 1, 1};
+    const std::vector<float> inputs{
+                                    // channel 1
+                                    2.0f,
+                                    // channel 2
+                                    3.0f};
+
+    const Shape filter_shape{2, 2, 2, 2};
+    const std::vector<float> filters{
+                                    // batch 0
+                                    // channel 1
+                                    5.0f, 3.0f,
+                                    1.0f, 3.0f,
+                                    // channel 2
+                                   -5.0f, 3.0f,
+                                    1.0f, -3.0f,
+                                    // batch 1
+                                    // channel 1
+                                    5.0f, 3.0f,
+                                    1.0f, 3.0f,
+                                    // channel 2
+                                   -5.0f, 3.0f,
+                                    1.0f, -3.0f};
+
+    const Shape outputs_shape{1, 2, 2, 2};
+    const std::vector<float> outputs{
+                                     25.0f, 15.0f, 5.0f, 15.0f, -25.0f, 15.0f, 5.0f, -15.0f};
+
+    ConvolutionBackpropTest(inputs, inputs_shape, filters, filter_shape, outputs, outputs_shape,
+                    strides, padding, dilations, output_padding);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, convolution_backprop_2D_2batch_1channel)
 {
     const Strides strides{1, 1};

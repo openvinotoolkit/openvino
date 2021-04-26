@@ -36,9 +36,10 @@ namespace ngraph
                     {
                         output_shape[i + 2] =
                             input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
-                        input_3d[input_3d.size() - 1 - i] = input_shape[i + 2];
-                        strides_3d[strides_3d.size() - 1 - i] = strides[i];
-                        new_input_3d[new_input_3d.size() - 1 - i] = output_shape[i + 2];
+                        input_3d[input_3d.size() - strides.size() + i] = input_shape[i + 2];
+                        strides_3d[strides_3d.size() - strides.size() + i] = strides[i];
+                        new_input_3d[new_input_3d.size() - strides.size() + i] =
+                            output_shape[i + 2];
                     }
 
                     for (int i_z = 0; i_z < input_3d[0]; ++i_z)
@@ -61,7 +62,7 @@ namespace ngraph
 
                             if (i_y < input_3d[1] - 1)
                             {
-                                for (int y_dim = 0; y_dim < new_input_3d[1] * (strides_3d[1] - 1);
+                                for (int y_dim = 0; y_dim < new_input_3d[2] * (strides_3d[1] - 1);
                                      y_dim++)
                                 {
                                     input_zeros.push_back(0);
@@ -72,7 +73,7 @@ namespace ngraph
                         if (i_z < input_3d[0] - 1)
                         {
                             for (int y_dim = 0;
-                                 y_dim < new_input_3d[0] * new_input_3d[1] * (strides_3d[0] - 1);
+                                 y_dim < new_input_3d[1] * new_input_3d[2] * (strides_3d[0] - 1);
                                  y_dim++)
                             {
                                 input_zeros.push_back(0);
@@ -130,6 +131,37 @@ namespace ngraph
                     {
                         params.pads_begin[i] = 0;
                         params.pads_end[i] = 0;
+                    }
+                }
+
+                // convert output shape to 3D, contains only dimensions
+                Shape out_shape_3d{out_shape.begin() + 2, out_shape.end()};
+
+                int out_shape_rank = out_shape.size() - 2;
+                if (out_shape_rank < 3)
+                {
+                    int missing_dims = 3 - out_shape_rank;
+                    out_shape_3d.insert(
+                        std::next(out_shape_3d.end(), -out_shape_rank), missing_dims, 1);
+                }
+
+                // modify params.pads_end when output_shape was provided in ctor in order to
+                // calculate expected number of output elements
+                for (int i = 0; i < out_shape_3d.size(); i++)
+                {
+                    if (out_shape_3d[i] > 1)
+                    {
+                        // expected_dim = (in - 1)* strides + filter - 2*padding + out_padding
+                        // strides is already applied (through 0's extension in input)
+                        // padding = pads_begin + pads_end, formula below is using
+                        // params.pad_begin/params.pads_end:
+                        int expected_dim = (input_shape[i + 2] - 1) - filters_shape[i + 2] +
+                                           params.pads_begin[i] + params.pads_end[i] + 2 +
+                                           params.output_padding[i];
+                        if (out_shape_3d[i] != expected_dim)
+                        {
+                            params.pads_end[i] += out_shape_3d[i] - expected_dim;
+                        }
                     }
                 }
 
@@ -196,11 +228,36 @@ namespace ngraph
 
                 auto conv_filter_data = &reversed[0];
 
+                // if channel number for output is > 1 then reverse order of filter coefficients as
+                // it is required by convolve_3D_channels() function.
+                if (filter_shape[1] > 1)
+                {
+                    std::vector<T> temp_reversed(reversed);
+                    const Shape filter_dim_shape(filter_shape.begin() + 2, filter_shape.end());
+                    const size_t filter_size = shape_size(filter_dim_shape);
+
+                    for (size_t i = 0; i < filter_shape[0] * filter_shape[1]; i++)
+                    {
+                        auto delta = temp_reversed.begin();
+                        if (i < filter_shape[0])
+                        {
+                            delta = delta + i * filter_shape[1] * filter_size;
+                        }
+                        else
+                        {
+                            delta = delta + filter_size +
+                                    (i - filter_shape[0]) * filter_shape[1] * filter_size;
+                        }
+
+                        std::copy(delta, delta + filter_size, reversed.begin() + i * filter_size);
+                    }
+                }
+
                 // swap filter batch and channels
                 std::iter_swap(conv_filter_shape.begin(), conv_filter_shape.begin() + 1);
 
                 // extend stride and filter inputs with zero padding for stride and filter_dilation
-                // > 1, after that set them to 1.
+                // > 1, after that set stride and filter params to 1.
                 size_t stride_dim =
                     std::accumulate(stride.begin(), stride.end(), 1, std::multiplies<size_t>());
                 if (stride_dim >= 2)
