@@ -77,6 +77,8 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
         PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../../inference-engine/src/transformations/include/")
 
+target_compile_definitions(ngraph PRIVATE inference_engine_transformations_EXPORTS)
+
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
                                          $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
