@@ -12,7 +12,7 @@ from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, Node, rename_nodes
 
 
-class SSliceComplexRollReplacement(FrontReplacementSubgraph):
+class SSliceComplexRoll(FrontReplacementSubgraph):
     """
     Some TF models contain the sub-graph
                SomeOp

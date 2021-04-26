@@ -4,7 +4,7 @@
 
 import unittest
 
-from extensions.front.tf.SSliceComplexRollReplacement import SSliceComplexRollReplacement
+from extensions.front.tf.SSliceComplexRoll import SSliceComplexRoll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
@@ -159,7 +159,7 @@ class SSliceComplexRollReplacementTest(unittest.TestCase):
     def test_replacement(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges)
         graph.stage = 'front'
-        SSliceComplexRollReplacement().find_and_replace_pattern(graph)
+        SSliceComplexRoll().find_and_replace_pattern(graph)
         ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs, edges=ref_graph_edges)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -168,6 +168,6 @@ class SSliceComplexRollReplacementTest(unittest.TestCase):
         graph = build_graph(nodes_attrs=non_transformed_graph_node_attrs, edges=non_transformed_graph_edges)
         ref_graph = build_graph(nodes_attrs=non_transformed_graph_node_attrs, edges=non_transformed_graph_edges)
         graph.stage = 'front'
-        SSliceComplexRollReplacement().find_and_replace_pattern(graph)
+        SSliceComplexRoll().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)

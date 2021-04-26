@@ -18,8 +18,8 @@ class TFFFTToDFT(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.RollRealImagPackReplacement import RollRealImagPackReplacement
-        return [RollRealImagPackReplacement]
+        from extensions.front.tf.RollRealImagPack import RollRealImagPack
+        return [RollRealImagPack]
 
     def pattern(self):
         return dict(

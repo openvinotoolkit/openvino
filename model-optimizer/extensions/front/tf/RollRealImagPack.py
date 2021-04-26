@@ -10,7 +10,7 @@ from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, Node, rename_nodes
 
 
-class RollRealImagPackReplacement(FrontReplacementSubgraph):
+class RollRealImagPack(FrontReplacementSubgraph):
     """
     Some TF models contain Roll for complex data, as a part of the sub-graph
 
@@ -40,14 +40,12 @@ class RollRealImagPackReplacement(FrontReplacementSubgraph):
 
     But after such replacement, we should correct axes of Roll, because input data are real now. Namely, if
     there are negative axes for Roll, we need subtract 1 from such axes indices.
-
-    The transformation RollRealImagPackReplacement performs the above mentioned replacement.
     """
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.SSliceComplexRollReplacement import SSliceComplexRollReplacement
-        return [SSliceComplexRollReplacement]
+        from extensions.front.tf.SSliceComplexRoll import SSliceComplexRoll
+        return [SSliceComplexRoll]
 
     def pattern(self):
         return dict(
