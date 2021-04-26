@@ -246,6 +246,7 @@ void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
     std::vector<::ngraph::element::Type> types(param_size);
     std::vector<::ngraph::PartialShape> new_shapes(param_size);
     auto& input_descriptions = m_input_descriptions[branch_index];
+    size_t parameters_num = 0;
     for (auto& input_description : input_descriptions)
     {
         if (input_description->m_input_index < new_args.size()) 
@@ -254,12 +255,13 @@ void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
                 new_args[input_description->m_input_index].get_element_type();
             new_shapes[input_description->m_body_parameter_index] =
                 new_args[input_description->m_input_index].get_partial_shape();
+            parameters_num++;
         }
     }
     auto func =
         std::make_shared<Function>(body->get_results(), body->get_sinks(), body->get_parameters());
     auto spec_func =
-        specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size()-1, nullptr));
+        specialize_function(func, types, new_shapes, std::vector<void*>(parameters_num, nullptr));
     new_op->m_bodies[branch_index] = std::make_shared<Function>(
         spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
