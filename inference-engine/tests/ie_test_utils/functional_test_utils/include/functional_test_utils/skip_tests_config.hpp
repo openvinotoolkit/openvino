@@ -7,7 +7,12 @@
 #include <vector>
 #include <string>
 #include <regex>
+#include <iostream>
+#include <fstream>
+
 #include <gtest/gtest.h>
+
+#include "common_test_utils/file_utils.hpp"
 
 std::vector<std::string> disabledTestPatterns();
 
@@ -17,6 +22,7 @@ namespace SkipTestsConfig {
 extern bool disable_tests_skipping;
 
 bool currentTestIsDisabled();
+std::vector<std::string> readSkipTestConfigFile(const std::vector<std::string>& filePaths);
 
 }  // namespace SkipTestsConfig
 }  // namespace FuncTestUtils

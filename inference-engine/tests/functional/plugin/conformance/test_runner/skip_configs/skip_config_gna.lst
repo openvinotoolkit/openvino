@@ -1,0 +1,13 @@
+# Lost results
+.*Add_1087636.*
+.*Add_2868.*
+.*Add_2979.*
+.*Add_53543.*
+
+# hung
+.*Concat_535028.*
+.*Concat_377139.*
+.*Concat_379481.*
+.*Concat_539044.*
+.*Concat_539074.*
+.*Concat_534956.*
