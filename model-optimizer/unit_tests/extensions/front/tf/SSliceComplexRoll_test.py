@@ -78,10 +78,19 @@ ref_graph_node_attrs = {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([50, 50])
     },
     'roll_axes': {
-        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-3, -2])
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-2, -1])
     },
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
     'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
+    'add': {'type': 'Add', 'kind': 'op', 'op': 'Add'},
+    'mul': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
+    'less': {'type': 'Less', 'kind': 'op', 'op': 'Less'},
+    'zero': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
+    },
+    'minus_one': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(-1)
+    },
 }
 
 ref_graph_edges = [
@@ -89,7 +98,13 @@ ref_graph_edges = [
     ('roll', 'abs'),
     ('abs', 'output'),
     ('roll_shift', 'roll', {'in': 1}),
-    ('roll_axes', 'roll', {'in': 2}),
+    ('mul', 'add', {'in': 1}),
+    ('add', 'roll', {'in': 2}),
+    ('zero', 'less', {'in': 1}),
+    ('minus_one', 'mul', {'in': 1}),
+    ('less', 'mul', {'in': 0}),
+    ('roll_axes', 'less', {'out': 0, 'in': 0}),
+    ('roll_axes', 'add', {'out': 0, 'in': 0}),
 ]
 
 
