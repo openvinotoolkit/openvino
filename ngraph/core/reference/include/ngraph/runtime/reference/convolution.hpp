@@ -242,7 +242,7 @@ namespace ngraph
                     NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape,
                                  "Incorrect output shape provided");
                 }
-            } // namespace
+            } // namespace convolution_ref
 
             using namespace convolution_ref;
             template <typename T>

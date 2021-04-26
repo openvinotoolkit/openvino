@@ -81,7 +81,7 @@ namespace ngraph
                         }
                     }
                 }
-            } // nampespace convolution_backprop
+            } // namespace
 
             using namespace reference::convolution_ref;
             template <typename T>
