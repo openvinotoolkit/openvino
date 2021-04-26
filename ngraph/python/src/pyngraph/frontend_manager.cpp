@@ -8,233 +8,146 @@
 #include <pybind11/functional.h>
 
 #include "frontend_manager/frontend_manager.hpp"
-#include <iostream>
+#include "frontend_manager/ifrontend_manager.hpp"
 
 using namespace ngraph::frontend;
 
-//------------------ PLACE wrappers and trampolines -------------------
-// Base class for deriving on Python side, not derived from Place
-class PyPlace
+//------------------ PLACE wrapper -------------------
+// Base class for deriving on Python side, derived from IPlace
+class PyPlace: public IPlace
 {
 public:
     PyPlace() {}
-    virtual ~PyPlace() {}
-
-    virtual bool is_input() const {
-        PYBIND11_OVERLOAD_PURE(bool, PyPlace, is_input);
-    }
-
-    virtual bool is_output() const {
-        PYBIND11_OVERLOAD_PURE(bool, PyPlace, is_output);
-    }
-
-    virtual bool is_equal(std::shared_ptr<PyPlace> other) const {
-        PYBIND11_OVERLOAD_PURE(bool, PyPlace, is_equal, other);
-    }
-
-    virtual std::vector<std::string> get_names() const {
-        PYBIND11_OVERLOAD_PURE(std::vector<std::string>, PyPlace, get_names);
-    }
-};
-
-class InputModelWrapper;
-
-class PlaceWrapper : public Place
-{
-    std::shared_ptr<PyPlace> m_actual;
-    std::weak_ptr<const InputModelWrapper> m_model;
-public:
-    PlaceWrapper(std::shared_ptr<PyPlace> actual,
-                 std::shared_ptr<const InputModelWrapper> model): m_actual(actual), m_model(model) {}
-    ~PlaceWrapper() override {}
-
-    std::shared_ptr<PyPlace> getActual() { return m_actual; }
-    std::shared_ptr<const InputModelWrapper> getModel() { return m_model.lock(); }
+    ~PyPlace() override {}
 
     bool isInput() const override {
-        return m_actual->is_input();
+        PYBIND11_OVERLOAD_NAME(bool, PyPlace, "is_input", isInput);
     }
 
     bool isOutput() const override {
-        return m_actual->is_output();
+        PYBIND11_OVERLOAD_NAME(bool, PyPlace, "is_output", isOutput);
+    }
+
+    bool isEqual(IPlace::Ptr other) const override {
+        PYBIND11_OVERLOAD_NAME(bool, PyPlace, "is_equal", isEqual, other);
     }
 
     std::vector<std::string> getNames() const override {
-        return m_actual->get_names();
+        PYBIND11_OVERLOAD_NAME(std::vector<std::string>, PyPlace, "get_names", getNames);
     }
-
-    bool isEqual(Place::Ptr place) const override {
-        auto w = std::dynamic_pointer_cast<PlaceWrapper>(place);
-        if (!w) return false;
-        return m_actual->is_equal(w->m_actual);
-    }
-    friend class InputModelWrapper;
 };
 
-//------------------ Input Model wrappers and trampolines -------------------
-// Base class for deriving on Python side, not derived from InputModel
-class PyInputModel
+//------------------ Input Model wrapper -------------------
+// Base class for deriving on Python side, derived from IInputModel
+class PyInputModel: public IInputModel
 {
 public:
     PyInputModel() {}
-    virtual ~PyInputModel() {}
+    ~PyInputModel() override {}
 
-    virtual std::vector<std::shared_ptr<PyPlace>> get_inputs () const {
+    std::vector<IPlace::Ptr> getInputs () const override {
+        auto inputs = get_inputs(); // have to do a conversion of vector<PyPlace::Ptr> to vector<IPlace::Ptr>
+        std::vector<IPlace::Ptr> res {inputs.begin(), inputs.end()};
+        return res;
+    }
+
+    virtual std::vector<std::shared_ptr<PyPlace>> get_inputs() const {
         PYBIND11_OVERLOAD(std::vector<std::shared_ptr<PyPlace>>, PyInputModel, get_inputs);
     }
 
-    virtual std::vector<std::shared_ptr<PyPlace>> get_outputs () const {
+    std::vector<IPlace::Ptr> getOutputs () const override {
+        auto outputs = get_outputs(); // have to do a manual conversion of vector<PyPlace::Ptr> to vector<IPlace::Ptr>
+        std::vector<IPlace::Ptr> res {outputs.begin(), outputs.end()};
+        return res;
+    }
+
+    virtual std::vector<std::shared_ptr<PyPlace>> get_outputs() const {
         PYBIND11_OVERLOAD(std::vector<std::shared_ptr<PyPlace>>, PyInputModel, get_outputs);
     }
 
-    virtual std::shared_ptr<PyPlace> get_place_by_tensor_name (const std::string& tensorName) const {
-        PYBIND11_OVERLOAD(std::shared_ptr<PyPlace>, PyInputModel, get_place_by_tensor_name, tensorName);
+    IPlace::Ptr getPlaceByTensorName (const std::string& tensorName) const override {
+        PYBIND11_OVERLOAD_NAME(std::shared_ptr<PyPlace>, PyInputModel, "get_place_by_tensor_name", getPlaceByTensorName, tensorName);
     }
 
-    virtual void override_all_inputs (const std::vector<std::shared_ptr<PyPlace>>& inputs) {
+    void overrideAllInputs (const std::vector<IPlace::Ptr>& inputs) override {
+        std::vector<std::shared_ptr<PyPlace>> res;
+        for (const auto& input : inputs) {
+            auto pyInput = std::dynamic_pointer_cast<PyPlace>(input);
+            if (!pyInput) {
+                throw "Cannot cast input place to Python representation";
+            }
+            res.push_back(pyInput);
+        }
+        override_all_inputs(res);
+    }
+
+    virtual void override_all_inputs(const std::vector<std::shared_ptr<PyPlace>>& inputs) const {
         PYBIND11_OVERLOAD(void, PyInputModel, override_all_inputs, inputs);
     }
 
-    virtual void override_all_outputs (const std::vector<std::shared_ptr<PyPlace>>& outputs) {
+    void overrideAllOutputs (const std::vector<IPlace::Ptr>& outputs) override {
+        std::vector<std::shared_ptr<PyPlace>> res;
+        for (const auto& output : outputs) {
+            auto pyOutput = std::dynamic_pointer_cast<PyPlace>(output);
+            if (!pyOutput) {
+                throw "Cannot cast output place to Python representation";
+            }
+            res.push_back(pyOutput);
+        }
+        override_all_outputs(res);
+    }
+
+    virtual void override_all_outputs(const std::vector<std::shared_ptr<PyPlace>>& outputs) const {
         PYBIND11_OVERLOAD(void, PyInputModel, override_all_outputs, outputs);
     }
 
+    void extractSubgraph(const std::vector<IPlace::Ptr>& inputs,
+                         const std::vector<IPlace::Ptr>& outputs) override{
+        std::vector<std::shared_ptr<PyPlace>> resIn, resOut;
+        for (const auto& input : inputs) {
+            auto pyInput = std::dynamic_pointer_cast<PyPlace>(input);
+            if (!pyInput) {
+                throw "Cannot cast input place to Python representation";
+            }
+            resIn.push_back(pyInput);
+        }
+        for (const auto& output: outputs) {
+            auto pyOutput = std::dynamic_pointer_cast<PyPlace>(output);
+            if (!pyOutput) {
+                throw "Cannot cast output place to Python representation";
+            }
+            resOut.push_back(pyOutput);
+        }
+        extract_subgraph(resIn, resOut);
+    }
+
     virtual void extract_subgraph(const std::vector<std::shared_ptr<PyPlace>>& inputs,
-                                  const std::vector<std::shared_ptr<PyPlace>>& outputs) {
+                                  const std::vector<std::shared_ptr<PyPlace>>& outputs) const {
         PYBIND11_OVERLOAD(void, PyInputModel, extract_subgraph, inputs, outputs);
     }
 
-    virtual void set_partial_shape(std::shared_ptr<PyPlace> place, const ngraph::PartialShape& shape) {
-        PYBIND11_OVERLOAD(void, PyInputModel, set_partial_shape, place, shape);
+    void setPartialShape(IPlace::Ptr place, const ngraph::PartialShape& shape) override {
+        PYBIND11_OVERLOAD_NAME(void, PyInputModel, "set_partial_shape", setPartialShape, place, shape);
     }
 };
 
-class FrontEndWrapper;
-class InputModelWrapper : public InputModel, public std::enable_shared_from_this<InputModelWrapper>
-{
-    std::shared_ptr<PyInputModel> m_actual;
-    std::weak_ptr<const FrontEndWrapper> m_frontEnd;
-public:
-    InputModelWrapper(std::shared_ptr<PyInputModel> actual,
-                      std::shared_ptr<const FrontEndWrapper> fe):
-            m_actual(actual), m_frontEnd(fe) {}
-    ~InputModelWrapper() override {}
-
-    std::shared_ptr<PyInputModel> getActual() { return m_actual; }
-    std::shared_ptr<const FrontEndWrapper> getFrontEnd() { return m_frontEnd.lock(); }
-
-    std::vector<Place::Ptr> getInputs() const override {
-        auto inputs = m_actual->get_inputs();
-        std::vector<Place::Ptr> res;
-        for (const auto& input : inputs) {
-            res.push_back(std::make_shared<PlaceWrapper>(input, shared_from_this()));
-        }
-        return res;
-    }
-
-    std::vector<Place::Ptr> getOutputs() const override {
-        auto outputs = m_actual->get_outputs();
-        std::vector<Place::Ptr> res;
-        for (const auto& output : outputs) {
-            res.push_back(std::make_shared<PlaceWrapper>(output, shared_from_this()));
-        }
-        return res;
-    }
-
-    Place::Ptr getPlaceByTensorName(const std::string& tensorName) const override {
-        auto place = m_actual->get_place_by_tensor_name(tensorName);
-        return std::make_shared<PlaceWrapper>(place, shared_from_this());
-    }
-
-    void setPartialShape(Place::Ptr place, const ngraph::PartialShape& newShape) override {
-        auto placeWrapper = std::dynamic_pointer_cast<PlaceWrapper>(place);
-        if (!placeWrapper || this != placeWrapper->getModel().get()) {
-            throw std::runtime_error("Invalid Place object to override");
-        }
-        m_actual->set_partial_shape(placeWrapper->m_actual, newShape);
-    }
-
-    void overrideAllInputs (const std::vector<Place::Ptr>& places) override {
-        std::vector<std::shared_ptr<PyPlace>> pyPlaces;
-        for (const auto& place : places) {
-            auto placeWrapper = std::dynamic_pointer_cast<PlaceWrapper>(place);
-            if (!placeWrapper || this != placeWrapper->getModel().get()) {
-                throw std::runtime_error("Invalid Place object to override");
-            }
-            pyPlaces.push_back(placeWrapper->m_actual);
-        }
-        m_actual->override_all_inputs(pyPlaces);
-    }
-
-    void overrideAllOutputs (const std::vector<Place::Ptr>& places) override {
-        std::vector<std::shared_ptr<PyPlace>> pyPlaces;
-        for (const auto& place : places) {
-            auto placeWrapper = std::dynamic_pointer_cast<PlaceWrapper>(place);
-            if (!placeWrapper || this != placeWrapper->getModel().get()) {
-                throw std::runtime_error("Invalid Place object to override");
-            }
-            pyPlaces.push_back(placeWrapper->m_actual);
-        }
-        m_actual->override_all_outputs(pyPlaces);
-    }
-
-    void extractSubgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override {
-        std::vector<std::shared_ptr<PyPlace>> pyInputs, pyOutputs;
-        for (const auto& input : inputs) {
-            auto placeWrapper = std::dynamic_pointer_cast<PlaceWrapper>(input);
-            if (!placeWrapper || this != placeWrapper->getModel().get()) {
-                throw std::runtime_error("Invalid Input Place object to extract");
-            }
-            pyInputs.push_back(placeWrapper->m_actual);
-        }
-        for (const auto& output : outputs) {
-            auto placeWrapper = std::dynamic_pointer_cast<PlaceWrapper>(output);
-            if (!placeWrapper || this != placeWrapper->getModel().get()) {
-                throw std::runtime_error("Invalid Output Place object to extract");
-            }
-            pyOutputs.push_back(placeWrapper->m_actual);
-        }
-        m_actual->extract_subgraph(pyInputs, pyOutputs);
-    }
-};
-
-// -------------- FRONTEND wrappers and trampolines -------------------
-// Base class for deriving on Python side, not derived from FrontEnd
-class PyFrontEnd
+// -------------- FRONTEND wrapper -------------------
+// Base class for deriving on Python side, derived from IFrontEnd
+class PyFrontEnd: public IFrontEnd
 {
 public:
     PyFrontEnd() {}
-    virtual ~PyFrontEnd() {}
+    ~PyFrontEnd() override {}
 
-    virtual std::shared_ptr<PyInputModel> load_from_file(const std::string& path) const {
-        PYBIND11_OVERLOAD_PURE(std::shared_ptr<PyInputModel>, PyFrontEnd, load_from_file, path);
+    IInputModel::Ptr loadFromFile(const std::string& path) const override {
+        PYBIND11_OVERLOAD_NAME(std::shared_ptr<PyInputModel>, PyFrontEnd, "load_from_file", loadFromFile, path);
     }
 
-    virtual std::shared_ptr<ngraph::Function> do_convert(std::shared_ptr<PyInputModel> model) const {
-        PYBIND11_OVERLOAD_PURE(std::shared_ptr<ngraph::Function>, PyFrontEnd, do_convert, model);
-    }
-};
-
-class FrontEndWrapper : public FrontEnd, public std::enable_shared_from_this<FrontEndWrapper>
-{
-    std::shared_ptr<PyFrontEnd> m_actual;
-public:
-    FrontEndWrapper(std::shared_ptr<PyFrontEnd> actual): m_actual(actual) {}
-    ~FrontEndWrapper() override {}
-
-    InputModel::Ptr loadFromFile (const std::string& path) const override {
-        auto pyModel = m_actual->load_from_file(path);
-        return std::make_shared<InputModelWrapper>(pyModel, shared_from_this());
-    }
-
-    std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const override {
-        auto mdlWrapper = std::dynamic_pointer_cast<InputModelWrapper>(model);
-        if (!mdlWrapper || this != mdlWrapper->getFrontEnd().get()) {
-            throw std::runtime_error("Invalid model to convert with this FrontEnd");
-        }
-        return m_actual->do_convert(mdlWrapper->getActual());
+    std::shared_ptr<ngraph::Function> convert(IInputModel::Ptr model) const override {
+        PYBIND11_OVERLOAD(std::shared_ptr<ngraph::Function>, PyFrontEnd, convert, model);
     }
 };
+
 
 namespace py = pybind11;
 
@@ -247,70 +160,100 @@ void regclass_pyngraph_FrontEndManager(py::module m)
 
     fem.def(py::init<>());
 
-    fem.def("availableFrontEnds", &ngraph::frontend::FrontEndManager::availableFrontEnds);
-    fem.def("registerFrontEnd", [](FrontEndManager& self,
+    fem.def("available_front_ends", &ngraph::frontend::FrontEndManager::availableFrontEnds);
+    fem.def("register_front_end", [](FrontEndManager& self,
                                           const std::string& name,
                                           std::function<std::shared_ptr<PyFrontEnd>(FrontEndCapabilities)> creator) {
-        self.registerFrontEnd(name, [=](FrontEndCapabilities fec) {
-            auto pyFE = creator(fec);
-            return std::make_shared<FrontEndWrapper>(pyFE);
+        self.registerFrontEnd(name, [=](FrontEndCapabilities fec) -> IFrontEnd::Ptr {
+            return creator(fec);
         });
     });
 
-    fem.def("loadByFramework",
-            &ngraph::frontend::FrontEndManager::loadByFramework,
-            py::arg("framework"),
-            py::arg("capabilities") = ngraph::frontend::FEC_DEFAULT);
+    fem.def("load_by_framework", [](FrontEndManager& self, const std::string& name, FrontEndCapabilities caps) {
+        return to_shared(self.loadByFramework(name, caps));
+    }, py::arg("framework"), py::arg("capabilities") = ngraph::frontend::FEC_DEFAULT);
 }
 
 void regclass_pyngraph_FrontEnd(py::module m)
 {
     py::class_<PyFrontEnd, std::shared_ptr<PyFrontEnd>> pyFE(
-        m, "FrontEnd", py::dynamic_attr());
-    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> wrapper(
-            m, "FrontEndWrapper", py::dynamic_attr());
-    pyFE.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+        m, "IFrontEnd", py::dynamic_attr());
+    py::class_<FrontEndShared, std::shared_ptr<FrontEndShared>> wrapper(
+            m, "FrontEnd", py::dynamic_attr());
+    pyFE.doc() = "Base class for FrontEnd custom implementation";
     pyFE.def(py::init<>());
 
-    wrapper.def("loadFromFile", &FrontEnd::loadFromFile, py::arg("path"));
-    wrapper.def("convert", [](FrontEnd& self,
-            InputModel::Ptr model) -> std::shared_ptr<ngraph::Function> {
-        return self.convert(model);
+    wrapper.def("load_from_file", [](FrontEndShared& self, const std::string& path) -> std::shared_ptr<InputModelShared> {
+        auto res = to_shared(self.frontEnd.loadFromFile(path));
+        return res;
+        }, py::arg("path"));
+    wrapper.def("convert", [](FrontEndShared& self,
+            const InputModelShared& model) -> std::shared_ptr<ngraph::Function> {
+        return self.frontEnd.convert(model.inputModel);
     });
 }
 
 void regclass_pyngraph_Place(py::module m)
 {
     py::class_<Place, std::shared_ptr<Place>> place(
-            m, "PlaceWrapper", py::dynamic_attr());
-    py::class_<PyPlace, std::shared_ptr<PyPlace>> pyPlace(
             m, "Place", py::dynamic_attr());
-    pyPlace.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
+    py::class_<PyPlace, std::shared_ptr<PyPlace>> pyPlace(
+            m, "IPlace", py::dynamic_attr());
+    pyPlace.doc() = "Base class for custom place implementation";
     pyPlace.def(py::init<>());
 
-    place.def("isInput", &ngraph::frontend::Place::isInput);
-    place.def("isOutput", &ngraph::frontend::Place::isOutput);
-    place.def("getNames", &ngraph::frontend::Place::getNames);
-    place.def("isEqual", [](Place& self, std::shared_ptr<Place> other) -> bool {
-        return self.isEqual(other);
-    });
+    place.def("is_input", &ngraph::frontend::Place::isInput);
+    place.def("is_output", &ngraph::frontend::Place::isOutput);
+    place.def("get_names", &ngraph::frontend::Place::getNames);
+    place.def("is_equal", &ngraph::frontend::Place::isEqual, py::arg("other"));
 }
 
 void regclass_pyngraph_InputModel(py::module m)
 {
-    py::class_<InputModel, std::shared_ptr<InputModel>> im(
-            m, "InputModelWrapper", py::dynamic_attr());
+    py::class_<InputModelShared, std::shared_ptr<InputModelShared>> im(
+            m, "InputModel", py::dynamic_attr());
     py::class_<PyInputModel, std::shared_ptr<PyInputModel>> pyIM(
-        m, "InputModel", py::dynamic_attr());
-    pyIM.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
+        m, "IInputModel", py::dynamic_attr());
+    pyIM.doc() = "Base class for custom input model";
     pyIM.def(py::init<>());
-    im.def("extractSubgraph", &InputModel::extractSubgraph);
-    im.def("getPlaceByTensorName", &InputModel::getPlaceByTensorName);
-    im.def("setPartialShape", &InputModel::setPartialShape);
-    im.def("getInputs", &InputModel::getInputs);
-    im.def("getOutputs", &InputModel::getOutputs);
-    im.def("overrideAllInputs", &InputModel::overrideAllInputs);
-    im.def("overrideAllOutputs", &InputModel::overrideAllOutputs);
+    im.def("extract_subgraph", [](InputModelShared& self, const std::vector<std::shared_ptr<Place>>& inPtrs,
+            const std::vector<std::shared_ptr<Place>>& outPtrs) {
+        std::vector<Place> inputs, outputs;
+        for (const auto& inPtr : inPtrs) {
+            inputs.push_back(*inPtr);
+        }
+        for (const auto& outPtr : outPtrs) {
+            outputs.push_back(*outPtr);
+        }
+        self.inputModel.extractSubgraph(inputs, outputs);
+    });
+
+    im.def("get_place_by_tensor_name", [](InputModelShared& self, const std::string& name) -> std::shared_ptr<Place> {
+        return std::make_shared<Place>(self.inputModel.getPlaceByTensorName(name));
+    });
+
+    im.def("set_partial_shape", [](InputModelShared& self, std::shared_ptr<Place> place,
+                                        const ngraph::PartialShape& shape) {
+        self.inputModel.setPartialShape(*place, shape);
+    });
+
+    im.def("get_inputs", [](InputModelShared& self) {
+        return self.inputModel.getInputs();
+    });
+
+    im.def("get_outputs", [](InputModelShared& self) {
+        return self.inputModel.getOutputs();
+    });
+
+    im.def("override_all_inputs", [](InputModelShared& self,
+                                   const std::vector<Place>& inputs) {
+        return self.inputModel.overrideAllInputs(inputs);
+    });
+
+    im.def("override_all_outputs", [](InputModelShared& self,
+                                   const std::vector<Place>& outputs) {
+        return self.inputModel.overrideAllOutputs(outputs);
+    });
 }
 
 void regclass_pyngraph_FEC(py::module m)

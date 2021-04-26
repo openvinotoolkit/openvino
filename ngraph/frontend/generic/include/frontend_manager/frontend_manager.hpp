@@ -156,16 +156,6 @@ private:
     std::shared_ptr<PlaceImpl> m_impl;
 };
 
-struct PlaceShared {
-    Place place;
-    PlaceShared(Place&& p): place(std::move(p)) {}
-};
-
-// Helper function for those who need shared pointers
-inline std::shared_ptr<PlaceShared> to_shared(Place&& p) {
-    return std::make_shared<PlaceShared>(std::move(p));
-}
-
 
 /// \brief InputModel class represents an original, not yet converted model graph in a framework format given
 /// services to find places of interest in a graph or specialize/edit the model before conversion.

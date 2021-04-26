@@ -30,6 +30,7 @@ namespace ngraph
             { if (!(EXPRESSION)) throw "AssertionFailed"; }
 
         //--------------- IInputModel -------------------
+        IInputModel::IInputModel() = default;
         IInputModel::~IInputModel() = default;
 
         std::vector<IPlace::Ptr> IInputModel::getInputs () const
@@ -159,6 +160,7 @@ namespace ngraph
         }
 
         //--------------- IPlace -------------------
+        IPlace::IPlace() = default;
         IPlace::~IPlace() = default;
 
         std::vector<std::string> IPlace::getNames () const

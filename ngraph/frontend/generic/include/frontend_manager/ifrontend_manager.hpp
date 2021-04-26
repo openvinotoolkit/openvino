@@ -66,6 +66,7 @@ public:
 
     using Ptr = std::shared_ptr<IPlace>;
 
+    IPlace();
     virtual ~IPlace();
 
     /// \brief All associated names (synonyms) that identify this place in the graph in a framework specific way
@@ -154,6 +155,7 @@ public:
 
     using Ptr = std::shared_ptr<IInputModel>;
 
+    IInputModel();
     virtual ~IInputModel();
 
     /////  Searching for places  /////

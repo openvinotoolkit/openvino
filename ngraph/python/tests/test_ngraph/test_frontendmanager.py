@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from ngraph import FrontEndManager, FrontEnd, FrontEndCapabilities, InputModel, Place, PartialShape
+from ngraph import IFrontEnd, IInputModel, IPlace
 import pytest
 
-class MockPlace(Place):
-    def __init__(self, _isInput, _isOutput, _names):
-        self.m_isInput = _isInput
-        self.m_isOutput = _isOutput
+class MockPlace(IPlace):
+    def __init__(self, _is_input, _is_output, _names):
+        self.m_is_input = _is_input
+        self.m_is_output = _is_output
         self.m_names = _names
         self.m_eqPlace = None
         self.m_isEqualCnt = 0
@@ -20,14 +21,14 @@ class MockPlace(Place):
         self.eqPlace = place
 
     def is_input(self):
-        # print("MockPlace: Called isInput {}".format(self.m_isInput))
+        # print("MockPlace: Called is_input {}".format(self.m_is_input))
         self.m_isInputCnt += 1
-        return self.m_isInput
+        return self.m_is_input
 
     def is_output(self):
-        # print("MockPlace: Called isOutput {}".format(self.m_isOutput))
+        # print("MockPlace: Called is_output {}".format(self.m_is_output))
         self.m_isOutputCnt += 1
-        return self.m_isOutput
+        return self.m_is_output
 
     def get_names(self):
         # print("MockPlace: Called getNames {}".format(self.m_names))
@@ -39,28 +40,28 @@ class MockPlace(Place):
         return self.eqPlace == other
 
 
-class MockInputModel(InputModel):
+class MockInputModel(IInputModel):
     def __init__(self, inputPlace, outputPlace):
         self.m_inputPlace = inputPlace
         self.m_outputPlace = outputPlace
-        self.m_getInputsCnt = 0
-        self.m_getOutputsCnt = 0
+        self.m_get_inputsCnt = 0
+        self.m_get_outputsCnt = 0
         self.m_overrideInputsCnt = 0
         self.m_overrideOutputsCnt = 0
         self.m_getPlaceByTensorNameCnt = 0
-        self.m_extractSubGraph = 0
-        self.m_setPartialShapeCnt = 0
+        self.m_extract_subgraph = 0
+        self.m_set_partial_shapeCnt = 0
         self.m_partialShape = []
         super(MockInputModel, self).__init__()
 
     def get_inputs(self):
         # print("Mock: Called get_inputs")
-        self.m_getInputsCnt += 1
+        self.m_get_inputsCnt += 1
         return [self.m_inputPlace]
 
     def get_outputs(self):
         # print("Mock: Called get_outputs")
-        self.m_getOutputsCnt += 1
+        self.m_get_outputsCnt += 1
         return [self.m_outputPlace]
 
     def override_all_inputs(self, inputs):
@@ -75,11 +76,11 @@ class MockInputModel(InputModel):
 
     def extract_subgraph(self, inputs, outputs):
         # print("Mock: Called extract_subgraph")
-        self.m_extractSubGraph += 1
+        self.m_extract_subgraph += 1
         return
 
     def get_place_by_tensor_name(self, name):
-        # print("Mock: Called get_place_by_tensor_name {}".format(name))
+        # print("Mock: Called getPlaceByTensorName {}".format(name))
         self.m_getPlaceByTensorNameCnt += 1
         if 'Input' in name:
             return self.m_inputPlace
@@ -88,12 +89,12 @@ class MockInputModel(InputModel):
         return None
 
     def set_partial_shape(self, place, shape):
-        # print("Mock: Called set_partial_shape {}".format(name))
-        self.m_setPartialShapeCnt += 1
+        # print("Mock: Called set_partial_shape")
+        self.m_set_partial_shapeCnt += 1
         self.m_partialShape = shape
 
 
-class MockFrontEnd(FrontEnd):
+class MockFrontEnd(IFrontEnd):
     def __init__(self, mdl):
         self.mockModel = mdl
         self.loadCnt = 0
@@ -102,10 +103,10 @@ class MockFrontEnd(FrontEnd):
 
     def load_from_file(self, path):
         self.loadCnt += 1
-        # print("Mock: Called doLoadFromFile: {}".format(path))
+        # print("Mock: Called load_from_file: {}".format(path))
         return self.mockModel
 
-    def do_convert(self, model):
+    def convert(self, model):
         self.convertCnt += 1
         # print("Mock: Called convert {}".format(model))
         return None
@@ -126,8 +127,8 @@ def setup(feName="mock"):
         return mockFe
 
     fem = FrontEndManager()
-    fem.registerFrontEnd(feName, createMock)
-    frontEnds = fem.availableFrontEnds()
+    fem.register_front_end(feName, createMock)
+    frontEnds = fem.available_front_ends()
     # print("Available frontends: {}".format(frontEnds))
     assert feName in frontEnds
     return fem, mockFe, mockModel, mockInputPlace, mockOutputPlace
@@ -136,161 +137,124 @@ def setup(feName="mock"):
 def test_frontendmanager():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
 
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
     assert fe is not None
-    model = fe.loadFromFile("abc.bin")
+    model = fe.load_from_file("abc.bin")
     assert mockFe.loadCnt == 1
 
 
 def test_get_inputs():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    inputs = model.getInputs()
-    assert mockModel.m_getInputsCnt == 1
+    inputs = model.get_inputs()
+    assert mockModel.m_get_inputsCnt == 1
     assert len(inputs) == 1
-    assert inputs[0].isInput()
+    assert inputs[0].is_input()
     assert mockInputPlace.m_isInputCnt == 1
-    assert not inputs[0].isOutput()
+    assert not inputs[0].is_output()
     assert mockInputPlace.m_isOutputCnt == 1
-    assert len(inputs[0].getNames()) == 2
+    assert len(inputs[0].get_names()) == 2
     assert mockInputPlace.m_getNamesCnt == 1
 
 
 def test_get_outputs():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    outputs = model.getOutputs()
-    assert mockModel.m_getOutputsCnt == 1
+    outputs = model.get_outputs()
+    assert mockModel.m_get_outputsCnt == 1
     assert len(outputs) == 1
-    assert outputs[0].isOutput()
+    assert outputs[0].is_output()
     assert mockOutputPlace.m_isOutputCnt == 1
-    assert not outputs[0].isInput()
+    assert not outputs[0].is_input()
     assert mockOutputPlace.m_isInputCnt == 1
-    assert len(outputs[0].getNames()) == 3
+    assert len(outputs[0].get_names()) == 3
     assert mockOutputPlace.m_getNamesCnt == 1
 
 
 def test_is_equal():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    outputs = model.getOutputs()
-    inputs = model.getInputs()
-    assert inputs[0].isEqual(inputs[0])
+    outputs = model.get_outputs()
+    inputs = model.get_inputs()
+    assert inputs[0].is_equal(inputs[0])
     assert mockInputPlace.m_isEqualCnt == 1
-    assert outputs[0].isEqual(outputs[0])
+    assert outputs[0].is_equal(outputs[0])
     assert mockOutputPlace.m_isEqualCnt == 1
-    assert not inputs[0].isEqual(outputs[0])
+    assert not inputs[0].is_equal(outputs[0])
     assert mockInputPlace.m_isEqualCnt == 2
-    assert not outputs[0].isEqual(inputs[0])
+    assert not outputs[0].is_equal(inputs[0])
     assert mockOutputPlace.m_isEqualCnt == 2
 
 
 def test_override_inputs():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    inputs = model.getInputs()
-    model.overrideAllInputs(inputs)
+    inputs = model.get_inputs()
+    model.override_all_inputs(inputs)
     assert mockModel.m_overrideInputsCnt == 1
 
 
 def test_override_outputs():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    outputs = model.getOutputs()
-    model.overrideAllOutputs(outputs)
+    outputs = model.get_outputs()
+    model.override_all_outputs(outputs)
     assert mockModel.m_overrideOutputsCnt == 1
 
 
 def test_extract_subgraph():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    outputs = model.getOutputs()
-    inputs = model.getInputs()
-    model.extractSubgraph(inputs, outputs)
-    assert mockModel.m_extractSubGraph == 1
+    outputs = model.get_outputs()
+    inputs = model.get_inputs()
+    model.extract_subgraph(inputs, outputs)
+    assert mockModel.m_extract_subgraph == 1
 
 
 def test_set_partial_shape():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    inputs = model.getInputs()
-    model.setPartialShape(inputs[0], PartialShape([1, 2, 3, 4]))
-    assert mockModel.m_setPartialShapeCnt == 1
+    inputs = model.get_inputs()
+    model.set_partial_shape(inputs[0], PartialShape([1, 2, 3, 4]))
+    assert mockModel.m_set_partial_shapeCnt == 1
     assert mockModel.m_partialShape == PartialShape([1, 2, 3, 4])
 
 
 def test_get_place_by_tensor_name():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
-    place = model.getPlaceByTensorName('nameInput1')
+    place = model.get_place_by_tensor_name('nameInput1')
     assert mockModel.m_getPlaceByTensorNameCnt == 1
-    assert place.isInput()
+    assert place.is_input()
 
-    place = model.getPlaceByTensorName('nameOutput2')
+    place = model.get_place_by_tensor_name('nameOutput2')
     assert mockModel.m_getPlaceByTensorNameCnt == 2
-    assert place.isOutput()
+    assert place.is_output()
 
 
 def test_convert():
     fem, mockFe, mockModel, mockInputPlace, mockOutputPlace = setup()
-    fe = fem.loadByFramework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
-    model = fe.loadFromFile("abc.bin")
+    fe = fem.load_by_framework(framework="mock", capabilities=FrontEndCapabilities.WILDCARDS)
+    model = fe.load_from_file("abc.bin")
 
     fe.convert(model)
     assert mockFe.convertCnt == 1
-
-
-def test_error_cases():
-    fem1, mockFe1, mockModel1, mockInputPlace1, mockOutputPlace1 = setup("mock1")
-    fem2, mockFe2, mockModel2, mockInputPlace2, mockOutputPlace2 = setup("mock2")
-    fe1 = fem1.loadByFramework(framework="mock1", capabilities=FrontEndCapabilities.WILDCARDS)
-    fe2 = fem2.loadByFramework(framework="mock2", capabilities=FrontEndCapabilities.WILDCARDS)
-    model1 = fe1.loadFromFile("abc.bin")
-    model2 = fe2.loadFromFile("abc.bin")
-    inputs1 = model1.getInputs()
-    inputs2 = model2.getInputs()
-    outputs1 = model1.getOutputs()
-    outputs2 = model2.getOutputs()
-
-    with pytest.raises(RuntimeError) as excInfo:
-        fe1.convert(model2)
-    assert 'convert' in str(excInfo.value)
-
-    with pytest.raises(RuntimeError) as excInfo:
-        model1.overrideAllInputs(inputs2)
-    assert 'Place' in str(excInfo.value)
-
-    with pytest.raises(RuntimeError) as excInfo:
-        model1.overrideAllOutputs(inputs2)
-    assert 'Place' in str(excInfo.value)
-
-    with pytest.raises(RuntimeError) as excInfo:
-        model1.extractSubgraph(inputs1, outputs2)
-    assert 'Place' in str(excInfo.value)
-
-    with pytest.raises(RuntimeError) as excInfo:
-        model1.extractSubgraph(inputs2, outputs1)
-    assert 'Place' in str(excInfo.value)
-
-    with pytest.raises(RuntimeError) as excInfo:
-        model1.setPartialShape(inputs2[0], PartialShape([1, 2, 3, 4]))
-    assert 'Place' in str(excInfo.value)
 
 
 def test_frontend_caps():
