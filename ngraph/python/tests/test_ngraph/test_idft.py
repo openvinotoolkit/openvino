@@ -1,11 +1,11 @@
 import ngraph as ng
 import numpy as np
-from tests import xfail_issue_49359
+from tests import xfail_issue_49375
 from tests.runtime import get_runtime
 
 
-def build_fft_input_data():
-    input_data = [
+def get_expected_output():
+    expected_result = [
         0.85943836, 0.009941814, 0.004292889, 0.54598427, 0.8270831, 0.49770153, 0.9035636,
         0.19274887, 0.8589833, 0.88759327, 0.72343576, 0.057539318, 0.915801, 0.63455844,
         0.25069925, 0.045601673, 0.29793364, 0.8492151, 0.6885839, 0.57419384, 0.009737609,
@@ -65,11 +65,11 @@ def build_fft_input_data():
         0.6613363, 0.79498637, 0.79322547, 0.083214305, 0.577025, 0.58655965, 0.119723536,
         0.0012204717
     ]
-    return np.array(input_data, dtype=np.float32).reshape((2, 10, 10, 2))
+    return np.array(expected_result, dtype=np.float32).reshape((2, 10, 10, 2))
 
 
-def get_fft1d_expected_output():
-    expected_data = [
+def build_ifft1d_input_data():
+    input_data = [
         6.329814, 4.2950764, -0.8105316, -0.7187835, -0.059136264, 0.2709784,
         0.82793635, 0.57937646, 0.5997731, -1.3291739, 1.188664, 1.462941,
         -0.01811248, -1.8314927, 0.16004556, -2.219835, 1.0620322, -1.0679832,
@@ -138,11 +138,11 @@ def get_fft1d_expected_output():
         -1.2350414, 1.0967304, -0.95607626, 0.51462483, 0.28838068, 1.0117096,
         -0.21846394, 0.114624545, -1.627146, -0.9431294
     ]
-    return np.array(expected_data, dtype=np.float32).reshape((2, 10, 10, 2))
+    return np.array(input_data, dtype=np.float32).reshape((2, 10, 10, 2))
 
 
-def get_fft2d_expected_output():
-    expected_data = [
+def build_ifft2d_input_data():
+    input_data = [
         54.020195, 48.368538, -1.8721353, -3.7894967, 2.5850394, -0.7094516,
         3.5357249, 1.6819549, -3.4001002, 0.23887074, 2.9735894, 2.3982158,
         0.3599546, -5.801426, -4.427606, 5.2949734, 1.7113355, 1.428697,
@@ -211,11 +211,11 @@ def get_fft2d_expected_output():
         2.3698487, 4.109933, 1.3575013, -0.5828376, -0.028537825, -0.53020877,
         0.39626116, -1.7572733, -4.31769, -2.1674476
     ]
-    return np.array(expected_data, dtype=np.float32).reshape((2, 10, 10, 2))
+    return np.array(input_data, dtype=np.float32).reshape((2, 10, 10, 2))
 
 
-def get_fft3d_expected_output():
-    expected_data = [
+def build_ifft3d_input_data():
+    input_data = [
         104.7364, 97.68179, -4.491728, -0.39316452, -0.59995466, -3.1201572, 8.278858,
         3.4758341, -5.9363585, 6.5265055, 0.3169801, 3.8807175, -0.418082, -3.4263492,
         -6.4216776, 7.3220854, 5.3494234, 4.2509427, 8.191702, 0.17879319, -0.03937006,
@@ -275,46 +275,46 @@ def get_fft3d_expected_output():
         2.5087235, -1.3091599, 0.9416502, 0.16097029, 2.6614356, 1.9558911, 4.219861,
         1.1494511
     ]
-    return np.array(expected_data, dtype=np.float32).reshape((2, 10, 10, 2))
+    return np.array(input_data, dtype=np.float32).reshape((2, 10, 10, 2))
 
 
-@xfail_issue_49359
-def test_dft_1d():
+@xfail_issue_49375
+def test_idft_1d():
     runtime = get_runtime()
-    input_data = build_fft_input_data()
+    input_data = build_ifft1d_input_data()
     input_tensor = ng.constant(input_data)
     input_axes = ng.constant(np.array([2], dtype=np.int64))
 
     dft_node = ng.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
-    expected_results = get_fft1d_expected_output()
-    assert np.allclose(dft_results, expected_results, atol=0.00001)
+    expected_results = get_expected_output()
+    assert np.allclose(dft_results, expected_results, atol=0.000002)
 
 
-@xfail_issue_49359
-def test_dft_2d():
+@xfail_issue_49375
+def test_idft_2d():
     runtime = get_runtime()
-    input_data = build_fft_input_data()
+    input_data = build_ifft2d_input_data()
     input_tensor = ng.constant(input_data)
     input_axes = ng.constant(np.array([1, 2], dtype=np.int64))
 
     dft_node = ng.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
-    expected_results = get_fft2d_expected_output()
-    assert np.allclose(dft_results, expected_results, atol=0.000062)
+    expected_results = get_expected_output()
+    assert np.allclose(dft_results, expected_results, atol=0.000002)
 
 
-@xfail_issue_49359
-def test_dft_3d():
+@xfail_issue_49375
+def test_idft_3d():
     runtime = get_runtime()
-    input_data = build_fft_input_data()
+    input_data = build_ifft3d_input_data()
     input_tensor = ng.constant(input_data)
     input_axes = ng.constant(np.array([0, 1, 2], dtype=np.int64))
 
     dft_node = ng.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
-    expected_results = get_fft3d_expected_output()
-    assert np.allclose(dft_results, expected_results, atol=0.0002)
+    expected_results = get_expected_output()
+    assert np.allclose(dft_results, expected_results, atol=0.000003)
