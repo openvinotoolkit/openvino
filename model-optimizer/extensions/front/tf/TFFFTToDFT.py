@@ -21,23 +21,17 @@ class TFFFTToDFT(FrontReplacementSubgraph):
         from extensions.front.tf.RollRealImagPack import RollRealImagPack
         return [RollRealImagPack]
 
-    def pattern(self):
-        return dict(
-            nodes=[('fft', dict(op='TFFFT'))],
-            edges=[]
-        )
+    def find_and_replace_pattern(self, graph: Graph):
+        for tf_fft in graph.get_op_nodes(op='TFFFT'):
+            tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
 
-    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        tf_fft = match['fft']
-        tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
+            dft_node = create_dft_from_tffft(graph, tf_fft, tf_fft.in_port(0).get_source().node)
+            tf_fft.out_port(0).get_connection().set_source(dft_node.out_port(0))
 
-        dft_node = create_dft_from_tffft(graph, tf_fft, tf_fft.in_port(0).get_source().node)
-        tf_fft.out_port(0).get_connection().set_source(dft_node.out_port(0))
+            rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
 
-        rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
-
-        if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
-            dft_node['need_insert_transposes_for_dft'] = True
+            if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
+                dft_node['need_insert_transposes_for_dft'] = True
 
 
 def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:
