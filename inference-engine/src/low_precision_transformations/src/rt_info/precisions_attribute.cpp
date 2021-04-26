@@ -62,7 +62,12 @@ std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
 
     bool firstAttribute = true;
     ss << ", attributes: [";
-    for (auto& attribute : m_value->sharedValue->attributes) {
+    for (auto& attributeWeakPtr : m_value->sharedValue->attributes) {
+        auto attribute = attributeWeakPtr.lock();
+        if (attribute == nullptr) {
+            continue;
+        }
+
         if (!firstAttribute) {
             ss << ", ";
         }

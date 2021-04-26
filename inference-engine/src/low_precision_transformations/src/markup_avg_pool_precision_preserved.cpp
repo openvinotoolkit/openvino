@@ -28,7 +28,7 @@ bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_functi
             auto& rtInfo = node->get_rt_info();
 
             const auto precisionPreservedAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(
-                PrecisionPreservedAttribute::create<opset1::FakeQuantize>(false));
+                PrecisionPreservedAttribute(false));
             rtInfo[ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name] = precisionPreservedAttribute;
 
             const auto& sharedValue = precisionPreservedAttribute->get().sharedValue;
@@ -48,7 +48,7 @@ bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_functi
                 auto inputNode = input.get_source_output().get_node_shared_ptr();
                 auto attribute = getAttribute<AvgPoolPrecisionPreservedAttributePtr>(inputNode);
                 if (attribute != nullptr) {
-                    attribute->get()->sharedValue->value = true;
+                    attribute->get()->precisionPreservedValue->value = true;
                 }
             }
             continue;
@@ -83,9 +83,9 @@ bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_functi
         }
 
         if (firstExistingAttribute != nullptr) {
-            const bool wasFound = firstExistingAttribute->get()->sharedValue->operationName == node->get_type_info().name;
+            const bool wasFound = is_type<opset1::FakeQuantize>(node);
             if (wasFound) {
-                firstExistingAttribute->get()->sharedValue->value = !firstExistingAttribute->get()->sharedValue->value;
+                firstExistingAttribute->get()->precisionPreservedValue->value = !firstExistingAttribute->get()->precisionPreservedValue->value;
             }
 
             auto newAttribute = firstExistingAttribute->merge(inputNodes);

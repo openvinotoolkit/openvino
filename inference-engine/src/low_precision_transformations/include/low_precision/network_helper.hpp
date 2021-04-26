@@ -282,9 +282,12 @@ public:
     template <typename SharedValueType, typename SharedAttributeType>
     static void reassign(
         const std::shared_ptr<SharedValueType>& sharedValue,
-        const std::vector<std::shared_ptr<SharedAttributeType>>& attributes) {
-        for (const auto attribute : attributes) {
-            //auto sharedAttribute = std::dynamic_pointer_cast<SharedAttribute>(attribute);
+        const std::vector<std::weak_ptr<SharedAttributeType>>& attributes) {
+        for (const auto attributeWeakPtr : attributes) {
+            auto attribute = attributeWeakPtr.lock();
+            if (attribute == nullptr) {
+                continue;
+            }
             attribute->sharedValue = sharedValue;
             sharedValue->attributes.push_back(attribute);
         }

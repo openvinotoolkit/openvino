@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <unordered_set>
+#include <vector>
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
@@ -28,5 +29,5 @@ template <class SharedAttributeType>
 class SharedValue {
 public:
     virtual ~SharedValue() = default;
-    std::vector<std::shared_ptr<SharedAttributeType>> attributes;
+    std::vector<std::weak_ptr<SharedAttributeType>> attributes;
 };

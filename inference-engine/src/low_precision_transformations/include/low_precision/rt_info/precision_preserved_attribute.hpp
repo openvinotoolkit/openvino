@@ -20,22 +20,11 @@ public:
     class SharedValue {
     public:
         SharedValue(const bool value) : value(value) {}
-        SharedValue(const bool value, const std::string& operationName) : value(value), operationName(operationName) {}
-
         bool value;
-        std::string operationName;
     };
 
-    PrecisionPreservedAttribute(const bool value, const std::string& operationName) : sharedValue(std::make_shared<SharedValue>(value, operationName)) {}
     PrecisionPreservedAttribute(const bool value) : sharedValue(std::make_shared<SharedValue>(value)) {}
-    PrecisionPreservedAttribute(std::shared_ptr<SharedValue> sharedValue) : sharedValue(sharedValue) {}
-
-    template <class Operation>
-    static PrecisionPreservedAttribute create(const bool value) {
-        // TODO: do we need operation version here?
-        auto operationName = Operation::get_type_info_static().name;
-        return PrecisionPreservedAttribute(value, operationName);
-    }
+    PrecisionPreservedAttribute(std::shared_ptr<SharedValue> value) : sharedValue(value) {}
 
     std::shared_ptr<SharedValue> sharedValue;
 };
@@ -52,8 +41,6 @@ public:
     }
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
 
     PrecisionPreservedAttribute get() { return this->m_value; }
 

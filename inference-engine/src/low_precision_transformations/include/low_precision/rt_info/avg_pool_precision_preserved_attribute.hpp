@@ -16,9 +16,10 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
+// TODO: not completed
 class AvgPoolPrecisionPreservedAttribute {
 public:
-    AvgPoolPrecisionPreservedAttribute(std::shared_ptr<PrecisionPreservedAttribute::SharedValue> sharedValue) : sharedValue(sharedValue) {}
+    AvgPoolPrecisionPreservedAttribute(std::shared_ptr<PrecisionPreservedAttribute::SharedValue> value) : precisionPreservedValue(value) {}
 
     template <class Operation>
     static std::shared_ptr<AvgPoolPrecisionPreservedAttribute> create(const bool value) {
@@ -27,7 +28,8 @@ public:
         return std::make_shared<AvgPoolPrecisionPreservedAttribute>(value, operationName);
     }
 
-    std::shared_ptr<PrecisionPreservedAttribute::SharedValue> sharedValue;
+    // TODO: not completed: should be vector to store several shared values, but it's not SharedValueAttribute
+    std::shared_ptr<PrecisionPreservedAttribute::SharedValue> precisionPreservedValue;
 };
 
 using AvgPoolPrecisionPreservedAttributePtr = std::shared_ptr<AvgPoolPrecisionPreservedAttribute>;
