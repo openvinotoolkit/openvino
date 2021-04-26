@@ -1,12 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import ngraph as ng
 import numpy as np
 import pytest
-
-import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
+
+from tests import xfail_issue_49062
 
 
 def test_concat():
@@ -134,6 +135,7 @@ def test_gather():
     result = run_op_node([input_data], ng.gather, input_indices, input_axis)
     assert np.allclose(result, expected)
 
+
 @xfail_issue_49062
 def test_gather_batch_dims_1():
 
@@ -144,12 +146,13 @@ def test_gather_batch_dims_1():
                               [4, 0, 0]], np.int32)
     input_axes = np.array([1], np.int32)
     batch_dims = 1
-    
+
     expected = np.array([[1, 1, 5],
                          [10, 6, 6]], np.float32)
 
     result = run_op_node([input_data], ng.gather, input_indices, input_axes, batch_dims)
     assert np.allclose(result, expected)
+
 
 def test_transpose():
     input_tensor = np.arange(3 * 3 * 224 * 224, dtype=np.int32).reshape(
