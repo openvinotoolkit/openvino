@@ -22,7 +22,7 @@ namespace SkipTestsConfig {
 extern bool disable_tests_skipping;
 
 bool currentTestIsDisabled();
-std::vector<std::string> readSkipTestConfigFile(const std::vector<std::string>& filePaths);
+std::vector<std::string> readSkipTestConfigFiles(const std::vector<std::string>& filePaths);
 
 }  // namespace SkipTestsConfig
 }  // namespace FuncTestUtils

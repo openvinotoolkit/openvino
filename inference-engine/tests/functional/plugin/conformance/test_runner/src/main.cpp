@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
         ConformanceTests::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
-        ConformanceTests::disabledTests = FuncTestUtils::SkipTestsConfig::readSkipTestConfigFile(
+        ConformanceTests::disabledTests = FuncTestUtils::SkipTestsConfig::readSkipTestConfigFiles(
                 CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
 

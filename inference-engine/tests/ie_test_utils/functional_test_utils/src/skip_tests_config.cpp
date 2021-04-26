@@ -21,7 +21,7 @@ bool currentTestIsDisabled() {
     return skip_test && !disable_tests_skipping;
 }
 
-std::vector<std::string> readSkipTestConfigFile(const std::vector<std::string>& filePaths) {
+std::vector<std::string> readSkipTestConfigFiles(const std::vector<std::string>& filePaths) {
     std::vector<std::string> res;
     for (const auto& filePath : filePaths) {
         if (!CommonTestUtils::fileExists(filePath)) {
