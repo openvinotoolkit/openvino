@@ -5,9 +5,9 @@ import argparse
 import datetime
 import logging as log
 import os
-import sys
 import platform
 import subprocess
+import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
@@ -16,16 +16,17 @@ import numpy as np
 
 import telemetry.telemetry as tm
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
-from mo.utils.error import Error, FrameworkError, classify_error_type
+from mo.utils.error import Error, FrameworkError
+from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
@@ -33,7 +34,6 @@ from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements
-from mo.utils.find_ie_version import find_ie_version
 
 
 def replace_ext(name: str, old: str, new: str):
