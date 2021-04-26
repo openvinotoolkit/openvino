@@ -18,7 +18,7 @@ namespace ngraph
                 OutputVector non_zero(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    if(data.get_element_type() == element::boolean)
+                    if (data.get_element_type() == element::boolean)
                     {
                         data = std::make_shared<default_opset::Convert>(data, element::u8);
                     }

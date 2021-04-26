@@ -20,32 +20,28 @@ namespace ngraph
                 OutputVector compress(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    auto condition = std::make_shared<default_opset::Convert>(node.get_ng_inputs().at(1), element::u8);
+                    auto condition = std::make_shared<default_opset::Convert>(
+                        node.get_ng_inputs().at(1), element::u8);
 
                     int64_t axis = 0;
-                    if(node.has_attribute("axis"))
+                    if (node.has_attribute("axis"))
                     {
                         axis = node.get_attribute_value<int64_t>("axis");
-                        axis = ngraph::normalize_axis(node.get_description(),
-                               axis,
-                               data.get_partial_shape().rank());
+                        axis = ngraph::normalize_axis(
+                            node.get_description(), axis, data.get_partial_shape().rank());
                     }
                     else
                     {
-                        data = std::make_shared<default_opset::Squeeze>(ngraph::builder::opset1::flatten(data, axis));
+                        data = std::make_shared<default_opset::Squeeze>(
+                            ngraph::builder::opset1::flatten(data, axis));
                     }
                     auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
                     auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
                     auto result = std::make_shared<default_opset::Gather>(
-                        data, 
+                        data,
                         std::make_shared<default_opset::Squeeze>(
-                            std::make_shared<default_opset::NonZero>(
-                                condition
-                            ),
-                            zero_node
-                        ),
-                        axis_node
-                    );
+                            std::make_shared<default_opset::NonZero>(condition), zero_node),
+                        axis_node);
 
                     return {result};
                 }
