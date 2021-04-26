@@ -212,18 +212,7 @@ def correct_roll_axes(roll: Node):
     add_node.out_port(0).connect(roll.in_port(2))
 
     rename_nodes([(axes_node, axes_node_name + '/axes_before_correction'), (add_node, axes_node_name)])
-    # if axes_node.soft_get('type') != 'Const':
-    #     return
-    # axes = axes_node.soft_get('value', None)
-    # if axes is None:
-    #     return
-    #
-    # corrected_axes = axes.copy()
-    # for i, axis in enumerate(axes):
-    #     if axis < 0:
-    #         corrected_axes[i] = axis - 1
-    #
-    # axes_node.value = int64_array(corrected_axes)
-    # # The layout of the TF (I)FFT operations are the same as layout of (I)DFT operations. Hence, if TF Roll node is
-    # # immediately before or after TF (I)FFT node, then we need to keep the axis order for Roll node.
+
+    # The layout of the TF (I)FFT operations are the same as layout of (I)DFT operations. Hence, if TF Roll node is
+    # immediately before or after TF (I)FFT node, then we need to keep the axis order for Roll node.
     mark_input_as_in_correct_layout(roll, 2)
