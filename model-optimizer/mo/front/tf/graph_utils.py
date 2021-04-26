@@ -12,7 +12,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node, Graph, rename_nodes
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.convolution import Convolution
@@ -194,19 +194,36 @@ def correct_roll_axes(roll: Node):
     :param roll: Node to correct axes.
     :return: None
     """
+    axes_source = roll.in_port(2).get_source()
     axes_node = roll.in_port(2).get_source().node
-    if axes_node.soft_get('type') != 'Const':
-        return
-    axes = axes_node.soft_get('value', None)
-    if axes is None:
-        return
+    axes_node_name = axes_node.soft_get('name', axes_node.id)
 
-    corrected_axes = axes.copy()
-    for i, axis in enumerate(axes):
-        if axis < 0:
-            corrected_axes[i] = axis - 1
+    graph = roll.graph
 
-    axes_node.value = int64_array(corrected_axes)
-    # The layout of the TF (I)FFT operations are the same as layout of (I)DFT operations. Hence, if TF Roll node is
-    # immediately before or after TF (I)FFT node, then we need to keep the axis order for Roll node.
+    less_node = create_op_with_const_inputs(graph, Less, {1: int64_array(0)}, {'name': axes_node_name + '/Less'})
+    mul_node = create_op_with_const_inputs(graph, Mul, {1: int64_array(-1)}, {'name': axes_node_name + '/Mul'})
+
+    roll.in_port(2).get_connection().set_destination(less_node.in_port(0))
+    less_node.out_port(0).connect(mul_node.in_port(0))
+
+    add_node = Add(graph, {}).create_node()
+    mul_node.out_port(0).connect(add_node.in_port(1))
+    axes_source.connect(add_node.in_port(0))
+    add_node.out_port(0).connect(roll.in_port(2))
+
+    rename_nodes([(axes_node, axes_node_name + '/axes_before_correction'), (add_node, axes_node_name)])
+    # if axes_node.soft_get('type') != 'Const':
+    #     return
+    # axes = axes_node.soft_get('value', None)
+    # if axes is None:
+    #     return
+    #
+    # corrected_axes = axes.copy()
+    # for i, axis in enumerate(axes):
+    #     if axis < 0:
+    #         corrected_axes[i] = axis - 1
+    #
+    # axes_node.value = int64_array(corrected_axes)
+    # # The layout of the TF (I)FFT operations are the same as layout of (I)DFT operations. Hence, if TF Roll node is
+    # # immediately before or after TF (I)FFT node, then we need to keep the axis order for Roll node.
     mark_input_as_in_correct_layout(roll, 2)
