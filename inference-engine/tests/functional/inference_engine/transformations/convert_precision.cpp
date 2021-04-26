@@ -767,9 +767,9 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
-    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u8, {171}, {1, 0});
+    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u8, {171}, {1, 0, 1, 0, 1, 0, 1, 1});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
-    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u4, std::vector<uint8_t>{171}, {16});
+    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u4, std::vector<uint8_t>{171}, {1, 0, 1, 0, 1, 0, 1, 1});
 }
