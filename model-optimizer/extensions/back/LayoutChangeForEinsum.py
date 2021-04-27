@@ -31,7 +31,7 @@ class LayoutChangeForEinsum(BackReplacementPattern):
             connected_in_ports = [port for port in einsum.in_ports().values() if not port.disconnected()]
             num_inputs = len(connected_in_ports)
 
-            # compute a mask of inputs of rank greater 3 that are required original layout (NCHW)
+            # compute a mask of inputs of rank greater than 3 that are required original layout (NCHW)
             # due to presence of ellipsis covering multiple tail dimensions in the corresponding input subscript
             input_ranks = [len(einsum.in_port(port_idx).data.get_shape()) for port_idx in range(num_inputs)]
             output_rank = len(einsum.out_port(0).data.get_shape())

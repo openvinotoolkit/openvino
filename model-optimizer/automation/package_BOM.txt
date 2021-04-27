@@ -192,6 +192,7 @@ extensions/front/mxnet/custom_rpn_proposal.py
 extensions/front/mxnet/deformable_conv_ext.py
 extensions/front/mxnet/deformable_psroi_pooling_ext.py
 extensions/front/mxnet/dropout_ext.py
+extensions/front/mxnet/einsum_ext.py
 extensions/front/mxnet/elementwise_ext.py
 extensions/front/mxnet/eltwise_scalar_replacers.py
 extensions/front/mxnet/exp_ext.py

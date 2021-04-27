@@ -55,11 +55,8 @@ class Einsum(Op):
 
         is_ellipsis_met = False
         for input_subscript in input_subscripts_list:
-            # tmp2 = re.match("^[a-zA-Z]*$|^[a-zA-Z]*\\.\\.\\.[a-zA-Z]*$", "a...b")
-            # tmp3 = re.match(subscript_pattern, input_subscript)
-            assert re.match(subscript_pattern,
-                            input_subscript) is not None, "Einsum node {} has `equation` with incorrect input subscript: {}".format(
-                node_name, input_subscript)
+            assert re.match(subscript_pattern, input_subscript) is not None, \
+                "Einsum node {} has `equation` with incorrect input subscript: {}".format(node_name, input_subscript)
 
             # check if ellipsis is met in input subscripts
             if re.search(ellipsis_pattern, input_subscript):
@@ -67,14 +64,12 @@ class Einsum(Op):
 
         if len(splitted_equation) == 2:
             output_subscript = splitted_equation[1]
-            assert re.match(subscript_pattern,
-                            output_subscript), "Einsum node {} has `equation` with incorrect output subscript: {}".format(
-                node_name, output_subscript)
+            assert re.match(subscript_pattern, output_subscript), \
+                "Einsum node {} has `equation` with incorrect output subscript: {}".format(node_name, output_subscript)
             # if ellipsis is met, the output subscript must contain it as well
             if is_ellipsis_met:
-                assert re.search(ellipsis_pattern,
-                                 output_subscript), "The output subscript of Einsum node {} must contain ellipsis".format(
-                    node_name)
+                assert re.search(ellipsis_pattern, output_subscript), \
+                    "The output subscript of Einsum node {} must contain ellipsis".format(node_name)
         elif len(splitted_equation) == 1:
             # recover output subscript in case implicit mode
             output_subscript = ''.join(input_subscripts_list)
@@ -82,8 +77,8 @@ class Einsum(Op):
             if is_ellipsis_met:
                 output_subscript = "..." + output_subscript
         else:
-            assert False, "Einsum node {} equation has incorrect format. It must be in either explicit or implicit mode.".format(
-                node_name)
+            assert False, "Einsum node {} equation has incorrect format. " \
+                          "It must be in either explicit or implicit mode.".format(node_name)
 
         return input_subscripts_list, output_subscript
 
@@ -126,9 +121,9 @@ class Einsum(Op):
 
     @staticmethod
     def adjust_equation_with_NCHW_layout(node_name: str, equation: str, input_ranks: list, output_rank: int) -> (
-    str, list, bool):
+            str, list, bool):
         """
-        In order to satisfy NCHW layout, subscripts for tensors with rank greater 3 must be adjusted by moving labels
+        In order to satisfy NCHW layout, subscripts for tensors with rank greater than three must be adjusted by moving labels
         of the last dimension to the second position in the subscript. There is an exception for such tensors when
         the label is ellipsis and it covers multiple tail dimensions. The method returns equation with adjusted subscripts
         to NCHW layout along with a boolean mask to indicate which subscripts are adjusted.
@@ -154,11 +149,7 @@ class Einsum(Op):
             input_rank = input_ranks[input_ind]
             labels = Einsum.extract_subscript_labels(node_name, input_subscript)
             num_broadcasted_dims = input_rank - len(labels) + 1
-            if input_rank > 3 and labels[-1] != "...":
-                is_inputs_permuted.append(True)
-                labels.insert(1, labels[-1])
-                del labels[-1]
-            elif input_rank > 3 and labels[-1] == "..." and num_broadcasted_dims == 1:
+            if input_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
                 is_inputs_permuted.append(True)
                 labels.insert(1, labels[-1])
                 del labels[-1]
@@ -169,12 +160,8 @@ class Einsum(Op):
 
         # perform the same procedure for the output subscript as for the inputs subscripts
         labels = Einsum.extract_subscript_labels(node_name, output_subscript)
-        num_broadcated_dims = output_rank - len(labels) + 1
-        if output_rank > 3 and labels[-1] != "...":
-            is_output_permuted = True
-            labels.insert(1, labels[-1])
-            del labels[-1]
-        elif output_rank > 3 and labels[-1] == "..." and num_broadcated_dims == 1:
+        num_broadcasted_dims = output_rank - len(labels) + 1
+        if output_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
             is_output_permuted = True
             labels.insert(1, labels[-1])
             del labels[-1]
@@ -212,10 +199,11 @@ class Einsum(Op):
             labels = Einsum.extract_subscript_labels(node_name, input_subscript)
             num_dims = len(input_shape)
             num_labels = len(labels)
+            num_broadcasted_dims = num_dims - num_labels + 1
             dim_ind = 0
-            for label_ind in range(num_labels):
+            label_ind = 0
+            while label_ind < num_labels and dim_ind < num_dims:
                 label = labels[label_ind]
-                num_broadcasted_dims = num_dims - num_labels + 1
                 if label == "...":
                     sub_shape = input_shape[dim_ind:dim_ind + num_broadcasted_dims]
                     if label in label_to_shape.keys():
@@ -234,6 +222,7 @@ class Einsum(Op):
                         "must be compatible".format(node_name)
                     label_to_shape[label] = sub_shape
                     dim_ind += 1
+                label_ind += 1
 
         # generate output shape based on the output subscript
         output_shape = int64_array([])
