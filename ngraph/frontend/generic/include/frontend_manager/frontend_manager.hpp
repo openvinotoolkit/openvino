@@ -8,6 +8,7 @@
 #include <string>
 #include "ngraph/function.hpp"
 #include "ngraph/visibility.hpp"
+#include <frontend_manager/ifrontend_manager.hpp>
 
 namespace ngraph
 {
@@ -361,15 +362,6 @@ inline std::shared_ptr<FrontEndShared> to_shared(FrontEnd&& f) {
     return std::make_shared<FrontEndShared>(std::move(f));
 }
 
-enum FrontEndCapabilities {
-    FEC_DEFAULT   =  0,    // Just reading and conversion, w/o any modifications; intended to be used in Reader
-    FEC_CUT       =  1,
-    FEC_NAMES     =  2,
-    FEC_REPLACE   =  4,
-    FEC_TRAVERSE  =  8,
-    FEC_WILDCARDS = 16,
-};
-
 class NGRAPH_API FrontEndManager
 {
 public:
@@ -379,7 +371,6 @@ public:
     FrontEnd loadByModel(const std::string& path, FrontEndCapabilities fec = FEC_DEFAULT);
     std::vector<std::string> availableFrontEnds() const;
 
-    using FrontEndFactory = std::function<std::shared_ptr<IFrontEnd>(FrontEndCapabilities fec)>;
     void registerFrontEnd(const std::string& name, FrontEndFactory creator);
 private:
     std::unique_ptr<FrontEndManagerImpl> m_impl;

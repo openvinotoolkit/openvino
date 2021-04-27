@@ -4,6 +4,7 @@
 
 #include <ngraph/except.hpp>
 #include <frontend_manager/frontend_manager.hpp>
+#include "plugin_loader.hpp"
 
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 #include "onnx_import/onnx.hpp"
@@ -798,18 +799,32 @@ namespace ngraph
         //////////////////////////////////////////////////////////////
         class FrontEndManagerImpl
         {
-            std::map<std::string, FrontEndManager::FrontEndFactory> m_factories;
+            std::map<std::string, FrontEndFactory> m_factories;
 
             void registerDefault() {
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE) && defined(NGRAPH_ONNX_EDITOR_ENABLE)
                 registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
 #endif
 #ifdef NGRAPH_PDPD_FRONTEND_ENABLE
-                registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+//                registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
 #endif
 #ifdef NGRAPH_TF_FRONTEND_ENABLE
                 registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
 #endif
+                auto registerFromDir = [&](const std::string& dir) {
+                    auto plugins = loadPlugins(dir);
+                    PluginInfo info;
+                    std::string name;
+                    std::string version;
+                    FrontEndFactory factory;
+                    for (auto plugin : plugins) {
+                        std::tie(info, factory) = plugin;
+                        std::tie(name, version) = info;
+                        registerFrontEnd(name, factory);
+                    }
+                };
+                registerFromDir("./frontends");
+                registerFromDir("./lib/frontends");
             }
         public:
             FrontEndManagerImpl() {
@@ -828,7 +843,7 @@ namespace ngraph
 
                 std::transform(m_factories.begin(), m_factories.end(),
                                std::back_inserter(keys),
-                               [](const std::pair<std::string, FrontEndManager::FrontEndFactory>& item) {
+                               [](const std::pair<std::string, FrontEndFactory>& item) {
                                    return item.first;
                                });
                 return keys;
@@ -839,7 +854,7 @@ namespace ngraph
                 throw std::runtime_error("LoadByModel is not yet implemented");
             }
 
-            void registerFrontEnd(const std::string& name, FrontEndManager::FrontEndFactory creator) {
+            void registerFrontEnd(const std::string& name, FrontEndFactory creator) {
                 m_factories.insert({name, creator});
             }
         };

@@ -8,14 +8,11 @@
 #include <string>
 #include "ngraph/function.hpp"
 #include "ngraph/visibility.hpp"
-#include "frontend_manager/frontend_manager.hpp"
 
 namespace ngraph
 {
 namespace frontend
 {
-
-
 /// \brief An place interface which is to be implemented by specific frontend
 ///
 /// \note Each front end implementation provides specialization of this interface  to represent a place
@@ -300,6 +297,20 @@ public:
     /// Runs normalization passes on function that was loaded with partial conversion
     virtual void normalize (std::shared_ptr<ngraph::Function> function) const;
 };
+
+enum FrontEndCapabilities {
+    FEC_DEFAULT   =  0,    // Just reading and conversion, w/o any modifications; intended to be used in Reader
+    FEC_CUT       =  1,
+    FEC_NAMES     =  2,
+    FEC_REPLACE   =  4,
+    FEC_TRAVERSE  =  8,
+    FEC_WILDCARDS = 16,
+};
+
+using FrontEndFactory = std::function<std::shared_ptr<IFrontEnd>(FrontEndCapabilities fec)>;
+using PluginInfo = std::tuple<std::string, std::string>; // name and version
+
+using PluginFactoryValue = std::tuple<PluginInfo, FrontEndFactory>;
 
 } // namespace frontend
 
