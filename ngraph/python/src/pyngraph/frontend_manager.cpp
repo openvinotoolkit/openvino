@@ -167,93 +167,65 @@ void regclass_pyngraph_FrontEndManager(py::module m)
         self.registerFrontEnd(name, [=](FrontEndCapabilities fec) -> IFrontEnd::Ptr {
             return creator(fec);
         });
-    });
+    }, py::arg("name"), py::arg("creator"));
 
-    fem.def("load_by_framework", [](FrontEndManager& self, const std::string& name, FrontEndCapabilities caps) {
-        return to_shared(self.loadByFramework(name, caps));
-    }, py::arg("framework"), py::arg("capabilities") = ngraph::frontend::FEC_DEFAULT);
+    fem.def("load_by_framework", &FrontEndManager::loadByFramework, py::arg("framework"),
+            py::arg_v("capabilities", ngraph::frontend::FEC_DEFAULT, "FrontEndCapabilities.DEFAULT"));
 }
 
 void regclass_pyngraph_FrontEnd(py::module m)
 {
-    py::class_<PyFrontEnd, std::shared_ptr<PyFrontEnd>> pyFE(
+    py::class_<PyFrontEnd, std::shared_ptr<PyFrontEnd>> pyFrontEnd(
         m, "IFrontEnd", py::dynamic_attr());
-    py::class_<FrontEndShared, std::shared_ptr<FrontEndShared>> wrapper(
-            m, "FrontEnd", py::dynamic_attr());
-    pyFE.doc() = "Base class for FrontEnd custom implementation";
-    pyFE.def(py::init<>());
+    pyFrontEnd.doc() = "Base class for FrontEnd custom implementation";
+    pyFrontEnd.def(py::init<>());
 
-    wrapper.def("load_from_file", [](FrontEndShared& self, const std::string& path) -> std::shared_ptr<InputModelShared> {
-        auto res = to_shared(self.frontEnd.loadFromFile(path));
-        return res;
-        }, py::arg("path"));
-    wrapper.def("convert", [](FrontEndShared& self,
-            const InputModelShared& model) -> std::shared_ptr<ngraph::Function> {
-        return self.frontEnd.convert(model.inputModel);
-    });
+    py::class_<FrontEnd> frontEnd(
+            m, "FrontEnd", py::dynamic_attr());
+    frontEnd.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+
+    frontEnd.def("load_from_file", &FrontEnd::loadFromFile, py::arg("path"));
+    frontEnd.def("convert", [](FrontEnd& self,
+            const InputModel& model) -> std::shared_ptr<ngraph::Function> {
+        return self.convert(model);
+    }, py::arg("model"));
+}
+
+void regclass_pyngraph_InputModel(py::module m)
+{
+    py::class_<PyInputModel, std::shared_ptr<PyInputModel>> pyInputModel(
+            m, "IInputModel", py::dynamic_attr());
+    pyInputModel.doc() = "Base class for custom input model";
+    pyInputModel.def(py::init<>());
+
+    py::class_<InputModel> inputModel(
+            m, "InputModel", py::dynamic_attr());
+    inputModel.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
+
+    inputModel.def("get_place_by_tensor_name", &InputModel::getPlaceByTensorName, py::arg("name"));
+    inputModel.def("set_partial_shape", &InputModel::setPartialShape, py::arg("place"), py::arg("shape"));
+    inputModel.def("get_inputs", &InputModel::getInputs);
+    inputModel.def("get_outputs", &InputModel::getOutputs);
+    inputModel.def("override_all_inputs", &InputModel::overrideAllInputs, py::arg("inputs"));
+    inputModel.def("override_all_outputs", &InputModel::overrideAllOutputs, py::arg("outputs"));
+    inputModel.def("extract_subgraph",&InputModel::extractSubgraph, py::arg("inputs"), py::arg("outputs"));
 }
 
 void regclass_pyngraph_Place(py::module m)
 {
-    py::class_<Place, std::shared_ptr<Place>> place(
-            m, "Place", py::dynamic_attr());
     py::class_<PyPlace, std::shared_ptr<PyPlace>> pyPlace(
             m, "IPlace", py::dynamic_attr());
     pyPlace.doc() = "Base class for custom place implementation";
     pyPlace.def(py::init<>());
 
+    py::class_<Place, std::shared_ptr<Place>> place(
+            m, "Place", py::dynamic_attr());
+    place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
+
     place.def("is_input", &ngraph::frontend::Place::isInput);
     place.def("is_output", &ngraph::frontend::Place::isOutput);
     place.def("get_names", &ngraph::frontend::Place::getNames);
     place.def("is_equal", &ngraph::frontend::Place::isEqual, py::arg("other"));
-}
-
-void regclass_pyngraph_InputModel(py::module m)
-{
-    py::class_<InputModelShared, std::shared_ptr<InputModelShared>> im(
-            m, "InputModel", py::dynamic_attr());
-    py::class_<PyInputModel, std::shared_ptr<PyInputModel>> pyIM(
-        m, "IInputModel", py::dynamic_attr());
-    pyIM.doc() = "Base class for custom input model";
-    pyIM.def(py::init<>());
-    im.def("extract_subgraph", [](InputModelShared& self, const std::vector<std::shared_ptr<Place>>& inPtrs,
-            const std::vector<std::shared_ptr<Place>>& outPtrs) {
-        std::vector<Place> inputs, outputs;
-        for (const auto& inPtr : inPtrs) {
-            inputs.push_back(*inPtr);
-        }
-        for (const auto& outPtr : outPtrs) {
-            outputs.push_back(*outPtr);
-        }
-        self.inputModel.extractSubgraph(inputs, outputs);
-    });
-
-    im.def("get_place_by_tensor_name", [](InputModelShared& self, const std::string& name) -> std::shared_ptr<Place> {
-        return std::make_shared<Place>(self.inputModel.getPlaceByTensorName(name));
-    });
-
-    im.def("set_partial_shape", [](InputModelShared& self, std::shared_ptr<Place> place,
-                                        const ngraph::PartialShape& shape) {
-        self.inputModel.setPartialShape(*place, shape);
-    });
-
-    im.def("get_inputs", [](InputModelShared& self) {
-        return self.inputModel.getInputs();
-    });
-
-    im.def("get_outputs", [](InputModelShared& self) {
-        return self.inputModel.getOutputs();
-    });
-
-    im.def("override_all_inputs", [](InputModelShared& self,
-                                   const std::vector<Place>& inputs) {
-        return self.inputModel.overrideAllInputs(inputs);
-    });
-
-    im.def("override_all_outputs", [](InputModelShared& self,
-                                   const std::vector<Place>& outputs) {
-        return self.inputModel.overrideAllOutputs(outputs);
-    });
 }
 
 void regclass_pyngraph_FEC(py::module m)
