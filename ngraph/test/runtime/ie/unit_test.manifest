@@ -1730,3 +1730,6 @@ IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
+
+#Unsupported primitive of type: Einsum
+onnx_einsum_sum

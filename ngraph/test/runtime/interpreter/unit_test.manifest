@@ -162,3 +162,6 @@ INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d
+
+# Interpreter backend doesn't implement evaluate method for OP Einsum
+INTERPRETER.onnx_einsum_sum
