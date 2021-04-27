@@ -257,6 +257,7 @@ set(SRC
     visitors/op/squared_difference.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     uint4.cpp
