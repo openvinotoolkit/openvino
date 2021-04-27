@@ -789,6 +789,11 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
             new_const =
                 change_constant_precision<element::Type_t::f64, element::Type_t::f32>(constant);
         }
+        else if (from == element::f32 && to == element::f16)
+        {
+            new_const =
+                    change_constant_precision<element::Type_t::f32, element::Type_t::f16>(constant);
+        }
         else if (from == element::f16 && to == element::f32)
         {
             new_const =
