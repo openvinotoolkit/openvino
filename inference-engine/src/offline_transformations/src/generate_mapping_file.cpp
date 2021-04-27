@@ -38,9 +38,8 @@ bool ngraph::pass::GenerateMappingFile::run_on_function(std::shared_ptr<ngraph::
         uint64_t ng_port_index{0};
         for (auto && output : node->outputs()) {
             const auto & node_name = node->get_friendly_name();
-            add_mapping(node_name, node_name + ":" + std::to_string(ng_port_index), node_name, std::to_string(ie_port_index));
-
             const auto & t = output.get_tensor_ptr();
+
             for (const auto & port_name : t->get_names()) {
                 add_mapping(node_name, port_name, node_name, std::to_string(ie_port_index));
 

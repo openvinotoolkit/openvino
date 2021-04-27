@@ -8,8 +8,13 @@ if __name__ == "__main__":
     # parser.add_argument("--apply_low_latency", action="store_true")
     # parser.add_argument("--apply_pruning", action="store_true")
     parser.add_argument("--input_model")
+    parser.add_argument("--framework")
     args = parser.parse_args()
     path_to_model = args.input_model
+
+    # This variable is only needed by GenerateMappingFile transformation
+    # to produce correct mapping
+    extract_names = True if args.framework in ['tf', 'mxnet', 'kaldi'] else False
 
     try:
         from openvino.inference_engine import IECore, read_network, read_network_without_extensions # pylint: disable=import-error
@@ -23,5 +28,5 @@ if __name__ == "__main__":
     net = read_network_without_extensions(path_to_model + "_tmp.xml", path_to_model + "_tmp.bin")
     net.serialize(path_to_model + ".xml", path_to_model + ".bin")
     path_to_mapping = path_to_model + ".mapping"
-    GenerateMappingFile(net, path_to_mapping.encode('utf-8'))
+    GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
 

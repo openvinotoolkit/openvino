@@ -19,7 +19,7 @@ void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network);
 
 void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 
-void GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path);
+void GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names);
 
 void CheckAPI();
 

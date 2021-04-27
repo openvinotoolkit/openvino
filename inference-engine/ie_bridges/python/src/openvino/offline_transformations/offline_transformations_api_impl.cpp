@@ -44,9 +44,9 @@ void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IE
     manager.run_passes(network.actual->getFunction());
 }
 
-void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path) {
+void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::GenerateMappingFile>(path);
+    manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
     manager.run_passes(network.actual->getFunction());
 }
 
