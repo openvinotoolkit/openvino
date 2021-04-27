@@ -12,3 +12,6 @@
 #include "ie_plugin_config.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
+
+// TODO: remove
+#include <iostream>
