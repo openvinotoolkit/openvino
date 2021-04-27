@@ -35,11 +35,19 @@ OutputVector qlinear_conv(const Node& node) {
     auto y_zero_point = inputs[7];
     Output<ngraph::Node> B = inputs.size() > 8 ? inputs[8] : std::make_shared<NullNode>()->output(0);
 
-    // x = set_13::detail::dequantize_linear(x, x_scale, std::make_shared<opset6::Convert>(x_zero_point, element::f32),
-    // 1, node)[0]; w = set_13::detail::dequantize_linear(w, w_scale, std::make_shared<opset6::Convert>(w_zero_point,
+                    //x = set_13::detail::dequantize_linear(x, x_scale, std::make_shared<opset6::Convert>(x_zero_point, element::f32), 1, node)[0];
+                    //w = set_13::detail::dequantize_linear(w, w_scale, std::make_shared<opset6::Convert>(w_zero_point, element::f32), 1, node)[0];
     // element::f32), 1, node)[0];
-    x = set_13::detail::dequantize_linear(x, x_scale, x_zero_point, 1, node)[0];
-    w = set_13::detail::dequantize_linear(w, w_scale, w_zero_point, 1, node)[0];
+    x = set_13::detail::dequantize_linear(x,
+                                          x_scale,
+                                          std::make_shared<opset6::Convert>(x_zero_point, element::f32),
+                                          1,
+                                          node)[0];
+    w = set_13::detail::dequantize_linear(w,
+                                          w_scale,
+                                          std::make_shared<opset6::Convert>(w_zero_point, element::f32),
+                                          1,
+                                          node)[0];
 
     if (!ngraph::op::is_null(B)) {
         B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),

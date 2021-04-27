@@ -153,7 +153,7 @@ OutputVector dequantize_linear(Output<ngraph::Node> x,
     return {
         std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(converted_x, zero_point),
                                                   scale)};
-                    }
+}
 }  // namespace detail
 
 OutputVector dequantize_linear(const Node& node) {
