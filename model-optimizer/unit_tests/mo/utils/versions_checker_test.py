@@ -121,9 +121,11 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_2', '>=', '1.12.0', '1.12.0'),
                                  ('module_3', '>=', '1.12.0', '1.12.1'),
                                  ('module_4', '>=', '1.12.0', '1.20.0'),
+                                 ('module_5', '>=', '1.12.0.post2', '1.12.0.post1'),
                                  ]
 
-        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0')
+        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0'),
+                    ('module_5', 'installed: 1.12.0.post1', 'required: >= 1.12.0.post2')
                     ]
 
         not_satisfied_versions = []
@@ -137,6 +139,7 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_2', '<', '1.11', '1.10.1'),
                                  ('module_3', '<', '1.11', '1.11'),
                                  ('module_4', '<', '1.11', '1.20'),
+                                 ('module_5', '<', '1.11', '1.10.post2'),
                                  ]
 
         ref_list = [('module_3', 'installed: 1.11', 'required: < 1.11'),
@@ -173,11 +176,17 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_4', '~=', '1.2.3', '1.3.0'),
                                  ('module_5', '~=', '1.2.3', '1.2.2'),
                                  ('module_6', '~=', '1.2.3', '2.2.2'),
+                                 ('module_7', '~=', '1.2.post2', '1.3'),
+                                 ('module_8', '~=', '1.2.post2', '1.2'),
+                                 ('module_9', '~=', '1.2.post2', '1.2.post1'),
+                                 ('module_9', '~=', '1.2.post2', '1.2.post4')
                                  ]
 
         ref_list = [('module_4', 'installed: 1.3.0', 'required: ~= 1.2.3'),
                     ('module_5', 'installed: 1.2.2', 'required: ~= 1.2.3'),
                     ('module_6', 'installed: 2.2.2', 'required: ~= 1.2.3'),
+                    ('module_8', 'installed: 1.2', 'required: ~= 1.2.post2'),
+                    ('module_9', 'installed: 1.2.post1', 'required: ~= 1.2.post2')
                     ]
 
         not_satisfied_versions = []
