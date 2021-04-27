@@ -57,7 +57,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
         m_weights_composed = true;
         auto weights_file = m_path.replace(m_path.size() - ext.size(), ext.size(), ".pdiparams");
         m_weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
-        if (!m_weights_stream || !m_weights_stream->is_open() {
+        if (!m_weights_stream || !m_weights_stream->is_open()) {
             std::cerr << "Cannot open file containing weights: " << weights_file << std::endl;
         }
     } else {
