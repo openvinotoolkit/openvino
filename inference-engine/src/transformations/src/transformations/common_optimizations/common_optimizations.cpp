@@ -164,6 +164,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     // need to convert to Gather-1 until plugins do not support Gather-7
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<ngraph::pass::StrideOptimization>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
@@ -171,8 +172,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
-
-    manager.register_pass<ngraph::pass::StrideOptimization>();
 
     manager.run_passes(f);
 

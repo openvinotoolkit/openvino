@@ -254,3 +254,56 @@ TEST(TransformationTests, StrideOptimization6) {
     auto res = compare_functions(f, f_ref, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+// Pl->Conv(1x1,1x1) --> Conv(1x1,2x2) --> Conv(1x1,2x2)
+//                   `--> Relu --> Conv(1x1,2x2)
+//       =>
+// Pl->Conv(1x1,1x1) ---> Conv(1x1,4x4) --> Conv(1x1,1x1)
+//                   `--> Pool(1x1, 2x2) -> Relu --> Conv(1x1,1x1)
+TEST(TransformationTests, StrideOptimization7) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{2, 2},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto relu = std::make_shared<ngraph::opset7::Relu>(conv_1);
+        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{2, 2},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::StrideOptimization>();
+        m.run_passes(f);
+    }
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{4, 4},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+        auto pool = std::make_shared<ngraph::opset7::MaxPool>(conv_1, ngraph::Strides{2, 2}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
+        auto relu = std::make_shared<ngraph::opset7::Relu>(pool);
+        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}

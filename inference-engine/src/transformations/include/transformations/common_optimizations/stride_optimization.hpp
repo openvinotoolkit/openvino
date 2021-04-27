@@ -8,16 +8,30 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/pass/pass.hpp>
-#include <ngraph/strides.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
+class TRANSFORMATIONS_API ConvStridePropagation;
+class TRANSFORMATIONS_API StridePropagation;
 class TRANSFORMATIONS_API StrideOptimization;
 
 }  // namespace pass
 }  // namespace ngraph
 
+
+class ngraph::pass::ConvStridePropagation: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvStridePropagation();
+};
+
+class ngraph::pass::StridePropagation: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    StridePropagation();
+};
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,16 +39,12 @@ class TRANSFORMATIONS_API StrideOptimization;
  * that propagates stride (greater than 1) from Convolution
  * up through the graph (namely Relu, Maximum, Mul, Add and Conv operators)
  */
-class ngraph::pass::StrideOptimization: public ngraph::pass::FunctionPass {
+
+class ngraph::pass::StrideOptimization: public ngraph::pass::BackwardGraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-private:
-    bool handle_node(std::shared_ptr<ngraph::Node>& node);
-    bool conv_stride_propagation(std::shared_ptr<ngraph::Node>& conv);
-    bool simple_stride_propagation(std::shared_ptr<ngraph::Node>& conv, bool supported);
-    std::tuple<std::vector<Strides>, bool> check_next_ops(const std::vector<std::shared_ptr<Node>>& next_ops);
-    void insert_pooling(const std::shared_ptr<Node>& first, const std::shared_ptr<Node>& second, const Strides& strides);
-
-    std::map<std::string, Strides> m_strides_map;
+    StrideOptimization() {
+        add_matcher<ngraph::pass::ConvStridePropagation>();
+        add_matcher<ngraph::pass::StridePropagation>();
+    }
 };
