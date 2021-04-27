@@ -122,9 +122,7 @@ struct ArgumentDescriptor {
         WEIGHTS_ZERO_POINTS,
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,
-        INPUT_OF_FUSED_PRIMITIVE,
-        SECOND_OUTPUT,
-        THIRD_OUTPUT
+        INPUT_OF_FUSED_PRIMITIVE
     };
 
     enum class ScalarTypes {

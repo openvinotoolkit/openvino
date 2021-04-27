@@ -51,9 +51,9 @@ protected:
 
         args.output = (memory_impl::cptr) &instance.output_memory();
         if (instance.has_second_output())
-            args.second_output = (memory_impl::cptr) &instance.second_output_mem();
+            args.inputs.push_back((memory_impl::cptr)&instance.second_output_mem());
         if (instance.has_third_output())
-            args.third_output = (memory_impl::cptr) &instance.third_output_mem();
+            args.inputs.push_back((memory_impl::cptr)&instance.third_output_mem());
 
         return args;
     }
@@ -88,12 +88,12 @@ public:
         }
 
         if (arg.has_second_output()) {
-            params.second_output = convert_data_tensor(arg.second_output_node().get_output_layout());
+            params.inputs.push_back(convert_data_tensor(arg.second_output_node().get_output_layout()));
             params.has_second_output = true;
         }
 
         if (arg.has_second_output()) {
-            params.third_output = convert_data_tensor(arg.third_output_node().get_output_layout());
+            params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
             params.has_third_output = true;
         }
 

@@ -68,47 +68,56 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
-    int32_t input_index = 2;
     if (params.has_num_select_per_class) {
-        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_IDX", input_index));
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexNumSelectPerClass());
+        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", "convert_int(num_select_per_class[0])"));
-        input_index++;
     } else {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", 0));
     }
 
     if (params.has_iou_threshold) {
-        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_IDX", input_index));
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexIouThreshold());
+        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "TO_ACCUMULATOR_TYPE(iou_threshold[0])"));
-        input_index++;
     } else {
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "ACCUMULATOR_VAL_ZERO"));
     }
 
     if (params.has_score_threshold) {
-        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_IDX", input_index));
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexScoreThreshold());
+        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "TO_ACCUMULATOR_TYPE(score_threshold[0])"));
-        input_index++;
     } else {
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "ACCUMULATOR_VAL_ZERO"));
     }
 
     if (params.has_soft_nms_sigma) {
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_IDX", input_index));
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSoftNmsSigma());
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "TO_ACCUMULATOR_TYPE(soft_nms_sigma[0])"));
-        input_index++;
     } else {
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "ACCUMULATOR_VAL_ZERO"));
     }
 
     if (params.has_second_output) {
-        jit.AddConstants({ MakeJitConstant("SELECTED_SCORES_TERM", true),
-                           MakeJitConstant("SELECTED_SCORES", params.second_output) });
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSecondOutput());
+        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", std::string(inputTypeStr)));
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "TO_INPUT%d_TYPE", params.GetIndexSecondOutput());
+        jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", std::string(inputTypeStr)));
     }
 
     if (params.has_third_output) {
-        jit.AddConstants({ MakeJitConstant("VALID_OUTPUTS_TERM", true),
-                           MakeJitConstant("VALID_OUTPUTS", params.third_output) });
+        char inputTypeStr[128];
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexThirdOutput());
+        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", std::string(inputTypeStr)));
+        snprintf(inputTypeStr, sizeof(inputTypeStr), "TO_INPUT%d_TYPE", params.GetIndexThirdOutput());
+        jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", std::string(inputTypeStr)));
     }
 
     return jit;
@@ -188,33 +197,13 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p, const optional_params
  */
 void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params,
                                                     clKernelData& kernel, size_t idx) const {
-    uint32_t num_select_per_class_idx = 0;
-    uint32_t iou_threshold_idx = 0;
-    uint32_t score_threshold_idx = 0;
-    uint32_t soft_nms_sigma_idx = 0;
-
-    uint32_t input_idx = 2;
-    if (params.has_num_select_per_class) {
-        num_select_per_class_idx = input_idx++;
-    }
-    if (params.has_iou_threshold) {
-        iou_threshold_idx = input_idx++;
-    }
-    if (params.has_score_threshold) {
-        score_threshold_idx = input_idx++;
-    }
-    if (params.has_soft_nms_sigma) {
-        soft_nms_sigma_idx = input_idx++;
-    }
-
-
     if (idx == 0) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
 
-        if (score_threshold_idx > 0)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, score_threshold_idx });
+        if (params.has_score_threshold)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
     } else if (idx == 1) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
@@ -224,23 +213,23 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
 
-        if (num_select_per_class_idx > 0)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, num_select_per_class_idx });
-        if (iou_threshold_idx > 0)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, iou_threshold_idx });
-        if (score_threshold_idx > 0)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, score_threshold_idx });
-        if (soft_nms_sigma_idx > 0)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, soft_nms_sigma_idx });
+        if (params.has_num_select_per_class)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
+        if (params.has_iou_threshold)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold() });
+        if (params.has_score_threshold)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
+        if (params.has_soft_nms_sigma)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
     } else if (idx == 3) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
         if (params.has_second_output)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::SECOND_OUTPUT, 0 });
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
         if (params.has_third_output)
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::THIRD_OUTPUT, 0 });
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
     }
 }
 
@@ -284,16 +273,16 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
             cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
                                    , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
                                    , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)
-                                   , MakeJitConstant("IS_ZERO_ITER", "true")});
+                                   , MakeJitConstant("IS_STAGE_0", "true")});
         } else if (i == 1) {
-            cldnn_jit.AddConstants({ MakeJitConstant("IS_FIRST_ITER", "true")
+            cldnn_jit.AddConstants({ MakeJitConstant("IS_STAGE_1", "true")
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
                                    , MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
         } else if (i == 2) {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("IS_STAGE_2", "true"));
         } else {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("IS_STAGE_FINAL", "true"));
         }
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);

@@ -39,12 +39,54 @@ struct non_max_suppression_params : public base_params {
     bool has_second_output;
     bool has_third_output;
 
-    DataTensor second_output;
-    DataTensor third_output;
-
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         return k;
+    }
+
+    uint32_t GetIndexNumSelectPerClass() const {
+        uint32_t input_idx = 2;
+        return input_idx;
+    }
+
+    uint32_t GetIndexIouThreshold() const {
+        uint32_t input_idx = 2;
+        if (has_num_select_per_class) input_idx++;
+        return input_idx;
+    }
+
+    uint32_t GetIndexScoreThreshold() const {
+        uint32_t input_idx = 2;
+        if (has_num_select_per_class) input_idx++;
+        if (has_iou_threshold) input_idx++;
+        return input_idx;
+    }
+
+    uint32_t GetIndexSoftNmsSigma() const {
+        uint32_t input_idx = 2;
+        if (has_num_select_per_class) input_idx++;
+        if (has_iou_threshold) input_idx++;
+        if (has_score_threshold) input_idx++;
+        return input_idx;
+    }
+
+    uint32_t GetIndexSecondOutput() const {
+        uint32_t input_idx = 2;
+        if (has_num_select_per_class) input_idx++;
+        if (has_iou_threshold) input_idx++;
+        if (has_score_threshold) input_idx++;
+        if (has_soft_nms_sigma) input_idx++;
+        return input_idx;
+    }
+
+    uint32_t GetIndexThirdOutput() const {
+        uint32_t input_idx = 2;
+        if (has_num_select_per_class) input_idx++;
+        if (has_iou_threshold) input_idx++;
+        if (has_score_threshold) input_idx++;
+        if (has_soft_nms_sigma) input_idx++;
+        if (has_second_output) input_idx++;
+        return input_idx;
     }
 };
 

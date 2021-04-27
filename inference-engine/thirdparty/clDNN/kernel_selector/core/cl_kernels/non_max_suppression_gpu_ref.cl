@@ -20,8 +20,6 @@
 /// IOU_THRESHOLD_VAL        TO_ACCUMULATOR_TYPE(iou_threshold[0]),   default is ACCUMULATOR_VAL_ZERO
 /// SCORE_THRESHOLD_VAL      TO_ACCUMULATOR_TYPE(score_threshold[0]), default is ACCUMULATOR_VAL_ZERO
 /// SOFT_NMS_SIGMA_VAL       TO_ACCUMULATOR_TYPE(soft_nms_sigma[0]),  default is ACCUMULATOR_VAL_ZERO
-/// SELECTED_SCORES_TERM     1 if selected_scores is used
-/// VALID_OUTPUTS_TERM       1 if valid_outputs is used
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            20 bytes * NUM_BOXES
 
@@ -202,14 +200,31 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
     }
 }
 
-
-#ifdef IS_ZERO_ITER
+// KERNEL_ARGs
+//
+// boxes
+//  - shape: {num_batches, num_boxes, 4}
+// scores
+//  - shape: {num_batches, num_classes, num_boxes}
+// buffer0 (intermediate buffer)
+//  - size: batch_num * class_num * boxes_num * sizeof(SBOX_INFO)
+//  - desc: filtered and sorted SBOX_INFO list
+// buffer1 (intermediate buffer)
+//  - size: batch_num * class_num * boxes_num * sizeof(BOX_INFO)
+//  - desc: selected SBOX_INFO list by iou calucation
+// buffer2 (intermediate buffer)
+//  - size: batch_num * class_num * boxes_num * sizeof(BOX_INFO)
+//  - desc: selected SBOX_INFO list by iou calucation
+// buffer3 (intermediate buffer)
+//  - size: batch_num * class_num * 4
+//  - desc: sorted box num for batch*class
+#ifdef IS_STAGE_0
 KERNEL (non_max_suppression_ref_stage_0)(
     const __global INPUT1_TYPE *scores
     , __global uchar *buffer0
     , __global int *buffer3
-    #if SCORE_THRESHOLD_IDX
-    , const __global INPUT4_TYPE *score_threshold
+    #ifdef SCORE_THRESHOLD_TYPE
+    , const __global SCORE_THRESHOLD_TYPE *score_threshold
     #endif
     )
 {
@@ -291,11 +306,9 @@ KERNEL (non_max_suppression_ref_stage_0)(
         }
     }
 }
-#endif /* IS_ZERO_ITER */
+#endif /* IS_STAGE_0 */
 
-// boxes shape: {num_batches, num_boxes, 4}
-// scores shape: {num_batches, num_classes, num_boxes}
-#ifdef IS_FIRST_ITER
+#ifdef IS_STAGE_1
 KERNEL (non_max_suppression_ref_stage_1)(
     __global uchar *buffer0
     , __global int *buffer3
@@ -346,25 +359,25 @@ KERNEL (non_max_suppression_ref_stage_1)(
         }
     }
 }
-#endif /* IS_FIRST_ITER */
+#endif /* IS_STAGE_1 */
 
-#ifdef IS_SECOND_ITER
+#ifdef IS_STAGE_2
 KERNEL (non_max_suppression_ref_stage_2)(
     const __global INPUT0_TYPE *boxes
     , __global uchar *buffer0
     , __global uchar *buffer1
     , __global int *buffer3
-    #if NUM_SELECT_PER_CLASS_IDX
-    , const __global INPUT2_TYPE *num_select_per_class
+    #ifdef NUM_SELECT_PER_CLASS_TYPE
+    , const __global NUM_SELECT_PER_CLASS_TYPE *num_select_per_class
     #endif
-    #if IOU_THRESHOLD_IDX
-    , const __global INPUT3_TYPE *iou_threshold
+    #ifdef IOU_THRESHOLD_TYPE
+    , const __global IOU_THRESHOLD_TYPE *iou_threshold
     #endif
-    #if SCORE_THRESHOLD_IDX
-    , const __global INPUT4_TYPE *score_threshold
+    #ifdef SCORE_THRESHOLD_TYPE
+    , const __global SCORE_THRESHOLD_TYPE *score_threshold
     #endif
-    #if SOFT_NMS_SIGMA_IDX
-    , const __global INPUT5_TYPE *soft_nms_sigma
+    #ifdef SOFT_NMS_SIGMA_TYPE
+    , const __global SOFT_NMS_SIGMA_TYPE *soft_nms_sigma
     #endif
     )
 {
@@ -432,20 +445,18 @@ KERNEL (non_max_suppression_ref_stage_2)(
         selectedBoxList[selectedBoxNum].batchId = -1;
     }
 }
-#endif /* IS_SECOND_ITER */
+#endif /* IS_STAGE_2 */
 
-// boxes shape: {num_batches, num_boxes, 4}
-// scores shape: {num_batches, num_classes, num_boxes}
-#ifdef IS_THIRD_ITER
+#ifdef IS_STAGE_FINAL
 KERNEL (non_max_suppression_ref_stage_final)(
     __global OUTPUT_TYPE *output
     , __global uchar *buffer1
     , __global uchar *buffer2
-    #if SELECTED_SCORES_TERM
-    , __global SELECTED_SCORES_TYPE *selected_scores
+    #ifdef SECOND_OUTPUT_TYPE
+    , __global SECOND_OUTPUT_TYPE *selected_scores
     #endif
-    #if VALID_OUTPUTS_TERM
-    , __global VALID_OUTPUTS_TYPE *valid_outputs
+    #ifdef THIRD_OUTPUT_TYPE
+    , __global THIRD_OUTPUT_TYPE *valid_outputs
     #endif
     )
 {
@@ -483,8 +494,21 @@ KERNEL (non_max_suppression_ref_stage_final)(
         output[offset + 1] = -1;
         output[offset + 2] = -1;
     }
+
+#ifdef SECOND_OUTPUT_TYPE
+    unroll_for (int i = 0; i < output_num; i++) {
+        const int offset = 3 * i;
+        selected_scores[offset + 0] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].batchId);
+        selected_scores[offset + 1] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].classId);
+        selected_scores[offset + 2] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].score);
+    }
+#endif
+
+#ifdef THIRD_OUTPUT_TYPE
+    valid_outputs[0] = TO_THIRD_OUTPUT_TYPE(output_num);
+#endif
 }
-#endif  /* IS_THIRD_ITER */
+#endif  /* IS_STAGE_FINAL */
 
 #undef unroll_for
 #undef NUM_BATCHES
