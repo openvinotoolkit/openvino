@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from .helpers import find_tested_op, UNSUPPORTED_OPS
+from tests.coverage.compliance.helpers import find_tested_op, UNSUPPORTED_OPS
 
 
 class ONNXTest:
