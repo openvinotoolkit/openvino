@@ -152,7 +152,7 @@ Follow the next steps to run pre-trained Face Detection network using Inference 
    ```
 4. Run the sample with specifying the model and a path to the input image:
    ```sh
-   ./armv7l/Release/object_detection_sample_ssd -m <patface-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
+   ./armv7l/Release/object_detection_sample_ssd -m <path_to_model>/face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
    ```
    The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
 
