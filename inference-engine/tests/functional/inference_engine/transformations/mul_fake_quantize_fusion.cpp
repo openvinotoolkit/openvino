@@ -42,7 +42,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionPositiveConstant) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -81,7 +80,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantOnFirstInput) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -120,7 +118,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionReshape) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -140,7 +137,7 @@ TEST(TransformationTests, MulFakeQuantizeFusionReshape) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
+TEST(TransformationTests, DISABLED_MulFakeQuantizeFusionConstantAllNegative) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
 
     Shape data_shape{1, 3, 14, 14};
@@ -159,7 +156,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -179,7 +175,45 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
+TEST(TransformationTests, MulFakeQuantizeFusionConstantNonScalarWithEqualValues) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
+        auto mul_const = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {2, 2, 2});
+        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
+        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+                                                         input_high, output_low,
+                                                         output_high, 11);
+        f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::MulFakeQuantizeFusion>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
+        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0.5});
+        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {10});
+        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+                                                         input_high, output_low,
+                                                         output_high, 11);
+        f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, DISABLED_MulFakeQuantizeFusionConstantSomeNegative) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
 
     Shape data_shape{1, 3, 14, 14};
@@ -198,7 +232,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -218,7 +251,7 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegativeF16) {
+TEST(TransformationTests, DISABLED_MulFakeQuantizeFusionConstantSomeNegativeF16) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
 
     Shape data_shape{1, 3, 14, 14};
@@ -276,7 +309,6 @@ TEST(TransformationTests, NegativeMulFakeQuantizeFusionNotAConstant) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
