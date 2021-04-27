@@ -105,7 +105,7 @@ def run_timetest(args: dict, log=None):
 
         # Read statistics from yml
         with open(tmp_stats_path, "r") as file:
-            raw_data = list(yaml.load_all(file))
+            raw_data = list(yaml.load_all(file, Loader=yaml.FullLoader))
 
         os.unlink(tmp_stats_path)
 
