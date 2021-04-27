@@ -137,5 +137,5 @@ namespace ngraph
                 AutoBroadcastSpec m_broadcast_spec;
             };
         } // namespace v1
-    }
-}
+    }     // namespace op
+} // namespace ngraph

@@ -10,7 +10,6 @@
 #include <memory>
 
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
@@ -22,7 +21,7 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
+class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     MyriadExecutorPtr _executor;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;

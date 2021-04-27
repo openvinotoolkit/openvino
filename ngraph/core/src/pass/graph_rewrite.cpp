@@ -20,37 +20,37 @@
 using namespace std;
 using namespace ngraph;
 
-// GraphRewrite algorithm:
-// GraphRewrite processes an input graph in an topological order(i.e. args before users)
-// Given the following graph:          Abs2
-//                                   /       \
-//                         Constant1         Add4 - Result5
-//                                   \      /
-//                                    Neg3
-//
-// The topological order would be : `Constant1`, `Abs2`, `Neg3`, `Add4`, `Result5`
-// Note, `Abs2` comes before `Neg3` as `Abs2`'s id = 2 is *less* than `Neg3`'s one (id = 3)
-// Next, GraphRewrite will invoke matchers passes registered in add_matcher order.
-// For example:
-//     ngraph::pass::GraphRewrite pass;
-//     pass.add_matcher<m1>();
-//     pass.add_matcher<m2>();
-//     pass.add_matcher<m3>();
-// Matcher passes will be called as follows: `m1`, `m2`, `m3`
-// Matchers should only replace nodes in the graph that come before the current root
-// node in the topological order. For example, if Matcher matches Neg3, it should only
-// replace nodes `Abs2` and `Constant1` if needed
-// This gives Matchers a nice cascading property. For example, if m1 folds `Abs2(Constant1)`
-// and `m2` folds `Neg3(Constant1)` when `m3` is called on `Add4` it will discover that
-// both `Abs2` and `Neg3` were already replaced by constants, so `Add4` will also be folded into
-// one.
-// If any matcher passes succeeds the rest of the matchers will **not** be called.
-// E.g. if `m1` succeeds and replaces `Abs2` with a new constant, nor `m2` or `m3` will be called
-// However, sometimes, you will need more than one fusion occur on the same node.
-// In this case, you need to register nodes in MatcherPass manually using register_new_node method.
-// GraphRewrite will automatically add this nodes in the beginning of execution queue.
-// If MatcherPass register more than one node make sure that this nodes are registered in
-// topological order.
+/* GraphRewrite algorithm:
+ * GraphRewrite processes an input graph in an topological order(i.e. args before users)
+ * Given the following graph:          Abs2
+ *                                   /       \
+ *                         Constant1         Add4 - Result5
+ *                                   \      /
+ *                                    Neg3
+ *
+ * The topological order would be : `Constant1`, `Abs2`, `Neg3`, `Add4`, `Result5`
+ * Note, `Abs2` comes before `Neg3` as `Abs2`'s id = 2 is *less* than `Neg3`'s one (id = 3)
+ * Next, GraphRewrite will invoke matchers passes registered in add_matcher order.
+ * For example:
+ *     ngraph::pass::GraphRewrite pass;
+ *     pass.add_matcher<m1>();
+ *     pass.add_matcher<m2>();
+ *     pass.add_matcher<m3>();
+ * Matcher passes will be called as follows: `m1`, `m2`, `m3`
+ * Matchers should only replace nodes in the graph that come before the current root
+ * node in the topological order. For example, if Matcher matches Neg3, it should only
+ * replace nodes `Abs2` and `Constant1` if needed
+ * This gives Matchers a nice cascading property. For example, if m1 folds `Abs2(Constant1)`
+ * and `m2` folds `Neg3(Constant1)` when `m3` is called on `Add4` it will discover that
+ * both `Abs2` and `Neg3` were already replaced by constants, so `Add4` will also be folded into
+ * one.
+ * If any matcher passes succeeds the rest of the matchers will **not** be called.
+ * E.g. if `m1` succeeds and replaces `Abs2` with a new constant, nor `m2` or `m3` will be called
+ * However, sometimes, you will need more than one fusion occur on the same node.
+ * In this case, you need to register nodes in MatcherPass manually using register_new_node method.
+ * GraphRewrite will automatically add this nodes in the beginning of execution queue.
+ * If MatcherPass register more than one node make sure that this nodes are registered in
+ * topological order. */
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
 
@@ -62,7 +62,7 @@ namespace ngraph
     {
         namespace
         {
-            PerfCounters& perf_counters()
+            PerfCounters& perf_counters_graph_rewrite()
             {
                 static PerfCounters counters;
                 return counters;
@@ -410,7 +410,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::perf_counters()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

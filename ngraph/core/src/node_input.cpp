@@ -151,4 +151,4 @@ namespace ngraph
                << ".input(" << input.get_index() << "):" << input.get_element_type()
                << input.get_partial_shape();
     }
-}
+} // namespace ngraph

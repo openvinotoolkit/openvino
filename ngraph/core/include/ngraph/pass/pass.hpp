@@ -120,5 +120,5 @@ namespace ngraph
             ALL_FUSIONS = 0xFFFFFFFF
         };
         typedef EnumMask<FusionType> FusionTypeMask;
-    }
-}
+    } // namespace pass
+} // namespace ngraph

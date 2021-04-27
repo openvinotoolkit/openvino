@@ -67,7 +67,8 @@ class InsertReverseChannels(BackReplacementPattern):
 
         for name, parameter, _ in suitable_params:
             reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels'}).create_node()
-            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0),
+                                                              attributes_save_mode='source')
             parameter.out_port(0).connect(reverse_channels.in_port(0))
 
 

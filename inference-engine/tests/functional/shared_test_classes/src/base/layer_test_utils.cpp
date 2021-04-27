@@ -27,9 +27,6 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 
 void LayerTestsCommon::Run() {
-    auto &s = Summary::getInstance();
-    s.setDeviceName(targetDevice);
-
     auto crashHandler = [](int errCode) {
         auto &s = Summary::getInstance();
         s.saveReport();
@@ -37,6 +34,9 @@ void LayerTestsCommon::Run() {
         std::abort();
     };
     signal(SIGSEGV, crashHandler);
+
+    auto &s = Summary::getInstance();
+    s.setDeviceName(targetDevice);
 
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
         s.updateOPsStats(function, PassRate::Statuses::SKIPPED);

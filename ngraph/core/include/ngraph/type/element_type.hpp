@@ -172,7 +172,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& out, const ngraph::element::Type& obj);
-    }
+    } // namespace element
 
     template <>
     class NGRAPH_API AttributeAdapter<element::Type_t>
@@ -210,4 +210,4 @@ namespace ngraph
 
     /// \brief Return the number of bytes in the compile-time representation of the element type.
     size_t compiler_byte_size(element::Type_t et);
-}
+} // namespace ngraph
