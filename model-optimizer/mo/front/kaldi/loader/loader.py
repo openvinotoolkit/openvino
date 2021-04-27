@@ -337,7 +337,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         in_port = len(Node(graph, node_name).in_nodes())
 
         Node(graph, node_name).add_input_port(in_port)
-        Node(graph, in_node_id).add_output_port(out_port)
+        Node(graph, in_node_id).add_output_port(out_port, skip_if_exist=True)
 
         graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
     elif tokens[0] == b'output-node':
@@ -528,7 +528,7 @@ def parse_specifier(string, graph, layer_node_map):
             const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
 
             node = Node(graph, node_name)
-            graph.create_edge(const_node, scale_node, 0, 0, create_edge_attrs(const_node.id, scale_name.id, const_node.id))
+            graph.create_edge(const_node, scale_node, 0, 0, create_edge_attrs(const_node.id, scale_node.id, const_node.id))
             out_port = len(node.out_nodes())
             graph.create_edge(node, scale_node, out_port, 1, create_edge_attrs(node_name, scale_node.id, node_name, 1, out_port))
         else:
