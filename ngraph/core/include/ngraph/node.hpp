@@ -55,7 +55,6 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
-    using TensorLabelVector = std::vector<TensorLabel>;
 
     namespace op
     {
@@ -200,7 +199,6 @@ namespace ngraph
                               const HostTensorVector& input_values) const;
         virtual bool evaluate_lower(const HostTensorVector& output_values) const;
         virtual bool evaluate_upper(const HostTensorVector& output_values) const;
-        virtual bool evaluate_label(TensorLabelVector& output_labels) const;
 
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
@@ -672,7 +670,7 @@ namespace ngraph
         {
         }
     };
-}
+} // namespace ngraph
 #define NODE_VALIDATION_CHECK(node, ...)                                                           \
     NGRAPH_CHECK_HELPER(::ngraph::NodeValidationFailure, (node), __VA_ARGS__)
 
