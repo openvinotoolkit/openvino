@@ -487,7 +487,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
 
                 std::cout << " kernel is " << shape[2] << "x" << shape[3];
 //                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 5 && shape[3] >= 5) {
                     std::cout << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
                     continue;
@@ -562,12 +562,12 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
     res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
-    if (!total_convs && !total_deconvs && !total_gemms) {
-        std::cout << "WORST CASE ALL: " << worst_case_all << std::endl;
-        res.maxMemTolerance = worst_case_all;
-    } else {
+//    if (!total_convs && !total_deconvs && !total_gemms) {
+//        std::cout << "WORST CASE ALL: " << worst_case_all << std::endl;
+//        res.maxMemTolerance = worst_case_all;
+//    } else {
         std::cout << "WORST CASE: " << worst_case << std::endl;
-    }
+//    }
     auto time = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
     std::cout << "NetworkMemBandwidthTolerance time: " << time << " ms" << std::endl;
     return res;
