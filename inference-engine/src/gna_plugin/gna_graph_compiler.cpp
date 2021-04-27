@@ -527,64 +527,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
 #if GNA_LIB_VER == 2
 
-void CheckCnn2DInputSupported(const unsigned h, const unsigned w) {
-    if (h < 16 || h > 384) {
-        THROW_GNA_EXCEPTION << "Unsupported input height: " << h << ", must be in range <16, 384>";
-    }
-    if (w < 16 || w > 240) {
-        THROW_GNA_EXCEPTION << "Unsupported input width: " << w << ", must be in range <16, 240>";
-    }
-}
-
-struct Cnn2DKernelSizeLimit {
-    unsigned squareLimit;
-    unsigned hVecLimit;
-    unsigned vVecLimit;
-};
-
-Cnn2DKernelSizeLimit GetCnn2DLimit(OvGnaType inPrecision, unsigned channels) {
-    Cnn2DKernelSizeLimit l337{ 3, 3, 7 };
-    Cnn2DKernelSizeLimit l227{ 2, 2, 7 };
-    Cnn2DKernelSizeLimit vertVec7{ 1, 1, 7 };
-
-    struct Cnn2DLimit {
-        unsigned channelLimit;
-        Cnn2DKernelSizeLimit smallChannel;
-        Cnn2DKernelSizeLimit bigChannel;
-    };
-
-    Cnn2DLimit l16{ 120, l337, vertVec7 };
-    Cnn2DLimit l8{ 240, l337, l227 };
-    const auto& l = inPrecision == OvGnaTypeInt8 ? l8 : l16;
-    return (channels <= l.channelLimit ? l.smallChannel : l.bigChannel);
-}
-
-void ExpectCnn2DKernelValid(unsigned kW, unsigned kH,
-    Cnn2DKernelSizeLimit l) {
-    if (kW == 1 && kH <= l.vVecLimit) return;
-    if (kH == 1 && kW <= l.hVecLimit) return;
-    if (kH != kW || kH > l.squareLimit || kW > l.squareLimit) {
-        THROW_GNA_EXCEPTION << "Unsupported kerenel in Convolution2D (WxH) " << kW << "x" << kH <<
-            ", only vertical vector up to 1x" << l.vVecLimit << ", horizontal up to " << l.hVecLimit <<
-            "x1 or square up to " << l.squareLimit << "x" << l.squareLimit << " are supported";
-    }
-}
-
-void CheckCnn2DSupported(unsigned IFVC, unsigned kW, unsigned kH, unsigned kN,
-    OvGnaType inPrecision) {
-
-    if (kN % 8 != 0 || kN > 256 || kN == 0) {
-        THROW_GNA_EXCEPTION << "Unsupported number of kernels in Convolution2D: " << kN << ", must be multiply of 8 and in range <8, 256>";
-    }
-    if (IFVC % 8 != 0) {
-        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D: " << IFVC << ", must be multiply of 8";
-    }
-    if (IFVC > 384) {
-        THROW_GNA_EXCEPTION << "Unsupported number of channels in Convolution2D: " << IFVC << ", must be <= 384";
-    }
-    ExpectCnn2DKernelValid(kW, kH, GetCnn2DLimit(inPrecision, IFVC));
-}
-
 void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr layer,
     uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
     uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width) {
@@ -630,8 +572,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
-    CheckCnn2DInputSupported(in_height, in_width);
-    CheckCnn2DSupported(in_channels, convolution._kernel_x, convolution._kernel_y, filter_n, inputPrec);
+    cnn2dValidator.ValidateCnn2D(layer->name,
+        in_height, in_width, in_channels,
+        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
 
     // have to pad input to let last kernel meets it's corresponding input
     uint32_t num_inputs = in_width * in_height * in_channels;
@@ -932,20 +875,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (is2DPooling) {
-        if (pooling._kernel[X_AXIS] != pooling._kernel[Y_AXIS] ||
-            pooling._kernel[X_AXIS] > 3 ||
-            pooling._kernel[X_AXIS] < 1) {
-            THROW_GNA_EXCEPTION << "Layer 2DPooling: " << layer->name << " Pooling Window (WxH): " <<
-                pooling._kernel[X_AXIS] << "x" << pooling._kernel[Y_AXIS] << " not supported, only square windows up to 3x3 supported";
-        }
-        if (pooling._stride[X_AXIS] > pooling._kernel[X_AXIS] ||
-            pooling._stride[Y_AXIS] > pooling._kernel[Y_AXIS] ||
-            pooling._stride[X_AXIS] < 1 ||
-            pooling._stride[Y_AXIS] < 1) {
-            THROW_GNA_EXCEPTION << "Layer 2DPooling: " << layer->name << " Pooling Stride (WxH): " <<
-                pooling._stride[X_AXIS] << "x" << pooling._stride[Y_AXIS] << " not supported, Strides up to Pooling Window supported " <<
-                "wchich is " << pooling._kernel[X_AXIS] << "x" << pooling._kernel[Y_AXIS];
-        }
+        cnn2dValidator.ValidatePooling2D(layer->name, pooling._kernel_y, pooling._kernel_x, pooling._stride_y, pooling._stride_x);
     }
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "pooling");
