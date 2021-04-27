@@ -195,7 +195,7 @@ public:
      */
     std::string getOVNameForTensor(const std::string& orig_name) const;
 
-protected:
+private:
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Network extra interface, might be nullptr
@@ -207,11 +207,6 @@ protected:
      */
     ICNNNetwork* actual = nullptr;
     IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @brief A pointer to output data
-     */
-    DataPtr output;
 };
 
 }  // namespace InferenceEngine
