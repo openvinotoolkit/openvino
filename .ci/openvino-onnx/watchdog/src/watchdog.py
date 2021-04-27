@@ -429,8 +429,8 @@ class Watchdog:
             number = int(match_obj.group(1))
             return number
         except Exception:
-            number = 1
-            return number
+            log.exception('Failed to retrieve build number from url link: %s', url)
+            raise
 
     def _queue_message(self, message, message_severity='info', pr=None):
         """Add a message to message queue in communicator object.
