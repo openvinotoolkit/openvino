@@ -172,7 +172,7 @@ namespace
         {
             auto tensor_type = input->mutable_type()->mutable_tensor_type();
             TensorShapeProto shape;
-            for (size_t i = 0; i < initializer.dims_size(); ++i)
+            for (int i = 0; i < initializer.dims_size(); ++i)
             {
                 shape.add_dim()->set_dim_value(initializer.dims(i));
             }
@@ -199,8 +199,8 @@ struct onnx_editor::ONNXModelEditor::Impl
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
-    : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
-    , m_model_path{model_path}
+    : m_model_path{model_path}
+    , m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
 {
 }
 

@@ -1994,7 +1994,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst()) {
+        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
             return true;
         }
 
@@ -2119,7 +2119,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const or activation layer
+        // FQ Layer is fused only when previous layer is const, memory or activation layer
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();

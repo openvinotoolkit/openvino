@@ -15,14 +15,6 @@
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 
-namespace
-{
-    int64_t get_valid_array_idx(int64_t idx, int64_t last_idx)
-    {
-        return (idx >= 0) ? std::min(idx, last_idx) : std::max<int64_t>(0, last_idx + idx);
-    }
-}
-
 namespace ngraph
 {
     namespace onnx_import
@@ -109,7 +101,8 @@ namespace ngraph
                     if (indices_shape.rank().is_static() &&
                         indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
                     {
-                        if (indices_shape[0].get_length() >= slice_indices_length &&
+                        if (static_cast<uint64_t>(indices_shape[0].get_length()) >=
+                                slice_indices_length &&
                             are_axes_sorted)
                         {
                             // adjusting indices is not needed
@@ -132,7 +125,7 @@ namespace ngraph
                         default_opset::Constant::create(indices.get_element_type(), {}, {0});
 
                     int added_indices_number = 0;
-                    for (int i = 0; i < slice_indices_length; ++i)
+                    for (uint64_t i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
@@ -154,7 +147,7 @@ namespace ngraph
                     if (!are_axes_sorted)
                     {
                         OutputVector indices_tmp(adjusted_indices);
-                        for (int i = 0; i < target_axes.size(); ++i)
+                        for (size_t i = 0; i < target_axes.size(); ++i)
                         {
                             adjusted_indices[target_axes[i]] = indices_tmp[i];
                         }
@@ -162,7 +155,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {

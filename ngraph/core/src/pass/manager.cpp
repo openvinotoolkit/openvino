@@ -31,18 +31,18 @@ namespace ngraph
     {
         namespace
         {
-            PerfCounters& perf_counters()
+            PerfCounters& perf_counters_manager()
             {
                 static PerfCounters counters;
                 return counters;
             }
-        }
-    }
-}
+        } // namespace
+    }     // namespace pass
+} // namespace ngraph
 
 pass::Manager::Manager()
-    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
-    , m_pass_config(std::make_shared<PassConfig>())
+    : m_pass_config(std::make_shared<PassConfig>())
+    , m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
 {
 }
 
@@ -73,7 +73,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
         }
 
         OV_ITT_SCOPED_TASK(itt::domains::nGraphPass_LT,
-                           pass::perf_counters()[pass->get_type_info()]);
+                           pass::perf_counters_manager()[pass->get_type_info()]);
 
         pass_timer.start();
 
