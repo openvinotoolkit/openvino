@@ -27,10 +27,10 @@ namespace ngraph
             Graph() = delete;
 
             Graph(const Graph&) = delete;
-            Graph(Graph&&) noexcept = default;
+            Graph(Graph&&) = default;
 
             Graph& operator=(const Graph&) = delete;
-            Graph& operator=(Graph&&) noexcept = default;
+            Graph& operator=(Graph&&) = default;
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -89,10 +89,10 @@ namespace ngraph
             Subgraph() = delete;
 
             Subgraph(const Subgraph&) = delete;
-            Subgraph(Subgraph&&) noexcept = default;
+            Subgraph(Subgraph&&) = default;
 
             Subgraph& operator=(const Subgraph&) = delete;
-            Subgraph& operator=(Subgraph&&) noexcept = default;
+            Subgraph& operator=(Subgraph&&) = default;
 
         private:
             std::vector<Output<ngraph::Node>> m_outputs_from_parent;
