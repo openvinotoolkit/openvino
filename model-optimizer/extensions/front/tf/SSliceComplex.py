@@ -1,0 +1,69 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+
+import logging as log
+
+from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.subgraph_matcher import SubgraphMatch
+from mo.graph.graph import Graph
+
+
+class SSliceComplex(FrontReplacementSubgraph):
+    """
+    Some TF models contain the sub-graph
+               SomeOp
+                 |
+    --------------------------
+    |                        |
+    StridedSlice          StridedSlice
+    |                       |
+    ------------------------
+         Complex
+          |
+          |       other inputs
+          |       |  ...  |
+         -------------------
+                 SomeOp1
+
+    Here SomeOp is some node with real output and with the shape [N_0, ..., N_{r - 1}, 2], and StridedSlice nodes
+    have output shapes [N_0, ..., N_{r - 1}].
+
+    But MO and Inference Engine do not support for complex tensors. Hence, we need to replace this sub-graph with
+
+         SomeOp   other inputs
+          |       |  ...  |
+         -------------------
+                 SomeOp1
+
+    And, in such replacement, we should mark SomeOp1 as needed to correct. For example, if SomeOp1 is Roll,
+    we need to correct axes of Roll, because input data are real now.
+    """
+    enabled = True
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('strided_slice_real', dict(op='StridedSlice')),
+                ('strided_slice_imag', dict(op='StridedSlice')),
+                ('complex', dict(op='Complex')),
+            ],
+            edges=[
+                ('strided_slice_real', 'complex', {'in': 0}),
+                ('strided_slice_imag', 'complex', {'in': 1}),
+            ])
+
+    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
+        strided_slice_real = match['strided_slice_real']
+        strided_slice_imag = match['strided_slice_imag']
+
+        real_input = strided_slice_real.in_port(0).get_source().node
+        imag_input = strided_slice_imag.in_port(0).get_source().node
+        if real_input.id != imag_input.id:
+            log.debug('The pattern does not correspond to operation for complex tensor. Different inputs.')
+            return
+
+        complex_node = match['complex']
+        after_complex_node = complex_node.out_port(0).get_connection().get_destination().node
+        after_complex_node['need_correction'] = True
+        complex_node.out_port(0).get_connection().set_source(strided_slice_real.in_port(0).get_source())

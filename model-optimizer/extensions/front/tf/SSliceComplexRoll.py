@@ -41,7 +41,7 @@ class SSliceComplexRoll(FrontReplacementSubgraph):
     And, in such replacement, we should correct axes of Roll, because input data are real now. Namely, if
     there are negative axes for Roll, we need subtract 1 from such axes indices.
     """
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(

@@ -43,8 +43,8 @@ class RollRealImagPack(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.SSliceComplexRoll import SSliceComplexRoll
-        return [SSliceComplexRoll]
+        from extensions.front.tf.SSliceComplex import SSliceComplex
+        return [SSliceComplex]
 
     def run_before(self):
         from extensions.front.Pack import Pack
