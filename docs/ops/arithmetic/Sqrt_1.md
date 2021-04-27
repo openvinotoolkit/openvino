@@ -6,7 +6,7 @@
 
 **Short description**: Square root element-wise operation.
 
-**Detailed description**: *Sqrt* performs element-wise square root operation on a given input tensor *a*, as in the following mathematical formula, where `o` is the output tensor:
+**Detailed description**: *Sqrt* performs element-wise square root operation on a given input tensor `a`, as in the following mathematical formula, where `o` is the output tensor:
 
 \f[
 o_{i} = \sqrt{a_{i}}
@@ -17,21 +17,16 @@ o_{i} = \sqrt{a_{i}}
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sqrt operation. A tensor of type T and shape equal to the input shape.
+* **1**: The result of element-wise *Sqrt* operation. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
 * *T*: any numeric type.
 
-*Sqrt* does the following with the input tensor *a*:
-
-\f[
-a_{i} = \sqrt{a_{i}}
-\f]
 
 **Examples**
 
