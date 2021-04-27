@@ -26,7 +26,7 @@ using core_type_id = int;
 
 namespace detail {
 struct constraints {
-    constraints(numa_node_id id = -1, int maximal_concurrency = -1)
+    constraints(numa_node_id id = tbb::task_arena::automatic, int maximal_concurrency = tbb::task_arena::automatic)
         : numa_id{id}
         , max_concurrency{maximal_concurrency}
         , core_type{tbb::task_arena::automatic}
@@ -59,7 +59,8 @@ struct constraints {
 class binding_observer;
 } // namespace detail
 
-class task_arena : public tbb::task_arena {
+class task_arena {
+    tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
     detail::binding_observer* my_binding_observer;
@@ -76,17 +77,19 @@ public:
     void initialize(int max_concurrency_, unsigned reserved_for_masters = 1);
     void initialize(constraints constraints_, unsigned reserved_for_masters = 1);
 
+    explicit operator tbb::task_arena&();
+
     int max_concurrency();
 
     template<typename F>
     void enqueue(F&& f) {
         initialize();
-        tbb::task_arena::enqueue(std::forward<F>(f));
+        my_task_arena.enqueue(std::forward<F>(f));
     }
     template<typename F>
     auto execute(F&& f) -> decltype(f()) {
         initialize();
-        return tbb::task_arena::execute(std::forward<F>(f));
+        return my_task_arena.execute(std::forward<F>(f));
     }
 
     ~task_arena();
