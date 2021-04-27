@@ -15,13 +15,15 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, sqrt_op)
+TEST(attributes, transpose_op)
 {
     using namespace opset1;
 
-    NodeBuilder::get_ops().register_factory<Sqrt>();
+    NodeBuilder::get_ops().register_factory<Transpose>();
     const auto data_input = make_shared<Parameter>(element::f32, Shape{1, 2, 3});
-    const auto op = make_shared<Sqrt>(data_input);
+    const auto axes_order_input = make_shared<Parameter>(element::i32, Shape{3});
+
+    const auto op = make_shared<Transpose>(data_input, axes_order_input);
 
     NodeBuilder builder(op);
     const auto expected_attr_count = 0;
