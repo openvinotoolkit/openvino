@@ -235,7 +235,10 @@ namespace ngraph
         void remove_variable(const VariablePtr& variable);
 
         /// \brief Return a list of function's variables.
-        const VariableVector& get_variables() { return m_variables; }
+        const VariableVector& get_variables() const { return m_variables; }
+
+        /// \brief Return a variable by specified variable_id.
+        VariablePtr get_variable_by_id(const std::string& variable_id) const;
 
     private:
         Function(const Function&) = delete;

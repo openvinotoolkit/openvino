@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -43,7 +31,7 @@ namespace ngraph
         }
 
         /// \brief Sets the reset flags for all stored Variables to true.
-        void reset_variable_context()
+        void reset_variable_context() const
         {
             for (const auto& el : m_variable_values)
             {
@@ -76,6 +64,15 @@ namespace ngraph
         /// \brief Returns the current values for Variables.
         const VariableMap& get_variable_values() const { return m_variable_values; }
 
+        /// \brief Returns the value for specified Variable.
+        VariableValuePtr get_variable_value(const VariablePtr& variable) const {
+            auto var_value = m_variable_values.find(variable);
+            if (var_value != m_variable_values.end()) {
+                return (*var_value).second;
+            }
+            return VariableValuePtr();
+        }
+
     public:
         /// The values associated with a particular Variable.
         VariableMap m_variable_values;
@@ -104,6 +101,6 @@ namespace ngraph
 
     private:
         /// Required values for evaluating ngraph::function containing Variables.
-        std::shared_ptr<VariableContext> m_variable_context;
+        std::shared_ptr<VariableContext> m_variable_context = std::make_shared<VariableContext>();
     };
 } // namespace ngraph

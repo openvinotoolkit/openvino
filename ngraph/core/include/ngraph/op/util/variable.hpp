@@ -26,7 +26,7 @@ namespace ngraph
         {
         }
 
-        VariableInfo get_info() { return m_info; }
+        VariableInfo get_info() const { return m_info; }
         void update(const VariableInfo& variable_info) { m_info = variable_info; }
 
     private:
