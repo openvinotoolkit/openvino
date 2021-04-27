@@ -8,6 +8,15 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
 
+#define CALL_STATUS_FNC(function, ...)                                                          \
+    if (!actual) IE_THROW() << "Wrapper used was not initialized.";                             \
+    ResponseDesc resp;                                                                          \
+    auto res = actual->function(__VA_ARGS__, &resp);                                            \
+    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
+            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
+                <<= std::stringstream{} << IE_LOCATION << resp.msg)
+
+
 namespace InferenceEngine {
 
 CNNNetwork::CNNNetwork() :
@@ -121,6 +130,12 @@ void CNNNetwork::reshape(const ICNNNetwork::InputShapes& inputShapes) {
 
 void CNNNetwork::serialize(const std::string& xmlPath, const std::string& binPath) const {
     CALL_STATUS_FNC(serialize, xmlPath, binPath);
+}
+
+std::string CNNNetwork::getOVNameForTensor(const std::string& orig_name) const {
+    std::string ov_name;
+    CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
+    return ov_name;
 }
 
 }  // namespace InferenceEngine
