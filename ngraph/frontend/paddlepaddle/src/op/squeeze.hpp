@@ -22,7 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-NamedOutputs nearest_interp_v2 (const NodeContext& node_context);
-NamedOutputs bilinear_interp_v2 (const NodeContext& node_context);
+NamedOutputs squeeze (const NodeContext& node);
 
 }}}}

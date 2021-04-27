@@ -14,15 +14,20 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-#include "node_context.hpp"
+#include <ngraph/opsets/opset6.hpp>
+#include "unsqueeze.hpp"
+#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
 
-NamedOutputs nearest_interp_v2 (const NodeContext& node_context);
-NamedOutputs bilinear_interp_v2 (const NodeContext& node_context);
+NamedOutputs unsqueeze (const NodeContext& node) {
+    auto data = node.get_ng_input("X");
+    auto axes = node.get_attribute<std::vector<int32_t>>("axes");
+    auto axesNode = ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
+    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Unsqueeze>(data, axesNode)}, {"Out"});
+}
 
 }}}}
