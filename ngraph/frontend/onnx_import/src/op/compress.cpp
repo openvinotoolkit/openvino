@@ -6,7 +6,6 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/validation_util.hpp"
 #include "op/compress.hpp"
 
 namespace ngraph
@@ -27,8 +26,6 @@ namespace ngraph
                     if (node.has_attribute("axis"))
                     {
                         axis = node.get_attribute_value<int64_t>("axis");
-                        axis = ngraph::normalize_axis(
-                            node.get_description(), axis, data.get_partial_shape().rank());
                     }
                     else
                     {

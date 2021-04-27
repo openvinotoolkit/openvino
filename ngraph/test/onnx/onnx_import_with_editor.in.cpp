@@ -22,9 +22,6 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
-using Inputs = std::vector<std::vector<float>>;
-using Outputs = std::vector<std::vector<float>>;
-
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ############################################################################ CORE TESTS
