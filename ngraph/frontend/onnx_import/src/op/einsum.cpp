@@ -11,7 +11,7 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_12
+            namespace set_1
             {
                 OutputVector einsum(const Node& node)
                 {
@@ -21,7 +21,7 @@ namespace ngraph
                         std::make_shared<default_opset::Einsum>(node.get_ng_inputs(), equation)};
                 }
 
-            } // namespace set_12
+            } // namespace set_1
 
         } // namespace op
 

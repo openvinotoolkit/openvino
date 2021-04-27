@@ -341,7 +341,7 @@ namespace ngraph
             REGISTER_OPERATOR("Dropout", 1, dropout);
             REGISTER_OPERATOR("Dropout", 7, dropout);
             REGISTER_OPERATOR("Dropout", 12, dropout);
-            REGISTER_OPERATOR("Einsum", 12, einsum);
+            REGISTER_OPERATOR("Einsum", 1, einsum);
             REGISTER_OPERATOR("Elu", 1, elu);
             REGISTER_OPERATOR("Equal", 1, equal);
             REGISTER_OPERATOR("Erf", 1, erf);
