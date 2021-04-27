@@ -217,16 +217,16 @@ void handle(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::N
         auto& rt = node->get_rt_info();
         rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
 
-        // 2. propagate
-        if (is_type<opset1::FakeQuantize>(node)) {
-            auto& outputPortRtInfo = node->outputs()[0].get_rt_info();
-            outputPortRtInfo[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
-        } else {
-            for (auto& input : node->inputs()) {
-                auto& rt = input.get_rt_info();
-                rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
-            }
-        }
+        //// 2. propagate
+        //if (is_type<opset1::FakeQuantize>(node)) {
+        //    auto& outputPortRtInfo = node->outputs()[0].get_rt_info();
+        //    outputPortRtInfo[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+        //} else {
+        //    for (auto& input : node->inputs()) {
+        //        auto& rt = input.get_rt_info();
+        //        rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+        //    }
+        //}
     }
 }
 

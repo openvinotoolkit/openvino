@@ -34,7 +34,7 @@ extern template class TRANSFORMATIONS_API ngraph::VariantImpl<PrecisionPreserved
 template<>
 class TRANSFORMATIONS_API ngraph::VariantWrapper<PrecisionPreservedAttribute> : public ngraph::VariantImpl<PrecisionPreservedAttribute> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "PRECISION_PRESERVED", 0 };
+    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::PrecisionPreserved", 0 };
 
     const ngraph::VariantTypeInfo& get_type_info() const override {
         return type_info;

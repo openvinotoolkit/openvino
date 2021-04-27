@@ -16,7 +16,7 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
-#include "rt_info/shared_attribute.hpp"
+#include "rt_info/shared_value_attribute.hpp"
 #include "rt_info/precisions_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"

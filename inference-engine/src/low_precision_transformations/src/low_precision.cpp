@@ -16,7 +16,11 @@
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/propagate_precisions.hpp"
+#include "low_precision/propagate_shared_value.hpp"
 #include "low_precision/align_concat_quantization_parameters.hpp"
+
+#include "low_precision/create_attribute.hpp"
+#include "low_precision/propagate_attribute_to_precision_preserved.hpp"
 
 //#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -67,6 +71,8 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<OperationPrecisionRestriction>& restrictions,
     const LayerTransformation::Params params) : restrictions(restrictions), params(params) {
 }
+
+using namespace ngraph::pass::low_precision;
 
 template <typename BaseOp>
 void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
@@ -152,6 +158,37 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     // 3. the attribute value set
     manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
     manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
+
+
+
+    //manager.register_pass<ngraph::pass::low_precision::PropagateSharedValue<PrecisionsAttribute>>();
+
+
+    // MatherPass set: return true to avoid next mather passes
+
+    //std::shared_ptr<ngraph::pass::GraphRewrite> avgPoolPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    //avgPoolPropagation->add_matcher<CreateAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
+    //avgPoolPropagation->add_matcher<PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+    //avgPoolPropagation->add_matcher<UpdateSharedValue<AvgPoolPrecisionPreservedAttribute, opset1::FakeQuantize>>();
+
+    std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    precisionsPropagation->add_matcher<CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(
+        CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>::CreateAttributeSource::OutputPort); // outputPort
+    precisionsPropagation->add_matcher<PropagateAttributeToPrecisionPreserved<PrecisionsAttribute>>();
+
+    //std::shared_ptr<ngraph::pass::GraphRewrite> intervalsAlignmentPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    //intervalsAlignmentPropagation->add_matcher<CreateAttribute<IntervalsAlignmentAttribute, opset1::FakeQuantize>>();
+    //intervalsAlignmentPropagation->add_matcher<PropagateAttributeToPrecisionPreserved<IntervalsAlignmentAttribute>>();
+
+    //std::shared_ptr<ngraph::pass::GraphRewrite> quantizationAlignmentPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    //quantizationAlignmentPropagation->add_matcher<CreateAttributeForChild<QuantizationAlignment, opset1::FakeQuantize>>();
+    //quantizationAlignmentPropagation->add_matcher<PropagateAttributeToPrecisionPreserved<QuantizationAlignment>>();
+
+    //propagation->add_matcher<ngraph::pass::low_precision::QuantizationAlignmentCompleteOperation<PrecisionsAttribute>>();
+
+    // template specialization by Node, Input, Output VS [Node]Propagation
+
+
 
     //{
     //    // TODO: just to DEBUG: use the same manager

@@ -39,7 +39,7 @@ extern template class TRANSFORMATIONS_API ngraph::VariantImpl<AvgPoolPrecisionPr
 template<>
 class TRANSFORMATIONS_API ngraph::VariantWrapper<AvgPoolPrecisionPreservedAttributePtr> : public ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "AVG_POOL_PRECISION_PRESERVED", 0 };
+    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::AvgPoolPrecisionPreserved", 0 };
 
     const ngraph::VariantTypeInfo& get_type_info() const override {
         return type_info;

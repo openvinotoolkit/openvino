@@ -30,7 +30,7 @@ template<>
 class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>> :
     public ngraph::VariantImpl<std::shared_ptr<IntervalsAlignmentAttribute>> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "INTERVALS_ALIGNMENT", 0 };
+    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::IntervalsAlignment", 0 };
 
     const ngraph::VariantTypeInfo& get_type_info() const override {
         return type_info;

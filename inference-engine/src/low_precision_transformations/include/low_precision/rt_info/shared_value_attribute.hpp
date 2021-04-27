@@ -18,16 +18,16 @@ template <class SharedAttributeType>
 class SharedValue;
 
 template <class SharedValueType>
-class SharedAttribute {
+class SharedValueAttribute {
 public:
-    SharedAttribute() : sharedValue(std::make_shared<SharedValueType>()) {};
-    virtual ~SharedAttribute() = default;
+    SharedValueAttribute() : sharedValue(std::make_shared<SharedValueType>()) {};
+    virtual ~SharedValueAttribute() = default;
     std::shared_ptr<SharedValueType> sharedValue;
 };
 
-template <class SharedAttributeType>
+template <class SharedValueAttributeType>
 class SharedValue {
 public:
     virtual ~SharedValue() = default;
-    std::vector<std::weak_ptr<SharedAttributeType>> attributes;
+    std::vector<std::weak_ptr<SharedValueAttributeType>> attributes;
 };

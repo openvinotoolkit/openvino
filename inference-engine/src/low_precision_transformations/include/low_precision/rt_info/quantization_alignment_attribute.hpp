@@ -29,7 +29,7 @@ template<>
 class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>> :
     public ngraph::VariantImpl<std::shared_ptr<QuantizationAlignmentAttribute>> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "QUANTIZATION_ALIGNMENT", 0 };
+    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::QuantizationAlignment", 0 };
 
     const ngraph::VariantTypeInfo& get_type_info() const override {
         return type_info;
