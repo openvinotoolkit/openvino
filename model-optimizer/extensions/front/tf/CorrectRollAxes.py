@@ -2,11 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import logging as log
-
-from extensions.ops.roll import Roll
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import correct_roll_axes
 from mo.graph.graph import Graph
 
