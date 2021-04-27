@@ -290,7 +290,9 @@ class Core::Impl : public ICore {
             networkIsImported = false;
         } catch (...) {
             cacheManager->removeCacheEntry(blobId);
-            throw;
+            networkIsImported = false;
+            // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
+            // throw;
         }
         return execNetwork;
     }
