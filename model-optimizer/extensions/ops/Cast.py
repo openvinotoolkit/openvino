@@ -39,7 +39,7 @@ class Cast(Op):
 
     @staticmethod
     def helper_value_propagation(node_name, value, dst_type):
-        new_blob, finite_match_count, zero_match_count = convert_blob(value, dst_type)
+        new_blob, finite_match_count, zero_match_count = convert_blob(value, dst_type, strict=False)
 
         if finite_match_count:
             log.error("{} elements of {} were clipped to infinity while converting an input blob for node '{}' to {}."
@@ -62,7 +62,7 @@ class Cast(Op):
         """
         assert dst_type in [packed_U4, packed_I4]
 
-        minimum_regular_dtype = np.uint8 if dst_type == packed_U4 else np.int8
+        minimum_regular_dtype = dst_type.closest_numpy_type
         # initial casing from the source type to the numpy-friendly type which could absorb all the values of dst_type
         casted_to_regular_type = Cast.helper_value_propagation(
             node.soft_get('name', node.id), value, minimum_regular_dtype)
