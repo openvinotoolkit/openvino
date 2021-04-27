@@ -183,6 +183,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);
