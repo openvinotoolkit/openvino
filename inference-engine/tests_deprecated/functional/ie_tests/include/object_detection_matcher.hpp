@@ -9,7 +9,6 @@
 #include <gtest/gtest.h>
 #include "base_matcher.hpp"
 #include <math.h>
-#include <ie_icnn_network.hpp>
 
 namespace Regression {
 namespace Matchers {

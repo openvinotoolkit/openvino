@@ -10,7 +10,6 @@
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>
-#include <ie_icnn_network.hpp>
 
 inline bool strContains(const std::string & str, const std::string & substr) {
     return str.find(substr) != std::string::npos;

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "ie_common.h"
+#include "ie_icnn_network.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_imemory_state.hpp"
 #include "ie_input_info.hpp"
