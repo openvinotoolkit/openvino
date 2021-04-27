@@ -63,7 +63,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
         m_weights_composed = true;
         auto weights_file = m_path.replace(m_path.size() - ext.size(), ext.size(), ".pdiparams");
         m_weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
-        PDPD_ASSERT(m_weights_stream && m_weights_stream->is_open(), "Model file cannot be opened");
+        //PDPD_ASSERT(m_weights_stream && m_weights_stream->is_open(), "Model file cannot be opened");
     } else {
         m_weights_composed = false;
         model_file += "/__model__";
@@ -228,7 +228,10 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue (Place::Ptr place, const
     auto tensor_place = pdpd::castToTensorPlace(place);
     auto p_shape = tensor_place->getPartialShape();
     auto type = tensor_place->getElementType();
-    m_tensor_values[tensor_place->getNames()[0]] = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto name = tensor_place->getNames()[0];
+    constant->set_friendly_name(name);
+    m_tensor_values[name] = constant;
 }
 
 InputModelPDPD::InputModelPDPD (const std::string& _path) : _impl{std::make_shared<InputModelPDPDImpl>(_path, *this)} {}

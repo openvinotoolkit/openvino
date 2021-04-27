@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "../include/cut_specific_model.hpp"
 #include "../include/utils.hpp"
+#include "../../../../core/include/ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -227,10 +228,12 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue) {
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
-    // Ensure that it doesn't contain old input
-    auto name = m_param.m_op_before_name;
-    EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                             [&](const std::shared_ptr<ngraph::Node>& node) {
-                                 return node->get_friendly_name().find(name) != std::string::npos;
-                             }) == ops.end()) << "Name shall not exist:" << name;
+    auto const_name = m_param.m_tensorValueName;
+    auto const_node_it = std::find_if(ops.begin(), ops.end(),
+                                   [&](const std::shared_ptr<ngraph::Node>& node) {
+                                       return node->get_friendly_name().find(const_name) != std::string::npos;
+                                   });
+    ASSERT_TRUE(const_node_it != ops.end()) << "Name shall exist:" << const_name;
+    auto data = std::dynamic_pointer_cast<opset7::Constant>(*const_node_it)->get_vector<float>();
+    EXPECT_TRUE(std::equal(data.begin(), data.end(), m_param.m_tensorValue.begin())) << "Data must be equal";
 }
