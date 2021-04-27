@@ -396,7 +396,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes)
         file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze_opset13_no_axes.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    const auto data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
     test_case.add_expected_output<float>(Shape{4, 2}, data);
     test_case.run();
