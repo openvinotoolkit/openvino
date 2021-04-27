@@ -3,7 +3,7 @@
 
 import os
 
-from .reporter import ComplianceReporter
+from tests.coverage.compliance.reporter import ComplianceReporter
 
 reporter = ComplianceReporter()
 
@@ -14,7 +14,7 @@ def pytest_runtest_call(item):
 
 def pytest_runtest_logreport(report):
     if report.when == "call":
-        reporter.add_test_result(report.nodeid, report.outcome)
+        reporter.add_test_result(report)
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus):

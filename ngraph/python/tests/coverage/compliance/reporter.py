@@ -8,6 +8,7 @@ class ONNXTest:
     def __init__(self, item):
         self.name = item.name
         self.mark = item.get_closest_marker("onnx_coverage")
+        self.error = ""
         self.result = ""
         self.op = find_tested_op(item.nodeid)
 
@@ -24,9 +25,11 @@ class ComplianceReporter:
         if test_info.mark.args[1] != "RealModel":
             self.test_info[item.nodeid] = test_info
 
-    def add_test_result(self, nodeid, result):
-        if nodeid in self.test_info:
-            self.test_info[nodeid].result = result
+    def add_test_result(self, report):
+        if report.nodeid in self.test_info:
+            self.test_info[report.nodeid].result = report.outcome
+            if report.outcome == "failed":
+                self.test_info[report.nodeid].error = self._extract_error(report.longrepr)
 
     def report_tests(self, report_path):
         self.test_report.sort()
@@ -53,7 +56,7 @@ class ComplianceReporter:
     def prepare_report_data(self):
         for nodeid in self.test_info:
             test = self.test_info[nodeid]
-            self.test_report.append(test.name + ";" + test.result + "\n")
+            self.test_report.append(test.name + ";" + test.result + ";" + test.error + "\n")
             self.add_test_result_to_op_statistics(test)
 
     def add_test_result_to_op_statistics(self, test):
@@ -81,3 +84,11 @@ class ComplianceReporter:
             assert len(model) == 1
             model = model[0]
         return model
+
+    def _extract_error(self, test_log):
+        for entry in test_log.reprtraceback.reprentries:
+            error_msg = ""
+            for line in entry.lines:
+                if line.startswith("E   "):
+                    error_msg = error_msg + " " + line
+        return error_msg.strip()
