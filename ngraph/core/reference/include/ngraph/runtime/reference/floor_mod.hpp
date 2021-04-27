@@ -32,6 +32,6 @@ namespace ngraph
                         return x - y * std::floor(x / divisor);
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

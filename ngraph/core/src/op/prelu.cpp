@@ -73,7 +73,7 @@ namespace prelu
         }
         return rc;
     }
-}
+} // namespace prelu
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

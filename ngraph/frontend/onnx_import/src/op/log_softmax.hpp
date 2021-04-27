@@ -23,7 +23,7 @@ namespace ngraph
             {
                 OutputVector log_softmax(const Node& node);
 
-            } // namespace set_1
+            } // namespace set_13
 
         } // namespace op
 

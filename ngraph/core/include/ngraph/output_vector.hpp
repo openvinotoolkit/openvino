@@ -16,4 +16,4 @@ namespace ngraph
 
     using NodeVector = std::vector<std::shared_ptr<Node>>;
     using OutputVector = std::vector<Output<Node>>;
-}
+} // namespace ngraph
