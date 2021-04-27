@@ -23,7 +23,7 @@ void regclass_pyngraph_Function(py::module m)
                  py::arg("results"),
                  py::arg("parameters"),
                  py::arg("name"),
-                 R"mydelimiter(
+                 R"(
                     Create Function.
 
                     Parameters
@@ -36,14 +36,14 @@ void regclass_pyngraph_Function(py::module m)
 
                     name : str
                         String to set as function's freindly name.
-                 )mydelimiter");
+                 )");
     function.def(py::init<const std::shared_ptr<ngraph::Node>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
                           const std::string&>(),
                  py::arg("result"),
                  py::arg("parameters"),
                  py::arg("name"),
-                 R"mydelimiter(
+                 R"(
                     Create Function.
 
                     Parameters
@@ -56,41 +56,41 @@ void regclass_pyngraph_Function(py::module m)
 
                     name : str
                         String to set as function's freindly name.
-                 )mydelimiter");
+                 )");
     function.def("get_output_size",
                  &ngraph::Function::get_output_size,
-                 R"mydelimiter(
+                 R"(
                     Return the number of outputs for the function.
 
                     Returns
                     ----------
                     get_output_size : int
                         Number of outputs.
-                 )mydelimiter");
+                 )");
     function.def("get_ops",
                  &ngraph::Function::get_ops,
-                 R"mydelimiter(
+                 R"(
                     Return ops used in the function.
 
                     Returns
                     ----------
                     get_ops : List[Node]
                         List of Nodes representing ops used in function.
-                 )mydelimiter");
+                 )");
     function.def("get_ordered_ops",
                  &ngraph::Function::get_ordered_ops,
-                 R"mydelimiter(
+                 R"(
                     Return ordered ops used in the function.
 
                     Returns
                     ----------
                     get_ordered_ops : List[Node]
                         List of sorted Nodes representing ops used in function.
-                 )mydelimiter");
+                 )");
     function.def("get_output_op",
                  &ngraph::Function::get_output_op,
                  py::arg("i"),
-                 R"mydelimiter(
+                 R"(
                     Return the op that generates output i
 
                     Parameters
@@ -102,11 +102,11 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     get_output_op : Node
                         Node object that generates output i
-                )mydelimiter");
+                )");
     function.def("get_output_element_type",
                  &ngraph::Function::get_output_element_type,
                  py::arg("i"),
-                 R"mydelimiter(
+                 R"(
                     Return the element type of output i
 
                     Parameters
@@ -118,11 +118,11 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     get_output_op : Type
                         Type object of output i
-                 )mydelimiter");
+                 )");
     function.def("get_output_shape",
                  &ngraph::Function::get_output_shape,
                  py::arg("i"),
-                 R"mydelimiter(
+                 R"(
                     Return the shape of element i
 
                     Parameters
@@ -134,11 +134,11 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     get_output_shape : Shape
                         Shape object of element i
-                 )mydelimiter");
+                 )");
     function.def("get_output_partial_shape",
                  &ngraph::Function::get_output_partial_shape,
                  py::arg("i"),
-                 R"mydelimiter(
+                 R"(
                     Return the partial shape of element i
 
                     Parameters
@@ -150,50 +150,50 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     get_output_partial_shape : PartialShape
                         PartialShape object of element i
-                 )mydelimiter");
+                 )");
     function.def("get_parameters",
                  &ngraph::Function::get_parameters,
-                 R"mydelimiter(
+                 R"(
                     Return the function parameters.
 
                     Returns
                     ----------
                     get_parameters : ParameterVector
                         ParameterVector containing function parameters.
-                 )mydelimiter");
+                 )");
     function.def("get_results",
                  &ngraph::Function::get_results,
-                 R"mydelimiter(
+                 R"(
                     Return a list of function outputs.
 
                     Returns
                     ----------
                     get_results : ResultVector
                         ResultVector containing function parameters.
-                 )mydelimiter");
+                 )");
     function.def("get_result",
                  &ngraph::Function::get_result,
-                 R"mydelimiter(
+                 R"(
                     Return single result.
 
                     Returns
                     ----------
                     get_result : Node
                         Node object representing result.
-                 )mydelimiter");
+                 )");
     function.def("get_name",
                  &ngraph::Function::get_name,
-                 R"mydelimiter(
+                 R"(
                     Get the unique name of the function.
 
                     Returns
                     ----------
                     get_name : str
                         String with a name of the function.
-                 )mydelimiter");
+                 )");
     function.def("get_friendly_name",
                  &ngraph::Function::get_friendly_name,
-                 R"mydelimiter(
+                 R"(
                     Gets the friendly name for a function. If no
                     friendly name has been set via set_friendly_name
                     then the function's unique name is returned.
@@ -202,11 +202,11 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     get_friendly_name : str
                         String with a friendly name of the function.
-                 )mydelimiter");
+                 )");
     function.def("set_friendly_name",
                  &ngraph::Function::set_friendly_name,
                  py::arg("name"),
-                 R"mydelimiter(
+                 R"(
                     Sets a friendly name for a function. This does
                     not overwrite the unique name of the function and
                     is retrieved via get_friendly_name(). Used mainly
@@ -216,17 +216,17 @@ void regclass_pyngraph_Function(py::module m)
                     ----------
                     name : str
                         String to set as the friendly name.
-                 )mydelimiter");
+                 )");
     function.def("is_dynamic",
                  &ngraph::Function::is_dynamic,
-                 R"mydelimiter(
+                 R"(
                     Returns true if any of the op's defined in the function 
                     contains partial shape.
 
                     Returns
                     ----------
                     is_dynamic : bool
-                 )mydelimiter");
+                 )");
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::stringstream shapes_ss;
