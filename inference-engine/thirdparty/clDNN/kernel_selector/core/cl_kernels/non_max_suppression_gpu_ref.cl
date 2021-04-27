@@ -243,7 +243,6 @@ KERNEL (non_max_suppression_ref_stage_0)(
                 total_block_selected_num++;
             }
             bit_mask[mask_id] = mask;
-            //printf(" [%3d][%3d][] i(%d) mask_id(%d) mask(%d)\n", batchId, classId, i, mask_id, mask);
             mask_id++;
         }
 
@@ -285,12 +284,7 @@ KERNEL (non_max_suppression_ref_stage_0)(
                     binfo.suppress_begin_index = 0;
                     binfo.score = score8[bi];
                     sortedBoxList[write_offset] = binfo;
-                    //printf("{K} first1 [%3d][%3d][%3d] score(%.2f)\n", batchId, classId, binfo.boxId, binfo.score);
                     write_offset++;
-                }
-                else
-                {
-                    //printf("{K} [%3d][%3d][???] first2 mask_id(%d) mask(%d) i(%d) bi(%d) NUM_BOXES(%d)\n", batchId, classId, mask_id, mask, i, bi, NUM_BOXES);
                 }
             }
             mask_id++;
@@ -376,7 +370,6 @@ KERNEL (non_max_suppression_ref_stage_2)(
 {
     int batchId = get_global_id(0);
     int classId = get_global_id(1);
-    PRINT("IS_SECOND_ITER-1 [%3d][%3d][0]\n", batchId, classId);
 
     float scale = 0.0f;
     if (SOFT_NMS_SIGMA_VAL > 0.0f) {
@@ -434,11 +427,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
         }
     }
 
-    //if (iouNum > 100)
-    //    printf("  [%3d][%3d][0] sortedNum(%d) iouNum(%d) selectedBoxNum(%d)\n", batchId, classId, buffer3[batchId * NUM_CLASSES + classId], iouNum, selectedBoxNum);
-
     // Set pad value to indicate the end of selected box list.
-    //printf("{K} selectedBoxNum(%d) NUM_BOXES(%ld)\n", selectedBoxNum, NUM_BOXES);
     if (selectedBoxNum < NUM_BOXES) {
         selectedBoxList[selectedBoxNum].batchId = -1;
     }
@@ -467,7 +456,6 @@ KERNEL (non_max_suppression_ref_stage_final)(
             __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
             for (int i = 0; i < NUM_BOXES; i++) {
                 if (selectedBoxList[i].batchId > -1) {
-                    //printf("{K} third_copy %3d/%3d/%3d - score(%.2f)\n", selectedBoxList[i].batchId, selectedBoxList[i].classId, selectedBoxList[i].boxId, selectedBoxList[i].score);
                     sortedBoxList[outputIdx] = selectedBoxList[i];
                     outputIdx++;
                 } else {
@@ -481,13 +469,11 @@ KERNEL (non_max_suppression_ref_stage_final)(
     FUNC_CALL(sortOutputBoxList)(sortedBoxList, outputIdx);
 #endif
     int output_num = outputIdx;
-    //printf("{K}   output_num: %d\n", output_num);
     unroll_for (int i = 0; i < output_num; i++) {
         const int offset = 3 * i;
         output[offset + 0] = sortedBoxList[i].batchId;
         output[offset + 1] = sortedBoxList[i].classId;
         output[offset + 2] = sortedBoxList[i].boxId;
-        //printf("{K}   [%3ld] %3d/%3d/%3d\n", offset, output[offset + 0], output[offset + 1], output[offset + 2]);
     }
 
     // Padding
