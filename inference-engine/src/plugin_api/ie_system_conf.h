@@ -45,9 +45,12 @@ INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableCoresTypes();
 
 /**
  * @brief      Returns number of CPU physical cores on Linux/Windows (which is considered to be more performance friendly for servers)
- *             (on other OSes it simply relies on the original parallel API of choice, which usually uses the logical cores )
+ *             (on other OSes it simply relies on the original parallel API of choice, which usually uses the logical cores).
+ *                     call function with 'false' to get #phys cores of all types
+ *                     call function with 'true' to get #phys 'Big' cores
+ *                     number of 'Little' = 'all' - 'Big'
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only
+ * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
 INFERENCE_ENGINE_API_CPP(int) getNumberOfCPUCores(bool bigCoresOnly = false);

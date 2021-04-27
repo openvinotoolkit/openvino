@@ -74,7 +74,7 @@ struct CPUStreamsExecutor::Impl {
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
-                   if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
+                   if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
                        _taskArena.reset(new custom::task_arena{concurrency});
                    } else {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType

@@ -88,11 +88,11 @@ public:
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
         int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
         enum PreferredCoreType {
-            NONE,
+            ANY,
             LITTLE,
             BIG,
-            ROUND_ROBIN // for multiple streams
-        }                  _threadPreferredCoreType = PreferredCoreType::NONE; //!< In case of @ref HYBRID_AWARE give the TBB a hint to affitize the execution
+            ROUND_ROBIN // used w/multiple streams to populate the Big cores first, then the Little, then wrap around (for large #streams)
+        }                  _threadPreferredCoreType = PreferredCoreType::ANY; //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
         /**
          * @brief      A constructor with arguments
@@ -114,7 +114,7 @@ public:
             int                threadBindingStep       = 1,
             int                threadBindingOffset     = 0,
             int                threads                 = 0,
-            PreferredCoreType  threadPreferredCoreType = PreferredCoreType::NONE) :
+            PreferredCoreType  threadPreferredCoreType = PreferredCoreType::ANY) :
         _name{name},
         _streams{streams},
         _threadsPerStream{threadsPerStream},

@@ -158,7 +158,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             bLatencyCase
                 ? (bLatencyCaseBigOnly
                     ? IStreamsExecutor::Config::PreferredCoreType::BIG
-                    : IStreamsExecutor::Config::PreferredCoreType::NONE)
+                    : IStreamsExecutor::Config::PreferredCoreType::ANY)
                 : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
         // additionally selecting the #cores to use in the "Big-only" case
         if (bLatencyCaseBigOnly) {
