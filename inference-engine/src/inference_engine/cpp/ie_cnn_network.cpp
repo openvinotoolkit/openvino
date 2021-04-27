@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_icnn_network.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exception2status.hpp"
 
