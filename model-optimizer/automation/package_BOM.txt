@@ -382,11 +382,13 @@ extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
+extensions/front/tf/ComplexAbs.py
 extensions/front/tf/ComplexAbsAfterComplex.py
 extensions/front/tf/concat.py
 extensions/front/tf/concat_ext.py
 extensions/front/tf/const_ext.py
 extensions/front/tf/conv_ext.py
+extensions/front/tf/CorrectRollAxes.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
@@ -497,6 +499,7 @@ extensions/front/tf/ssd_toolbox_detection_output.json
 extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
 extensions/front/tf/SSDToolboxDetectionOutput.py
+extensions/front/tf/SSliceComplex.py
 extensions/front/tf/SSliceComplexRoll.py
 extensions/front/tf/swap_deconv_inputs.py
 extensions/front/tf/swish_ext.py
