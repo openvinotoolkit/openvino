@@ -11,6 +11,28 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
 class ComplexAbsAfterComplex(FrontReplacementSubgraph):
+    """
+    This transformation converts a sub-graph
+
+    SomeOp1    SomeOp2
+       |          |
+       ------------
+            |
+         Complex
+            |
+        ComplexAbs
+
+    into the sub-graph
+
+                SomeOp1      SomeOp2
+                   |           |
+     Constant[2]--Pow         Pow--Constant[2]
+                   |           |
+                   -------------
+                        Add
+                         |
+                        Pow--Constant[0.5]
+    """
     enabled = True
 
     def pattern(self):
