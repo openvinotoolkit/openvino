@@ -119,6 +119,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 pluginGna2DeviceConsistent = procType->second.second;
 #endif
             }
+        } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
+            gnaExecTarget = value;
+        } else if (key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
+            gnaCompileTarget = value;
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.compact_mode = true;
@@ -257,13 +261,15 @@ void Config::AdjustKeyMapValues() {
             if (value.second.first == pluginGna2AccMode &&
                 value.second.second == pluginGna2DeviceConsistent) {
                 device_mode = value.first;
-            break;
-        }
+                break;
+            }
 #endif
         }
     }
     IE_ASSERT(!device_mode.empty());
     keyConfigMap[GNA_CONFIG_KEY(DEVICE_MODE)] = device_mode;
+    keyConfigMap[GNA_CONFIG_KEY(EXEC_TARGET)] = gnaExecTarget;
+    keyConfigMap[GNA_CONFIG_KEY(COMPILE_TARGET)] = gnaCompileTarget;
     keyConfigMap[GNA_CONFIG_KEY(COMPACT_MODE)] =
             gnaFlags.compact_mode ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =

@@ -55,6 +55,9 @@ struct Config {
     std::string dumpXNNPath;
     std::string dumpXNNGeneration;
 
+    std::string gnaExecTarget;
+    std::string gnaCompileTarget;
+
 #if GNA_LIB_VER == 1
     intel_gna_proc_t gna_proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
 #else
