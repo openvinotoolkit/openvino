@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import numpy as np
-
 from extensions.ops.elementwise import Add, Pow
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -12,7 +10,7 @@ from mo.graph.graph import Graph, rename_nodes
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
-class ComplexAbs(FrontReplacementSubgraph):
+class ComplexAbsAfterComplex(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
