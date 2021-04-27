@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
@@ -72,6 +73,22 @@ class TestingVersionsChecker(unittest.TestCase):
         parse_and_filter_versions_list(v1, req_list, {})
         ref_list = [('mxnet', '>=', '1.0.0'),
                     ('mxnet', '<=', '1.3.1')]
+        for i, v in enumerate(req_list):
+            self.assertEqual(v, ref_list[i])
+
+    def test_append_version_list_sys(self):
+        v1 = "mxnet>=1.7.0; sys_platform != 'win32'"
+        req_list = list()
+        parse_and_filter_versions_list(v1, req_list, {})
+        ref_list = [('mxnet', '>=', '1.7.0')] if sys.platform != 'win32' else []
+        for i, v in enumerate(req_list):
+            self.assertEqual(v, ref_list[i])
+
+    def test_append_version_list_sys_neg(self):
+        v1 = "mxnet>=1.7.0; sys_platform == 'linux'"
+        req_list = list()
+        parse_and_filter_versions_list(v1, req_list, {})
+        ref_list = [('mxnet', '>=', '1.7.0')] if sys.platform != 'win32' else []
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
