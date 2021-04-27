@@ -3,6 +3,8 @@
 //
 
 #include <vector>
+#include <thread>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
 #include "gna_matcher.hpp"
@@ -18,6 +20,15 @@ class GNAAOTTests : public GNATest<>{
         files_to_remove.push_back(file_to_remove);
         return file_to_remove;
     }
+
+    std::string generateFileName(const std::string& baseName) const {
+        using namespace std::chrono;
+        std::stringstream ss;
+        auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
+        ss << std::this_thread::get_id() << "_" << ts.count() << "_" << baseName;
+        return ss.str();
+    }
+
     void TearDown() override {
         for (auto & file : files_to_remove) {
             std::remove(file.c_str());
@@ -30,7 +41,7 @@ class GNAAOTTests : public GNATest<>{
 
 TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
@@ -52,7 +63,7 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_stru
     save_args().onInferModel(AffineWith2AffineOutputsModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).from().gna().propagate_forward().to(&nnet_type);
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
@@ -70,7 +81,7 @@ TEST_F(GNAAOTTests, TwoInputsModel_canbe_export_imported) {
     GTEST_SKIP();
 #endif
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(TwoInputsModelForIO())
@@ -90,7 +101,7 @@ TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
     GTEST_SKIP();
 #endif
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(PermuteModelForIO())
@@ -107,7 +118,7 @@ TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
     GTEST_SKIP();
 #endif
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(maxpoolAfterRelu())
@@ -127,7 +138,7 @@ TEST_F(GNAAOTTests, DISABLED_CanConvertFromAOTtoSueModel) {
         .inNotCompactMode().inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .from().gna().propagate_forward().to(&nnet_type);
 
-    const std::string X = registerFileForRemove("unit_tests.bin");
+    const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
