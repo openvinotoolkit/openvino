@@ -38,16 +38,6 @@ private:
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
 
-    typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> transposeImpl;
-    typedef std::function<bool(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
-    struct TransposeImpl {
-        TransposeImpl(transposeImpl f0, isApplicable f1): execute(std::move(f0)), isValidParams(std::move(f1)) {}
-
-        transposeImpl execute;
-        isApplicable isValidParams;
-    };
-
-    static const std::multimap<InferenceEngine::SizeVector, TransposeImpl> OptimizedCases;
     std::unique_ptr<PermuteKernel> permuteKernel;
 };
 
