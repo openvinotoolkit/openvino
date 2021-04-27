@@ -56,7 +56,7 @@ void regclass_pyngraph_Dimension(py::module m)
                                 Returns
                                 ----------
                                 is_dynamic : bool
-                                    False if dynamic, else True.
+                                    True if dynamic, else False.
                               )");
     dim.def_property_readonly("is_static",
                               &ngraph::Dimension::is_static,
@@ -66,7 +66,7 @@ void regclass_pyngraph_Dimension(py::module m)
                                 Returns
                                 ----------
                                 is_static : bool
-                                    False if static, else True.
+                                    True if static, else False.
                               )");
 
     dim.def(
