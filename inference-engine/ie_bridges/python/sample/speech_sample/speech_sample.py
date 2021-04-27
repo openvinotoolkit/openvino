@@ -6,15 +6,15 @@ import argparse
 import logging as log
 import sys
 from collections.abc import Iterable
+from io import BufferedReader
 from timeit import default_timer
 
-import cv2
 import numpy as np
 from openvino.inference_engine import ExecutableNetwork, IECore
 
 
 def parse_args() -> argparse.Namespace:
-    '''Parse and return command line arguments'''
+    """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -36,20 +36,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_scale_factor(matrix: np.ndarray) -> float:
-    '''Get scale factor for quantization using utterance matrix'''
+    """Get scale factor for quantization using utterance matrix"""
     # Max to find scale factor
-    TARGET_MAX = 16384
+    target_max = 16384
     max_val = np.max(matrix)
     if max_val == 0:
         return 1.0
     else:
-        return TARGET_MAX / max_val
+        return target_max / max_val
 
 
 def read_ark_file(file_name: str) -> list:
-    '''Read utterance matrices from a .ark file'''
-    def read_key(file) -> str:
-        '''Read a identifier of utterance matrix'''
+    """Read utterance matrices from a .ark file"""
+    def read_key(file: BufferedReader) -> str:  # noqa: VNE002
+        """Read a identifier of utterance matrix"""
         key = ''
         while True:
             char = file.read(1).decode()
@@ -60,8 +60,8 @@ def read_ark_file(file_name: str) -> list:
 
         return key
 
-    def read_matrix(file) -> np.ndarray:
-        '''Read a utterance matrix'''
+    def read_matrix(file: BufferedReader) -> np.ndarray:  # noqa: VNE002
+        """Read a utterance matrix"""
         header = file.read(5).decode()
         if 'FM' in header:
             num_of_bytes = 4
@@ -86,7 +86,7 @@ def read_ark_file(file_name: str) -> list:
 
 
 def write_ark_file(file_name: str, matrices: Iterable):
-    '''Write utterance matrices to a .ark file'''
+    """Write utterance matrices to a .ark file"""
     with open(file_name, 'wb') as file:
         for i, matrix in enumerate(matrices):
             # write a matrix key
@@ -111,7 +111,7 @@ def write_ark_file(file_name: str, matrices: Iterable):
 
 
 def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: str, out_blob: str) -> np.ndarray:
-    '''Do a synchronous matrix inference'''
+    """Do a synchronous matrix inference"""
     batch_size, num_of_dims = exec_net.outputs[out_blob].shape
     result = np.ndarray((matrix.shape[0], num_of_dims))
 
