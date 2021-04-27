@@ -20,7 +20,7 @@
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/exception2status.hpp"
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
+#include "ie_infer_async_request_base.hpp"
 
 namespace InferenceEngine {
 

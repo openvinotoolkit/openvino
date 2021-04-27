@@ -4,18 +4,10 @@
 
 #include "ie_icnn_network.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "cpp_interfaces/exception2status.hpp"
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
-
-#define CALL_STATUS_FNC(function, ...)                                                          \
-    if (!actual) IE_THROW() << "Wrapper used was not initialized.";                             \
-    ResponseDesc resp;                                                                          \
-    auto res = actual->function(__VA_ARGS__, &resp);                                            \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
-                <<= std::stringstream{} << IE_LOCATION << resp.msg)
-
 
 namespace InferenceEngine {
 

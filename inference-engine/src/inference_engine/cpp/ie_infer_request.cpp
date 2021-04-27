@@ -6,10 +6,11 @@
 #include <memory>
 #include <string>
 
-#include "cpp/ie_infer_request.hpp"
-#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 #include "ie_remote_context.hpp"
+
+#include "cpp/ie_infer_request.hpp"
+#include "cpp/ie_infer_async_request_base.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 namespace InferenceEngine {
 
@@ -30,8 +31,8 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(NetworkNotRead)      \
         CATCH_IE_EXCEPTION(InferCancelled)
 
-#define INFER_REQ_CALL_STATEMENT(...)                                                                        \
-    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";                     \
+#define INFER_REQ_CALL_STATEMENT(...)                                                              \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                    \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
