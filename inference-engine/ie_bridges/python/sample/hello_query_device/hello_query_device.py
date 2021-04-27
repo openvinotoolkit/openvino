@@ -9,7 +9,7 @@ from openvino.inference_engine import IECore
 
 
 def param_to_string(metric) -> str:
-    '''Convert a list / tuple of parameters returned from IE to a string'''
+    """Convert a list / tuple of parameters returned from IE to a string"""
     if isinstance(metric, (list, tuple)):
         return ', '.join([str(x) for x in metric])
     else:

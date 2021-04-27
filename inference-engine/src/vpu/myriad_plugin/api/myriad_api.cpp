@@ -4,7 +4,7 @@
 
 #include <memory>
 #include "myriad_plugin.h"
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 
 using namespace InferenceEngine;
 using namespace vpu::MyriadPlugin;

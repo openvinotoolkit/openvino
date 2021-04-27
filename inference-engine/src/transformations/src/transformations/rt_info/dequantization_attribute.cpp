@@ -46,12 +46,12 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<DequantizationAttr>::init(const 
 
 std::string getDequantization(const std::shared_ptr<ngraph::Node>& node) {
     const auto& rtInfo = node->get_rt_info();
-    using getDequantizationWraper = VariantWrapper<DequantizationAttr>;
+    using getDequantizationWrapper = VariantWrapper<DequantizationAttr>;
 
-    if (!rtInfo.count(getDequantizationWraper::type_info.name)) return "";
+    if (!rtInfo.count(getDequantizationWrapper::type_info.name)) return "";
 
-    const auto& attr = rtInfo.at(getDequantizationWraper::type_info.name);
-    DequantizationAttr pp = as_type_ptr<getDequantizationWraper>(attr)->get();
+    const auto& attr = rtInfo.at(getDequantizationWrapper::type_info.name);
+    DequantizationAttr pp = as_type_ptr<getDequantizationWrapper>(attr)->get();
     return pp.getDequantizationAttr();
 }
 
