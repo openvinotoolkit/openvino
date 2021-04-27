@@ -23,7 +23,7 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
         **regular_op('memoryoffset_0', {'type': None, 'op': 'MemoryOffset', 't': -1, 'has_default': False}),
         **regular_op('memoryoffset_1', {'type': None, 'op': 'MemoryOffset', 't': 0, 'has_default': False}),
         **regular_op('memoryoffset_2', {'type': None, 'op': 'MemoryOffset', 't': 1, 'has_default': True}),
-        **regular_op('conv', {'op': 'Convolution', 'type': 'Convolution', 'output': 12, 'patch_stride': 80}),
+        **regular_op('conv', {'op': 'Convolution', 'type': 'Convolution', 'output': 12, 'height_in': 80}),
     }
 
     def test_timeheightconvolution_1offset(self):
@@ -48,7 +48,8 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
 
         ref_graph = build_graph(self.nodes, [
             *connect_front('placeholder', 'memoryoffset_0'),
-            *connect_front('memoryoffset_0', '0:conv'),
+            *connect_front('memoryoffset_0', '0:concat'),
+            *connect_front('concat', '0:conv'),
             *connect_front('weights', '1:conv'),
             *connect_front('biases', '2:conv'),
             *connect_front('conv', 'placeholder_out')

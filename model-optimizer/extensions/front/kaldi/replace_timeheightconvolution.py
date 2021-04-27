@@ -15,8 +15,7 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
 
     def run_after(self):
         from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
-        from extensions.front.restore_ports import RestorePorts
-        return [MoveEmbeddedInputsToInputs, RestorePorts]
+        return [MoveEmbeddedInputsToInputs]
 
     def run_before(self):
         from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
@@ -38,34 +37,20 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
         in_name = node.soft_get('name', node.id)
         rename_node(node, in_name + '/to_delete')
 
-        # input for convolution
-        prev = node.in_port(0).get_source()
         # create memoryoffsets for context gathering
         # we need concat if time offsets more than 1
-        if len(all_time_offsets) > 1:
-            concat = Concat(graph, attrs={'name': in_name + '/Concat',
-                                          'in_ports_count': len(all_time_offsets)}).create_node()
-            i = 0
-            for t in all_time_offsets:
-                # if time offset included in required_time_offsets we don't need default value
-                has_default = t not in req_time_offsets
-                memoff = MemoryOffset(graph, attrs={'name': in_name + '/MemoryOffset_' + str(i),
-                                                    't': t, 'has_default': has_default, 'splitted': False,
-                                                    'pair_name': in_name + '/MemoryOffset_pair_' + str(i)}).create_node()
-                concat.in_port(i).connect(memoff.out_port(0))
-                memoff.in_port(0).connect(node.in_port(0).get_source())
-                i = i + 1
-            prev = concat.out_port(0)
-        # no need to create concat for 1 offset
-        elif len(all_time_offsets) == 1:
-            t = all_time_offsets.pop()
+        concat = Concat(graph, attrs={'name': in_name + '/Concat',
+                                      'in_ports_count': len(all_time_offsets)}).create_node()
+        i = 0
+        for t in all_time_offsets:
+            # if time offset included in required_time_offsets we don't need default value
             has_default = t not in req_time_offsets
-            memoff = MemoryOffset(graph, attrs={'name': in_name + '/MemoryOffset',
-                                                'has_default': has_default, 'splitted': False,
-                                                'pair_name': in_name + '/MemoryOffset_pair',
-                                                't': t}).create_node()
+            memoff = MemoryOffset(graph, attrs={'name': in_name + '/MemoryOffset_' + str(i),
+                                                't': t, 'has_default': has_default, 'splitted': False,
+                                                'pair_name': in_name + '/MemoryOffset_pair_' + str(i)}).create_node()
+            concat.in_port(i).connect(memoff.out_port(0))
             memoff.in_port(0).connect(node.in_port(0).get_source())
-            prev = memoff.out_port(0)
+            i = i + 1
 
         stride = node.soft_get("height_subsample", 1)
 
@@ -80,10 +65,10 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
         dilation_t = (max(offsets[:, 0]) - min(offsets[:, 0])) / (kernel[0] - 1) if kernel[0] > 1 else 1
         dilation_h = (max(offsets[:, 1]) - min(offsets[:, 1])) / (kernel[1] - 1) if kernel[0] > 1 else 1
 
-        mapping_rule = {
+        conv_attrs = {
             'name': in_name,
             'output': node['out_channels'],
-            'patch_stride': node.height_in,
+            'height_in': node.height_in,
             'bias_term': None,
             'pad': int64_array([[0, 0], [0, 0], [0, 0], pad_h]),
             'pad_spatial_shape': int64_array([[0, 0], pad_h]),
@@ -101,8 +86,8 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
             'reshape_kernel': True,
             'bias_addable': True,
         }
-        conv = Convolution(graph, attrs=mapping_rule).create_node()
-        conv.in_port(0).connect(prev)
+        conv = Convolution(graph, attrs=conv_attrs).create_node()
+        conv.in_port(0).connect(concat.out_port(0))
         conv.in_port(1).connect(node.in_port(1).get_source())
 
         # change layout for weights from OHWI to OIHW
@@ -115,8 +100,4 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
 
         conv.in_port(2).connect(node.in_port(2).get_source())
         node.out_port(0).get_connection().set_source(conv.out_port(0))
-        node.in_port(0).disconnect()
-        node.in_port(1).disconnect()
-        node.in_port(2).disconnect()
-
-        return
+        graph.remove_node(node.id)
