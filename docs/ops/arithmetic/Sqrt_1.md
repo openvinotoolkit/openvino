@@ -4,7 +4,14 @@
 
 **Category**: Arithmetic unary operation
 
-**Short description**: *Sqrt* performs element-wise square root operation with given tensor.
+**Short description**: Square root element-wise operation.
+
+**Detailed description**: *Sqrt* performs element-wise square root operation on a given input tensor *a*, as in the following mathematical formula, where `o` is the output tensor:
+
+\f[
+o_{i} = \sqrt{a_{i}}
+\f]
+
 
 **Attributes**: *Sqrt* operation has no attributes.
 
