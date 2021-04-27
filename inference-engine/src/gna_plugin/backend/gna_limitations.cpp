@@ -8,6 +8,8 @@
 
 using GNAPluginNS::GNALimitations::Cnn2D::Validator;
 using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimit;
+using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimitByChannels;
+using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimitByChannelsAndPrecision;
 using GNAPluginNS::GNALimitations::Cnn2D::RangeLimit;
 using GNAPluginNS::GNALimitations::Cnn2D::RangeLimit2D;
 using GNAPluginNS::GNALimitations::Cnn2D::RangeMultipleLimit;
@@ -65,9 +67,30 @@ std::string VectorOrSquareLimit::GetErrorOrEmpty(const uint32_t h, const uint32_
     return out.str();
 }
 
-VectorOrSquareLimit Validator::GetKernelLimit(const OvGnaType inPrecision, const uint32_t channels) const {
-    const auto& l = inPrecision == OvGnaTypeInt8 ? kernelLimit8B : kernelLimit16B;
-    return (channels <= l.channelLimit ? l.smallChannel : l.bigChannel);
+VectorOrSquareLimit VectorOrSquareLimitByChannels::GetByChannels(const uint32_t channels) const {
+    return channels <= smallChannelMax ? smallChannel : bigChannel;
+}
+
+bool VectorOrSquareLimitByChannels::isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
+    return GetByChannels(channels).isValid(h, w);
+}
+
+std::string VectorOrSquareLimitByChannels::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+    const uint32_t channels, std::string what) const {
+    return GetByChannels(channels).GetErrorOrEmpty(h, w, what);
+}
+
+VectorOrSquareLimitByChannels VectorOrSquareLimitByChannelsAndPrecision::GetByPrecision(const OvGnaType precision) const {
+    return precision == OvGnaTypeInt8 ? lowPrecision : defaultPrecision;
+}
+
+bool VectorOrSquareLimitByChannelsAndPrecision::isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const {
+    return GetByPrecision(precision).isValid(h, w, channels);
+}
+
+std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+    const OvGnaType precision, const uint32_t channels, std::string what) const {
+    return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
 void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
@@ -79,7 +102,7 @@ void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
     error += kernelNumberLimit.GetErrorOrEmpty(kN);
 
     error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
-    error += GetKernelLimit(inPrecision, inChannels).GetErrorOrEmpty(kH, kW, "kernel");
+    error += kernelLimit.GetErrorOrEmpty(kH, kW, inPrecision, inChannels, "kernel");
     ThrowIfNotEmpty(prefix, error);
 }
 

@@ -49,20 +49,34 @@ struct VectorOrSquareLimit {
 };
 
 struct VectorOrSquareLimitByChannels {
-    unsigned channelLimit;
+    uint32_t smallChannelMax;
     VectorOrSquareLimit smallChannel;
     VectorOrSquareLimit bigChannel;
+    VectorOrSquareLimit GetByChannels(const uint32_t channels) const;
+    bool isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+        const uint32_t channels, std::string what) const;
+};
+
+struct VectorOrSquareLimitByChannelsAndPrecision {
+    VectorOrSquareLimitByChannels lowPrecision;
+    VectorOrSquareLimitByChannels defaultPrecision;
+    VectorOrSquareLimitByChannels GetByPrecision(const OvGnaType precision) const;
+    bool isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+        const OvGnaType precision, const uint32_t channels, std::string what) const;
 };
 
 class Validator {
     RangeLimit2D inputHWLimit{ { 16, 384, "input height"} , { 16, 240, "input width"} };
-    RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
-    const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
-    VectorOrSquareLimitByChannels kernelLimit16B{ 120, { 3, 7, 3 }, { 1, 7, 1 } };
-    VectorOrSquareLimitByChannels kernelLimit8B{ 240, { 3, 7, 3 }, { 2, 7, 2 } };
 
-    VectorOrSquareLimit GetKernelLimit(const OvGnaType inPrecision, const uint32_t channels) const;
+    RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
+    VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
+        { 240, { 3, 7, 3 }, { 2, 7, 2 } },
+        { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
+
+    const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
