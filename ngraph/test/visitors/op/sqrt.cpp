@@ -13,7 +13,6 @@
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
 
 TEST(attributes, sqrt_op)
 {
