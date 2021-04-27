@@ -159,7 +159,14 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
         elif sign == '==':
             satisfied = installed_v == req_ver
         elif sign == '~=':
-            satisfied = installed_v >= req_ver and (installed_v.split('.')[:-1] == req_ver.vstring.split('.')[:-1])
+            req_ver_list = req_ver.vstring.split('.')
+            if 'post' in req_ver_list[-1]:
+                assert len(req_ver_list) >= 3, 'Error during {} module version checking: {} {} {}, please check ' \
+                                               'required version of this module in requirements_*.txt file!'\
+                    .format(name, installed_v, sign, required_v)
+                req_ver_list.pop(-1)
+            idx = len(req_ver_list) - 1
+            satisfied = installed_v >= req_ver and (installed_v.split('.')[:idx] == req_ver_list[:idx])
         else:
             log.error("Error during version comparison")
     else:
