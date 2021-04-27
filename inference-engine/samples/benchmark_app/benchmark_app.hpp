@@ -73,11 +73,12 @@ static const char batch_size_message[] = "Optional. Batch size value. If not spe
                                          "Intermediate Representation.";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] = "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):\n" \
-                                    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n" \
-                                    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on the hybrid CPUs) \n" \
-                                    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n" \
-                                    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
+static const char infer_threads_pinning_message[] =
+    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):\n"
+    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
+    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on the hybrid CPUs) \n"
+    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
+    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
 // @brief message for stream_output option
 static const char stream_output_message[] = "Optional. Print progress as a plain text. When specified, an interactive progress bar is "
                                             "replaced with a "
