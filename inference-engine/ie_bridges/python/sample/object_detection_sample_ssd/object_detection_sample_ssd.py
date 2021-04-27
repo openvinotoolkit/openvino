@@ -15,35 +15,23 @@ def parse_args() -> argparse.Namespace:
     """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
+    # fmt: off
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    args.add_argument('-m', '--model', required=True, type=str, help='Required. Path to an .xml or .onnx file with a trained model.')
+    args.add_argument('-m', '--model', required=True, type=str,
+                      help='Required. Path to an .xml or .onnx file with a trained model.')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an image file.')
-    args.add_argument(
-        '-l',
-        '--extension',
-        type=str,
-        default=None,
-        help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
-        'Absolute path to a shared library with the kernels implementations.',
-    )
-    args.add_argument(
-        '-c',
-        '--config',
-        type=str,
-        default=None,
-        help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. Absolute path to operation description file (.xml).',
-    )
-    args.add_argument(
-        '-d',
-        '--device',
-        default='CPU',
-        type=str,
-        help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-        'is acceptable. The sample will look for a suitable plugin for device specified. '
-        'Default value is CPU.',
-    )
+    args.add_argument('-l', '--extension', type=str, default=None,
+                      help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
+                      'Absolute path to a shared library with the kernels implementations.')
+    args.add_argument('-c', '--config', type=str, default=None,
+                      help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. '
+                      'Absolute path to operation description file (.xml).')
+    args.add_argument('-d', '--device', default='CPU', type=str,
+                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
+                           'is acceptable. The sample will look for a suitable plugin for device specified. '
+                           'Default value is CPU.')
     args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
-
+    # fmt: on
     return parser.parse_args()
 
 
