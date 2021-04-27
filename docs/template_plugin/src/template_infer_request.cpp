@@ -8,17 +8,6 @@
 #include <string>
 #include <map>
 
-#include <ie_blob.h>
-#include <description_buffer.hpp>
-#include <debug.h>
-#include <ie_layouts.h>
-#include <threading/ie_executor_manager.hpp>
-#include <blob_transform.hpp>
-#include <ie_parallel.hpp>
-#include <ie_memcpy.h>
-#include <precision_utils.h>
-
-#include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"

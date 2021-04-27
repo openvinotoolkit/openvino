@@ -286,6 +286,11 @@ struct QueryNetworkResult {
  */
 using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 
+/**
+ * @brief A collection that contains string as key, and Data smart pointer as value
+ */
+using OutputsDataMap = std::map<std::string, DataPtr>;
+
 namespace details {
 struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception")
 INFERENCE_ENGINE_API_CLASS(InferenceEngineException) : public std::runtime_error {
