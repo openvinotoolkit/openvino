@@ -13,11 +13,11 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_12
+            namespace set_1
             {
                 OutputVector einsum(const Node& node);
 
-            } // namespace set_12
+            } // namespace set_1
         }     // namespace op
 
     } // namespace onnx_import
