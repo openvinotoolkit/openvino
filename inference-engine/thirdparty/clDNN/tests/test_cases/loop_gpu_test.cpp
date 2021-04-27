@@ -57,10 +57,8 @@ TEST(loop_gpu, basic_no_concat)
         eltwise("eltwise", "input", "eltwise_operand", eltwise_mode::sum)
     );
 
-    std::vector<loop::primitive_mapping> primitive_map {
-        loop::primitive_mapping(loop::INPUT, "input", "input"),
-        loop::primitive_mapping(loop::OUTPUT, "loop", "eltwise"),
-    };
+    std::vector<loop::io_primitive_map> input_mappings { loop::io_primitive_map("input", "input") };
+    std::vector<loop::io_primitive_map> output_mappings { loop::io_primitive_map("loop", "eltwise") };
 
     std::vector<loop::backedge_mapping> back_edges {
         loop::backedge_mapping("eltwise", "input")
@@ -73,7 +71,7 @@ TEST(loop_gpu, basic_no_concat)
         mutable_data("num_iteration", num_iteration_mem),
         loop("loop", {"input"}, body,
              "trip_count", "initial_condition", "num_iteration",
-             primitive_map, back_edges, 8)
+             input_mappings, output_mappings, back_edges, 8)
     );
 
     network network(engine, topology);
@@ -135,14 +133,10 @@ TEST(loop_gpu, basic_concat)
         eltwise("eltwise", "input", "eltwise_operand", eltwise_mode::sum)
     );
 
-    std::vector<loop::primitive_mapping> primitive_map {
-        loop::primitive_mapping(loop::INPUT, "input", "input", 2),
-        loop::primitive_mapping(loop::OUTPUT, "loop", "eltwise", 2),
-    };
+    std::vector<loop::io_primitive_map> input_mappings { loop::io_primitive_map("input", "input", 2) };
+    std::vector<loop::io_primitive_map> output_mappings { loop::io_primitive_map("loop", "eltwise", 2) };
 
-    std::vector<loop::backedge_mapping> back_edges {
-        // loop::backedge_mapping("eltwise", "input")
-    };
+    std::vector<loop::backedge_mapping> back_edges {};
 
     topology topology(
         input_layout("input", input_mem.get_layout()),
@@ -151,7 +145,7 @@ TEST(loop_gpu, basic_concat)
         mutable_data("num_iteration", num_iteration_mem),
         loop("loop", {"input"}, body,
              "trip_count", "initial_condition", "num_iteration",
-             primitive_map, back_edges, trip_count)
+             input_mappings, output_mappings, back_edges, trip_count)
     );
 
     network network(engine, topology);

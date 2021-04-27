@@ -69,7 +69,7 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool build = true);
+    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
     Program(std::shared_ptr<const cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
             m_curBatch(-1), queryMode(false), m_max_batch(1) {}
     Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
@@ -167,7 +167,7 @@ private:
     std::shared_ptr<cldnn::program> BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                  InferenceEngine::InputsDataMap networkInputs,
                                                  InferenceEngine::OutputsDataMap networkOutputs,
-                                                 bool build = true);
+                                                 bool createTopologyOnly = false);
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;
