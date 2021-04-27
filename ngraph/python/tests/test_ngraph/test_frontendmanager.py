@@ -6,9 +6,9 @@ from ngraph import IFrontEnd, IInputModel, IPlace
 import pytest
 
 class MockPlace(IPlace):
-    def __init__(self, _is_input, _is_output, _names):
-        self.m_is_input = _is_input
-        self.m_is_output = _is_output
+    def __init__(self, _isInput, _isOutput, _names):
+        self.m_isInput = _isInput
+        self.m_isOutput = _isOutput
         self.m_names = _names
         self.m_eqPlace = None
         self.m_isEqualCnt = 0
@@ -21,14 +21,14 @@ class MockPlace(IPlace):
         self.eqPlace = place
 
     def is_input(self):
-        # print("MockPlace: Called is_input {}".format(self.m_is_input))
+        # print("MockPlace: Called is_input {}".format(self.m_isInput))
         self.m_isInputCnt += 1
-        return self.m_is_input
+        return self.m_isInput
 
     def is_output(self):
-        # print("MockPlace: Called is_output {}".format(self.m_is_output))
+        # print("MockPlace: Called is_output {}".format(self.m_isOutput))
         self.m_isOutputCnt += 1
-        return self.m_is_output
+        return self.m_isOutput
 
     def get_names(self):
         # print("MockPlace: Called getNames {}".format(self.m_names))
@@ -44,24 +44,24 @@ class MockInputModel(IInputModel):
     def __init__(self, inputPlace, outputPlace):
         self.m_inputPlace = inputPlace
         self.m_outputPlace = outputPlace
-        self.m_get_inputsCnt = 0
-        self.m_get_outputsCnt = 0
+        self.m_getInputsCnt = 0
+        self.m_getOutputsCnt = 0
         self.m_overrideInputsCnt = 0
         self.m_overrideOutputsCnt = 0
         self.m_getPlaceByTensorNameCnt = 0
-        self.m_extract_subgraph = 0
-        self.m_set_partial_shapeCnt = 0
+        self.m_extractSubgraphCnt = 0
+        self.m_setPartialShapeCnt = 0
         self.m_partialShape = []
         super(MockInputModel, self).__init__()
 
     def get_inputs(self):
         # print("Mock: Called get_inputs")
-        self.m_get_inputsCnt += 1
+        self.m_getInputsCnt += 1
         return [self.m_inputPlace]
 
     def get_outputs(self):
         # print("Mock: Called get_outputs")
-        self.m_get_outputsCnt += 1
+        self.m_getOutputsCnt += 1
         return [self.m_outputPlace]
 
     def override_all_inputs(self, inputs):
@@ -76,7 +76,7 @@ class MockInputModel(IInputModel):
 
     def extract_subgraph(self, inputs, outputs):
         # print("Mock: Called extract_subgraph")
-        self.m_extract_subgraph += 1
+        self.m_extractSubgraphCnt += 1
         return
 
     def get_place_by_tensor_name(self, name):
@@ -90,7 +90,7 @@ class MockInputModel(IInputModel):
 
     def set_partial_shape(self, place, shape):
         # print("Mock: Called set_partial_shape")
-        self.m_set_partial_shapeCnt += 1
+        self.m_setPartialShapeCnt += 1
         self.m_partialShape = shape
 
 
@@ -149,7 +149,7 @@ def test_get_inputs():
     model = fe.load_from_file("abc.bin")
 
     inputs = model.get_inputs()
-    assert mockModel.m_get_inputsCnt == 1
+    assert mockModel.m_getInputsCnt == 1
     assert len(inputs) == 1
     assert inputs[0].is_input()
     assert mockInputPlace.m_isInputCnt == 1
@@ -165,7 +165,7 @@ def test_get_outputs():
     model = fe.load_from_file("abc.bin")
 
     outputs = model.get_outputs()
-    assert mockModel.m_get_outputsCnt == 1
+    assert mockModel.m_getOutputsCnt == 1
     assert len(outputs) == 1
     assert outputs[0].is_output()
     assert mockOutputPlace.m_isOutputCnt == 1
@@ -220,7 +220,7 @@ def test_extract_subgraph():
     outputs = model.get_outputs()
     inputs = model.get_inputs()
     model.extract_subgraph(inputs, outputs)
-    assert mockModel.m_extract_subgraph == 1
+    assert mockModel.m_extractSubgraphCnt == 1
 
 
 def test_set_partial_shape():
@@ -230,7 +230,7 @@ def test_set_partial_shape():
 
     inputs = model.get_inputs()
     model.set_partial_shape(inputs[0], PartialShape([1, 2, 3, 4]))
-    assert mockModel.m_set_partial_shapeCnt == 1
+    assert mockModel.m_setPartialShapeCnt == 1
     assert mockModel.m_partialShape == PartialShape([1, 2, 3, 4])
 
 
