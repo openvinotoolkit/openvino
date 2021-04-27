@@ -13,6 +13,7 @@
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
@@ -31,6 +32,7 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/shuffle_channels_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
@@ -103,6 +105,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
     common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
@@ -113,6 +116,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
+    common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();

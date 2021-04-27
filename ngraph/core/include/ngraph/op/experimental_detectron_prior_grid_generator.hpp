@@ -65,6 +65,6 @@ namespace ngraph
 
                 void validate();
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

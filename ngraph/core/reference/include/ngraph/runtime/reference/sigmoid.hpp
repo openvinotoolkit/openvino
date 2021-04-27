@@ -23,6 +23,6 @@ namespace ngraph
                     out[i] = 1 / (1 + exp_value);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

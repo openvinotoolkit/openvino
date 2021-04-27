@@ -11,17 +11,19 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engin
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
+disable_deprecated_warnings()
+
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
-file(GLOB OTHER_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
+file(GLOB OTHER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
 
 foreach(PYX_FILE ${OTHER_SOURCES})
@@ -62,15 +64,8 @@ add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/inference_engine/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
+    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
-)
-
-# creates a folder in openvino directory and a symlink to benchmark
-# inside bin directory for developers for running python benchmark_app
-add_custom_command(TARGET ${TARGET_NAME}
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools/benchmark
 )
 
 # install
@@ -83,3 +78,5 @@ install(TARGETS ${INSTALLED_TARGETS}
 install(PROGRAMS __init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
         COMPONENT ${PYTHON_VERSION})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

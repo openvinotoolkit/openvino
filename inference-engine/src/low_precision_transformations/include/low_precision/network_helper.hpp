@@ -36,6 +36,9 @@ public:
 
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
 
+    // returns true if at least one child is not FQ
+    static bool notAllChildrensAreFQ(const NodeVector& layer);
+
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
