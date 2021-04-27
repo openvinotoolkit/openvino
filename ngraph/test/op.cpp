@@ -124,9 +124,25 @@ TEST(op, variant)
     EXPECT_EQ(ship.y, 4);
 
     auto node = make_shared<op::Parameter>(element::f32, Shape{1});
+    // Check Node RTInfo
     node->get_rt_info()["A"] = var_ship;
     auto node_var_ship = node->get_rt_info().at("A");
     ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_var_ship)));
     Ship& node_ship = as_type_ptr<VariantWrapper<Ship>>(node_var_ship)->get();
     EXPECT_EQ(&node_ship, &ship);
+
+    // Check Node Input<Node> RTInfo
+    auto relu = make_shared<op::Relu>(node);
+    relu->input(0).get_rt_info()["A"] = var_ship;
+    auto node_input_var_ship = node->get_rt_info().at("A");
+    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_input_var_ship)));
+    Ship& node_input_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    EXPECT_EQ(&node_input_ship, &ship);
+
+    // Check Node Input<Node> RTInfo
+    node->output(0).get_rt_info()["A"] = var_ship;
+    auto node_output_var_ship = node->get_rt_info().at("A");
+    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_output_var_ship)));
+    Ship& node_output_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    EXPECT_EQ(&node_output_ship, &ship);
 }

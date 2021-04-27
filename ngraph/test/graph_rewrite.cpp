@@ -39,6 +39,23 @@ public:
     }
 };
 
+class GatherNodesPass : public ngraph::pass::MatcherPass
+{
+public:
+    NGRAPH_RTTI_DECLARATION;
+    GatherNodesPass(NodeVector & order)
+            : MatcherPass()
+    {
+        ngraph::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
+            order.push_back(m.get_match_root());
+            return false;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(), "GatherNodesPass");
+        this->register_matcher(m, callback);
+    }
+};
+
 class Anchor : public ngraph::pass::GraphRewrite
 {
 public:
@@ -51,6 +68,7 @@ public:
 
 NGRAPH_RTTI_DEFINITION(TestPass, "TestPass", 0);
 NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
+NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass", 0);
 
 std::shared_ptr<Function> get_function()
 {
@@ -75,6 +93,34 @@ ngraph::pass::param_callback get_callback()
             return false;
         }
     };
+}
+
+TEST(GraphRewriteOrderTest, MatcherPass)
+{
+    auto f = get_function();
+
+    NodeVector order;
+    ngraph::pass::Manager m;
+    auto pass = m.register_pass<pass::GraphRewrite>();
+    pass->add_matcher<GatherNodesPass>(order);
+    m.run_passes(f);
+
+    ASSERT_EQ(order, f->get_ordered_ops());
+}
+
+TEST(BackwardGraphRewriteOrderTest, MatcherPass)
+{
+    auto f = get_function();
+
+    NodeVector order;
+    ngraph::pass::Manager m;
+    auto pass = m.register_pass<pass::BackwardGraphRewrite>();
+    pass->add_matcher<GatherNodesPass>(order);
+    m.run_passes(f);
+
+    auto ref_order = f->get_ordered_ops();
+    std::reverse(ref_order.begin(), ref_order.end());
+    ASSERT_EQ(order, ref_order);
 }
 
 TEST(GraphRewriteTest, MatcherPassCallback)
