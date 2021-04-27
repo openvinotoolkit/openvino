@@ -38,7 +38,7 @@ namespace ngraph
         }
         constexpr const char* get_ptr(size_t offset) const
         {
-            return offset < m_size ? &m_string[offset] : nullptr;
+            return offset < m_size ? &m_string[offset] : m_string;
         }
         constexpr size_t size() const { return m_size; }
 
