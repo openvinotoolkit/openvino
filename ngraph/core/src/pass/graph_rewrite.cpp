@@ -54,6 +54,8 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::BackwardGraphRewrite, "ngraph::pass::BackwardGraphRewrite", 0);
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
 
 namespace ngraph
@@ -71,19 +73,35 @@ namespace ngraph
     }     // namespace pass
 } // namespace ngraph
 
-bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
+bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+    // Initialize execution queue with nodes in topological order
+    deque<std::shared_ptr<Node>> nodes_to_run;
+    for (auto& node : f->get_ordered_ops())
+    {
+        nodes_to_run.emplace_front(node);
+    }
+    return apply_matcher_passes(f, std::move(nodes_to_run));
+}
 
-    bool rewritten = false;
-    const auto& pass_config = get_pass_config();
-
+bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
+{
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_back(node);
     }
+    return apply_matcher_passes(f, std::move(nodes_to_run));
+}
+
+bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
+                                              deque<std::shared_ptr<Node>> nodes_to_run)
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+
+    bool rewritten = false;
+    const auto& pass_config = get_pass_config();
 
     // Check that all Matchers in MatcherPasses has type bases root node
     bool all_roots_has_type = true;
