@@ -205,6 +205,7 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    visitors/no_attributes_op.hpp
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
@@ -253,8 +254,12 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/sqrt.cpp
+    visitors/op/squeeze.cpp
     visitors/op/strided_slice.cpp
     visitors/op/topk.cpp
+    visitors/op/tanh.cpp
+    visitors/op/transpose.cpp
     uint4.cpp
     util.cpp
 )
