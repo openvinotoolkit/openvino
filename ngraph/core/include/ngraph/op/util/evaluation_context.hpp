@@ -65,9 +65,11 @@ namespace ngraph
         const VariableMap& get_variable_values() const { return m_variable_values; }
 
         /// \brief Returns the value for specified Variable.
-        VariableValuePtr get_variable_value(const VariablePtr& variable) const {
+        VariableValuePtr get_variable_value(const VariablePtr& variable) const
+        {
             auto var_value = m_variable_values.find(variable);
-            if (var_value != m_variable_values.end()) {
+            if (var_value != m_variable_values.end())
+            {
                 return (*var_value).second;
             }
             return VariableValuePtr();

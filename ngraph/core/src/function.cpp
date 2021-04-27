@@ -609,9 +609,12 @@ void Function::remove_variable(const VariablePtr& variable)
                       m_variables.end());
 }
 
-VariablePtr Function::get_variable_by_id(const string &variable_id) const {
-    auto variable = std::find_if(m_variables.begin(), m_variables.end(),
-                              [&variable_id](const VariablePtr& cur) { return cur->get_info().variable_id == variable_id;});
+VariablePtr Function::get_variable_by_id(const string& variable_id) const
+{
+    auto variable = std::find_if(
+        m_variables.begin(), m_variables.end(), [&variable_id](const VariablePtr& cur) {
+            return cur->get_info().variable_id == variable_id;
+        });
     if (variable != m_variables.end())
         return *variable;
     else
