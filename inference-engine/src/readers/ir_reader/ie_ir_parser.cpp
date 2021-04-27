@@ -700,13 +700,6 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             port.dims.push_back(dim);
         }
 
-        ngraph::element::Type type(ngraph::element::Type_t::undefined);
-        // Input port hasn't precision
-        if (!input) {
-            const std::string& preStr = GetStrAttr(parentNode, "precision");
-            type = InferenceEngine::details::convertPrecision(preStr);
-        }
-        port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
             for (size_t i = 0; i < names.size(); i++) {
