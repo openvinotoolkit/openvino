@@ -3,7 +3,7 @@
 //
 
 #ifdef USE_OPENCV
-    #include "opencv_wraper.h"
+    #include "opencv_wrapper.h"
 
     #include <fstream>
     #include <iostream>
