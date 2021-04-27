@@ -129,7 +129,7 @@ namespace ngraph
                 }
             }
 
-            std::size_t get_value_map_size()
+            std::size_t get_value_map_size() const
             {
                 return m_values.size();
             }
