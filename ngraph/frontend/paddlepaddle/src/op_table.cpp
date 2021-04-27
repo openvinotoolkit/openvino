@@ -31,6 +31,16 @@
 #include "op/cast.hpp"
 #include "op/softmax.hpp"
 #include "op/split.hpp"
+#include "op/assign_value.hpp"
+#include "op/clip.hpp"
+#include "op/fill_constant.hpp"
+#include "op/fill_constant_batch_size_like.hpp"
+#include "op/interp.hpp"
+#include "op/pad3d.hpp"
+#include "op/slice.hpp"
+#include "op/squeeze.hpp"
+#include "op/unsqueeze.hpp"
+#include "op/yolo_box.hpp"
 
 #include "op_table.hpp"
 
@@ -61,7 +71,19 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"concat", op::concat},
             {"cast", op::cast},
             {"softmax", op::softmax},
-            {"split", op::split}
+            {"split", op::split},
+            {"assign", op::assign_value},
+            {"clip", op::clip},
+            {"fill_constant", op::fill_constant},
+            {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
+            {"bilinear_interp_v2", op::bilinear_interp_v2},
+            {"bilinear_interp", op::bilinear_interp_v2},
+            {"nearest_interp", op::nearest_interp_v2},
+            {"pad3d", op::pad3d},
+            {"slice", op::slice},
+            {"squeeze", op::squeeze},
+            {"unsqueeze", op::unsqueeze},
+            {"yolo_box", op::yolo_box}
     };
 };
 

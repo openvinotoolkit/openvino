@@ -45,7 +45,7 @@ namespace ngraph {
                             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
                             break;
                         }
-                        case element::i64:
+                        default:
                         {
                             auto values = node.get_attribute<std::vector<int64_t>>("int64_values");
                             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};

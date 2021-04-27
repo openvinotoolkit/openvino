@@ -53,7 +53,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-target_link_libraries(paddlepaddle_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph)
+target_link_libraries(paddlepaddle_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph  PRIVATE ngraph::builder)
 
 # TODO: Consider to remove the following block (inherited from onnx_import just in case).
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")

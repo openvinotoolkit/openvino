@@ -108,7 +108,6 @@ template <>
 inline ngraph::element::Type NodeContext::get_attribute (const std::string& name, const ngraph::element::Type& def) const
 { return node.get_dtype(name, def); }
 
-
 inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
                                                                const std::vector<OutPortName>& required_pdpd_out_names) const
 {
@@ -122,6 +121,15 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     }
     return named_outputs;
 }
+template <>
+inline std::vector<int64_t> NodeContext::get_attribute (const std::string& name, const std::vector<int64_t>& def) const
+{ return node.get_longs(name, def); }
+
+template <>
+inline int64_t NodeContext::get_attribute (const std::string& name, const int64_t& def) const
+{ return node.get_long(name, def); }
+
+
 }
 }
 }

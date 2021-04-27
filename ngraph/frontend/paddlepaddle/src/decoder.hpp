@@ -55,6 +55,8 @@ public:
     float get_float(const std::string& name, float def = 0.) const;
     std::string get_str(const std::string& name, const std::string& def = "") const;
     bool get_bool (const std::string& name, bool def = false) const;
+    std::vector<int64_t> get_longs(const std::string& name, const std::vector<int64_t>& def = {}) const;
+    int64_t get_long(const std::string& name, const int64_t& def = {}) const;
 
     // TODO: Further populate get_XXX methods on demand
     ngraph::element::Type get_dtype(const std::string& name, ngraph::element::Type def) const;
