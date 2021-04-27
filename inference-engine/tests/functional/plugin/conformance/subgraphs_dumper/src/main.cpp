@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
         input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
     }
     std::vector<Model> models;
-    auto xml_regex = std::regex(R"(.*\.xml)");
+    auto xml_regex = std::regex(FLAGS_path_regex);
     for (const auto &file : input_folder_content) {
         if (std::regex_match(file, xml_regex)) {
             models.emplace_back(Model(file));
@@ -80,33 +80,28 @@ int main(int argc, char *argv[]) {
     time_t rawtime;
     struct tm *timeinfo;
     char buffer[20];
-    size_t i = 1;
     size_t all_models = models.size();
-    InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<uint8_t>(
-            {InferenceEngine::Precision::U8, {models[0].size}, InferenceEngine::Layout::C});
-    weights->allocate();
-    for (const auto &model : models) {
+    for (size_t i = 0; i < all_models; ++i) {
+        const auto model = models[i];
         if (CommonTestUtils::fileExists(model.xml)) {
             try {
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
 
                 strftime(buffer, 20, "%H:%M:%S", timeinfo);
-                std::cout << "[" << std::string(buffer) << "][" << i << "/" << all_models << "]Processing model: "
+                std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models + 1 << "]Processing model: "
                           << model.xml << std::endl;
                 if (!CommonTestUtils::fileExists(model.bin)) {
-                    std::cerr << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
+                    std::cout << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
                     continue;
                 }
 
                 InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
                 auto function = net.getFunction();
                 cache->update_ops_cache(function, model.xml);
-                i++;
             } catch (std::exception &e) {
-                std::cerr << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
                 ret_code = 1;
-                i++;
                 continue;
             }
         }

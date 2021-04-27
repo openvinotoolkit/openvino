@@ -9,7 +9,7 @@
 #include "ngraph/node.hpp"
 #include "pugixml.hpp"
 
-#include "op_info.hpp"
+#include "functional_test_utils/include/functional_test_utils/layer_test_utils/op_info.hpp"
 
 namespace SubgraphsDumper {
 
@@ -42,7 +42,7 @@ public:
     virtual ~iMatcherConfig() = default;
 };
 
-template<typename... OPTypes>
+template <typename... OPTypes>
 struct MatcherConfig : public iMatcherConfig {
 public:
     MatcherConfig() : iMatcherConfig(sizeof...(OPTypes) == 0) {}
@@ -68,7 +68,7 @@ class Matcher {
 public:
     virtual bool match(const std::shared_ptr<ngraph::Node> &node,
                        const std::shared_ptr<ngraph::Node> &ref,
-                       const OPInfo &op_info) const = 0;
+                       const LayerTestsUtils::OPInfo &op_info) const = 0;
 
     virtual ~Matcher() = default;
 
@@ -79,6 +79,6 @@ protected:
 
     std::vector<iMatcherConfig::Ptr> default_configs;
 
-    virtual bool match_only_configured() const = 0; // TODO: Add setter for external configuration purposes.
+    virtual bool match_only_configured_ops() const = 0; // TODO: Add setter for external configuration purposes.
 };
 }  // namespace SubgraphsDumper

@@ -9,7 +9,7 @@
 #include "gtest/gtest.h"
 #include "matchers/convolutions.hpp"
 #include "ngraph/ops.hpp"
-#include "op_info.hpp"
+#include "functional_test_utils/include/functional_test_utils/layer_test_utils/op_info.hpp"
 
 using namespace ngraph::op;
 using namespace ngraph;
@@ -19,11 +19,11 @@ class ConvolutionMatcherTest : public ::testing::Test {
 protected:
     void SetUp() {
         matcher = SubgraphsDumper::ConvolutionsMatcher();
-        op_info = SubgraphsDumper::OPInfo();
+        op_info = LayerTestsUtils::OPInfo();
     }
 
     SubgraphsDumper::ConvolutionsMatcher matcher;
-    SubgraphsDumper::OPInfo op_info;
+    LayerTestsUtils::OPInfo op_info;
 };
 
 

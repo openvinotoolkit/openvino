@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "matchers/single_op.hpp"
 #include "ngraph/ops.hpp"
-#include "op_info.hpp"
+#include "functional_test_utils/include/functional_test_utils/layer_test_utils/op_info.hpp"
 
 using namespace ngraph::op;
 using namespace ngraph;
@@ -15,11 +15,11 @@ class SingleOpMatcherTest : public ::testing::Test {
 protected:
     void SetUp() {
         matcher = SubgraphsDumper::SingleOpMatcher();
-        op_info = SubgraphsDumper::OPInfo();
+        op_info = LayerTestsUtils::OPInfo();
     }
 
     SubgraphsDumper::SingleOpMatcher matcher;
-    SubgraphsDumper::OPInfo op_info;
+    LayerTestsUtils::OPInfo op_info;
 };
 
 

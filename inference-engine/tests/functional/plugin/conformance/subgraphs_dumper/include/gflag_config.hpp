@@ -9,8 +9,11 @@
 
 static const char help_message[] = "Print a usage message.";
 static const char input_folders_message[] = "Required. Comma separated paths to the input folders with IRs";
-static const char output_folder_message[] = "Required. Path to the output folders with IRs";
-static const char constants_size_threshold_message[] = "Optional. Maximum size of constant to be serialized.\n"
+static const char output_folder_message[] = "Required. Path to the output folders where to serialize IRs";
+static const char path_regex_message[] = "Optional. regular expression to be applied in input "
+                                         "folders recursive discovery";
+static const char constants_size_threshold_message[] = "Optional. Maximum size of constant in megabytes"
+                                                       " to be serialized.\n"
                                                        "If constant size exceeds specified number it will be replaced"
                                                        "with parameter and meta information about original data range "
                                                        "will be saved";
@@ -18,6 +21,7 @@ static const char constants_size_threshold_message[] = "Optional. Maximum size o
 DEFINE_bool(h, false, help_message);
 DEFINE_string(input_folders, ".", input_folders_message);
 DEFINE_string(output_folder, "output", output_folder_message);
+DEFINE_string(path_regex, ".*", output_folder_message);
 DEFINE_double(constants_size_threshold, 1., constants_size_threshold_message);
 
 /**
@@ -31,6 +35,7 @@ static void showUsage() {
     std::cout << "    -h                                     " << help_message << "\n";
     std::cout << "    --input_folders \"<path>\"             " << input_folders_message << "\n";
     std::cout << "    --output_folder \"<path>\"             " << output_folder_message << "\n";
+    std::cout << "    --path_regex \"<path>\"                " << path_regex_message << "\n";
     std::cout << "    --constants_size_threshold \"<value>\" " << constants_size_threshold_message << "\n";
     std::cout << std::flush;
 }

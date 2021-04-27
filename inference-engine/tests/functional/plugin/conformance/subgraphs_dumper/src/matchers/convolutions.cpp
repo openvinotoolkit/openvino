@@ -17,9 +17,9 @@ ConvolutionsMatcher::ConvolutionsMatcher() {
 
 bool ConvolutionsMatcher::match(const std::shared_ptr<ngraph::Node> &node,
                             const std::shared_ptr<ngraph::Node> &ref,
-                            const OPInfo &op_info) const {
+                            const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
-    if (match_only_configured() && cfg->is_fallback_config) {
+    if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
     }
     if (cfg->ignore_matching) {
@@ -33,7 +33,7 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ngraph::Node> &node,
 }
 bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                                        const std::shared_ptr<ngraph::Node> &ref,
-                                       const OPInfo &op_info) const {
+                                       const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }

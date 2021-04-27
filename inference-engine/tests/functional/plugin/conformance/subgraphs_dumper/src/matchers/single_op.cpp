@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+ // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,21 +62,21 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
         case ngraph::element::Type_t::u64:
             return compare_constants_data<uint64_t>(op, ref);
         default:
-            std::cerr << "Can't compare constants" << op << " with " << ref << "\n" << "Unsupported data type";
+            std::cout << "Can't compare constants" << op << " with " << ref << "\n" << "Unsupported data type";
             return false;
     }
 }
 
 bool SingleOpMatcher::same_op_type(const std::shared_ptr<ngraph::Node> &node,
                                    const std::shared_ptr<ngraph::Node> &ref,
-                                   const OPInfo &op_info) const {
+                                   const LayerTestsUtils::OPInfo &op_info) const {
     return node->get_type_info().name == ref->get_type_info().name &&
            node->get_type_info().version == ref->get_type_info().version;
 }
 
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                                    const std::shared_ptr<ngraph::Node> &ref,
-                                   const OPInfo &op_info) const {
+                                   const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }
@@ -98,7 +98,7 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
 bool
 SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
                                const std::shared_ptr<ngraph::Node> &ref,
-                               const OPInfo &op_info) const {
+                               const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
@@ -115,13 +115,13 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
 
 bool SingleOpMatcher::same_attrs(const std::shared_ptr<ngraph::Node> &node,
                                  const std::shared_ptr<ngraph::Node> &ref,
-                                 const OPInfo &op_info) const {
+                                 const LayerTestsUtils::OPInfo &op_info) const {
     return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
 }
 
 bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
                                   const std::shared_ptr<ngraph::Node> &ref,
-                                  const OPInfo &op_info) const {
+                                  const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     const std::vector<size_t> &ignored_ports = cfg->ignored_ports;
 
@@ -149,9 +149,9 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
 
 bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
                             const std::shared_ptr<ngraph::Node> &ref,
-                            const OPInfo &op_info) const {
+                            const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
-    if (match_only_configured() && cfg->is_fallback_config) {
+    if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
     }
     if (cfg->ignore_matching) {

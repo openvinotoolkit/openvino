@@ -11,12 +11,12 @@ public:
 
     bool match_inputs(const std::shared_ptr<ngraph::Node> &node,
                       const std::shared_ptr<ngraph::Node> &ref,
-                      const OPInfo &op_info) const override;
+                      const LayerTestsUtils::OPInfo &op_info) const override;
     bool match(const std::shared_ptr<ngraph::Node> &node,
                const std::shared_ptr<ngraph::Node> &ref,
-               const OPInfo &op_info) const override;
+               const LayerTestsUtils::OPInfo &op_info) const override;
 
 protected:
-    bool match_only_configured() const override { return true; }
+    bool match_only_configured_ops() const override { return true; }
 };
 } // namespace SubgraphsDumper

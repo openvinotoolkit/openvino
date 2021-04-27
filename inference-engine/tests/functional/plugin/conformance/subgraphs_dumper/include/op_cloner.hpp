@@ -15,7 +15,7 @@ namespace SubgraphsDumper {
 
 struct ClonersMap {
     using clone_fn = std::function<const std::shared_ptr<ngraph::Node>(const std::shared_ptr<ngraph::Node> &,
-                                                                       OPInfo &meta)>;
+                                                                       LayerTestsUtils::OPInfo &meta)>;
     using cloners_map_type = std::map<ngraph::NodeTypeInfo, clone_fn>;
 
     static float constant_size_threshold_mb;
