@@ -552,7 +552,7 @@ namespace ngraph
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-} // namespace ngraph
+}
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
@@ -969,6 +969,11 @@ bool Node::evaluate_upper(const HostTensorVector& output_values) const
     if (dyn_inputs)
         return false;
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool Node::evaluate_label(TensorLabelVector& output_labels) const
+{
+    return false;
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)

@@ -485,8 +485,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              (data_batch_shape.rank().get_length() >= 3 &&
-                               data_batch_shape.rank().get_length() <= 5),
+                              data_batch_shape.rank().get_length() >= 3 &&
+                                  data_batch_shape.rank().get_length() <= 5,
                           "Data batch must have rank of at least 4 or 5 (one batch axis, ",
                           "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
@@ -1235,7 +1235,7 @@ namespace
     }
 
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
-} // namespace
+}
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 {
@@ -1381,6 +1381,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 outputs.push_back(std::make_shared<HostTensor>(out));
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs))
             {
+                TensorLabelVector output_labels;
                 const auto& input_values = node->input_values();
                 bool same_inputs = std::all_of(
                     input_values.begin(), input_values.end(), [](const Output<Node>& input) {
@@ -1388,14 +1389,19 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                     });
                 for (size_t i = 0; i < outputs.size(); ++i)
                 {
-                    // TODO: should we skip setting value for tensors that have only one consumer?
                     if ((same_inputs || is_upper) &&
                         node->get_output_tensor(i).get_upper_value() == nullptr)
                         node->get_output_tensor(i).set_upper_value(outputs[i]);
                     if ((same_inputs || !is_upper) &&
                         node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
+                    output_labels.push_back(TensorLabel());
                 }
+                if (node->evaluate_label(output_labels))
+                    for (size_t i = 0; i < outputs.size(); ++i)
+                        node->get_output_tensor(i).set_value_label(output_labels[i]);
+
+                // invalidation of previously calculated and unused values
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
@@ -1439,10 +1445,13 @@ bool ngraph::evaluate_as_partial_shape(const Output<Node>& output, PartialShape&
         const auto upper_bound = std::make_shared<op::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
+        const TensorLabel& labels = output.get_tensor().get_value_label();
+        NGRAPH_CHECK(lower_bound.size() == labels.size() || labels.empty());
         for (size_t i = 0; i < lower_bound.size(); ++i)
         {
             NGRAPH_CHECK(lower_bound[i] >= 0 && upper_bound[i] >= 0);
-            resulting_pshape[i] = {lower_bound[i], upper_bound[i]};
+            const auto& name = labels.empty() ? "" : labels[i];
+            resulting_pshape[i] = {lower_bound[i], upper_bound[i], name};
         }
         pshape = PartialShape(resulting_pshape);
         shape_defined = true;
@@ -1462,6 +1471,57 @@ bool default_bound_evaluator(const Node* node, const HostTensorVector& output_va
             return false;
     }
     return node->evaluate(output_values, input_tensors);
+}
+
+bool ngraph::default_label_evaluator(const Node* node, TensorLabelVector& output_labels)
+{
+    NGRAPH_CHECK(node->outputs().size() == 1);
+
+    const auto& input_values = node->input_values();
+    TensorLabel input_labels;
+
+    HostTensorVector input_tensors(input_values.size());
+    for (size_t i = 0; i < input_values.size(); ++i)
+    {
+        const auto& input = input_values[i];
+        if (i != 0)
+            if (input.get_tensor().has_and_set_bound())
+                input_tensors[i] = input.get_tensor().get_lower_value();
+            else
+                return false;
+        else
+        {
+            input_labels = input.get_tensor().get_value_label();
+            bool no_labels = std::all_of(input_labels.begin(),
+                                         input_labels.end(),
+                                         [](const std::string& l) { return l.empty(); });
+            if (input_labels.empty() || no_labels)
+                return false;
+
+            std::vector<size_t> idxs(input_labels.size());
+            std::iota(idxs.begin(), idxs.end(), 0);
+            auto idxs_constant =
+                op::Constant::create(input.get_element_type(), input.get_shape(), idxs);
+            auto idxs_htp = std::make_shared<HostTensor>(idxs_constant);
+            input_tensors[i] = idxs_htp;
+        }
+    }
+    // inputs are finalized
+    const auto& single_output = node->output(0);
+    const auto& output = std::make_shared<HostTensor>(single_output.get_element_type(),
+                                                      single_output.get_partial_shape());
+
+    if (!node->evaluate({output}, input_tensors))
+        return false;
+
+    const auto& label_map = std::make_shared<op::Constant>(output)->cast_vector<size_t>();
+    output_labels[0].resize(label_map.size());
+    for (size_t i = 0; i < label_map.size(); ++i)
+    {
+        const auto& mapped_idx = label_map[i];
+        output_labels[0][i] = mapped_idx > input_labels.size() ? "" : input_labels[mapped_idx];
+    }
+    return true;
 }
 
 bool ngraph::default_lower_bound_evaluator(const Node* node, const HostTensorVector& output_values)

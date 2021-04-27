@@ -26,12 +26,12 @@ namespace ngraph
 
         /// \brief Construct a static dimension.
         /// \param dimension Value of the dimension.
-        Dimension(value_type dimension);
+        Dimension(value_type dimension, std::string name = "");
 
         /// \brief Construct a dynamic dimension with bounded range
         /// \param min_dimension The lower inclusive limit for the dimension
         /// \param mas_dimension The upper inclusive limit for the dimension
-        Dimension(value_type min_dimension, value_type max_dimension);
+        Dimension(value_type min_dimension, value_type max_dimension, std::string name = "");
 
         /// \brief Construct a dynamic dimension with range [0, ...]
         Dimension() = default;
@@ -61,6 +61,9 @@ namespace ngraph
         /// \brief Return the interval of valid lengths
         const Interval& get_interval() const { return m_dimension; }
         Interval& get_interval() { return m_dimension; }
+
+        /// \brief Return the dimension name
+        const std::string& get_name() const { return m_name; }
         /// \brief Check whether this dimension represents the same scheme as the argument (both
         ///        dynamic, or equal).
         /// \param dim The other dimension to compare this dimension to.
@@ -146,13 +149,15 @@ namespace ngraph
         Dimension& operator&=(const Dimension& dim);
 
     private:
-        Dimension(const Interval& interval)
+        Dimension(const Interval& interval, std::string name = "")
             : m_dimension(interval)
+            , m_name(name)
         {
         }
 
         // The actual numerical value of the dimension.
         Interval m_dimension{};
+        std::string m_name;
     };
 
     /// \brief Insert a human-readable representation of a dimension into an output stream.
@@ -163,4 +168,4 @@ namespace ngraph
     /// Inserts the string `?` if `dimension` is dynamic; else inserts `dimension.get_length()`.
     NGRAPH_API
     std::ostream& operator<<(std::ostream& str, const Dimension& dimension);
-} // namespace ngraph
+}

@@ -21,6 +21,8 @@ namespace ngraph
         class HostTensor;
     }
     using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
+    using TensorLabel = std::vector<std::string>;
+
     namespace descriptor
     {
         /// \brief Compile-time descriptor of a first-class value that is a tensor.
@@ -53,7 +55,9 @@ namespace ngraph
             void set_lower_value(const HostTensorPtr& value);
             /// \brief sets upper bound value description
             void set_upper_value(const HostTensorPtr& value);
-            /// \brief unsets bound value descriptions
+            /// \brief sets value label description
+            void set_value_label(const TensorLabel& value_label);
+            /// \brief unsets bound value descriptions and their labels
             void invalidate_values();
 
             const element::Type& get_element_type() const { return m_element_type; }
@@ -63,6 +67,8 @@ namespace ngraph
             HostTensorPtr get_lower_value() const { return m_lower_value; }
             /// \brief gets upper bound value description
             HostTensorPtr get_upper_value() const { return m_upper_value; }
+            /// \brief gets upper bound value description
+            TensorLabel get_value_label() const { return m_value_label; }
             /// \brief checks if lower and upper bound are set and point to the same HostTensor
             bool has_and_set_bound() const
             {
@@ -81,6 +87,7 @@ namespace ngraph
             PartialShape m_partial_shape;
             Node* m_node{nullptr};
             HostTensorPtr m_lower_value, m_upper_value;
+            std::vector<std::string> m_value_label;
             size_t m_node_output_number{0};
 
             std::string m_name;
@@ -89,5 +96,5 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream&, const ngraph::descriptor::Tensor&);
-    } // namespace descriptor
-} // namespace ngraph
+    }
+}
