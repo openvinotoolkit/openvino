@@ -592,6 +592,43 @@ public:
     }
 
     /**
+     * @brief Returns devices available for neural networks inference
+     *
+     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * If there more than one device of specific type, they are enumerated with .# suffix.
+     */
+    std::vector<std::string> GetAvailableDevices() const override {
+        std::vector<std::string> devices;
+        const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+
+        for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+            std::vector<std::string> devicesIDs;
+            try {
+                const Parameter p = GetMetric(deviceName, propertyName);
+                devicesIDs = p.as<std::vector<std::string>>();
+            } catch (Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (const std::exception& ex) {
+                IE_THROW() << "An exception is thrown while trying to create the " << deviceName
+                                << " device and call GetMetric: " << ex.what();
+            } catch (...) {
+                IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
+                                << " device and call GetMetric";
+            }
+
+            if (devicesIDs.size() > 1) {
+                for (auto&& deviceID : devicesIDs) {
+                    devices.push_back(deviceName + '.' + deviceID);
+                }
+            } else if (!devicesIDs.empty()) {
+                devices.push_back(deviceName);
+            }
+        }
+
+        return devices;
+    }
+
+    /**
      * @brief Returns reference to CPP plugin wrapper by a device name
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
@@ -1007,35 +1044,7 @@ Parameter Core::GetMetric(const std::string& deviceName, const std::string& name
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {
-    std::vector<std::string> devices;
-
-    std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
-
-    for (auto&& deviceName : _impl->GetListOfDevicesInRegistry()) {
-        std::vector<std::string> devicesIDs;
-        try {
-            Parameter p = GetMetric(deviceName, propertyName);
-            devicesIDs = p.as<std::vector<std::string>>();
-        } catch (Exception&) {
-            // plugin is not created by e.g. invalid env
-        } catch (const std::exception& ex) {
-            IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                               << " device and call GetMetric: " << ex.what();
-        } catch (...) {
-            IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                               << " device and call GetMetric";
-        }
-
-        if (devicesIDs.size() > 1) {
-            for (auto&& deviceID : devicesIDs) {
-                devices.push_back(deviceName + '.' + deviceID);
-            }
-        } else if (!devicesIDs.empty()) {
-            devices.push_back(deviceName);
-        }
-    }
-
-    return devices;
+    return _impl->GetAvailableDevices();
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
