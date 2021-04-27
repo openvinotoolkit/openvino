@@ -801,8 +801,20 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(const SizeVector& dims) {
     std::tuple<size_t, size_t, size_t, size_t, size_t> shapes;
     switch (dims.size()) {
-        case 1 : { shapes = std::make_tuple(1, dims[0], 1, 1, 1); break; }
-        case 2 : { shapes = std::make_tuple(dims[0], dims[1], 1, 1, 1); break; }
+        // for 1 and 2 rank, if across_channels is true, adjust shape to use unified 5d procedure to fully vectorize.
+        // otherwise there is only one data(in spatial dimension) to process in one kernel.
+        case 1 :  // C
+            if (across_channels) {
+                shapes = std::make_tuple(1, 1, 1, 1, dims[0]); break;
+            } else {
+                shapes = std::make_tuple(1, dims[0], 1, 1, 1); break;
+            }
+        case 2 :  // NC
+            if (across_channels) {
+                shapes = std::make_tuple(dims[0], 1, 1, 1, dims[1]); break;
+            } else {
+                shapes = std::make_tuple(dims[0], dims[1], 1, 1, 1); break;
+            }
         case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
         case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
         case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
