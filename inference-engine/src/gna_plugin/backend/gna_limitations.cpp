@@ -34,7 +34,7 @@ std::string RangeLimit2D::GetErrorOrEmpty(const uint32_t h, const uint32_t w) co
     return hLimit.GetErrorOrEmpty(h) + hLimit.GetErrorOrEmpty(w);
 }
 
-RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn) : RangeLimit( rlIn ), multiplier( multiplierIn ) {
+RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn) : RangeLimit(rlIn), multiplier(multiplierIn) {
 }
 
 bool RangeMultipleLimit::isValid(const uint32_t val) const {
