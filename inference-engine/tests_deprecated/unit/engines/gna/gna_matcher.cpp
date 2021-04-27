@@ -18,6 +18,7 @@
 #include "matchers/fill_with_data.hpp"
 #include "matchers/weights_matcher.hpp"
 #include <gmock/gmock-generated-actions.h>
+#include <debug.h>
 
 #include <gmock/gmock-more-actions.h>
 #include "gmock/gmock.h"

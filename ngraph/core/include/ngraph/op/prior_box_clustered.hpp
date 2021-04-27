@@ -58,7 +58,7 @@ namespace ngraph
             private:
                 PriorBoxClusteredAttrs m_attrs;
             };
-        }
+        } // namespace v0
         using v0::PriorBoxClustered;
-    }
-}
+    } // namespace op
+} // namespace ngraph

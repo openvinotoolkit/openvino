@@ -47,7 +47,7 @@ namespace ngraph
                 double m_min;
                 double m_max;
             };
-        }
+        } // namespace v0
         using v0::Clamp;
-    }
-}
+    } // namespace op
+} // namespace ngraph

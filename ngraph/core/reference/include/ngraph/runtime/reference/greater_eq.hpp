@@ -41,6 +41,6 @@ namespace ngraph
                         return x >= y;
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

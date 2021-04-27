@@ -176,3 +176,82 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
     handle->call_with_validate({result}, {});
     EXPECT_EQ((vector<char>{true, false, true, false}), read_vector<char>(result));
 }
+
+namespace
+{
+    std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv)
+    {
+        const size_t mem_size = tv->get_size_in_bytes();
+        std::vector<uint8_t> rc(mem_size);
+        tv->read(rc.data(), mem_size);
+        return rc;
+    }
+
+    void run_constant_equality_for_low_precision(const Shape& shape,
+                                                 const std::vector<uint8_t>& data,
+                                                 element::Type element_type)
+    {
+        const void* raw_data = data.data();
+        auto A = op::Constant::create(element_type, shape, raw_data);
+
+        const auto constant_raw_data = static_cast<const uint8_t*>(A->get_data_ptr());
+        EXPECT_EQ(std::memcmp(raw_data, constant_raw_data, data.size()), 0)
+            << "wrong data hold in Constant";
+
+        auto f = make_shared<Function>(A, ParameterVector{});
+
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+        // Create some tensors for input/output
+        auto result = backend->create_tensor(element_type, shape);
+
+        auto handle = backend->compile(f);
+        handle->call_with_validate({result}, {});
+        EXPECT_EQ(data, read_raw_data(result));
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_2x2x3)
+{
+    const Shape shape{2, 2, 3};
+    const std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78, 0x9a, 0xFF};
+    constexpr auto element_type = element::u4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_1x3)
+{
+    const Shape shape{1, 3};
+    const std::vector<uint8_t> data{0x12, 0x34}; // last 8 bits constains rubbish
+    constexpr auto element_type = element::u4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_1x10)
+{
+    const Shape shape{1, 10};
+    const std::vector<uint8_t> data{0x12, 0x34}; // last 6 bits constains rubbish
+    constexpr auto element_type = element::u1;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_i4_2x2x3)
+{
+    const Shape shape{2, 2, 3};
+    const std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78, 0x9a, 0xFF};
+    constexpr auto element_type = element::i4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_i4_1x3)
+{
+    const Shape shape{1, 3};
+    const std::vector<uint8_t> data{0x12, 0x34}; // last 8 bits constains rubbish
+    constexpr auto element_type = element::i4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
