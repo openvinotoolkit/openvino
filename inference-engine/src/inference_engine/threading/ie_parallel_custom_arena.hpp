@@ -18,6 +18,7 @@
 #include <type_traits>
 #include <mutex>
 #include <vector>
+#include <memory>
 
 namespace custom {
 
@@ -56,14 +57,34 @@ struct constraints {
     int max_threads_per_core = tbb::task_arena::automatic;
 };
 
-class binding_observer;
+class binding_handler;
+
+class binding_observer : public tbb::task_scheduler_observer {
+    binding_handler* my_binding_handler;
+public:
+    binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c);
+    ~binding_observer();
+
+    void on_scheduler_entry(bool) override;
+    void on_scheduler_exit(bool) override;
+};
+
+struct binding_observer_deleter {
+    void operator()(binding_observer* observer) const {
+        observer->observe(false);
+        delete observer;
+    }
+};
+
+using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
+
 } // namespace detail
 
 class task_arena {
     tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
-    detail::binding_observer* my_binding_observer;
+    detail::binding_oberver_ptr my_binding_observer;
 
 public:
     using constraints = detail::constraints;
@@ -91,8 +112,6 @@ public:
         initialize();
         return my_task_arena.execute(std::forward<F>(f));
     }
-
-    ~task_arena();
 };
 
 namespace info {
