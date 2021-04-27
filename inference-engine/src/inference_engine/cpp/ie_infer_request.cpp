@@ -9,7 +9,7 @@
 #include "ie_remote_context.hpp"
 
 #include "cpp/ie_infer_request.hpp"
-#include "cpp/ie_infer_async_request_base.hpp"
+#include "ie_infer_async_request_base.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 namespace InferenceEngine {
@@ -198,7 +198,7 @@ std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
+            controller.emplace_back(VariableState(state, _so));
         }
     )
     return controller;

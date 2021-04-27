@@ -9,7 +9,6 @@
 #include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
 #include <ie_plugin_cpp.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"

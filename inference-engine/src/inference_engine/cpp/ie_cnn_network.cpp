@@ -4,7 +4,7 @@
 
 #include "ie_icnn_network.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "cpp_interfaces/exception2status.hpp"
+#include "exception2status.hpp"
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"

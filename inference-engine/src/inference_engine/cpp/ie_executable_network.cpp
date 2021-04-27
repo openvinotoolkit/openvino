@@ -5,9 +5,8 @@
 #include "ie_common.h"
 
 #include "cpp/ie_executable_network.hpp"
-#include "cpp/ie_executable_network_base.hpp"
+#include "ie_executable_network_base.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/exception2status.hpp"
 
 namespace InferenceEngine {
 
@@ -83,7 +82,7 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
     EXEC_NET_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
+            controller.emplace_back(VariableState(state, _so));
         });
     return controller;
 }
