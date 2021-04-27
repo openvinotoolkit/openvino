@@ -99,7 +99,7 @@ OutputVector conv(const Node& node,
 OutputVector conv(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
-            } // namespace set_1
+                }
 }  // namespace set_1
 
 }  // namespace op

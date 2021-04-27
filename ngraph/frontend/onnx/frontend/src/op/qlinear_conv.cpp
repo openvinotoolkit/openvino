@@ -16,6 +16,7 @@
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "quantize_linear.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -34,16 +35,11 @@ OutputVector qlinear_conv(const Node& node) {
     auto y_zero_point = inputs[7];
     Output<ngraph::Node> B = inputs.size() > 8 ? inputs[8] : std::make_shared<NullNode>()->output(0);
 
-    x = set_13::detail::dequantize_linear(x,
-                                          x_scale,
-                                          std::make_shared<opset6::Convert>(x_zero_point, element::f32),
-                                          1,
-                                          node)[0];
-    w = set_13::detail::dequantize_linear(w,
-                                          w_scale,
-                                          std::make_shared<opset6::Convert>(w_zero_point, element::f32),
-                                          1,
-                                          node)[0];
+    // x = set_13::detail::dequantize_linear(x, x_scale, std::make_shared<opset6::Convert>(x_zero_point, element::f32),
+    // 1, node)[0]; w = set_13::detail::dequantize_linear(w, w_scale, std::make_shared<opset6::Convert>(w_zero_point,
+    // element::f32), 1, node)[0];
+    x = set_13::detail::dequantize_linear(x, x_scale, x_zero_point, 1, node)[0];
+    w = set_13::detail::dequantize_linear(w, w_scale, w_zero_point, 1, node)[0];
 
     if (!ngraph::op::is_null(B)) {
         B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),
@@ -54,7 +50,8 @@ OutputVector qlinear_conv(const Node& node) {
     auto result = detail::conv(node, x, w, B)[0];
 
     // TODO: Quantize result instead of just Convert -- the code IS NOT CORRECT, IT IS A STUB
-    result = std::make_shared<opset6::Convert>(result, inputs[0].get_element_type());
+    // result = std::make_shared<opset6::Convert>(result, inputs[0].get_element_type());
+    result = set_13::detail::quantize_linear(result, y_scale, y_zero_point, 1, node)[0];
 
     return {result};
 }

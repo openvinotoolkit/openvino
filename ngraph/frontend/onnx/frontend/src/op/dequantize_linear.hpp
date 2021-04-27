@@ -28,7 +28,7 @@ OutputVector dequantize_linear(Output<ngraph::Node> x,
                                Node node);
 }
 OutputVector dequantize_linear(const Node& node);
-            }
+}  // namespace set_13
 
 }  // namespace op
 

@@ -33,7 +33,7 @@ Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
         return default_opset::Constant::create(element::f32, Shape{}, {0});
     }
 }
-            } // namespace
+}  // namespace detail
 namespace set_1 {
 OutputVector dequantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
@@ -153,7 +153,7 @@ OutputVector dequantize_linear(Output<ngraph::Node> x,
     return {
         std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(converted_x, zero_point),
                                                   scale)};
-                } // namespace
+                    }
 }  // namespace detail
 
 OutputVector dequantize_linear(const Node& node) {
@@ -163,7 +163,6 @@ OutputVector dequantize_linear(const Node& node) {
                  "The DequantizeLinear op expects 2 required and one optional "
                  "input. Got: ",
                  inputs.size());
-
     const auto x = inputs[0];
     auto scale = inputs[1];
     auto zero_point = op::detail::get_zero_point(inputs);
