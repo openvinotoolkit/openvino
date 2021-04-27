@@ -5,14 +5,14 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/memory.hpp"
 #include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_extension.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        class NGRAPH_API ReadValueBase : public Op, public Memory
+        class NGRAPH_API ReadValueBase : public Op, public VariableExtension
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -25,6 +25,7 @@ namespace ngraph
             {
             }
         };
+
         namespace v3
         {
             /// \brief ReadValue operation creates the variable with `variable_id` and returns value
@@ -49,10 +50,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 std::string get_variable_id() const override { return m_variable_id; }
-                void set_variable_id(const std::string& variable_id) override
-                {
-                    m_variable_id = variable_id;
-                }
 
             private:
                 std::string m_variable_id;

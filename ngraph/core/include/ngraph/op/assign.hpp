@@ -5,14 +5,14 @@
 #pragma once
 
 #include "ngraph/op/sink.hpp"
-#include "ngraph/op/util/memory.hpp"
 #include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_extension.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        class NGRAPH_API AssignBase : public Sink, public Memory
+        class NGRAPH_API AssignBase : public Sink, public VariableExtension
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -41,10 +41,6 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
                 std::string get_variable_id() const override { return m_variable_id; }
-                void set_variable_id(const std::string& variable_id) override
-                {
-                    m_variable_id = variable_id;
-                }
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

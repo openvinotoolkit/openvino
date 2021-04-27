@@ -11,9 +11,9 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/util/memory.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/op/util/variable_extension.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -169,7 +169,7 @@ void Function::check_all_variables_registered(
     std::stringstream unregistered_variables;
     for (auto& node : ordered_ops)
     {
-        const auto& variable_op = dynamic_pointer_cast<Memory>(node);
+        const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
                 m_variables.end())
@@ -185,7 +185,7 @@ void Function::auto_detect_variables(const std::vector<std::shared_ptr<Node>>& o
     unordered_set<VariablePtr> variables;
     for (const auto& op : ordered_ops)
     {
-        if (const auto& variable_op = dynamic_pointer_cast<Memory>(op))
+        if (const auto& variable_op = dynamic_pointer_cast<VariableExtension>(op))
         {
             variables.insert(variable_op->get_variable());
         }
@@ -195,15 +195,13 @@ void Function::auto_detect_variables(const std::vector<std::shared_ptr<Node>>& o
 
 void Function::auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops)
 {
-    unordered_set<VariablePtr> variables;
     for (const auto& op : ordered_ops)
     {
-        if (const auto& variable_op = dynamic_pointer_cast<Memory>(op))
+        if (const auto& param = dynamic_pointer_cast<opset7::Parameter>(op))
         {
-            variables.insert(variable_op->get_variable());
+            m_parameters.push_back(param);
         }
     }
-    m_variables.assign(variables.begin(), variables.end());
 }
 
 void Function::prerequirements(bool detect_variables, bool detect_parameters)
@@ -235,7 +233,7 @@ void Function::validate_nodes_and_infer_types() const
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
 
-        const auto& variable_op = dynamic_pointer_cast<Memory>(node);
+        const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
                 m_variables.end())
@@ -538,7 +536,7 @@ void Function::add_sinks(const SinkVector& sinks)
     m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
     for (const auto& sink : sinks)
     {
-        if (const auto& variable_op = dynamic_pointer_cast<Memory>(sink))
+        if (const auto& variable_op = dynamic_pointer_cast<VariableExtension>(sink))
         {
             if (find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
                 m_variables.end())

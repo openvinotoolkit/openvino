@@ -82,7 +82,7 @@ TEST(op_eval, assign_readvalue_evaluation_context)
 
     EvaluationContext eval_context;
     HostTensorPtr h_tensor = make_host_tensor<element::Type_t::f32>(Shape{3}, inputs);
-    eval_context.get_variable_context()->add_variable_value(variables[0], std::make_shared<VariableValue>(h_tensor));
+    eval_context.get_variable_context()->set_variable_value(variables[0], std::make_shared<VariableValue>(h_tensor));
 
     const int COUNT_RUNS = 10;
     for (int i = 0; i < COUNT_RUNS; ++i) {
@@ -106,7 +106,7 @@ TEST(op_eval, assign_readvalue_add)
     EvaluationContext eval_context;
     auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->add_variable_value(variables[0], variable_value);
+    variable_context->set_variable_value(variables[0], variable_value);
     eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
@@ -137,7 +137,7 @@ TEST(op_eval, assign_readvalue_reset_before_evaluate)
     auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
     variable_value->set_reset(false);
-    variable_context->add_variable_value(variables[0], variable_value);
+    variable_context->set_variable_value(variables[0], variable_value);
     eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
@@ -166,7 +166,7 @@ TEST(op_eval, assign_readvalue_add_reset)
     EvaluationContext eval_context;
     auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->add_variable_value(variables[0], variable_value);
+    variable_context->set_variable_value(variables[0], variable_value);
     eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
@@ -209,7 +209,7 @@ TEST(op_eval, assign_readvalue_add_modify)
     EvaluationContext eval_context;
     auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context->add_variable_value(variables[0], variable_value);
+    variable_context->set_variable_value(variables[0], variable_value);
     eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
@@ -258,8 +258,8 @@ TEST(op_eval, assign_readvalue_add_modify_multi_variables)
     auto variable_value_2 = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs_2));
     variable_value_1->set_reset(false);
     variable_value_2->set_reset(false);
-    variable_context->add_variable_value(var_1, variable_value_1);
-    variable_context->add_variable_value(var_2, variable_value_2);
+    variable_context->set_variable_value(var_1, variable_value_1);
+    variable_context->set_variable_value(var_2, variable_value_2);
     eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();

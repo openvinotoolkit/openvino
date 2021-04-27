@@ -25,7 +25,7 @@ namespace ngraph
 
         /// \brief Constructor for VariableContext.
         /// \param variable_values The values associated with a particular Variables.
-        VariableContext(const VariableMap& variable_values)
+        explicit VariableContext(const VariableMap& variable_values)
             : m_variable_values(variable_values)
         {
         }
@@ -49,7 +49,7 @@ namespace ngraph
         /// \brief Changes/sets the values for Variable.
         /// \param variable New or stored Variable.
         /// \param variable_value The values associated with the variable.
-        void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value)
+        void set_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value)
         {
             m_variable_values[variable] = variable_value;
         }

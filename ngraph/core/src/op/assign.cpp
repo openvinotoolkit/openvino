@@ -126,7 +126,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     {
         auto host_tensor = std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type,
                                                                 m_variable->get_info().data_shape);
-        variable_context->add_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
+        variable_context->set_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
     }
 
     const auto var_value = variable_values.find(m_variable)->second;

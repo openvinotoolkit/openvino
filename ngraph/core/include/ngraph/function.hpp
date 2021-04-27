@@ -77,8 +77,12 @@ namespace ngraph
                  const VariableVector& variables,
                  const std::string& name = "");
 
-        Function(const OutputVector& results, const std::string& name = "");
+        /// Constructs a Function. Lists of parameters and variables will be generated automatically
+        /// based on traversing the graph from the results.
+        explicit Function(const OutputVector& results, const std::string& name = "");
 
+        /// Constructs a Function. Lists of parameters and variables will be generated automatically
+        /// based on traversing the graph from the results and the sinks.
         Function(const OutputVector& results,
                  const SinkVector& sinks,
                  const std::string& name = "");
@@ -172,6 +176,8 @@ namespace ngraph
         /// \brief Evaluate the function on inputs, putting results in outputs.
         /// \param outputs Tensors for the outputs to compute. One for each result
         /// \param inputs Tensors for the inputs. One for each inputs.
+        /// \param evaluation_context Storage of additional settings and attributes that can be used
+        /// when evaluating the function.
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors,
                       const EvaluationContext& evaluation_context) const;
