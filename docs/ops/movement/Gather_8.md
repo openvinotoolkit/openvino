@@ -1,6 +1,6 @@
-## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_7}
+## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_8}
 
-**Versioned name**: *Gather-7*
+**Versioned name**: *Gather-8*
 
 **Category**: Data movement operations
 
@@ -116,8 +116,10 @@ output_shape = (2, 1, 3, 4)
 
 * **1**:  `data` tensor of type *T* with arbitrary data. **Required**.
 
-* **2**:  `indices` tensor of type *T_IND* with indices to gather. The values for indices are in the range `[0, data[axis] - 1]`. 
-**Required**.
+* **2**:  `indices` tensor of type *T_IND* with indices to gather. 
+  The values for indices are in the range `[-data[axis], data[axis] - 1]`.
+  Negative values of indices indicate reverse indexing from `data[axis]`. 
+  **Required**.
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
 *axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. 
