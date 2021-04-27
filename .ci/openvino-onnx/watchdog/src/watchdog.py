@@ -385,25 +385,27 @@ class Watchdog:
         @retry(wait_fixed=2000, stop_max_delay=10000)
         def check_statuses():
             # Retrieve build number for Jenkins build related to this PR
-            build_number = self._retrieve_build_number(status.target_url)
-            # CI build finished - verify if expected output is present
-            finished_statuses = ['Build finished',
-                                 'This commit cannot be built',
-                                 'This commit looks good']
-            pending_statuses = ['This commit is being built',
-                                'Testing in progress',
-                                'This commit is scheduled to be built']
+            build_number = self._retrieve_build_number(status.target_url, pr)
+            if build_number:
+                # CI build finished - verify if expected output is present
+                finished_statuses = ['Build finished',
+                                     'This commit cannot be built',
+                                     'This commit looks good']
+                pending_statuses = ['This commit is being built',
+                                    'Testing in progress',
+                                    'This commit is scheduled to be built']
 
-            if any(phrase in status.description for phrase in finished_statuses):
-                self._check_finished(pr, build_number)
-            # CI build in progress - verify timeouts for build queue and duration
-            elif any(phrase in status.description for phrase in pending_statuses):
-                self._check_in_progress(pr, build_number)
-            elif status.description == 'The build of this commit was aborted':
-                pass
-            else:
-                message = 'ONNX CI job for PR# {}: unrecognized status: {}'.format(pr.number, status.description)
-                self._queue_message(message, message_severity='error', pr=pr)
+                if any(phrase in status.description for phrase in finished_statuses):
+                    self._check_finished(pr, build_number)
+                # CI build in progress - verify timeouts for build queue and duration
+                elif any(phrase in status.description for phrase in pending_statuses):
+                    self._check_in_progress(pr, build_number)
+                elif status.description == 'The build of this commit was aborted':
+                    pass
+                else:
+                    message = 'ONNX CI job for PR# {}: unrecognized status: {}'.format(pr.number, status.description)
+                    self._queue_message(message, message_severity='error', pr=pr)
+
         try:
             check_statuses()
         except AttributeError:
@@ -414,7 +416,7 @@ class Watchdog:
             log.exception(message)
             self._queue_message(message, message_severity='internal', pr=pr)
 
-    def _retrieve_build_number(self, url):
+    def _retrieve_build_number(self, url, pr):
         """Retrieve Jenkins CI job build number from URL address coming from GitHub commit status.
 
         :param url:         URL address from GitHub commit status
@@ -425,12 +427,18 @@ class Watchdog:
         """
         # Retrieve the build number from url string
         match_obj = re.search('(?:/PR-[0-9]+/)([0-9]+)', url)
+        pr_time_delta = self._now_time_utc - pr.updated_at
         try:
             number = int(match_obj.group(1))
             return number
         except Exception:
-            log.exception('Failed to retrieve build number from url link: %s', url)
-            raise
+            if pr_time_delta.total_seconds() / 60 < _AWAITING_JENKINS_THRESHOLD:
+                message = "Waiting to queue for {} minutes".format(round(pr_time_delta.seconds / 60))
+                log.info(message)
+                return None
+            else:
+                log.exception('Failed to retrieve build number from url link: %s', url)
+                raise
 
     def _queue_message(self, message, message_severity='info', pr=None):
         """Add a message to message queue in communicator object.
