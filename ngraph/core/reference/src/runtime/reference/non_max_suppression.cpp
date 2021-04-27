@@ -124,7 +124,7 @@ namespace ngraph
                     int64_t class_index = 0;
                     float score = 0.0f;
                 };
-            }
+            } // namespace
             void non_max_suppression(const float* boxes_data,
                                      const Shape& boxes_data_shape,
                                      const float* scores_data,
@@ -381,6 +381,6 @@ namespace ngraph
                     *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -134,7 +134,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::v1::BinaryConvolution::BinaryConvolutionMode
     op::v1::BinaryConvolution::mode_from_string(const std::string& mode) const

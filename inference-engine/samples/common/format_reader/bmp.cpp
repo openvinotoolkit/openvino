@@ -3,14 +3,14 @@
 //
 
 #include "bmp.h"
+
 #include <fstream>
 #include <iostream>
 
 using namespace std;
 using namespace FormatReader;
 
-
-BitMap::BitMap(const string &filename) {
+BitMap::BitMap(const string& filename) {
     BmpHeader header;
     BmpInfoHeader infoHeader;
 
@@ -19,19 +19,18 @@ BitMap::BitMap(const string &filename) {
         return;
     }
 
-    input.read(reinterpret_cast<char *>(&header.type), 2);
+    input.read(reinterpret_cast<char*>(&header.type), 2);
 
-    if (header.type != 'M'*256+'B') {
+    if (header.type != 'M' * 256 + 'B') {
         std::cerr << "[BMP] file is not bmp type\n";
         return;
     }
 
-    input.read(reinterpret_cast<char *>(&header.size), 4);
-    input.read(reinterpret_cast<char *>(&header.reserved), 4);
-    input.read(reinterpret_cast<char *>(&header.offset), 4);
+    input.read(reinterpret_cast<char*>(&header.size), 4);
+    input.read(reinterpret_cast<char*>(&header.reserved), 4);
+    input.read(reinterpret_cast<char*>(&header.offset), 4);
 
-    input.read(reinterpret_cast<char *>(&infoHeader), sizeof(BmpInfoHeader));
-
+    input.read(reinterpret_cast<char*>(&infoHeader), sizeof(BmpInfoHeader));
 
     bool rowsReversed = infoHeader.height < 0;
     _width = infoHeader.width;
@@ -57,7 +56,7 @@ BitMap::BitMap(const string &filename) {
     // reading by rows in invert vertically
     for (uint32_t i = 0; i < _height; i++) {
         uint32_t storeAt = rowsReversed ? i : (uint32_t)_height - 1 - i;
-        input.read(reinterpret_cast<char *>(_data.get()) + _width * 3 * storeAt, _width * 3);
+        input.read(reinterpret_cast<char*>(_data.get()) + _width * 3 * storeAt, _width * 3);
         input.read(pad, padSize);
     }
 }

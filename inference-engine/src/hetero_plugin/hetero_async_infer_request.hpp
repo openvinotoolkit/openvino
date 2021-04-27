@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief a header file for IInferRequest interface
- * @file ie_iinfer_request.hpp
- */
-
 #pragma once
 
 #include <vector>
@@ -19,10 +14,10 @@ namespace HeteroPlugin {
 class HeteroAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<HeteroAsyncInferRequest>;
-    HeteroAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr& request,
+    HeteroAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr& request,
                             const InferenceEngine::ITaskExecutor::Ptr&        taskExecutor,
                             const InferenceEngine::ITaskExecutor::Ptr&        callbackExecutor);
-    ~HeteroAsyncInferRequest() override;
+    ~HeteroAsyncInferRequest();
     void StartAsync_ThreadUnsafe() override;
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
 

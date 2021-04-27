@@ -47,4 +47,4 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<vector<float>>::type_info;
     constexpr DiscreteTypeInfo AttributeAdapter<vector<double>>::type_info;
     constexpr DiscreteTypeInfo AttributeAdapter<vector<string>>::type_info;
-}
+} // namespace ngraph

@@ -65,7 +65,7 @@ namespace reduce_l1
         }
         return rc;
     }
-}
+} // namespace reduce_l1
 
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const

@@ -38,6 +38,6 @@ namespace ngraph
 
                 return tile(arg, out, adjusted_in_shape, adjusted_out_shape, elem_size, repeats);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

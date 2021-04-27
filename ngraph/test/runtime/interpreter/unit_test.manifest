@@ -1,6 +1,4 @@
 fake_quantize_pdpd
-convert_float32_bf16
-convert_bf16_float32
 
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
