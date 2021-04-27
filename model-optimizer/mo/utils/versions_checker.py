@@ -61,7 +61,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     # check environment marker
     if len(splited_requirement) > 1:
         env_req = splited_requirement[1]
-        splited_env_req = re.split(r"==|>=|<=|>|<", env_req)
+        splited_env_req = re.split(r"==|>=|<=|>|<|!=", env_req)
         splited_env_req = [l.strip(',') for l in splited_env_req]
         env_marker = splited_env_req[0].strip(' ')
         if env_marker == 'python_version' and env_marker in env_setup:
@@ -83,12 +83,19 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
                 # and requirement for a dependency will be skipped
                 return version_list
         elif env_marker == 'sys_platform':
-            splited_env_req[1] = splited_env_req[1].replace('\'', '')
-            splited_env_req[1] = splited_env_req[1].strip(' ')
-            if not sys.platform == splited_env_req[1]:
-                # this sys_platform requirement is not satisfied to required environment
-                # and requirement for a dependency will be skipped
-                return version_list
+            splited_env_req[1] = splited_env_req[1].strip(' ').replace('\'', '')
+            if '==' in env_req:
+                if not sys.platform == splited_env_req[1]:
+                    # this sys_platform requirement is not satisfied to required environment
+                    # and requirement for a dependency will be skipped
+                    return version_list
+            elif '!=' in env_req:
+                if not sys.platform != splited_env_req[1]:
+                    # this sys_platform requirement is not satisfied to required environment
+                    # and requirement for a dependency will be skipped
+                    return version_list
+            else:
+                log.error("Error during platform version check")
         else:
             log.error("{} is unsupported environment marker and it will be ignored".format(env_marker),
                       extra={'is_warning': True})
