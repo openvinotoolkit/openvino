@@ -180,15 +180,3 @@ TEST_P(FrontEndBasicTest, DISABLED_testInputModel_setPartialShape)
 
     // TODO: not clear now
 }
-
-TEST_P(FrontEndBasicTest, testInputModel_setElementType)
-{
-    ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function;
-    std::vector<Place::Ptr> inputs;
-    ASSERT_NO_THROW(inputs = m_inputModel->getInputs());
-    ASSERT_NO_THROW(m_inputModel->setElementType(inputs[0], element::i32));
-    // all models are fp32, if change input type to i32 ngraph Node should fail
-    // to create because of type inconsistency
-    ASSERT_THROW(function = m_frontEnd->convert(m_inputModel), std::runtime_error);
-}
