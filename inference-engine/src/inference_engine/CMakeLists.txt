@@ -5,7 +5,10 @@
 set (TARGET_NAME "inference_engine")
 
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    find_package(TBBBIND_2_4)
+    find_package(TBBBIND_2_4 QUIET)
+    if (TBBBIND_2_4_FOUND)
+        message(STATUS "Static tbbbind_2_4 package was found")
+    endif()
 endif()
 
 file (GLOB LIBRARY_SRC

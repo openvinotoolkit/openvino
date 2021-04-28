@@ -32,14 +32,14 @@ struct CPUStreamsExecutor::Impl {
             int     _ncpus                  = 0;
             int     _threadBindingStep      = 0;
             int     _offset                 = 0;
-            Observer(tbb::task_arena&    arena,
+            Observer(custom::task_arena&    arena,
                      CpuSet              mask,
                      int                 ncpus,
                      const int           streamId,
                      const int           threadsPerStream,
                      const int           threadBindingStep,
                      const int           threadBindingOffset) :
-                tbb::task_scheduler_observer(arena),
+                tbb::task_scheduler_observer(static_cast<tbb::task_arena&>(arena)),
                 _mask{std::move(mask)},
                 _ncpus(ncpus),
                 _threadBindingStep(threadBindingStep),
