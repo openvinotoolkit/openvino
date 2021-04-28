@@ -4,7 +4,7 @@
 
 **Category**: *Activation function*
 
-**Short description**: Tanh element-wise activation function.
+**Short description**: Tanh unary arithmetic function.
 
 **Attributes**:
 
@@ -16,8 +16,7 @@
 
 **Outputs**:
 
-* **1**: The result of element-wise tanh operation. A tensor of type T.
-
+* **1**: The result of element-wise *Tanh* operation. A tensor of type *T* and the same shape as input tensor.
 **Types**
 
 * *T*: any numeric type.
