@@ -18,10 +18,11 @@
 
 #include <frontend_manager/ifrontend_manager.hpp>
 
-#include "place.hpp"
-
 namespace ngraph {
 namespace frontend {
+
+class OpPlacePDPD;
+class TensorPlacePDPD;
 
 class NGRAPH_API InputModelPDPD : public IInputModel
 {
@@ -33,6 +34,7 @@ class NGRAPH_API InputModelPDPD : public IInputModel
     std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces(int i) const;
     size_t getBlockNumber() const;
+    std::map<std::string, Output<Node>> getTensorValues() const;
 
 public:
     explicit InputModelPDPD (const std::string& _path);
@@ -45,6 +47,7 @@ public:
     void setDefaultShape (IPlace::Ptr place, const ngraph::Shape&) override;
     void setPartialShape (IPlace::Ptr place, const ngraph::PartialShape&) override;
     void setElementType (IPlace::Ptr place, const ngraph::element::Type&) override;
+    void setTensorValue (IPlace::Ptr place, const void* value) override;
 
 };
 

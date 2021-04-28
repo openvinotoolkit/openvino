@@ -74,7 +74,7 @@ std::vector<IPlace::Ptr> TensorPlacePDPD::getConsumingPorts() const {
         if (const auto& locked = consuming_port.lock()) {
             consuming_ports.push_back(locked);
         } else {
-            PDPD_ASSERT(false, "Consuming Port has expired.");
+            PDPD_THROW("Consuming Port has expired.");
         }
     }
     return consuming_ports;

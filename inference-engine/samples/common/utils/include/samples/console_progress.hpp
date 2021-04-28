@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cstdio>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 
 /**
  * @class ConsoleProgress
@@ -25,15 +25,13 @@ class ConsoleProgress {
 
 public:
     /**
-    * @brief A constructor of ConsoleProgress class
-    * @param _total - maximum value that is correspondent to 100%
-    * @param _detalization - number of symbols(.) to use to represent progress
-    */
-    explicit ConsoleProgress(size_t _total,
-                             bool _stream_output = false,
-                             size_t _percent_to_update = DEFAULT_PERCENT_TO_UPDATE_PROGRESS,
-                             size_t _detalization = DEFAULT_DETALIZATION) :
-            total(_total), detalization(_detalization), percent_to_update(_percent_to_update) {
+     * @brief A constructor of ConsoleProgress class
+     * @param _total - maximum value that is correspondent to 100%
+     * @param _detalization - number of symbols(.) to use to represent progress
+     */
+    explicit ConsoleProgress(size_t _total, bool _stream_output = false, size_t _percent_to_update = DEFAULT_PERCENT_TO_UPDATE_PROGRESS,
+                             size_t _detalization = DEFAULT_DETALIZATION)
+        : total(_total), detalization(_detalization), percent_to_update(_percent_to_update) {
         stream_output = _stream_output;
         if (total == 0) {
             total = 1;
@@ -41,7 +39,8 @@ public:
     }
 
     /**
-     * @brief Shows progress with current data. Progress is shown from the beginning of the current line.
+     * @brief Shows progress with current data. Progress is shown from the beginning of the current
+     * line.
      */
     void showProgress() const {
         std::stringstream strm;
@@ -68,13 +67,12 @@ public:
      * @brief Updates current value and progressbar
      */
     void updateProgress() {
-        if (cur_progress > total) cur_progress = total;
+        if (cur_progress > total)
+            cur_progress = total;
         size_t prev_percent = 100 * prev_progress / total;
         size_t cur_percent = 100 * cur_progress / total;
 
-        if (prev_progress == 0 ||
-            cur_progress == total ||
-            prev_percent + percent_to_update <= cur_percent) {
+        if (prev_progress == 0 || cur_progress == total || prev_percent + percent_to_update <= cur_percent) {
             showProgress();
             prev_progress = cur_progress;
         }

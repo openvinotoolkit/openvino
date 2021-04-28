@@ -20,6 +20,6 @@ namespace ngraph
                     out[i] = arg0[i];
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
