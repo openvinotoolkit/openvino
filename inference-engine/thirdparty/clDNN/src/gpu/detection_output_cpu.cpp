@@ -384,10 +384,9 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                 }
             }
         }
-        // In case number of detections is smaller than keep_top_k fill the rest of the buffer with invalid image id
-        // (-1).
-        while (count < num_of_images * args.keep_top_k) {
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (dtype)-1.f;
+        const int final_cnt = count;
+        for (int i = count; i < num_of_images * args.keep_top_k; i++) {
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == final_cnt ? (dtype)-1.f : (dtype)0.f);
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.f;
@@ -827,9 +826,8 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
 namespace detail {
 
-attach_detection_output_gpu::attach_detection_output_gpu() {
-    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_cpu::create);
-    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_cpu::create);
+primitive_impl* create_detection_output_cpu(const detection_output_node& arg) {
+    return detection_output_cpu::create(arg);
 }
 
 }  // namespace detail
