@@ -318,7 +318,7 @@ def driver(argv: argparse.Namespace):
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
-    telemetry.start_session()
+    telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -336,7 +336,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if ov_update_message:
             print(ov_update_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session()
+        telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -363,6 +363,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error("-------------------------------------------------")
 
     telemetry.send_event('mo', 'conversion_result', 'fail')
-    telemetry.end_session()
+    telemetry.end_session('mo')
     telemetry.force_shutdown(1.0)
     return 1

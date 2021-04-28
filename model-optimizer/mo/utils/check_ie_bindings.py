@@ -27,9 +27,9 @@ from mo.utils.error import classify_error_type
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
     t = tm.Telemetry(app_name='Model Optimizer', app_version=mo_version)
-    t.start_session()
+    t.start_session('mo')
     t.send_event(execution_type, event_type, message)
-    t.end_session()
+    t.end_session('mo')
     t.force_shutdown(1.0)
 
 
