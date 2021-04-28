@@ -22,7 +22,7 @@ namespace ngraph
             {
                 OutputVector hardmax(const Node& node);
             } // namespace set_13
-        } // namespace op
+        }     // namespace op
 
     } // namespace onnx_import
 

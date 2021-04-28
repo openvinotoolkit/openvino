@@ -118,7 +118,7 @@ namespace ngraph
 
                     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
                     const auto normalized_axis = ngraph::normalize_axis(
-                            node.get_description(), axis, data.get_partial_shape().rank());
+                        node.get_description(), axis, data.get_partial_shape().rank());
 
                     return {std::make_shared<default_opset::Softmax>(data, normalized_axis)};
                 }

@@ -76,7 +76,8 @@ namespace ngraph
                 OutputVector log_softmax(const Node& node)
                 {
                     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
-                    return {std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
+                    return {
+                        std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
                 }
             } // namespace set_13
 
