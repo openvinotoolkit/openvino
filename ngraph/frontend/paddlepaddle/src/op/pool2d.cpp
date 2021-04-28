@@ -44,9 +44,9 @@ NamedOutputs pool2d (const NodeContext& node) {
                     rounding_type)}, {"Out"});
     }
     else if (pooling_type == "avg" &&
-             (global_pooling || adaptive && all_of(kernel_shape.begin(),
+             (global_pooling || (adaptive && all_of(kernel_shape.begin(),
                                                    kernel_shape.end(),
-                                                   [](int32_t s) { return s == 1; })))
+                                                   [](int32_t s) { return s == 1; }))))
     {
         // TODO : resolve axes according to rank
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {2, 3});

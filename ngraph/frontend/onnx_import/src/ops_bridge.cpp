@@ -171,7 +171,7 @@ namespace ngraph
                 }
                 return std::end(map);
             }
-        }
+        } // namespace detail
 
         void OperatorsBridge::_register_operator(const std::string& name,
                                                  std::int64_t version,

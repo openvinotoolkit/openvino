@@ -78,14 +78,16 @@ if(UNIX)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 endif()
 
 # install C samples
@@ -105,21 +107,12 @@ endif()
 install(DIRECTORY ie_bridges/c/samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE)
+        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
+        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
 
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
-
-# install Python samples
-
-if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples DEPENDS core)
-
-    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-            COMPONENT python_samples)
-endif()
 
 # install speech demo files
 

@@ -75,13 +75,23 @@ namespace ngraph
                 param_it++;
             }
         }
+        Graph::Graph(const Graph& graph)
+            : m_parameters(graph.m_parameters)
+            , m_cache{new GraphCache(*graph.m_cache)}
+            , m_graph_proto{graph.m_graph_proto}
+            , m_nodes(graph.m_nodes)
+            , m_inputs(graph.m_inputs)
+            , m_outputs(graph.m_outputs)
+            , m_model{graph.m_model}
+        {
+        }
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
                      Model& model,
                      std::unique_ptr<GraphCache>&& cache)
-            : m_graph_proto{&graph_proto}
+            : m_cache{std::move(cache)}
+            , m_graph_proto{&graph_proto}
             , m_model{&model}
-            , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
             // Process all initializers in the graph

@@ -74,7 +74,7 @@ std::vector<Place::Ptr> TensorPlacePDPD::getConsumingPorts() const {
         if (const auto& locked = consuming_port.lock()) {
             consuming_ports.push_back(locked);
         } else {
-            PDPD_ASSERT(false, "Consuming Port has expired.");
+            PDPD_THROW("Consuming Port has expired.");
         }
     }
     return consuming_ports;
@@ -85,26 +85,26 @@ Place::Ptr TensorPlacePDPD::getProducingPort() const {
     if (const auto& producing_port = m_producing_ports[0].lock()) {
         return producing_port;
     }
-    PDPD_ASSERT(false, "Producing Port has expired.");
+    PDPD_THROW("Producing Port has expired.");
 }
 
 std::shared_ptr<TensorPlacePDPD> InPortPlacePDPD::getSourceTensorPDPD() const {
     if (const auto& tensor = m_source_tensor.lock()) {
         return tensor;
     }
-    PDPD_ASSERT(false, "Source Tensor has expired.");
+    PDPD_THROW("Source Tensor has expired.");
 }
 
 std::shared_ptr<OpPlacePDPD> InPortPlacePDPD::getOp() {
     if (const auto& op = m_op.lock()) {
         return op;
     }
-    PDPD_ASSERT(false, "Operation has expired.");
+    PDPD_THROW("Operation has expired.");
 }
 
 std::shared_ptr<TensorPlacePDPD> OutPortPlacePDPD::getTargetTensorPDPD() const {
     if (const auto& target_tensor = m_target_tensor.lock()) {
         return target_tensor;
     }
-    PDPD_ASSERT(false, "Target Tensor has expired.");
+    PDPD_THROW("Target Tensor has expired.");
 }
