@@ -210,5 +210,3 @@ def correct_roll_axes(roll: Node):
     mul_node.out_port(0).connect(add_node.in_port(1))
     axes_source.connect(add_node.in_port(0))
     add_node.out_port(0).connect(roll.in_port(2))
-
-    rename_nodes([(axes_node, axes_node_name + '/axes_before_correction'), (add_node, axes_node_name)])
