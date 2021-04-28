@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <memory>
 #include <map>
+#include <memory>
 
 #include "ngraph/descriptor/tensor.hpp"
 
