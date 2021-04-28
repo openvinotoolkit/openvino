@@ -258,7 +258,7 @@ limitations under the License.
                 <tab type="user" title="Subtract-1" url="@ref openvino_docs_ops_arithmetic_Subtract_1"/>
                 <tab type="user" title="Swish-4" url="@ref openvino_docs_ops_activation_Swish_4"/>
                 <tab type="user" title="Tan-1" url="@ref openvino_docs_ops_arithmetic_Tan_1"/>
-                <tab type="user" title="Tanh-1" url="@ref openvino_docs_ops_arithmetic_Tanh_1"/>
+                <tab type="user" title="Tanh-1" url="@ref openvino_docs_ops_activation_Tanh_1"/>
                 <tab type="user" title="TensorIterator-1" url="@ref openvino_docs_ops_infrastructure_TensorIterator_1"/>
                 <tab type="user" title="Tile-1" url="@ref openvino_docs_ops_movement_Tile_1"/>
                 <tab type="user" title="TopK-1" url="@ref openvino_docs_ops_sort_TopK_1"/>

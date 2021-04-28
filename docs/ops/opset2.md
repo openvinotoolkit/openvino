@@ -114,7 +114,7 @@ declared in `namespace opset2`.
 * [StridedSlice](movement/StridedSlice_1.md)
 * [Subtract](arithmetic/Subtract_1.md)
 * [Tan](arithmetic/Tan_1.md)
-* [Tanh](arithmetic/Tanh_1.md)
+* [Tanh](activation/Tanh_1.md)
 * [TensorIterator](infrastructure/TensorIterator_1.md)
 * [Tile](movement/Tile_1.md)
 * [TopK](sort/TopK_1.md)

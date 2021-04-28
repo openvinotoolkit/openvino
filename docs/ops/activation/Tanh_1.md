@@ -1,10 +1,10 @@
-## Tanh<a name="Tanh"></a> {#openvino_docs_ops_arithmetic_Tanh_1}
+## Tanh<a name="Tanh"></a> {#openvino_docs_ops_activation_Tanh_1}
 
 **Versioned name**: *Tanh-1*
 
 **Category**: *Activation function*
 
-**Short description**: Tanh unary arithmetic function.
+**Short description**: Tanh activation function.
 
 **Attributes**:
 

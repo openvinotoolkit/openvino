@@ -148,7 +148,7 @@ declared in `namespace opset5`.
 * [Subtract](arithmetic/Subtract_1.md)
 * [Swish](activation/Swish_4.md)
 * [Tan](arithmetic/Tan_1.md)
-* [Tanh](arithmetic/Tanh_1.md)
+* [Tanh](activation/Tanh_1.md)
 * [TensorIterator](infrastructure/TensorIterator_1.md)
 * [Tile](movement/Tile_1.md)
 * [TopK](sort/TopK_3.md)
