@@ -21,6 +21,6 @@ class CorrectRollAxes(FrontReplacementSubgraph):
         return [SSliceComplex]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for roll in graph.get_op_nodes(op='Roll', need_correction=True):
+        for roll in graph.get_op_nodes(op='Roll', input_rank_changed=True):
             correct_roll_axes(roll)
-            del roll['need_correction']
+            del roll['input_rank_changed']

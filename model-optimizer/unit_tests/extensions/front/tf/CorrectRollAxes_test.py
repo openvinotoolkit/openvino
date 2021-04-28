@@ -12,7 +12,7 @@ from unit_tests.utils.graph import build_graph
 
 graph_node_attrs = {
     'placeholder': {'shape': int64_array([3, 100, 100, 2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-    'roll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll', 'need_correction': True},
+    'roll': {'kind': 'op', 'op': 'Roll', 'type': 'Roll', 'input_rank_changed': True},
     'roll_shift': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([50, 50])
     },
@@ -80,10 +80,10 @@ class CorrectRollAxesTest(unittest.TestCase):
 
     def test_nonreplacement(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges,
-                            update_attributes={'roll': {'need_correction': False}})
+                            update_attributes={'roll': {'input_rank_changed': False}})
         graph.stage = 'front'
         CorrectRollAxes().find_and_replace_pattern(graph)
         ref_graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges,
-                                update_attributes={'roll': {'need_correction': False}})
+                                update_attributes={'roll': {'input_rank_changed': False}})
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
