@@ -54,7 +54,7 @@ namespace maximumop
         }
         return rc;
     }
-}
+} // namespace maximumop
 
 // ------------------------------------ v1 -------------------------------------
 

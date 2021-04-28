@@ -27,6 +27,6 @@ namespace ngraph
             {
                 using type = long double;
             };
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

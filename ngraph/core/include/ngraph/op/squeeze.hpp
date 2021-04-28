@@ -42,7 +42,7 @@ namespace ngraph
             private:
                 Output<Node> get_default_axes_input() const;
             };
-        }
+        } // namespace v0
         using v0::Squeeze;
-    }
-}
+    } // namespace op
+} // namespace ngraph

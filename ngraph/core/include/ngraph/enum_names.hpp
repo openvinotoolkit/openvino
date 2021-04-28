@@ -81,4 +81,4 @@ namespace ngraph
     {
         return EnumNames<Value>::as_string(value);
     }
-}
+} // namespace ngraph

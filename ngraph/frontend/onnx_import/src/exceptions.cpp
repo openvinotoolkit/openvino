@@ -20,7 +20,7 @@ namespace ngraph
                     ss << "While validating ONNX node '" << node << "'";
                     return ss.str();
                 }
-            }
-        }
-    }
-}
+            } // namespace detail
+        }     // namespace error
+    }         // namespace onnx_import
+} // namespace ngraph

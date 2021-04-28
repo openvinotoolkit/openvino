@@ -8,27 +8,26 @@
  */
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #if defined(_WIN32)
-# ifdef IMPLEMENT_FORMAT_READER
-# define FORMAT_READER_API(type) extern "C"   __declspec(dllexport) type
-# else
-# define FORMAT_READER_API(type) extern "C" type
-# endif
-#elif(__GNUC__ >= 4)
-# ifdef IMPLEMENT_FORMAT_READER
-#  define FORMAT_READER_API(type) extern "C"   __attribute__((visibility("default"))) type
-# else
-#  define FORMAT_READER_API(type) extern "C" type
-# endif
+    #ifdef IMPLEMENT_FORMAT_READER
+        #define FORMAT_READER_API(type) extern "C" __declspec(dllexport) type
+    #else
+        #define FORMAT_READER_API(type) extern "C" type
+    #endif
+#elif (__GNUC__ >= 4)
+    #ifdef IMPLEMENT_FORMAT_READER
+        #define FORMAT_READER_API(type) extern "C" __attribute__((visibility("default"))) type
+    #else
+        #define FORMAT_READER_API(type) extern "C" type
+    #endif
 #else
-# define FORMAT_READER_API(TYPE) extern "C" TYPE
+    #define FORMAT_READER_API(TYPE) extern "C" TYPE
 #endif
-
 
 namespace FormatReader {
 /**
@@ -51,13 +50,17 @@ public:
      * \brief Get width
      * @return width
      */
-    size_t width() const { return _width; }
+    size_t width() const {
+        return _width;
+    }
 
     /**
      * \brief Get height
      * @return height
      */
-    size_t height() const { return _height; }
+    size_t height() const {
+        return _height;
+    }
 
     /**
      * \brief Get input data ptr
@@ -78,4 +81,4 @@ public:
  * \brief Function for create reader
  * @return FormatReader pointer
  */
-FORMAT_READER_API(FormatReader::Reader*) CreateFormatReader(const char *filename);
+FORMAT_READER_API(FormatReader::Reader*) CreateFormatReader(const char* filename);

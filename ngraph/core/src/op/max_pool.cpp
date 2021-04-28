@@ -229,7 +229,7 @@ namespace maxpool
         }
         return rc;
     }
-} // namespace
+} // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const

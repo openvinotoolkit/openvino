@@ -502,13 +502,16 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 
     // Convert values
     const auto size = shape_size(constant->get_shape());
+    size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
+    if (src_type.bitwidth() < 8) {
+        src_off = 8 - src_type.bitwidth();
+    }
+
+    if (to.bitwidth() < 8) {
+        dst_off = 8 - to.bitwidth();
+    }
+
     for (size_t i = 0; i < size; i++) {
-        // Calculate indexes
-        size_t dst_idx = i / ((to.size() * 8) / to.bitwidth());
-        size_t src_idx = i / ((src_type.size() * 8) / src_type.bitwidth());
-        // Calculate offsets inside the indexes
-        size_t dst_off = (to.size() * 8 - to.bitwidth()) - to.bitwidth() * (i % ((to.size() * 8) / to.bitwidth()));
-        size_t src_off = (src_type.size() * 8 - src_type.bitwidth()) - src_type.bitwidth() * (i % ((src_type.size() * 8) / src_type.bitwidth()));
         // Source type at the current moment always less than 1 byte
         // Select the right destination type
         switch (to.size()) {
@@ -530,6 +533,25 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
             break;
         default:
             throw ngraph_error("Unsupported element size!");
+        }
+        // Calculate offsets and indexes
+        if (src_type.bitwidth() < 8) {
+            if (src_off == 0) {
+                src_off = 8;
+                src_idx++;
+            }
+            src_off -= src_type.bitwidth();
+        } else {
+            src_idx++;
+        }
+        if (to.bitwidth() < 8) {
+            if (dst_off == 0) {
+                dst_off = 8;
+                dst_idx++;
+            }
+            dst_off -= to.bitwidth();
+        } else {
+            dst_idx++;
         }
     }
 

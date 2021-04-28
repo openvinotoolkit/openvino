@@ -61,7 +61,7 @@ namespace signop
         }
         return rc;
     }
-}
+} // namespace signop
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

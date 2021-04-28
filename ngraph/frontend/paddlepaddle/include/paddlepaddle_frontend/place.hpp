@@ -57,8 +57,8 @@ public:
     std::vector<std::string> getNames() const override { return m_names; }
 
 private:
-    std::vector<std::string> m_names;
     const InputModel& m_input_model;
+    std::vector<std::string> m_names;
 };
 
 class InPortPlacePDPD : public PlacePDPD {

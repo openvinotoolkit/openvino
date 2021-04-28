@@ -8,7 +8,6 @@
 #include "base_matcher.hpp"
 #include "regression_reference.hpp"
 #include <precision_utils.h>
-#include <ie_iexecutable_network.hpp>
 #include "label_probability.hpp"
 
 namespace Regression { namespace Matchers {

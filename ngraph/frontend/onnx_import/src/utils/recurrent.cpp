@@ -127,6 +127,6 @@ namespace ngraph
                 m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
             }
 
-        } // recurrent
-    }     // onnx_import
-} // ngraph
+        } // namespace recurrent
+    }     // namespace onnx_import
+} // namespace ngraph

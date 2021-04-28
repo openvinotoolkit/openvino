@@ -40,7 +40,7 @@ namespace ngraph
                         return {input_data};
                     }
                 }
-            }
+            } // namespace
 
             namespace set_12
             {
