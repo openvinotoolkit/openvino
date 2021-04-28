@@ -18,6 +18,14 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
+#include "ngraph/visibility.hpp"
+
+#ifdef paddlepaddle_frontend_EXPORTS // defined if we are building the frontend_manager DLL (instead of using it)
+#define PDPD_API NGRAPH_HELPER_DLL_EXPORT
+#else
+#define PDPD_API NGRAPH_HELPER_DLL_IMPORT
+#endif // paddlepaddle_frontend_EXPORTS
+
 namespace ngraph {
 namespace frontend {
 

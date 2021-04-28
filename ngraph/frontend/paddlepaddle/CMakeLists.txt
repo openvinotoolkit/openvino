@@ -14,8 +14,15 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/frontends)
-message("Set PDPD output dir to " ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+if (WIN32)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/Debug/frontends)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/Release/frontends)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/MinSizeRel/frontends)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/RelWithDebInfo/frontends)
+else()
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/frontends)
+	message("Set PDPD output dir to " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG})
+endif()
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
@@ -56,7 +63,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-target_link_libraries(paddlepaddle_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph)
+target_link_libraries(paddlepaddle_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph frontend_manager)
 
 # TODO: Consider to remove the following block (inherited from onnx_import just in case).
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")

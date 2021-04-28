@@ -3,8 +3,9 @@
 //
 
 #ifdef _WIN32
+#include <Windows.h>
 #include <direct.h>
-#define rmdir(dir) _rmdir(dir)
+const char FileSeparator[] = "\\";
 #else  // _WIN32
 #include <unistd.h>
 #include <dirent.h>
@@ -21,8 +22,9 @@ const char FileSeparator[] = "/";
 
 // TODO: change to std::filesystem for C++17
 static std::vector<std::string> listFiles(const std::string& path) {
-    struct dirent *ent;
     std::vector<std::string> res;
+#ifndef WIN32
+    struct dirent *ent;
     DIR *dir = opendir(path.c_str());
     if (dir != nullptr) {
         std::unique_ptr<DIR, void(*)(DIR*)> closeGuard(dir, [](DIR* d) { closedir(d); });
@@ -35,17 +37,54 @@ static std::vector<std::string> listFiles(const std::string& path) {
             }
         }
     }
+#else
+    std::string searchPath = path + FileSeparator + "*_frontend*.dll";
+    WIN32_FIND_DATA fd;
+    HANDLE handle = ::FindFirstFile(searchPath.c_str(), &fd);
+    if (handle != INVALID_HANDLE_VALUE) {
+        do {
+            if(!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ) {
+                res.push_back(path + FileSeparator + fd.cFileName);
+            }
+        } while(::FindNextFile(handle, &fd));
+        ::FindClose(handle);
+    }
+#endif
     return res;
 }
 
 namespace ngraph {
 namespace frontend {
-std::vector<PluginFactoryValue> loadPlugins(const std::string& dirName) {
+
+std::vector<PluginData> loadPlugins(const std::string& dirName) {
     auto files = listFiles(dirName);
-    std::vector<PluginFactoryValue> res;
+    std::vector<PluginData> res;
     for (const auto& file : files) {
 #ifdef _WIN32
-        throw std::runtime_error("Not yet implemented");
+        auto hinstLib = LoadLibrary(TEXT(file.c_str()));
+        if (hinstLib != NULL)
+        {
+            PluginHandle guard([hinstLib, file]() {
+                FreeLibrary(hinstLib);
+            });
+
+            std::function<void*()> infoAddr = reinterpret_cast<void*(*)()>(GetProcAddress(hinstLib, "GetPluginInfo"));
+            if (NULL == infoAddr) {
+                continue;
+            }
+
+            PluginInfo* plugInfo = reinterpret_cast<PluginInfo*>(infoAddr());
+
+            std::function<void*()> creatorAddr = reinterpret_cast<void*(*)()>(GetProcAddress(hinstLib, "GetFrontEndFactory"));
+            if (NULL == creatorAddr) {
+                continue;
+            }
+
+            FrontEndFactory& fact = (*reinterpret_cast<FrontEndFactory*>(creatorAddr()));
+
+            PluginData data(*plugInfo, std::move(fact), std::move(guard));
+            res.push_back(std::move(data));
+        }
 #else
         void* shared_object = dlopen(file.c_str(), RTLD_LAZY);
         if (shared_object == nullptr)
@@ -68,6 +107,7 @@ std::vector<PluginFactoryValue> loadPlugins(const std::string& dirName) {
                 reinterpret_cast<FrontEndFactory(*)()>(factoryAddr);
         FrontEndFactory creator = factoryFunc();
         res.emplace_back(info, creator);
+        // TODO: call DLClose
 #endif
     }
     return res;

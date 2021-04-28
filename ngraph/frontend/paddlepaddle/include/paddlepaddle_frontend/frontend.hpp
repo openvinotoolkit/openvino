@@ -20,11 +20,13 @@
 
 #include "model.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include "utility.hpp"
+
 
 namespace ngraph {
 namespace frontend {
 
-class NGRAPH_API FrontEndPDPD : public IFrontEnd
+class FrontEndPDPD : public IFrontEnd
 {
     static std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model);
     static std::shared_ptr<Node> make_const_node(const std::shared_ptr<TensorPlacePDPD>& place,

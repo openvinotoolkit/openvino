@@ -9,6 +9,13 @@
 #include "ngraph/function.hpp"
 #include "ngraph/visibility.hpp"
 
+#ifdef frontend_manager_EXPORTS // defined if we are building the frontend_manager DLL (instead of using it)
+#define FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
+#else
+#define FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
+#endif // frontend_manager_EXPORTS
+
+
 namespace ngraph
 {
 namespace frontend
@@ -57,7 +64,7 @@ namespace frontend
 ///                    V
 ///                [Tensor C]
 ///
-class NGRAPH_API IPlace
+class FRONTEND_API IPlace
 {
 public:
 
@@ -146,7 +153,7 @@ public:
 ///
 ///       All editing requests affect the model representation that is held behind the scene and successive method
 ///       calls observe a new graph structure.
-class NGRAPH_API IInputModel
+class FRONTEND_API IInputModel
 {
 public:
 
@@ -262,7 +269,7 @@ public:
     // TODO: remove or add something; there are no candidates, all queries can be satisfied without any API extension here
 };
 
-class NGRAPH_API IFrontEnd
+class FRONTEND_API IFrontEnd
 {
 public:
     typedef std::shared_ptr<IFrontEnd> Ptr;
@@ -298,7 +305,7 @@ public:
     virtual void normalize (std::shared_ptr<ngraph::Function> function) const;
 };
 
-enum FrontEndCapabilities {
+enum class FrontEndCapabilities {
     FEC_DEFAULT   =  0,    // Just reading and conversion, w/o any modifications; intended to be used in Reader
     FEC_CUT       =  1,
     FEC_NAMES     =  2,
@@ -309,8 +316,6 @@ enum FrontEndCapabilities {
 
 using FrontEndFactory = std::function<std::shared_ptr<IFrontEnd>(FrontEndCapabilities fec)>;
 using PluginInfo = std::tuple<std::string, std::string>; // name and version
-
-using PluginFactoryValue = std::tuple<PluginInfo, FrontEndFactory>;
 
 } // namespace frontend
 

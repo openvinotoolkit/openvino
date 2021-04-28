@@ -68,17 +68,17 @@ class FrontEndManagerImpl;
 ///                    V
 ///                [Tensor C]
 ///
-class NGRAPH_API Place
+class FRONTEND_API Place final
 {
 public:
 
     Place();
-    Place(const Place&) = default;
-    Place& operator=(const Place&) = default;
-    Place(Place&&) = default;
-    Place& operator=(Place&&) = default;
+    Place(const Place&);
+    Place& operator=(const Place&);
+    Place(Place&&);
+    Place& operator=(Place&&);
 
-    virtual ~Place();
+    ~Place();
 
     /// \brief Checks of place represents a real place in the graph
     /// \return True if place represents a real place in the graph, false otherwise
@@ -176,7 +176,7 @@ private:
 ///
 ///       All editing requests affect the model representation that is held behind the scene and successive method
 ///       calls observe a new graph structure.
-class NGRAPH_API InputModel
+class FRONTEND_API InputModel final
 {
 public:
 
@@ -184,7 +184,7 @@ public:
     InputModel(InputModel&& other);
     InputModel& operator=(InputModel&& other);
 
-    virtual ~InputModel();
+    ~InputModel();
 
     /////  Searching for places  /////
 
@@ -307,14 +307,14 @@ inline std::shared_ptr<InputModelShared> to_shared(InputModel&& m) {
     return std::make_shared<InputModelShared>(std::move(m));
 }
 
-class NGRAPH_API FrontEnd
+class FRONTEND_API FrontEnd final
 {
 public:
     FrontEnd();
     FrontEnd(FrontEnd&& other);
     FrontEnd& operator=(FrontEnd&& other);
 
-    virtual ~FrontEnd();
+    ~FrontEnd();
 
     InputModel loadFromFile (const std::string& path) const;
     InputModel loadFromFiles (const std::vector<std::string>& paths) const;
@@ -362,13 +362,13 @@ inline std::shared_ptr<FrontEndShared> to_shared(FrontEnd&& f) {
     return std::make_shared<FrontEndShared>(std::move(f));
 }
 
-class NGRAPH_API FrontEndManager
+class FRONTEND_API FrontEndManager final
 {
 public:
     FrontEndManager();
     ~FrontEndManager();
-    FrontEnd loadByFramework(const std::string& framework, FrontEndCapabilities fec = FEC_DEFAULT);
-    FrontEnd loadByModel(const std::string& path, FrontEndCapabilities fec = FEC_DEFAULT);
+    FrontEnd loadByFramework(const std::string& framework, FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
+    FrontEnd loadByModel(const std::string& path, FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
     std::vector<std::string> availableFrontEnds() const;
 
     void registerFrontEnd(const std::string& name, FrontEndFactory creator);

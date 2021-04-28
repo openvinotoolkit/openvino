@@ -17,6 +17,7 @@
 #pragma once
 
 #include <frontend_manager/ifrontend_manager.hpp>
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -24,7 +25,7 @@ namespace frontend {
 class OpPlacePDPD;
 class TensorPlacePDPD;
 
-class NGRAPH_API InputModelPDPD : public IInputModel
+class InputModelPDPD : public IInputModel
 {
     friend class FrontEndPDPD;
     class InputModelPDPDImpl;

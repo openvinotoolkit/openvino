@@ -291,6 +291,10 @@ namespace ngraph
         //-------- Place -----------------------
         Place::Place(): m_impl(new PlaceImpl(std::make_shared<IPlace>())) {}
         Place::Place(const std::shared_ptr<PlaceImpl>& impl): m_impl(impl) {}
+        Place::Place(const Place&) = default;
+        Place& Place::operator=(const Place&) = default;
+        Place::Place(Place&&) = default;
+        Place& Place::operator=(Place&&) = default;
         Place::~Place() = default;
 
         std::vector<std::string> Place::getNames () const
@@ -799,6 +803,7 @@ namespace ngraph
         //////////////////////////////////////////////////////////////
         class FrontEndManagerImpl
         {
+            std::vector<PluginHandle> m_loadedLibs; // must be a first member, so that handles will be closed at last point of destruction
             std::map<std::string, FrontEndFactory> m_factories;
 
             void registerDefault() {
@@ -817,10 +822,10 @@ namespace ngraph
                     std::string name;
                     std::string version;
                     FrontEndFactory factory;
-                    for (auto plugin : plugins) {
-                        std::tie(info, factory) = plugin;
-                        std::tie(name, version) = info;
-                        registerFrontEnd(name, factory);
+                    for (auto& plugin : plugins) {
+                        std::tie(name, version) = plugin.baseInfo;
+                        registerFrontEnd(name, plugin.creator);
+                        m_loadedLibs.push_back(std::move(plugin.libHandle));
                     }
                 };
                 registerFromDir("./frontends");
