@@ -128,6 +128,12 @@ namespace ngraph
                     std::cerr << "]" << std::endl;
                 }
             }
+
+            std::size_t get_value_map_size() const
+            {
+                return m_values.size();
+            }
+
             template <typename T>
             T& get(const std::string& name)
             {
