@@ -22,7 +22,7 @@ namespace ngraph
     }
 
     constexpr DiscreteTypeInfo AttributeAdapter<reduction::Type>::type_info;
-}
+} // namespace ngraph
 
 std::ostream& reduction::operator<<(std::ostream& out, const reduction::Type& obj)
 {

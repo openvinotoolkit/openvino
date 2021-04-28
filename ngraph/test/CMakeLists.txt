@@ -115,6 +115,7 @@ set(SRC
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/einsum.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
@@ -252,8 +253,10 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
     visitors/op/topk.cpp
+    visitors/op/transpose.cpp
     uint4.cpp
     util.cpp
 )
@@ -515,6 +518,10 @@ if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
 target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
+endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)

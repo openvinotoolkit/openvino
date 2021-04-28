@@ -69,16 +69,6 @@ onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
 onnx_top_k_opset_11_const_k_smallest_negative_axis
-split_1d
-split_2d_axis_0
-split_2d_axis_1
-split_3d_axis_0
-split_3d_axis_1
-split_3d_axis_2
-split_4d_axis_0
-split_4d_axis_1
-split_4d_axis_2
-split_4d_axis_3
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
@@ -564,10 +554,6 @@ select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
-
-# Incorrect precision bf16!
-convert_float32_bf16
-convert_bf16_float32
 
 # [nGraph upgrade pass] Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis.
 softmax_dynamic_axes

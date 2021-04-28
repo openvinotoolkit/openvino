@@ -64,6 +64,6 @@ namespace ngraph
             private:
                 AutoBroadcastSpec m_autob;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

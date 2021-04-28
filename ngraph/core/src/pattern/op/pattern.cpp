@@ -28,7 +28,7 @@ namespace ngraph
                     };
                 }
             }
-        }
+        } // namespace op
 
         PatternMap as_pattern_map(const PatternValueMap& pattern_value_map)
         {
@@ -114,5 +114,5 @@ namespace ngraph
                                    [=](element::Type type) { return type == output_type; });
             };
         }
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

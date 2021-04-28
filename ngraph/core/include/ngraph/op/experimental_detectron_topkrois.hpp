@@ -44,6 +44,6 @@ namespace ngraph
             private:
                 size_t m_max_rois;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

@@ -66,7 +66,7 @@ namespace mish
         }
         return rc;
     }
-}
+} // namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

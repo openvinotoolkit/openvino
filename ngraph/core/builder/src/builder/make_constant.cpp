@@ -90,5 +90,5 @@ namespace ngraph
             }
             return result;
         }
-    }
-}
+    } // namespace builder
+} // namespace ngraph
