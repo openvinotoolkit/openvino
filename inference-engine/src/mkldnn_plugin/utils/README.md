@@ -15,17 +15,18 @@ should be dumped for.
 
 Environment variables can be set per execution, for example:
 ```sh
-    OV_CPU_BLOB_DUMP_NODE_EXEC_ID='1 12 45' benchmark_app ...
+    OV_CPU_BLOB_DUMP_DIR=dump_dir benchmark_app ...
 ```
 or for shell session (bash example):
 ```sh
-    export OV_CPU_BLOB_DUMP_NODE_EXEC_ID='1 12 45'
+    export OV_CPU_BLOB_DUMP_DIR=dump_dir
     benchmark_app ...
 ```
 ### Specify dump directory
 ```sh
     OV_CPU_BLOB_DUMP_DIR=<directory-name> benchmark_app ...
 ```
+Default is *mkldnn_dump*
 ### Specify dump format
 ```sh
     OV_CPU_BLOB_DUMP_FORMAT=<format> benchmark_app ...

@@ -93,6 +93,8 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 
 ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
 
+ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
+
 #
 # Process featues
 #

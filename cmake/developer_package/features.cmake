@@ -60,8 +60,6 @@ ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid mod
 
 ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "CMAKE_CXX_COMPILER_ID MATCHES ^(Apple)?Clang$; NOT WIN32" OFF)
 
-ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
-
 #
 # Check features
 #
