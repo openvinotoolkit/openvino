@@ -63,7 +63,7 @@ extensions/back/TopKNormalizer.py
 extensions/back/TransposeReduceFusing.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
-extensions/front/ArgMaxSqueeze.py
+extensions/front/ArgOpsSqueeze.py
 extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
