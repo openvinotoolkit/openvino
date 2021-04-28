@@ -57,5 +57,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
+            // TODO: Issue: 54436
+            R"(.*LSTMSequence.*CompareWithRefs.*mode=PURE_SEQ_RAND_SEQ_LEN_PARAM.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
     };
 }
