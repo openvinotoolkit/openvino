@@ -1,7 +1,7 @@
 bandit
+black
 flake8
 flake8-annotations-complexity
-flake8-bandit
 flake8-broken-line
 flake8-bugbear
 flake8-class-attributes-order
