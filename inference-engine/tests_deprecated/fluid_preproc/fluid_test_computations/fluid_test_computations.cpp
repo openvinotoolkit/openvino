@@ -14,7 +14,7 @@ struct FluidComputation::Priv
     cv::GComputation m_c;
     cv::GRunArgs m_v_in;
     std::vector<cv::gapi::own::Mat> m_v_out;
-
+#if 1
     Priv(cv::GComputation && c, std::vector<cv::gapi::own::Mat>&& v_in, std::vector<cv::gapi::own::Mat>&& v_out)
         : m_c(std::move(c)),
           m_v_in(v_in.begin(), v_in.end()),
@@ -38,7 +38,7 @@ struct FluidComputation::Priv
           m_v_in(std::move(v_in)),
           m_v_out(std::move(v_out))
     {}
-
+#endif
     cv::GRunArgs  ins()  { return m_v_in;}
     cv::GRunArgsP outs() {
         cv::GRunArgsP call_outs;
@@ -47,6 +47,7 @@ struct FluidComputation::Priv
 
         return call_outs;
     }
+
 };
 
 FluidComputation::FluidComputation(Priv *priv)
@@ -131,8 +132,8 @@ static cv::GComputation buildResizeComputation(test::Mat inMat, test::Mat outMat
 
 FluidResizeComputation::FluidResizeComputation(test::Mat inMat, test::Mat outMat, int interp)
     : FluidComputation(new Priv{buildResizeComputation(inMat, outMat, interp)
-                               ,{to_own(inMat)}
-                               ,{to_own(outMat)}
+                               ,to_own(inMat)
+                               ,to_own(outMat)
                                })
 {}
 
@@ -159,8 +160,8 @@ static cv::GComputation buildResizeRGB8UComputation(test::Mat inMat, test::Mat o
 
 FluidResizeRGB8UComputation::FluidResizeRGB8UComputation(test::Mat inMat, test::Mat outMat, int interp)
     : FluidComputation(new Priv{buildResizeRGB8UComputation(inMat, outMat, interp)
-                               ,{to_own(inMat)}
-                               ,{to_own(outMat)}
+                               ,to_own(inMat)
+                               ,to_own(outMat)
                                })
 {}
 
@@ -181,7 +182,7 @@ static cv::GComputation buildSplitComputation(int planes)
 
 FluidSplitComputation::FluidSplitComputation(test::Mat inMat, std::vector<test::Mat> outMats)
     : FluidComputation(new Priv{buildSplitComputation(outMats.size())
-                               ,{to_own(inMat)}
+                               ,to_own(inMat)
                                ,to_own(outMats)
                                })
 {}
@@ -195,8 +196,8 @@ static cv::GComputation buildChanToPlaneComputation(int chan)
 
 FluidChanToPlaneComputation::FluidChanToPlaneComputation(test::Mat inMat, test::Mat outMat, int chan)
     : FluidComputation(new Priv{buildChanToPlaneComputation(chan)
-                               ,{to_own(inMat)}
-                               ,{to_own(outMat)}
+                               ,to_own(inMat)
+                               ,to_own(outMat)
                                })
 {}
 
@@ -257,8 +258,8 @@ ConvertDepthComputation::ConvertDepthComputation(test::Mat inMat, test::Mat outM
                                     cv::GMat out = InferenceEngine::gapi::ConvertDepth::on(in, depth);
                                     return cv::GComputation(cv::GIn(in), cv::GOut(out));
                                  }()
-                               , {to_own(inMat)}
-                               , {to_own(outMat)}
+                               , to_own(inMat)
+                               , to_own(outMat)
                                })
 {}
 
