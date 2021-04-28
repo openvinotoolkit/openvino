@@ -20,6 +20,9 @@ namespace ngraph
         template <typename Engine>
         struct supports_dynamic;
 
+        /// Indicates that a given Engine supports collecting statistic about ops used in test cases
+        template <typename Engine>
+        struct supports_ops_stats_collection;
         /// Example:
         ///
         // template <>

@@ -10,6 +10,7 @@
 #include "ngraph/ngraph.hpp"
 #include "runtime/backend.hpp"
 #include "runtime/backend_manager.hpp"
+#include "util/test_environment.hpp"
 
 using namespace std;
 
@@ -27,6 +28,7 @@ int main(int argc, char** argv)
     }
     argc = argv_vector.size();
     ::testing::InitGoogleTest(&argc, argv_vector.data());
+    ::testing::AddGlobalTestEnvironment(new ngraph::test::TestEnvironment);
     for (int i = 1; i < argc; i++)
     {
         if (cpath_flag == argv[i] && (++i) < argc)

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
-
+#include <util/test_environment.hpp>
 namespace ngraph
 {
     namespace test
@@ -33,6 +33,7 @@ namespace ngraph
             virtual testing::AssertionResult
                 compare_results_with_tolerance_as_fp(const float tolerance) = 0;
 
+            virtual void update_ops_stats(const PassRate::Statuses& status) = 0;
             /// Additionally the interface implementing class needs to define
             /// the following 2 methods. They are called from the TestCase class
             /// but they can't be a part of interface since they need to be declared as templates
