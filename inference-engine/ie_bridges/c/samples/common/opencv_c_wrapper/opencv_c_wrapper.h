@@ -15,7 +15,7 @@
     #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
 #else
     #if defined(_WIN32)
-        #ifdef opencv_c_wraper_EXPORTS
+        #ifdef opencv_c_wrapper_EXPORTS
             #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
         #else
             #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
