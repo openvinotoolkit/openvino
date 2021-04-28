@@ -20,8 +20,9 @@ the number of batch dimensions.
 * *batch_dims*
   * **Description**: *batch_dims* (also denoted as `b`) is a leading number of dimensions of `data` tensor and `indices` 
   representing the batches, and *Gather* starts to gather from the `b` dimension. It requires the first `b` 
-  dimensions in `data` and `indices` tensors to be equal.
-  * **Range of values**: `[0; min(data.rank, indices.rank))` and `batch_dims <= axis`
+  dimensions in `data` and `indices` tensors to be equal. If *batch_dims* is less than zero used normalized value 
+  `batch_dims = indices.rank + batch_dims`.
+  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank))` and `batch_dims <= axis`
   * **Type**: *T_AXIS*
   * **Default value**: 0
   * **Required**: *no*
@@ -110,6 +111,24 @@ output = [[[[ 5,  6,  7,  8],
             [33, 34, 35, 36],
             [29, 30, 31, 32]]]]
 output_shape = (2, 1, 3, 4)
+```
+
+Example 5 with negative *batch_dims* value:
+```
+batch_dims = -1  <-- normalized value will be indices.rank + batch_dims = 2 - 1 = 1
+axis = 1
+
+indices = [[0, 0, 4], <-- this is applied to the first batch 
+           [4, 0, 0]]  <-- this is applied to the second batch
+indices_shape = (2, 3)
+
+data    = [[1, 2, 3, 4, 5],  <-- the first batch
+           [6, 7, 8, 9, 10]]  <-- the second batch 
+data_shape = (2, 5)
+
+output  = [[ 1, 1, 5],
+           [10, 6, 6]]
+output_shape = (2, 3)
 ```
 
 **Inputs**
