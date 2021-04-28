@@ -502,7 +502,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                         bool first = true;
                         for (const auto& item : rt)
                         {
-                            auto attributeValue = item.second->get_string();
+                            auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->get_string();
                             label << (first ? " " : ", ")
                                   << item.first + "(" + attributeValue + ") ";
                             first = false;
@@ -525,7 +525,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                     bool first = true;
                     for (const auto& item : rt)
                     {
-                        auto attributeValue = item.second->get_string();
+                        auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->get_string();
                         label << (first ? " " : ", ") << item.first + "(" + attributeValue + ") ";
                         first = false;
                     }
@@ -573,7 +573,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
             bool first = true;
             for (const auto& item : rt)
             {
-                auto attributeValue = item.second->get_string();
+                auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->get_string();
                 rc += (first ? " " : "\\n") + item.first +
                       (attributeValue.empty() ? "" : ("(" + attributeValue + ")"));
                 first = false;

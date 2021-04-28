@@ -13,6 +13,14 @@
 #include <transformations/init_node_info.hpp>
 
 #include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+
+#include <low_precision/create_attribute.hpp>
+#include <low_precision/create_precisions_dependent_attribute.hpp>
+#include <low_precision/propagate_attribute_to_precision_preserved.hpp>
 
 #include <low_precision/low_precision.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
@@ -87,7 +95,7 @@ public:
             1,
             0);
 
-//#define VISUALIZE_TREE
+#define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
         ngraph::pass::low_precision::LowPrecision::TypeRelaxedReplacer pass;
         pass.run_on_function(actualFunction);
@@ -139,10 +147,30 @@ public:
         manager2.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
 
-        ngraph::pass::Manager manager3;
-        manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager3.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
+        //{
+        //    ngraph::pass::Manager manager;
+        //    //manager.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
+        //    std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
+        //    markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>(AttributeSource::Node);
+        //    markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+        //    manager.run_passes(actualFunction);
+        //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
+        //}
+
+        //ngraph::pass::Manager manager3;
+        //manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+        //manager3.run_passes(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
+
+        {
+            ngraph::pass::Manager manager;
+            //manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+            std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+            precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(AttributeSource::OutputPort);
+            precisionsPropagation->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<PrecisionsAttribute>>();
+            manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
+        }
 
         ngraph::pass::Manager manager4;
         manager4.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();

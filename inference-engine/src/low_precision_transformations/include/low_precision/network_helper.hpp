@@ -388,6 +388,19 @@ std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<No
     return attribute;
 }
 
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const Input<Node>& input) {
+    auto& rt = input.get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+}
+
 // merge: share between other operations - implicit backward propagation
 template <typename T>
 void mergeAndReplace(

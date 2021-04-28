@@ -43,7 +43,7 @@ public:
 
                 auto resultAttribute = parentRestrictions[0];
 
-                std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> toMerge = parentRestrictions;
+                std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> toMerge = parentRestrictions;
                 toMerge.erase(toMerge.begin());
                 resultAttribute->merge(toMerge);
 
@@ -51,18 +51,27 @@ public:
                     const auto oldAttribute = parentRestrictions[index]->get();
                     //replaceAttributeInInputs(f, resultAttribute, parentRestrictions[index], node);
 
-                    NetworkHelper::reassign<PrecisionsSharedValue, PrecisionsAttribute>(
+                    NetworkHelper::reassign<PrecisionsSharedValue, AttributeType>(
                         resultAttribute->get()->sharedValue,
                         parentRestrictions[index]->get()->sharedValue->attributes);
                 }
 
                 auto& rt = op->get_rt_info();
-                rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+                rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = resultAttribute;
             } else {
                 for (auto input : op->inputs()) {
-                    auto attribute = getAttribute(input);
+                    auto parentAttribute = getSourceOutputAttribute(input);
+                    if (parentAttribute == nullptr) {
+                        continue;
+                    }
+
+                    auto attribute = getAttribute<std::shared_ptr<AttributeType>>(input);
+                    if (attribute != nullptr) {
+                        parentAttribute->merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<AttributeType>>>>{ attribute });
+                    }
+
                     auto& rt = input.get_rt_info();
-                    rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attribute;
+                    rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = parentAttribute;
                 }
             }
             return true;
@@ -73,7 +82,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getAttribute(const Input<Node>& input) {
+    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
         auto inputNode = input.get_source_output().get_node()->shared_from_this();
 
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
@@ -113,7 +122,7 @@ private:
             //    parentAttributes.push_back(attribute);
             //}
 
-            const auto attribute = getAttribute(input);
+            const auto attribute = getSourceOutputAttribute(input);
             if (attribute != nullptr) {
                 parentAttributes.push_back(attribute);
             }

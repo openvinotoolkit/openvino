@@ -172,8 +172,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     //avgPoolPropagation->add_matcher<UpdateSharedValue<AvgPoolPrecisionPreservedAttribute, opset1::FakeQuantize>>();
 
     std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
-    precisionsPropagation->add_matcher<CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(
-        CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>::CreateAttributeSource::OutputPort); // outputPort
+    precisionsPropagation->add_matcher<CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(AttributeSource::OutputPort); // outputPort
     precisionsPropagation->add_matcher<PropagateAttributeToPrecisionPreserved<PrecisionsAttribute>>();
 
     //std::shared_ptr<ngraph::pass::GraphRewrite> intervalsAlignmentPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
