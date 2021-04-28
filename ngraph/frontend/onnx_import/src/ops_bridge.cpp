@@ -357,6 +357,7 @@ namespace ngraph
             REGISTER_OPERATOR("Greater", 1, greater);
             REGISTER_OPERATOR("GRU", 1, gru);
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
+            REGISTER_OPERATOR("Hardmax", 13, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
             REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
