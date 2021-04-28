@@ -36,8 +36,8 @@ class SSliceComplex(FrontReplacementSubgraph):
          -------------------
                  SomeOp1
 
-    And, in such replacement, we should mark SomeOp1 as needed to correct. For example, if SomeOp1 is Roll,
-    we need to correct axes of Roll, because input data are real now.
+    After this transformation we need to mark SomeOp1 operation that its input rank has changed because
+    its inputs/attributes should probably be updated. Currently we have such a case for a Roll operation.
     """
     enabled = True
 
