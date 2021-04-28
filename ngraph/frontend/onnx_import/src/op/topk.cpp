@@ -27,7 +27,7 @@ namespace
 
         return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
     }
-}
+} // namespace
 
 namespace ngraph
 {
@@ -54,7 +54,7 @@ namespace ngraph
 
                     return {top_k->output(0), top_k->output(1)};
                 }
-            }
+            } // namespace set_1
 
             namespace set_10
             {
@@ -74,7 +74,7 @@ namespace ngraph
 
                     return {top_k->output(0), top_k->output(1)};
                 }
-            }
+            } // namespace set_10
 
             namespace set_11
             {
@@ -102,7 +102,7 @@ namespace ngraph
 
                     return {top_k->output(0), top_k->output(1)};
                 }
-            }
+            } // namespace set_11
 
         } // namespace op
 

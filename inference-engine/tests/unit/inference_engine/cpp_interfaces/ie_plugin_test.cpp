@@ -27,7 +27,7 @@ protected:
     shared_ptr<MockInferencePluginInternal> mock_plugin_impl;
     shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
-    shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
+    shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     std::shared_ptr<MockNotEmptyICNNNetwork> mockNotEmptyNet = std::make_shared<MockNotEmptyICNNNetwork>();
     std::string pluginId;
 
@@ -50,13 +50,13 @@ protected:
         mockExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
     }
 
-    void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {
+    void getInferRequestWithMockImplInside(IInferRequestInternal::Ptr &request) {
         IExecutableNetworkInternal::Ptr exeNetwork;
         InputsDataMap inputsInfo;
         mockNotEmptyNet->getInputsInfo(inputsInfo);
         OutputsDataMap outputsInfo;
         mockNotEmptyNet->getOutputsInfo(outputsInfo);
-        mockInferRequestInternal = make_shared<MockInferRequestInternal>(inputsInfo, outputsInfo);
+        mockInferRequestInternal = make_shared<MockIInferRequestInternal>(inputsInfo, outputsInfo);
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
@@ -74,14 +74,15 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
     inBlob->allocate();
     string inputName = "not_input";
     std::string refError = "[ NOT_FOUND ] Failed to find input or output with name: \'" + inputName + "\'";
-    IInferRequest::Ptr inferRequest;
+    IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
-
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::NOT_FOUND, sts);
-    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
-        << "\tExpected: " << refError
-        << "\n\tActual: " << dsc.msg;
+    try {
+        inferRequest->SetBlob(inputName, inBlob);
+    } catch(InferenceEngine::NotFound& ex) {
+        ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
+            << "\tExpected: " << refError
+            << "\n\tActual: " << ex.what();
+    }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
@@ -89,56 +90,60 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
     inBlob->allocate();
     string inputName = "not_input";
     std::string refError = "[ NOT_FOUND ] Failed to set blob with empty name";
-    IInferRequest::Ptr inferRequest;
+    IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
-
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob("", inBlob, &dsc));
-    ASSERT_EQ(StatusCode::NOT_FOUND, sts);
-    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
-        << "\tExpected: " << refError
-        << "\n\tActual: " << dsc.msg;
+    try {
+        inferRequest->SetBlob(inputName, inBlob);
+    } catch(InferenceEngine::NotFound& ex) {
+        ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
+            << "\tExpected: " << refError
+            << "\n\tActual: " << ex.what();
+    }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetNullPtr) {
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
     std::string refError = "[ NOT_ALLOCATED ] Failed to set empty blob with name: \'" + inputName + "\'";
-    IInferRequest::Ptr inferRequest;
+    IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
     Blob::Ptr inBlob = nullptr;
-
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
-    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
-        << "\tExpected: " << refError
-        << "\n\tActual: " << dsc.msg;
+    try {
+        inferRequest->SetBlob(inputName, inBlob);
+    } catch(InferenceEngine::NotAllocated& ex) {
+        ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
+            << "\tExpected: " << refError
+            << "\n\tActual: " << ex.what();
+    }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetEmptyBlob) {
     Blob::Ptr inBlob;
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
     std::string refError = "[ NOT_ALLOCATED ] Failed to set empty blob with name: \'" + inputName + "\'";
-    IInferRequest::Ptr inferRequest;
+    IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
-
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
-    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
-        << "\tExpected: " << refError
-        << "\n\tActual: " << dsc.msg;
+    try {
+        inferRequest->SetBlob(inputName, inBlob);
+    } catch(InferenceEngine::NotAllocated& ex) {
+        ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
+            << "\tExpected: " << refError
+            << "\n\tActual: " << ex.what();
+    }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
     std::string refError = "[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'" + inputName + "\'";
-    IInferRequest::Ptr inferRequest;
+    IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
     Blob::Ptr blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
-
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), blob, &dsc));
-    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
-    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
-        << "\tExpected: " << refError
-        << "\n\tActual: " << dsc.msg;
+    try {
+        inferRequest->SetBlob(inputName, blob);
+    } catch(InferenceEngine::NotAllocated& ex) {
+        ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
+            << "\tExpected: " << refError
+            << "\n\tActual: " << ex.what();
+    }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {

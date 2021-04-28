@@ -66,9 +66,9 @@ Glossary of terms used in the Inference Engine
 | Blob | Memory container used for storing inputs, outputs of the network, weights and biases of the layers |
 | Device (Affinitity) | A preferred Intel(R) hardware device to run the inference (CPU, GPU, etc.) |
 | Extensibility mechanism, Custom layers | The mechanism that provides you with capabilities to extend the Inference Engine and Model Optimizer so that they can work with topologies containing layers that are not yet supported |
-| <code>ICNNNetwork</code> | An Interface of the Convolutional Neural Network that Inference Engine reads from IR. Consists of topology, weights and biases |
-| <code>IExecutableNetwork</code> | An instance of the loaded network which allows the Inference Engine to request (several) infer requests and perform inference synchronously or asynchronously |
-| <code>IInferRequest</code> | Interface that represents the end point of inference on the model loaded to the plugin and represented by executable network. Inputs are set here, outputs should be requested from this interface as well |
+| <code>CNNNetwork</code> | A class of the Convolutional Neural Network that Inference Engine reads from IR. Consists of topology, weights and biases |
+| <code>ExecutableNetwork</code> | An instance of the loaded network which allows the Inference Engine to request (several) infer requests and perform inference synchronously or asynchronously |
+| <code>InferRequest</code> | A class that represents the end point of inference on the model loaded to the plugin and represented by executable network. Inputs are set here, outputs should be requested from this interface as well |
 | <code>InferenceEngineProfileInfo</code> | Represents basic inference profiling information per layer |
 | Inference Engine | A C++ library with a set of classes that you can use in your application to infer input data (images) and get the result |
 | Inference Engine API | The basic default API for all supported devices, which allows you to load a model from Intermediate Representation, set input and output formats and execute the model on various devices |

@@ -55,7 +55,7 @@ namespace atanhop
         }
         return rc;
     }
-}
+} // namespace atanhop
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
