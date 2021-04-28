@@ -16,6 +16,9 @@ struct CutModelParam {
     std::vector<std::string> m_newInputs;
     std::vector<std::string> m_oldOutputs;
     std::vector<std::string> m_newOutputs;
+    std::string              m_tensorValueName;
+    std::vector<float>       m_tensorValue;
+    std::string              m_op_before_name;
 };
 
 class FrontEndCutModelTest : public ::testing::TestWithParam<CutModelParam> {
