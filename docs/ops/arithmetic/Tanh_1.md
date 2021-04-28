@@ -23,11 +23,12 @@
 
 **Detailed description**
 
-For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 \f[
 tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
 \f]
+
+The rounding for casting values are done towards zero.
 
 **Examples**
 
