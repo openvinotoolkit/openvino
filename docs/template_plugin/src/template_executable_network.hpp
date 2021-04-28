@@ -14,6 +14,7 @@
 
 namespace TemplatePlugin {
 
+// forward declaration
 class Plugin;
 
 /**
