@@ -30,6 +30,7 @@ namespace ngraph
             }
 
             const std::vector<Attribute>& attributes() const;
+            std::vector<std::string> get_attribute_names() const;
             OutputVector get_ng_nodes(const Node& node) const;
             OutputVector get_ng_inputs() const;
 
@@ -205,6 +206,18 @@ namespace ngraph
         bool Node::has_attribute(const std::string& name) const
         {
             return m_pimpl->has_attribute(name);
+        }
+
+        std::vector<std::string> Node::get_attribute_names() const
+        {
+            std::vector<std::string> attr_names;
+            const auto& node_attributes = m_pimpl->attributes();
+            attr_names.reserve(node_attributes.size());
+            std::transform(std::begin(node_attributes),
+                           std::end(node_attributes),
+                           std::back_inserter(attr_names),
+                           [](const Attribute& a) { return a.get_name(); });
+            return attr_names;
         }
 
         template <>

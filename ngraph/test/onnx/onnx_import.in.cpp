@@ -4298,3 +4298,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_shape_attribute)
     test_case.add_expected_output<int32_t>(Shape{2, 3, 4}, std::vector<int32_t>(24, 5));
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_tensor)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_tensor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 3}, {0.0f, 0.5f, 1.f, 1.5f, 2.f, 2.5f});
+    test_case.run();
+}

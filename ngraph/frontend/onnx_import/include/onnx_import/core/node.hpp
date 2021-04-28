@@ -59,6 +59,7 @@ namespace ngraph
             const std::string& domain() const;
             const std::string& op_type() const;
             const std::string& get_name() const;
+            std::vector<std::string> get_attribute_names() const;
 
             /// \brief Describe the ONNX Node to make debugging graphs easier
             /// Function will return the Node's name if it has one, or the names of its outputs.
