@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "../include/cut_specific_model.hpp"
 #include "../include/utils.hpp"
-#include "../../../../core/include/ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -235,5 +235,6 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue) {
                                    });
     ASSERT_TRUE(const_node_it != ops.end()) << "Name shall exist:" << const_name;
     auto data = std::dynamic_pointer_cast<opset7::Constant>(*const_node_it)->get_vector<float>();
+    EXPECT_EQ(data.size(), m_param.m_tensorValue.size()) << "Data size must be equal to expected size";
     EXPECT_TRUE(std::equal(data.begin(), data.end(), m_param.m_tensorValue.begin())) << "Data must be equal";
 }
