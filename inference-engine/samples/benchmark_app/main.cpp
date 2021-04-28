@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cldnn/cldnn_config.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 #include <gna/gna_config.hpp>
 #include <inference_engine.hpp>
 #include <map>
@@ -16,8 +17,6 @@
 #include <utility>
 #include <vector>
 #include <vpu/vpu_plugin_config.hpp>
-
-#include <frontend_manager/frontend_manager.hpp>
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"

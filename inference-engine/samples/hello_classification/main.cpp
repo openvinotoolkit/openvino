@@ -4,6 +4,7 @@
 
 #include <samples/classification_results.h>
 
+#include <frontend_manager/frontend_manager.hpp>
 #include <inference_engine.hpp>
 #include <iterator>
 #include <memory>
@@ -11,8 +12,6 @@
 #include <samples/ocv_common.hpp>
 #include <string>
 #include <vector>
-
-#include <frontend_manager/frontend_manager.hpp>
 
 using namespace InferenceEngine;
 
