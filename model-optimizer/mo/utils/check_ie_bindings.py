@@ -26,10 +26,14 @@ from mo.utils.error import classify_error_type
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
-    t = tm.Telemetry(app_name='Model Optimizer', app_version=mo_version)
-    t.start_session('mo')
+    t = tm.Telemetry(app_name='Version Checker', app_version=mo_version)
+    # do not trigger new session if we are executing from the check from within the MO because it is actually not model
+    # conversion run which we want to send
+    if execution_type != 'mo':
+        t.start_session(execution_type)
     t.send_event(execution_type, event_type, message)
-    t.end_session('mo')
+    if execution_type != "mo":
+        t.end_session(execution_type)
     t.force_shutdown(1.0)
 
 
