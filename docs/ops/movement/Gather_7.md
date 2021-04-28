@@ -10,11 +10,11 @@ TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) oper
 
 **Detailed description**
 
-    output[p_0, p_1, ..., p_{axis-1}, p_axis, ..., p_{axis + k}, ...] = 
-       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, p_b, ..., p_{axis}, j], ...]
+    output[p_0, p_1, ..., p_{axis-1}, i_b, ..., i_{M-1}, p_{axis+1}, ..., p_{N-1}] = 
+       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, i_b, ..., i_{M-1}], p_{axis+1}, ..., p_{N-1}]
 
-Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, and `b` is 
-the number of batch dimensions.
+Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, `b` is 
+the number of batch dimensions. `N` and `M` are numbers of dimensions of `data` and `indices` tensors, respectively.
 
 **Attributes**:
 * *batch_dims*
