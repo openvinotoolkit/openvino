@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-from collections import defaultdict
 import re
+from collections import defaultdict
 
 import numpy as np
 
 from extensions.back.pass_separator import BackFinish
-from extensions.ops.tensor_iterator import TensorIterator, get_internal_node_by_layer_id
+from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
