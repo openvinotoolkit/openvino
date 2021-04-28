@@ -60,7 +60,6 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
 
     # check environment marker
     if len(splited_requirement) > 1:
-        # env_req = splited_requirement[1]
         for env_req in splited_requirement[1:]:
             splited_env_req = re.split(r"==|>=|<=|>|<|~=|!=", env_req)
             splited_env_req = [l.strip(',') for l in splited_env_req]
