@@ -36,5 +36,3 @@ class TFFFTToDFT(FrontReplacementSubgraph):
 
             if graph.graph['layout'] == 'NHWC':
                 dft_node['need_insert_transposes_for_dft'] = True
-            # if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
-            #     dft_node['need_insert_transposes_for_dft'] = True
