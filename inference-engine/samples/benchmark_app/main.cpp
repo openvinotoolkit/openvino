@@ -267,9 +267,6 @@ int main(int argc, char* argv[]) {
                     if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("GPU") != std::string::npos)) {
                         slog::warn << "Turn off threads pinning for " << device << " device since multi-scenario with GPU device is used." << slog::endl;
                         device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
-                    } else {
-                        // set to default value
-                        device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
                     }
                 }
 
