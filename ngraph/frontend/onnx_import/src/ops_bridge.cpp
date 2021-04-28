@@ -435,6 +435,7 @@ namespace ngraph
             // Softmax v7 should be in the 11th opset but,
             // other frameworks(mxnet and onnxruntime) already use for older models.
             REGISTER_OPERATOR("Softmax", 7, softmax);
+            REGISTER_OPERATOR("Softmax", 13, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
