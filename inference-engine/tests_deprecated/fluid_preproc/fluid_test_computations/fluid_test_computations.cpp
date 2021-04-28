@@ -14,7 +14,7 @@ struct FluidComputation::Priv
     cv::GComputation m_c;
     cv::GRunArgs m_v_in;
     std::vector<cv::gapi::own::Mat> m_v_out;
-#if 1
+
     Priv(cv::GComputation && c, std::vector<cv::gapi::own::Mat>&& v_in, std::vector<cv::gapi::own::Mat>&& v_out)
         : m_c(std::move(c)),
           m_v_in(v_in.begin(), v_in.end()),
@@ -38,7 +38,7 @@ struct FluidComputation::Priv
           m_v_in(std::move(v_in)),
           m_v_out(std::move(v_out))
     {}
-#endif
+
     cv::GRunArgs  ins()  { return m_v_in;}
     cv::GRunArgsP outs() {
         cv::GRunArgsP call_outs;
@@ -62,7 +62,8 @@ namespace
 void FluidComputation::warmUp(test::Rect roi)
 {
     auto compile_args = roi.empty() ? cv::compile_args(InferenceEngine::gapi::preprocKernels())
-                                   :  cv::compile_args(InferenceEngine::gapi::preprocKernels(), cv::GFluidOutputRois{{to_own(roi)}});
+                                    : cv::compile_args(InferenceEngine::gapi::preprocKernels(),
+                                                       cv::GFluidOutputRois{{to_own(roi)}});
 
     m_priv->m_c.apply(m_priv->ins(), m_priv->outs(), std::move(compile_args));
 }
@@ -254,22 +255,22 @@ FluidI420toRGBComputation::FluidI420toRGBComputation(test::Mat inMat_y, test::Ma
 
 ConvertDepthComputation::ConvertDepthComputation(test::Mat inMat, test::Mat outMat,  int depth)
     : FluidComputation(new Priv{ [depth]()-> cv::GComputation {
-                                    cv::GMat in;
-                                    cv::GMat out = InferenceEngine::gapi::ConvertDepth::on(in, depth);
-                                    return cv::GComputation(cv::GIn(in), cv::GOut(out));
-                                 }()
+                                      cv::GMat in;
+                                      cv::GMat out = InferenceEngine::gapi::ConvertDepth::on(in, depth);
+                                      return cv::GComputation(cv::GIn(in), cv::GOut(out));
+                                  }()
                                , to_own(inMat)
                                , to_own(outMat)
                                })
 {}
 
 DivCComputation::DivCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c)
-    : FluidComputation(new Priv{ []()-> cv::GComputation{
-                                    cv::GMat in;
-                                    cv::GScalar C;
-                                    cv::GMat out = in / C;
-                                    return cv::GComputation(cv::GIn(in, C), cv::GOut(out));
-                                }()
+    : FluidComputation(new Priv{ []()-> cv::GComputation {
+                                      cv::GMat in;
+                                      cv::GScalar C;
+                                      cv::GMat out = in / C;
+                                      return cv::GComputation(cv::GIn(in, C), cv::GOut(out));
+                                  }()
                                 , cv::GRunArgs{cv::GRunArg{to_own(inMat)}, cv::GRunArg{to_own(c)}}
                                 , {to_own(outMat)}
                                })
@@ -277,11 +278,11 @@ DivCComputation::DivCComputation(test::Mat inMat, test::Mat outMat, test::Scalar
 
 SubCComputation::SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c)
     : FluidComputation(new Priv{ []()-> cv::GComputation{
-                                    cv::GMat in;
-                                    cv::GScalar C;
-                                    cv::GMat out = in - C;
-                                    return cv::GComputation(cv::GIn(in, C), cv::GOut(out));
-                                }()
+                                      cv::GMat in;
+                                      cv::GScalar C;
+                                      cv::GMat out = in - C;
+                                      return cv::GComputation(cv::GIn(in, C), cv::GOut(out));
+                                  }()
                                 , cv::GRunArgs{cv::GRunArg{to_own(inMat)}, cv::GRunArg{to_own(c)}}
                                 , {to_own(outMat)}
                                })
@@ -289,13 +290,12 @@ SubCComputation::SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar
 
 MeanValueSubtractComputation::MeanValueSubtractComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& mean, test::Scalar const& std)
     : FluidComputation(new Priv{ []()-> cv::GComputation{
-                                    cv::GMat in;
-                                    cv::GScalar _mean;
-                                    cv::GScalar _std;
-                                    cv::GMat out = (in - _mean) / _std;
-
-                                    return cv::GComputation(cv::GIn(in, _mean, _std), cv::GOut(out));
-                                }()
+                                      cv::GMat in;
+                                      cv::GScalar _mean;
+                                      cv::GScalar _std;
+                                      cv::GMat out = (in - _mean) / _std;
+                                      return cv::GComputation(cv::GIn(in, _mean, _std), cv::GOut(out));
+                                  }()
                                 , cv::GRunArgs{cv::GRunArg{to_own(inMat)}, cv::GRunArg{to_own(mean)}, cv::GRunArg{to_own(std)}}
                                 , {to_own(outMat)}
                                })

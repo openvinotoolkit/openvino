@@ -730,11 +730,7 @@ TEST_P(SubCTestGAPI, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance)
-//                << "OCV: \n" << out_mat_ocv
-//                << " \n "
-//                << "GAPI \n" << out_mat_gapi
-                ;
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
     }
 }
 
@@ -1333,8 +1329,6 @@ TEST_P(PreprocTest, Performance)
 TEST_P(MeanValueGAPI, AccuracyTest)
 {
     const auto params = GetParam();
-//    int in_depth      = std::get<0>(params);
-//    int out_depth     = std::get<1>(params);
     cv::Size sz       = std::get<0>(params);
     double tolerance  = std::get<1>(params);
 
