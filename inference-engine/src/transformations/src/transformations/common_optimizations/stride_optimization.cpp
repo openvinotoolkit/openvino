@@ -135,7 +135,6 @@ ngraph::pass::ConvStridePropagation::ConvStridePropagation() {
             insert_strides_prop(conv->input(0), conv_strides);
         } else {
             conv->set_strides(conv_strides);
-            insert_strides_prop(conv->input(0), strides_ones);
         }
 
         return true;
@@ -146,37 +145,50 @@ ngraph::pass::ConvStridePropagation::ConvStridePropagation() {
 }
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StridePropagation, "StridePropagation", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SupportedNodesStridePropagation, "SupportedNodesStridePropagation", 0);
 
-ngraph::pass::StridePropagation::StridePropagation() {
-    MATCHER_SCOPE(StridePropagation);
-    auto root = pattern::wrap_type<opset7::Parameter,
-                                   opset7::Add,
+ngraph::pass::SupportedNodesStridePropagation::SupportedNodesStridePropagation() {
+    MATCHER_SCOPE(SupportedNodesStridePropagation);
+    auto root = pattern::wrap_type<opset7::Add,
                                    opset7::Relu,
+                                   opset7::PRelu,
                                    opset7::Maximum,
                                    opset7::Multiply>();
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        const auto& rank = node->get_output_partial_shape(0).rank();
-        if (rank.is_dynamic() || rank.get_length() < 3)
-            return false;
-
         auto next_ops = get_node_target_inputs(node);
         bool all_ops_are_valid;
         std::vector<Strides> strides_vec;
         std::tie(strides_vec, all_ops_are_valid) = check_next_ops(next_ops);
-        Strides strides(static_cast<size_t>(rank.get_length()) - 2, 1);
 
-        if (!all_ops_are_valid || is_type<opset7::Parameter>(node)) {
+        if (!all_ops_are_valid) {
             handle_not_equal_stride_props(node, std::move(next_ops));
         } else if (strides_vec.size() > 0) {
-            strides = strides_vec[0];
+            for (auto& input : node->inputs()) {
+                insert_strides_prop(input, strides_vec[0]);
+            }
         }
 
-        for (auto& input : node->inputs()) {
-            insert_strides_prop(input, strides);
-        }
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(root, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::OtherNodesStridePropagation, "OtherNodesStridePropagation", 0);
+
+ngraph::pass::OtherNodesStridePropagation::OtherNodesStridePropagation() {
+    MATCHER_SCOPE(OtherNodesStridePropagation);
+    auto root = pattern::any_input([] (const Output<Node>& node) -> bool {
+                                           return !is_type<opset7::Constant>(node.get_node());
+                                       });
+
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        auto next_ops = get_node_target_inputs(node);
+        handle_not_equal_stride_props(node, std::move(next_ops));
 
         return true;
     };
