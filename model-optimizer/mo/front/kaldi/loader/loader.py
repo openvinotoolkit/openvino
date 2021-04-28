@@ -126,7 +126,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
 
-    used_layers = set()
+    # find out output layer, it can be only one due to chain structure of nnet1 model
+    output_layer = None
     while True:
         component_type = find_next_component(file_descr)
         if component_type == end_of_nnet_tag.lower()[1:-1]:
@@ -158,8 +159,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
-        used_layers.add(prev_layer_id)
         prev_layer_id = layer_id
+        output_layer = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
@@ -167,8 +168,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     # for each output Identity node is added, and tensor name for the output is kept
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
-    output_layers = graph.nodes - used_layers
-    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+    assert output_layer is not None, "Output layer is not found in graph"
+    add_outputs_identity(graph, [output_layer], lambda g, output, fake_output: g.create_edge(
         Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 
