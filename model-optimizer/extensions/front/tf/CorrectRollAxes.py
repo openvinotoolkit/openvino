@@ -9,9 +9,10 @@ from mo.graph.graph import Graph
 
 class CorrectRollAxes(FrontReplacementSubgraph):
     """
-    After the transformation SSliceComplex, if Roll node was after Complex node in the source TF model,
-    we have a real input tensor for Roll instead of a complex code. Hence, if axes were negative, then
-    these axes were incorrect. As a sequence, axes must be corrected.
+    The transformation SSliceComplex removes 2 StridedSlice and Complex operation. If the Roll node is a consumer
+    of Complex node in the original TF model, then we have a real input tensor for Roll instead of a complex.
+    Negative axes values for the Roll operation should be updated to reflect the fact that the rank of input tensor was
+    increased by one (a new trailing dimension of size 2 containing real and imaginary part of complex number is added).
     """
     enabled = True
 

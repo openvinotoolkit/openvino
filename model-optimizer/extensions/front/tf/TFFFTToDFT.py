@@ -11,8 +11,8 @@ from mo.graph.graph import Graph, rename_nodes
 
 class TFFFTToDFT(FrontReplacementSubgraph):
     """
-    This transformation converts the operation TFFFT into MO DFT (if the attribute 'is_inverse' is False),
-    or into MO IDFT (otherwise).
+    This transformation converts the operation TFFFT into OpenVINO DFT (if the attribute 'is_inverse' is False),
+    or into OpenVINO IDFT (otherwise).
     """
     enabled = True
 
