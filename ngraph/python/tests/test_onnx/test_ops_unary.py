@@ -242,27 +242,27 @@ def test_logsoftmax():
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=0)
     expected = logsoftmax_2d(data.reshape(1, 60)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=1)
     expected = logsoftmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
     expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     # default axis is -1
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     with pytest.raises(RuntimeError):
         node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=3)
-        ng_results = run_node(node, [data])
+        ng_results = run_node(node, [data], opset_version=12)
 
 
 def test_softplus():
