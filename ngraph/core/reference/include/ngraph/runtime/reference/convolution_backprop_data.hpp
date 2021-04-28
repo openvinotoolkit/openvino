@@ -62,9 +62,11 @@ namespace ngraph
                                     {
                                         for (int i_x = 0; i_x < input_3d[2]; ++i_x)
                                         {
-                                            auto offset = batch * input_size * input_shape[1] + channel * input_size;
+                                            auto offset = batch * input_size * input_shape[1] +
+                                                          channel * input_size;
                                             input_zeros.push_back(
-                                                in[offset + i_x + i_y * input_3d[2] + i_z * input_3d[2] * input_3d[1]]);
+                                                in[offset + i_x + i_y * input_3d[2] +
+                                                   i_z * input_3d[2] * input_3d[1]]);
 
                                             if (i_x < input_3d[2] - 1)
                                             {
@@ -77,8 +79,9 @@ namespace ngraph
 
                                         if (i_y < input_3d[1] - 1)
                                         {
-                                            for (int y_dim = 0; y_dim < new_input_3d[2] * (strides_3d[1] - 1);
-                                                y_dim++)
+                                            for (int y_dim = 0;
+                                                 y_dim < new_input_3d[2] * (strides_3d[1] - 1);
+                                                 y_dim++)
                                             {
                                                 input_zeros.push_back(0);
                                             }
@@ -88,8 +91,9 @@ namespace ngraph
                                     if (i_z < input_3d[0] - 1)
                                     {
                                         for (int y_dim = 0;
-                                            y_dim < new_input_3d[1] * new_input_3d[2] * (strides_3d[0] - 1);
-                                            y_dim++)
+                                             y_dim < new_input_3d[1] * new_input_3d[2] *
+                                                         (strides_3d[0] - 1);
+                                             y_dim++)
                                         {
                                             input_zeros.push_back(0);
                                         }
@@ -248,8 +252,10 @@ namespace ngraph
 
                 // if channel number for output is > 1 then reverse layout of filter coefficients as
                 // it is required by convolve_3D_channels() function.
-                // Current layout: batch0_ch0|batch0_ch1|...|batch0_chN|...|batch1_ch0|batch1_ch1|...|batch1_chN|...
-                // Expected layout: batch0_ch0|batch1_ch0|...|batchN_ch0|...|batch0_ch1|batch1_ch1|...|batch1_chN|...
+                // Current layout:
+                // batch0_ch0|batch0_ch1|...|batch0_chN|...|batch1_ch0|batch1_ch1|...|batch1_chN|...
+                // Expected layout:
+                // batch0_ch0|batch1_ch0|...|batchN_ch0|...|batch0_ch1|batch1_ch1|...|batch1_chN|...
                 if (filter_shape[1] > 1)
                 {
                     std::vector<T> temp_reversed(reversed);
@@ -260,8 +266,12 @@ namespace ngraph
                     {
                         for (size_t j = 0; j < filter_shape[0]; j++)
                         {
-                            auto delta = temp_reversed.begin() + j * filter_shape[1] * filter_size + i * filter_size;
-                            std::copy(delta, delta + filter_size, reversed.begin() + i * filter_shape[0] * filter_size + j * filter_size);
+                            auto delta = temp_reversed.begin() + j * filter_shape[1] * filter_size +
+                                         i * filter_size;
+                            std::copy(delta,
+                                      delta + filter_size,
+                                      reversed.begin() + i * filter_shape[0] * filter_size +
+                                          j * filter_size);
                         }
                     }
                 }
