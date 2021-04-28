@@ -157,8 +157,8 @@ def get_cpu_info():
     """
     Check OS version and returns name and frequency of cpu
 
-    :return: CPU name
-    :rtype: tuple | Exception if it is not supported
+    :return: CPU name, CPU frequency
+    :rtype: str, str
     """
     model = ''
     if os_type_is_linux():
