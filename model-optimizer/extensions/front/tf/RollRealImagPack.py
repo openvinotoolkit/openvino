@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from extensions.ops.roll import Roll
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import correct_roll_axes
-from mo.graph.graph import Graph, rename_nodes
+from mo.graph.graph import Graph
 
 
 class RollRealImagPack(FrontReplacementSubgraph):
@@ -67,16 +66,6 @@ class RollRealImagPack(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
         unroll = match['unroll']
-        unroll_name = unroll.soft_get('name', unroll.id)
-
-        new_unroll = Roll(graph, {}).create_node()
         correct_roll_axes(unroll)
-
-        unroll.in_port(0).get_connection().set_destination(new_unroll.in_port(0))
-        unroll.in_port(1).get_connection().set_destination(new_unroll.in_port(1))
-        unroll.in_port(2).get_connection().set_destination(new_unroll.in_port(2))
-
         pack = match['pack']
-        pack.out_port(0).get_connection().set_source(new_unroll.out_port(0))
-
-        rename_nodes([(unroll, unroll_name + '/to_be_removed'), (new_unroll, unroll_name)])
+        pack.out_port(0).get_connection().set_source(unroll.out_port(0))
