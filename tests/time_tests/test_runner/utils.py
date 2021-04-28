@@ -5,6 +5,7 @@
 
 import os
 import platform
+import subprocess
 import sys
 import distro
 import yaml
@@ -150,3 +151,25 @@ def get_os_version():
     if os_type_is_darwin():
         return tuple(platform.mac_ver()[0].split(".")[:2])
     raise UnsupportedOsError()
+
+
+def get_cpu_info():
+    """
+    Check OS version and returns name and frequency of cpu
+
+    :return: CPU name
+    :rtype: tuple | Exception if it is not supported
+    """
+    model = ''
+    if os_type_is_linux():
+        command = r"lscpu | sed -n 's/Model name:[ \t]*//p'"
+        model = subprocess.check_output(command, shell=True)
+    if os_type_is_windows():
+        command = 'wmic cpu get name | find /v "Name"'
+        model = subprocess.check_output(command, shell=True)
+    if os_type_is_darwin():
+        command = ['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]
+        model = subprocess.check_output(command)
+    name = model.decode('utf-8').strip()
+    frequency = name.split('@')[1].strip()
+    return name, frequency
