@@ -40,13 +40,18 @@ class Gather(Op):
 
     @staticmethod
     def get_axis(node: Node):
-        data_rank = len(node.in_port(0).data.get_shape())
         axis_value = node.in_port(2).data.get_value()
-        return axis_value + data_rank if axis_value < 0 else axis_value
+        assert axis_value is not None, 'Cannot define axis value for operation {}'.format(node.soft_get('name', node.id))
+        if axis_value >= 0:
+            return axis_value
+        else:
+            data_rank = len(node.in_port(0).data.get_shape())
+            return axis_value + data_rank
 
     @staticmethod
     def get_batch_dims(node: Node):
-        return node.batch_dims + Gather.get_axis(node) if node.batch_dims < 0 else node.batch_dims
+        indicies_rank = len(node.in_port(1).data.get_shape())
+        return node.batch_dims + indicies_rank if node.batch_dims < 0 else node.batch_dims
 
     @staticmethod
     def infer(node: Node):
