@@ -24,8 +24,17 @@ namespace op {
 
 std::shared_ptr<ngraph::Node>
 calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
-                                       const Output<ngraph::Node>& scales)
+                                       const std::vector<float>& scale,
+                                       Output<ngraph::Node>& scales)
 {
+    if (scale.size() == 1)
+        scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, 1, scale[0], scale[0]});
+    else if (scale.size() == 2)
+        scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, 1, scale[0], scale[1]});
+    else if (scale.size() == 3)
+        scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, scale[0], scale[1], scale[2]});
+    else if (scale.size() == 4)
+        scales = opset6::Constant::create<float>(element::f32, Shape{4}, std::vector<float>(scale.begin(), scale.end()));
     const auto shape_of_data = std::make_shared<opset6::Convert>(
             std::make_shared<opset6::ShapeOf>(data), scales.get_element_type());
     const auto multiply =
@@ -62,7 +71,7 @@ extract_out_sizes(const Output<ngraph::Node>& data, const std::vector<int64_t>& 
     auto shape_end = opset6::Constant::create(element::Type_t::i32, Shape{1}, {2});
     auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x, shape_begin, shape_end, std::vector<int64_t>{0}, std::vector<int64_t>{0});
     auto hw_node = opset6::Constant::create<int64_t>(element::i64, Shape{2}, out_sizes);
-    return std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_node}, 0);;
+    return std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_node}, 0);
 }
 
 NamedOutputs nearest_interp_v2 (const NodeContext& node) {
@@ -84,10 +93,21 @@ NamedOutputs nearest_interp_v2 (const NodeContext& node) {
 
     Output<Node> scales;
     Output<Node> target_spatial_shape;
-    if (out_w <= 0 || out_h <= 0) {
+    //TODO reduce duplicate codes
+    if(node.has_ng_input("OutSize"))
+    {
+        attrs.shape_calculation_mode = ShapeCalcMode::sizes;
+        auto hw_shape = node.get_ng_input("OutSize");
+        const auto shape_of_x = std::make_shared<opset6::ShapeOf>(x);
+        auto shape_begin = opset6::Constant::create(element::Type_t::i64, {1}, {0});
+        auto shape_end = opset6::Constant::create(element::Type_t::i32, Shape{1}, {2});
+        auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x, shape_begin, shape_end, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+        target_spatial_shape = std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_shape}, 0);
+        scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
+    }
+    else if (out_w <= 0 || out_h <= 0) {
         attrs.shape_calculation_mode = ShapeCalcMode::scales;
-        scales = opset6::Constant::create<float>(element::f32, Shape{2}, std::vector<float>(scale.begin(), scale.end()));
-        target_spatial_shape = calculate_output_shape_based_on_scales(x, scales);
+        target_spatial_shape = calculate_output_shape_based_on_scales(x, scale, scales);
     }
     else {
         attrs.shape_calculation_mode = ShapeCalcMode::sizes;
@@ -122,10 +142,21 @@ NamedOutputs bilinear_interp_v2 (const NodeContext& node) {
     auto scale = node.get_attribute<std::vector<float>>("scale");
     Output<Node> scales;
     Output<Node> target_spatial_shape;
-    if (out_w <= 0 || out_h <= 0) {
+    //TODO reduce duplicate codes
+    if(node.has_ng_input("OutSize"))
+    {
+        attrs.shape_calculation_mode = ShapeCalcMode::sizes;
+        auto hw_shape = node.get_ng_input("OutSize");
+        const auto shape_of_x = std::make_shared<opset6::ShapeOf>(x);
+        auto shape_begin = opset6::Constant::create(element::Type_t::i64, {1}, {0});
+        auto shape_end = opset6::Constant::create(element::Type_t::i32, Shape{1}, {2});
+        auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x, shape_begin, shape_end, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+        target_spatial_shape = std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_shape}, 0);
+        scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
+    }
+    else if (out_w <= 0 || out_h <= 0) {
         attrs.shape_calculation_mode = ShapeCalcMode::scales;
-        scales = opset6::Constant::create<float>(element::f32, Shape{2}, std::vector<float>(scale.begin(), scale.end()));
-        target_spatial_shape = calculate_output_shape_based_on_scales(x, scales);
+        target_spatial_shape = calculate_output_shape_based_on_scales(x, scale, scales);
     }
     else {
         attrs.shape_calculation_mode = ShapeCalcMode::sizes;
