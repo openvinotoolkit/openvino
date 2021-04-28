@@ -372,7 +372,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze_duplicate_axes.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze.prototxt"));
 
     // {1, 4, 1, 1, 2}
     auto input = test::NDArray<float, 5>(
@@ -387,6 +387,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{1, 4, 1, 1, 2}, input);
     test_case.add_expected_output(Shape{4, 2}, expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze_opset13_no_axes.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
+    test_case.add_expected_output<float>(Shape{4, 2}, data);
     test_case.run();
 }
 
