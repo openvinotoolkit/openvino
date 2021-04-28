@@ -29,7 +29,7 @@ class SSliceComplex(FrontReplacementSubgraph):
     Here SomeOp is some node with real output and with the shape [N_0, ..., N_{r - 1}, 2], and StridedSlice nodes
     have output shapes [N_0, ..., N_{r - 1}].
 
-    But MO and Inference Engine do not support for complex tensors. Hence, we need to replace this sub-graph with
+    But MO and Inference Engine do not support complex tensors. Hence, we need to replace this sub-graph with
 
          SomeOp   other inputs
           |       |  ...  |
