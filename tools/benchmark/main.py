@@ -142,9 +142,6 @@ def run(args):
                         logger.warning(f"Turn off threads pinning for {device} " +
                                        "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
-                    else:
-                        ## set to default value
-                        config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
 
                 ## for CPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()

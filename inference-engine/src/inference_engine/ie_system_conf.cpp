@@ -90,15 +90,24 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 #if defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
-int getNumberOfCPUCores() { return parallel_get_max_threads();}
+int getNumberOfCPUCores(bool) { return parallel_get_max_threads();}
 #if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() { return {0}; }
+std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
     return custom::info::numa_nodes();
+}
+// this is impl only with the TBB
+std::vector<int> getAvailableCoresTypes() {
+    return custom::info::core_types();
+}
+#else
+// as the core types support exists only with the TBB, the fallback is same for any other threading API
+std::vector<int> getAvailableCoresTypes() {
+    return {-1};
 }
 #endif
 
