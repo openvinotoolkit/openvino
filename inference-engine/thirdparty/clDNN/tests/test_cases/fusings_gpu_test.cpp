@@ -3452,6 +3452,26 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise,
         mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3 },
 }), );
 
+class mvn_eltwise_f16 : public MVNFusingTest {};
+TEST_P(mvn_eltwise_f16, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
+                 mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
+                 data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
+                 eltwise("eltw", {"mvn", "eltw_data"}, eltwise_mode::sum, data_types::f16),
+                 reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32)
+    );
+
+    tolerance = 0.1f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise_f16,
+    ::testing::ValuesIn(std::vector<mvn_test_params>{
+        mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
+}), );
+
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- LRN cases -------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
