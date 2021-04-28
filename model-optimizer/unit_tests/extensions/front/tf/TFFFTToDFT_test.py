@@ -60,6 +60,7 @@ class TFFFTToDFTTest(unittest.TestCase):
                             })
         graph.stage = 'front'
         setattr(graph.graph['cmd_params'], 'disable_nhwc_to_nchw', False)
+        graph.graph['layout'] = 'NHWC'
         TFFFTToDFT().find_and_replace_pattern(graph)
         ref_graph = build_graph(nodes_attrs=ref_dft_graph_node_attrs,
                                 edges=ref_dft_graph_edges,

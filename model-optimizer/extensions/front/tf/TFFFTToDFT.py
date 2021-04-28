@@ -34,5 +34,7 @@ class TFFFTToDFT(FrontReplacementSubgraph):
 
             rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
 
-            if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
+            if graph.graph['layout'] == 'NHWC':
                 dft_node['need_insert_transposes_for_dft'] = True
+            # if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
+            #     dft_node['need_insert_transposes_for_dft'] = True
