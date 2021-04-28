@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/shape.hpp"
@@ -398,8 +399,15 @@ namespace ngraph
                         }
                     }
 
-                    std::stable_sort(
-                        scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
+                    // Add custom comparator temporarily to match the results with DO gpu primitive
+                    //std::stable_sort(
+                    //    scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
+                    std::stable_sort(scoreIndexVec.begin(),
+                                     scoreIndexVec.end(),
+                                     [](const std::pair<dataType, int>& p1, const std::pair<dataType, int>& p2)
+                                     {
+                                         return (p1.first > p2.first) || (p1.first == p2.first && p1.second < p2.second);
+                                     });
 
                     if (topK > -1 && static_cast<size_t>(topK) < scoreIndexVec.size())
                     {
@@ -655,6 +663,10 @@ namespace ngraph
                                         std::make_pair(scores[idx], std::make_pair(label, idx)));
                                 }
                             }
+                            // Add custom comparator temporarily to match the results with DO gpu primitive
+                            // std::sort(scoreIndexPairs.begin(),
+                            //           scoreIndexPairs.end(),
+                            //           SortScorePairDescend<std::pair<int, int>>);
                             std::sort(scoreIndexPairs.begin(),
                                       scoreIndexPairs.end(),
                                       [](const std::pair<dataType, std::pair<int, int>>& p1,
@@ -680,7 +692,7 @@ namespace ngraph
                             numKept += numDet;
                         }
                     }
-
+                    // std::cout << "ngraph ref result =====================================" << std::endl;
                     size_t count = 0;
                     for (size_t i = 0; i < numImages; ++i)
                     {
@@ -722,6 +734,13 @@ namespace ngraph
                                 result[count * 7 + 4] = ymin;
                                 result[count * 7 + 5] = xmax;
                                 result[count * 7 + 6] = ymax;
+                                // std::cout << "[" << result[count * 7 + 0] << ", "
+                                //     << result[count * 7 + 1] << ", "
+                                //     << result[count * 7 + 2] << ", "
+                                //     << result[count * 7 + 3] << ", "
+                                //     << result[count * 7 + 4] << ", "
+                                //     << result[count * 7 + 5] << ", "
+                                //     << result[count * 7 + 6] << "] -> [" << idx << "]" << std::endl;
                                 ++count;
                             }
                         }
@@ -729,7 +748,9 @@ namespace ngraph
                     if (count < numResults)
                     {
                         result[count * 7 + 0] = -1;
+                        // std::cout << "[" << result[count * 7 + 0] << ", , , , , , ]" << std::endl;
                     }
+                    // std::cout << "=====================================================" << std::endl;
                 }
             };
         } // namespace reference
