@@ -321,7 +321,7 @@ class Watchdog:
         try:
             # Retrieve console output from last Jenkins build for job corresponding to this PR
             last_build_number = self._jenkins.get_job_info(project_name_full)['lastBuild']['number']
-        except JenkinsException:
+        except:
             log.info("There is no Jenkins build for PR-{}".format(pr))
             return None
 
