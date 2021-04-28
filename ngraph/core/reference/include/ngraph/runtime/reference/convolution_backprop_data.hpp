@@ -42,41 +42,59 @@ namespace ngraph
                             output_shape[i + 2];
                     }
 
-                    for (int i_z = 0; i_z < input_3d[0]; ++i_z)
+                    const size_t input_size = shape_size(input_3d);
+                    if (input_size == 1)
                     {
-                        for (int i_y = 0; i_y < input_3d[1]; ++i_y)
+                        for (size_t i = 0; i < shape_size(input_shape); ++i)
                         {
-                            for (int i_x = 0; i_x < input_3d[2]; ++i_x)
+                            input_zeros.push_back(in[i]);
+                        }
+                    }
+                    else
+                    {
+                        for (size_t batch = 0; batch < input_shape[0]; ++batch)
+                        {
+                            for (size_t channel = 0; channel < input_shape[1]; ++channel)
                             {
-                                input_zeros.push_back(
-                                    in[i_x + i_y * input_3d[2] + i_z * input_3d[2] * input_3d[1]]);
-
-                                if (i_x < input_3d[2] - 1)
+                                for (int i_z = 0; i_z < input_3d[0]; ++i_z)
                                 {
-                                    for (int k = 0; k < strides_3d[2] - 1; k++)
+                                    for (int i_y = 0; i_y < input_3d[1]; ++i_y)
                                     {
-                                        input_zeros.push_back(0);
+                                        for (int i_x = 0; i_x < input_3d[2]; ++i_x)
+                                        {
+                                            auto offset = batch * input_size * input_shape[1] + channel * input_size;
+                                            input_zeros.push_back(
+                                                in[offset + i_x + i_y * input_3d[2] + i_z * input_3d[2] * input_3d[1]]);
+
+                                            if (i_x < input_3d[2] - 1)
+                                            {
+                                                for (int k = 0; k < strides_3d[2] - 1; k++)
+                                                {
+                                                    input_zeros.push_back(0);
+                                                }
+                                            }
+                                        }
+
+                                        if (i_y < input_3d[1] - 1)
+                                        {
+                                            for (int y_dim = 0; y_dim < new_input_3d[2] * (strides_3d[1] - 1);
+                                                y_dim++)
+                                            {
+                                                input_zeros.push_back(0);
+                                            }
+                                        }
+                                    }
+
+                                    if (i_z < input_3d[0] - 1)
+                                    {
+                                        for (int y_dim = 0;
+                                            y_dim < new_input_3d[1] * new_input_3d[2] * (strides_3d[0] - 1);
+                                            y_dim++)
+                                        {
+                                            input_zeros.push_back(0);
+                                        }
                                     }
                                 }
-                            }
-
-                            if (i_y < input_3d[1] - 1)
-                            {
-                                for (int y_dim = 0; y_dim < new_input_3d[2] * (strides_3d[1] - 1);
-                                     y_dim++)
-                                {
-                                    input_zeros.push_back(0);
-                                }
-                            }
-                        }
-
-                        if (i_z < input_3d[0] - 1)
-                        {
-                            for (int y_dim = 0;
-                                 y_dim < new_input_3d[1] * new_input_3d[2] * (strides_3d[0] - 1);
-                                 y_dim++)
-                            {
-                                input_zeros.push_back(0);
                             }
                         }
                     }
@@ -228,28 +246,23 @@ namespace ngraph
 
                 auto conv_filter_data = &reversed[0];
 
-                // if channel number for output is > 1 then reverse order of filter coefficients as
+                // if channel number for output is > 1 then reverse layout of filter coefficients as
                 // it is required by convolve_3D_channels() function.
+                // Current layout: batch0_ch0|batch0_ch1|...|batch0_chN|...|batch1_ch0|batch1_ch1|...|batch1_chN|...
+                // Expected layout: batch0_ch0|batch1_ch0|...|batchN_ch0|...|batch0_ch1|batch1_ch1|...|batch1_chN|...
                 if (filter_shape[1] > 1)
                 {
                     std::vector<T> temp_reversed(reversed);
                     const Shape filter_dim_shape(filter_shape.begin() + 2, filter_shape.end());
                     const size_t filter_size = shape_size(filter_dim_shape);
 
-                    for (size_t i = 0; i < filter_shape[0] * filter_shape[1]; i++)
+                    for (size_t i = 0; i < filter_shape[1]; i++)
                     {
-                        auto delta = temp_reversed.begin();
-                        if (i < filter_shape[0])
+                        for (size_t j = 0; j < filter_shape[0]; j++)
                         {
-                            delta = delta + i * filter_shape[1] * filter_size;
+                            auto delta = temp_reversed.begin() + j * filter_shape[1] * filter_size + i * filter_size;
+                            std::copy(delta, delta + filter_size, reversed.begin() + i * filter_shape[0] * filter_size + j * filter_size);
                         }
-                        else
-                        {
-                            delta = delta + filter_size +
-                                    (i - filter_shape[0]) * filter_shape[1] * filter_size;
-                        }
-
-                        std::copy(delta, delta + filter_size, reversed.begin() + i * filter_size);
                     }
                 }
 
