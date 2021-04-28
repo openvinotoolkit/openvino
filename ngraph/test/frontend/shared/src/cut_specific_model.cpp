@@ -217,12 +217,12 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
 
 TEST_P(FrontEndCutModelTest, testSetTensorValue) {
     ASSERT_NO_THROW(doLoadFromFile());
-    Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_param.m_tensorValueName));
-    ASSERT_NO_THROW(m_inputModel->setTensorValue(place, &m_param.m_tensorValue[0]));
+    Place place;
+    ASSERT_NO_THROW(place = m_inputModel.getPlaceByTensorName(m_param.m_tensorValueName));
+    ASSERT_NO_THROW(m_inputModel.setTensorValue(place, &m_param.m_tensorValue[0]));
 
     std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
+    ASSERT_NO_THROW(function = m_frontEnd.convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
     auto const_name = m_param.m_tensorValueName;

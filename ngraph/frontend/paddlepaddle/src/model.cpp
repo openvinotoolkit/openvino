@@ -20,7 +20,7 @@ using namespace paddle::framework::proto;
 class InputModelPDPD::InputModelPDPDImpl {
 public:
 
-    InputModelPDPDImpl (const std::string& _path, const InputModel& input_model);
+    InputModelPDPDImpl (const std::string& _path, const IInputModel& input_model);
     std::vector<IPlace::Ptr> getInputs () const;
     std::vector<IPlace::Ptr> getOutputs () const;
     IPlace::Ptr getPlaceByTensorName (const std::string& tensorName) const;
@@ -294,7 +294,7 @@ void InputModelPDPD::setElementType (IPlace::Ptr place, const ngraph::element::T
     return _impl->setElementType(place, type);
 }
 
-void InputModelPDPD::setTensorValue (Place::Ptr place, const void* value) {
+void InputModelPDPD::setTensorValue (IPlace::Ptr place, const void* value) {
     return _impl->setTensorValue(place, value);
 }
 
