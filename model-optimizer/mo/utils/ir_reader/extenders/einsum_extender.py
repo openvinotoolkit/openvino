@@ -14,4 +14,4 @@ class Einsum_extender(Extender):
         if isinstance(op['equation'], list):
             op['equation'] = ','.join(op['equation'])
         elif not isinstance(op['equation'], str):
-            assert False, "Equation of Einsum node {} is incorrect type format.".format(einsum_name)
+            assert False, "Equation of Einsum node {} has incorrect format.".format(einsum_name)

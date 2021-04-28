@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.back.LayoutChangeForGatherND import LayoutChangeForGatherND
 from extensions.ops.einsum import Einsum
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
@@ -20,9 +19,10 @@ class LayoutChangeForEinsum(BackReplacementPattern):
     """
     enabled = True
     force_shape_inference = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
+    graph_condition = [lambda graph: graph.graph['fw'] == 'tf' and graph.graph['layout'] != 'NCHW']
 
     def find_and_replace_pattern(self, graph: Graph):
+        import extensions.middle.InsertLayoutPropagationTransposes as InsertTransposes
         for einsum in graph.get_op_nodes(type='Einsum'):
             einsum_name = einsum.soft_get('name', einsum.id)
             assert einsum.has_valid('equation'), "Equation attribute is mandatory" \
@@ -50,8 +50,8 @@ class LayoutChangeForEinsum(BackReplacementPattern):
                 if not is_inputs_permuted[input_ind]:
                     # that means Einsum can only accept input in NHWC layout
                     # so the inserted transpose before the Einsum will convert the layout to NHWC
-                    LayoutChangeForGatherND.insert_transpose(graph, einsum.in_port(input_ind), before_input=True)
+                    InsertTransposes.insert_transpose(graph, einsum.in_port(input_ind), before_input=True)
             if not is_output_permuted:
                 # that means Einsum can only generate output in NHWC layout
                 # so the inserted transpose followed after the output will convert the layout back into NCHW layout
-                LayoutChangeForGatherND.insert_transpose(graph, einsum.out_port(0), before_input=False)
+                InsertTransposes.insert_transpose(graph, einsum.out_port(0), before_input=False)

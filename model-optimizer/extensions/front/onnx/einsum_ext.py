@@ -5,7 +5,8 @@ from extensions.ops.einsum import Einsum
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
-class EinsumFrontExtractor(FrontExtractorOp):
+
+class EinsumExtractor(FrontExtractorOp):
     op = 'Einsum'
     enabled = True
 
@@ -14,8 +15,5 @@ class EinsumFrontExtractor(FrontExtractorOp):
         einsum_name = einsum_node.soft_get('name', einsum_node.id)
         equation = onnx_attr(einsum_node, 'equation', 's').decode(encoding="utf-8")
         normalized_equation = Einsum.normalize_equation(einsum_name, equation)
-        attrs = {
-            'equation': normalized_equation,
-        }
-        Einsum.update_node_stat(einsum_node, attrs)
+        Einsum.update_node_stat(einsum_node, {'equation': normalized_equation})
         return cls.enabled

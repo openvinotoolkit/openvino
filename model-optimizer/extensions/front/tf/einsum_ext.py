@@ -5,7 +5,7 @@ from extensions.ops.einsum import Einsum
 from mo.front.extractor import FrontExtractorOp
 
 
-class EinsumTFExtractor(FrontExtractorOp):
+class EinsumExtractor(FrontExtractorOp):
     op = 'Einsum'
     enabled = True
 

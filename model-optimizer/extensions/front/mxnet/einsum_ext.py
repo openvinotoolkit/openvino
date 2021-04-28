@@ -6,7 +6,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
-class EinsumFrontExtractor(FrontExtractorOp):
+class EinsumExtractor(FrontExtractorOp):
     op = '_npi_einsum'
     enabled = True
 

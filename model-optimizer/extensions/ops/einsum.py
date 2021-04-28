@@ -13,6 +13,7 @@ from mo.utils.broadcasting import bi_directional_shape_broadcasting
 
 class Einsum(Op):
     op = 'Einsum'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -30,9 +31,9 @@ class Einsum(Op):
     @staticmethod
     def parse_equation(node_name: str, equation: str) -> (list, str):
         """
-        Parse Einsum equation and check that its format correct to make sure that
+        Parse Einsum equation and check that its format is correct to make sure that
         all input subscripts consists of only alphabetic letters or alphabetic letters with one ellipsis.
-        In case implicit mode the method recovers the right-hand part.
+        In case of implicit mode the method recovers the right-hand part.
 
         :param node_name: Einsum node name for which to parse an equation
         :param equation: Equation to be parsed and checked
@@ -50,17 +51,14 @@ class Einsum(Op):
         input_subscripts_list = input_subscripts.split(',')
 
         # prepare pattern to check a format of subscripts
-        subscript_pattern = "^[a-zA-Z]*$|^[a-zA-Z]*\\.\\.\\.[a-zA-Z]*$"
-        ellipsis_pattern = "\\.\\.\\."
+        subscript_pattern = re.compile("^[a-zA-Z]*(\\.\\.\\.){0,1}[a-zA-Z]*$")
+        ellipsis_pattern = re.compile("\\.\\.\\.")
 
         is_ellipsis_met = False
         for input_subscript in input_subscripts_list:
             assert re.match(subscript_pattern, input_subscript) is not None, \
                 "Einsum node {} has `equation` with incorrect input subscript: {}".format(node_name, input_subscript)
-
-            # check if ellipsis is met in input subscripts
-            if re.search(ellipsis_pattern, input_subscript):
-                is_ellipsis_met = True
+            is_ellipsis_met = is_ellipsis_met or re.search(ellipsis_pattern, input_subscript)
 
         if len(splitted_equation) == 2:
             output_subscript = splitted_equation[1]
@@ -92,9 +90,7 @@ class Einsum(Op):
         :return: Recovered equation in explicit mode
         """
         input_subscripts_list, output_subscript = Einsum.parse_equation(node_name, equation)
-        left_hand = ','.join(input_subscripts_list)
-        right_hand = output_subscript
-        return left_hand + "->" + right_hand
+        return ','.join(input_subscripts_list) + "->" + output_subscript
 
     @staticmethod
     def extract_subscript_labels(node_name: str, subscript: str) -> list:
@@ -233,5 +229,4 @@ class Einsum(Op):
                                                    "of Einsum node {}".format(equation, node_name)
             output_shape = np.concatenate((output_shape, label_to_shape[label]))
 
-        # set the output shape
         node.out_port(0).data.set_shape(output_shape)
