@@ -17,7 +17,7 @@ namespace ngraph {
 namespace op {
 
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
-class TRANSFORMATIONS_API TypeRelaxedBase {
+class NGRAPH_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase();
 
