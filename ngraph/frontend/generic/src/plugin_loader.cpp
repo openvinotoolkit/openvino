@@ -53,62 +53,50 @@ static std::vector<std::string> listFiles(const std::string& path) {
     return res;
 }
 
+#ifdef WIN32
+#define DLOPEN(fileStr) LoadLibrary(TEXT(fileStr.c_str()))
+#define DLSYM(obj, func) GetProcAddress(obj, func)
+#define DLCLOSE(obj) FreeLibrary(obj)
+#else
+#define DLOPEN(fileStr) dlopen(file.c_str(), RTLD_LAZY)
+#define DLSYM(obj, func) dlsym(obj, func)
+#define DLCLOSE(obj) dlclose(obj)
+#endif
+
 namespace ngraph {
 namespace frontend {
 
 std::vector<PluginData> loadPlugins(const std::string& dirName) {
     auto files = listFiles(dirName);
     std::vector<PluginData> res;
+    // std::cout << "Loading directory: " << dirName << "\n";
     for (const auto& file : files) {
-#ifdef _WIN32
-        auto hinstLib = LoadLibrary(TEXT(file.c_str()));
-        if (hinstLib != NULL)
-        {
-            PluginHandle guard([hinstLib, file]() {
-                FreeLibrary(hinstLib);
-            });
+        // std::cout << "Checking plugin: " << file << "\n";
+        auto shared_object = DLOPEN(file);
+        if (!shared_object)
+            continue;
 
-            std::function<void*()> infoAddr = reinterpret_cast<void*(*)()>(GetProcAddress(hinstLib, "GetPluginInfo"));
-            if (NULL == infoAddr) {
-                continue;
-            }
+        PluginHandle guard([shared_object, file]() {
+            // std::cout << "Closing plugin library " << file << std::endl;
+            DLCLOSE(shared_object);
+        });
 
-            PluginInfo* plugInfo = reinterpret_cast<PluginInfo*>(infoAddr());
-
-            std::function<void*()> creatorAddr = reinterpret_cast<void*(*)()>(GetProcAddress(hinstLib, "GetFrontEndFactory"));
-            if (NULL == creatorAddr) {
-                continue;
-            }
-
-            FrontEndFactory& fact = (*reinterpret_cast<FrontEndFactory*>(creatorAddr()));
-
-            PluginData data(*plugInfo, std::move(fact), std::move(guard));
-            res.push_back(std::move(data));
+        auto infoAddr = reinterpret_cast<void*(*)()>(DLSYM(shared_object, "GetPluginInfo"));
+        if (!infoAddr) {
+            continue;
         }
-#else
-        void* shared_object = dlopen(file.c_str(), RTLD_LAZY);
-        if (shared_object == nullptr)
+
+        std::unique_ptr<PluginInfo> plugInfo { reinterpret_cast<PluginInfo*>(infoAddr()) };
+
+        auto creatorAddr = reinterpret_cast<void*(*)()>(DLSYM(shared_object, "GetFrontEndFactory"));
+        if (!creatorAddr) {
             continue;
+        }
 
-        void* infoAddr = dlsym(shared_object, "GetPluginInfo");
-        if (infoAddr == nullptr)
-            continue;
+        std::unique_ptr<FrontEndFactory> fact { reinterpret_cast<FrontEndFactory*>(creatorAddr()) };
 
-        std::function<PluginInfo()> infoFunc = reinterpret_cast<PluginInfo(*)()>(infoAddr);
-        PluginInfo info = infoFunc();
-
-        // TODO: validate plugin version compatibility here
-
-        void* factoryAddr = dlsym(shared_object, "GetFrontEndFactory");
-        if (factoryAddr == nullptr)
-            continue;
-
-        std::function<FrontEndFactory()> factoryFunc =
-                reinterpret_cast<FrontEndFactory(*)()>(factoryAddr);
-        FrontEndFactory creator = factoryFunc();
-        res.emplace_back(info, creator);
-        // TODO: call DLClose
-#endif
+        PluginData data(*plugInfo, std::move(*fact), std::move(guard));
+        res.push_back(std::move(data));
     }
     return res;
 }

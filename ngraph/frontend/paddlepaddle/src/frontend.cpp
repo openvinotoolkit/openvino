@@ -191,17 +191,12 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert(IInput
 } // namespace frontend
 } // namespace ngraph
 
-// 0.0.1 - frontend plugin API version
-static ngraph::frontend::PluginInfo info {"pdpd", "0.0.1"};
-
-static ngraph::frontend::FrontEndFactory creator = [](ngraph::frontend::FrontEndCapabilities) {
-        return std::make_shared<ngraph::frontend::FrontEndPDPD>();
-};
-
 extern "C" PDPD_API void* GetPluginInfo() {
-    return &info;
+    return new ngraph::frontend::PluginInfo({"pdpd", "0.0.1"}); // 0.0.1 - frontend plugin API version
 }
 
 extern "C" PDPD_API void* GetFrontEndFactory() {
-    return &creator;
+    return new ngraph::frontend::FrontEndFactory([](ngraph::frontend::FrontEndCapabilities) {
+        return std::make_shared<ngraph::frontend::FrontEndPDPD>();
+    });
 }
