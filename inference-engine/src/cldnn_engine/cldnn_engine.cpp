@@ -79,6 +79,7 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
+#include "cldnn/cldnn_config.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -834,12 +835,45 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
+        metrics.push_back(GPU_METRIC_KEY(DEVICE_TYPE));
+        metrics.push_back(GPU_METRIC_KEY(SUPPORTS_DP4A));
+        metrics.push_back(GPU_METRIC_KEY(GFX_VERSION));
+        metrics.push_back(GPU_METRIC_KEY(DEVICE_ID));
+        metrics.push_back(GPU_METRIC_KEY(GLOBAL_MEM_SIZE));
+        metrics.push_back(GPU_METRIC_KEY(NUM_SLICES));
+        metrics.push_back(GPU_METRIC_KEY(NUM_SUB_SLICES_PER_SLICE));
+        metrics.push_back(GPU_METRIC_KEY(NUM_EUS_PER_SUB_SLICE));
+        metrics.push_back(GPU_METRIC_KEY(NUM_THREADS_PER_EU));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
             availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
+    } else if (name == GPU_METRIC_KEY(DEVICE_TYPE)) {
+        IE_SET_METRIC_RETURN(GPU_DEVICE_TYPE, device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU");
+    } else if (name == GPU_METRIC_KEY(SUPPORTS_DP4A)) {
+        IE_SET_METRIC_RETURN(GPU_SUPPORTS_DP4A, device_info.supports_imad);
+    } else if (name == GPU_METRIC_KEY(GFX_VERSION)) {
+        std::stringstream s;
+        s << static_cast<int>(device_info.gfx_ver.major) << "."
+          << static_cast<int>(device_info.gfx_ver.minor) << "."
+          << static_cast<int>(device_info.gfx_ver.revision);
+        IE_SET_METRIC_RETURN(GPU_GFX_VERSION, s.str());
+    } else if (name == GPU_METRIC_KEY(DEVICE_ID)) {
+        std::stringstream s;
+        s << "0x" << std::hex << device_info.device_id;
+        IE_SET_METRIC_RETURN(GPU_DEVICE_ID, s.str());
+    } else if (name == GPU_METRIC_KEY(GLOBAL_MEM_SIZE)) {
+        IE_SET_METRIC_RETURN(GPU_GLOBAL_MEM_SIZE, device_info.max_global_mem_size);
+    } else if (name == GPU_METRIC_KEY(NUM_SLICES)) {
+        IE_SET_METRIC_RETURN(GPU_NUM_SLICES, device_info.num_slices);
+    } else if (name == GPU_METRIC_KEY(NUM_SUB_SLICES_PER_SLICE)) {
+        IE_SET_METRIC_RETURN(GPU_NUM_SUB_SLICES_PER_SLICE, device_info.num_sub_slices_per_slice);
+    } else if (name == GPU_METRIC_KEY(NUM_EUS_PER_SUB_SLICE)) {
+        IE_SET_METRIC_RETURN(GPU_NUM_EUS_PER_SUB_SLICE, device_info.num_eus_per_sub_slice);
+    } else if (name == GPU_METRIC_KEY(NUM_THREADS_PER_EU)) {
+        IE_SET_METRIC_RETURN(GPU_NUM_THREADS_PER_EU, device_info.num_threads_per_eu);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";

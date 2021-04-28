@@ -41,6 +41,8 @@ void printParameterValue(const Parameter& value) {
         std::cout << value.as<int>() << std::endl;
     } else if (value.is<unsigned int>()) {
         std::cout << value.as<unsigned int>() << std::endl;
+    } else if (value.is<uint64_t>()) {
+        std::cout << value.as<uint64_t>() << std::endl;
     } else if (value.is<float>()) {
         std::cout << value.as<float>() << std::endl;
     } else if (value.is<std::string>()) {

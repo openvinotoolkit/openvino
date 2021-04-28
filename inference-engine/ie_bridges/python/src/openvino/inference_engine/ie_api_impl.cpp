@@ -70,6 +70,11 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         auto val = param.as<unsigned int>();
         return PyLong_FromLong((unsigned long)val);
     }
+    // Check for uint64_t
+    else if (param.is<uint64_t>()) {
+        auto val = param.as<uint64_t>();
+        return PyLong_FromLong((unsigned long)val);
+    }
     // Check for float
     else if (param.is<float>()) {
         auto val = param.as<float>();
