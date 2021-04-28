@@ -107,17 +107,34 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     ASSERT_TRUE(success) << message;
 }
 
+class FrameworkNodeExtension : public InferenceEngine::IExtension {
+public:
+    void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
+        static InferenceEngine::Version ExtensionDescription = {
+                {1, 0},
+                "1.0",
+                "framework_node_ext"
+        };
+
+        versionInfo = &ExtensionDescription;
+    }
+
+    void Unload() noexcept override {}
+};
+
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
-    auto expected = InferenceEngine::details::ReadNetworkWithoutExtensions(model);
+    InferenceEngine::Core ie;
+    auto extension = std::make_shared<FrameworkNodeExtension>();
+    ie.AddExtension(extension);
+    auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(
             m_out_xml_path, m_out_bin_path,
-            ngraph::pass::Serialize::Version::IR_V10);
+            ngraph::pass::Serialize::Version::IR_V10, extension->getOpSets());
     manager.run_passes(expected.getFunction());
-
-    auto result = InferenceEngine::details::ReadNetworkWithoutExtensions(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
     bool success;
     std::string message;

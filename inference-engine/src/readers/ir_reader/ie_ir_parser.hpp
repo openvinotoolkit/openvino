@@ -36,11 +36,6 @@ public:
     virtual ~IParser() = default;
     virtual std::shared_ptr<ICNNNetwork> parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
-
-    virtual std::shared_ptr<ICNNNetwork> parse_without_extensions(
-        const pugi::xml_node& root, const Blob::CPtr& weights) {
-        IE_THROW() << "Not implemented";
-    }
 };
 
 class IRParser {
@@ -48,7 +43,6 @@ public:
     explicit IRParser(size_t version);
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
-    std::shared_ptr<ICNNNetwork> parse_without_extensions(const pugi::xml_node& root, const Blob::CPtr& weights);
     virtual ~IRParser() = default;
 private:
     IParser::Ptr parser;
@@ -69,13 +63,11 @@ public:
     std::shared_ptr<ICNNNetwork> parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
-    std::shared_ptr<ICNNNetwork> parse_without_extensions(
-            const pugi::xml_node& root, const Blob::CPtr& weights) override;
-
     struct GenericLayerParams {
         struct LayerPortData {
             size_t portId;
             SizeVector dims;
+            ngraph::element::Type_t precision;
             std::unordered_set<std::string> names;
         };
         size_t layerId;

@@ -53,10 +53,6 @@ std::shared_ptr<ICNNNetwork> IRParser::parse(
     return parser->parse(root, weights);
 }
 
-std::shared_ptr<ICNNNetwork> IRParser::parse_without_extensions(const pugi::xml_node &root, const Blob::CPtr &weights) {
-    return parser->parse_without_extensions(root, weights);
-}
-
 namespace {
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
@@ -729,6 +725,13 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             port.dims.push_back(dim);
         }
 
+        ngraph::element::Type type(ngraph::element::Type_t::undefined);
+        // Input port hasn't precision
+        if (!input) {
+            const std::string& preStr = GetStrAttr(parentNode, "precision");
+            type = InferenceEngine::details::convertPrecision(preStr);
+        }
+        port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
             for (size_t i = 0; i < names.size(); i++) {
@@ -915,26 +918,20 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets, variables);
+    bool use_framework_node{false};
+    for (const auto & ext : _exts) {
+        InferenceEngine::Version * version = new InferenceEngine::Version();
+        ext->GetVersion(const_cast<const Version *&>(version));
+        if (strcmp(version->description, "framework_node_ext") == 0) {
+            use_framework_node = true;
+        }
+    }
+    visitor.use_framework_node(use_framework_node);
     visitor.on_attribute("net", function);
 
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
-    parsePreProcess(net, root, weights);
-
-    return net;
-}
-
-std::shared_ptr<ICNNNetwork> V10Parser::parse_without_extensions(
-        const pugi::xml_node &root, const Blob::CPtr &weights) {
-    std::shared_ptr<ngraph::Function> function;
-    XmlDeserializer visitor(root, weights, opsets, variables);
-    visitor.use_framework_node(true);
-    visitor.on_attribute("net", function);
-
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
-
-    CNNNetwork net(function);
     parsePreProcess(net, root, weights);
 
     return net;

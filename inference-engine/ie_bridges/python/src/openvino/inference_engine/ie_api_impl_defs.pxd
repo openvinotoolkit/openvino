@@ -221,7 +221,4 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef string get_version()
 
-    cdef IENetwork read_network_without_extensions(const string & path_to_xml, const string & path_to_bin)
-
-    cdef IENetwork read_network(const string & path_to_xml, const string & path_to_bin, const vector[string] & extensions)
-
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)

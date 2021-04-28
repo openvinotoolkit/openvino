@@ -20,16 +20,7 @@ namespace details {
  * @param exts vector with extensions
  * @return CNNNetwork
  */
-INFERENCE_ENGINE_API_CPP(CNNNetwork) ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
-
-/**
- * @brief Reads IR xml and bin files
- * @param modelPath path to IR file
- * @param binPath path to bin file, if path is empty, will try to read bin file with the same name as xml and
- * if bin file with the same name was not found, will load IR without weights.
- * @return CNNNetwork
- */
-INFERENCE_ENGINE_API_CPP(CNNNetwork) ReadNetworkWithoutExtensions(const std::string& modelPath, const std::string& binPath = "");
+CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
 
 /**
  * @brief Reads IR xml and bin (with the same name) files

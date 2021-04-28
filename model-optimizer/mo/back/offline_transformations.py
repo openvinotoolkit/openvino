@@ -17,7 +17,7 @@ if __name__ == "__main__":
     extract_names = True if args.framework in ['tf', 'mxnet', 'kaldi'] else False
 
     try:
-        from openvino.inference_engine import IECore, read_network, read_network_without_extensions # pylint: disable=import-error
+        from openvino.inference_engine import IECore, read_network # pylint: disable=import-error
         from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile, CheckAPI # pylint: disable=import-error
     except Exception as e:
         print("[ WARNING ] {}".format(e))
@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     CheckAPI()
 
-    net = read_network_without_extensions(path_to_model + "_tmp.xml", path_to_model + "_tmp.bin")
+    net = read_network(path_to_model + "_tmp.xml", path_to_model + "_tmp.bin")
     net.serialize(path_to_model + ".xml", path_to_model + ".bin")
     path_to_mapping = path_to_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
