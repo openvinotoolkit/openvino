@@ -13,12 +13,19 @@ class TestingVersionsChecker(unittest.TestCase):
     def test_get_module_version_list_from_file(self, mock_open):
         mock_open.return_value.__enter__ = mock_open
         mock_open.return_value.__iter__ = mock.Mock(
-            return_value=iter(['mxnet>=1.0.0,<=1.3.1', 'networkx>=1.11', 'numpy==1.12.0', 'defusedxml<=0.5.0']))
-        ref_list =[('mxnet', '>=', '1.0.0'), ('mxnet', '<=', '1.3.1'),
-                          ('networkx', '>=', '1.11'),
-                          ('numpy', '==', '1.12.0'), ('defusedxml', '<=', '0.5.0')]
+            return_value=iter(['mxnet>=1.0.0,<=1.3.1',
+                               'networkx>=1.11',
+                               'numpy==1.12.0',
+                               'defusedxml<=0.5.0',
+                               'networkx~=1.11']))
+        ref_list = [('mxnet', '>=', '1.0.0'),
+                    ('mxnet', '<=', '1.3.1'),
+                    ('networkx', '>=', '1.11'),
+                    ('numpy', '==', '1.12.0'),
+                    ('defusedxml', '<=', '0.5.0'),
+                    ('networkx', '~=', '1.11')]
         version_list = get_module_version_list_from_file('mock_file', {})
-        self.assertEqual(len(version_list), 5)
+        self.assertEqual(len(version_list), 6)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
 
@@ -29,13 +36,15 @@ class TestingVersionsChecker(unittest.TestCase):
             return_value=iter(['tensorflow>=1.15.2,<2.0; python_version < "3.8"',
                                'tensorflow>=2.0; python_version >= "3.8"',
                                'numpy==1.12.0',
-                               'defusedxml<=0.5.0']))
-        ref_list =[('tensorflow', '>=', '1.15.2'),
-                   ('tensorflow', '<', '2.0'),
-                   ('numpy', '==', '1.12.0'),
-                   ('defusedxml', '<=', '0.5.0')]
+                               'defusedxml<=0.5.0',
+                               'networkx~=1.11']))
+        ref_list = [('tensorflow', '>=', '1.15.2'),
+                    ('tensorflow', '<', '2.0'),
+                    ('numpy', '==', '1.12.0'),
+                    ('defusedxml', '<=', '0.5.0'),
+                    ('networkx', '~=', '1.11')]
         version_list = get_module_version_list_from_file('mock_file', {'python_version': '3.7.0'})
-        self.assertEqual(len(version_list), 4)
+        self.assertEqual(len(version_list), 5)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
 
@@ -46,12 +55,14 @@ class TestingVersionsChecker(unittest.TestCase):
             return_value=iter(['tensorflow>=1.15.2,<2.0; python_version < "3.8"',
                                'tensorflow>=2.0; python_version >= "3.8"',
                                'numpy==1.12.0',
-                               'defusedxml<=0.5.0']))
-        ref_list =[('tensorflow', '>=', '2.0'),
-                   ('numpy', '==', '1.12.0'),
-                   ('defusedxml', '<=', '0.5.0')]
+                               'defusedxml<=0.5.0',
+                               'networkx~=1.11']))
+        ref_list = [('tensorflow', '>=', '2.0'),
+                    ('numpy', '==', '1.12.0'),
+                    ('defusedxml', '<=', '0.5.0'),
+                    ('networkx', '~=', '1.11')]
         version_list = get_module_version_list_from_file('mock_file', {'python_version': '3.8.1'})
-        self.assertEqual(len(version_list), 3)
+        self.assertEqual(len(version_list), 4)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
 
@@ -110,9 +121,11 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_2', '>=', '1.12.0', '1.12.0'),
                                  ('module_3', '>=', '1.12.0', '1.12.1'),
                                  ('module_4', '>=', '1.12.0', '1.20.0'),
+                                 ('module_5', '>=', '1.12.0.post2', '1.12.0.post1'),
                                  ]
 
-        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0')
+        ref_list = [('module_1', 'installed: 1.09.2', 'required: >= 1.12.0'),
+                    ('module_5', 'installed: 1.12.0.post1', 'required: >= 1.12.0.post2')
                     ]
 
         not_satisfied_versions = []
@@ -126,6 +139,7 @@ class TestingVersionsChecker(unittest.TestCase):
                                  ('module_2', '<', '1.11', '1.10.1'),
                                  ('module_3', '<', '1.11', '1.11'),
                                  ('module_4', '<', '1.11', '1.20'),
+                                 ('module_5', '<', '1.11', '1.10.post2'),
                                  ]
 
         ref_list = [('module_3', 'installed: 1.11', 'required: < 1.11'),
@@ -147,6 +161,32 @@ class TestingVersionsChecker(unittest.TestCase):
 
         ref_list = [('module_1', 'installed: 1.01', 'required: > 1.11'),
                     ('module_2', 'installed: 1.11', 'required: > 1.11'),
+                    ]
+
+        not_satisfied_versions = []
+
+        for name, key, required_version, installed_version in modules_versions_list:
+            version_check(name, installed_version, required_version, key, not_satisfied_versions)
+        self.assertEqual(not_satisfied_versions, ref_list)
+
+    def test_version_check_compatible(self):
+        modules_versions_list = [('module_1', '~=', '1.2.3', '1.2.3'),
+                                 ('module_2', '~=', '1.2.3', '1.2.3b4'),
+                                 ('module_3', '~=', '1.2.3', '1.2.4'),
+                                 ('module_4', '~=', '1.2.3', '1.3.0'),
+                                 ('module_5', '~=', '1.2.3', '1.2.2'),
+                                 ('module_6', '~=', '1.2.3', '2.2.2'),
+                                 ('module_7', '~=', '1.2.post2', '1.3'),
+                                 ('module_8', '~=', '1.2.post2', '1.2'),
+                                 ('module_9', '~=', '1.2.post2', '1.2.post1'),
+                                 ('module_9', '~=', '1.2.post2', '1.2.post4')
+                                 ]
+
+        ref_list = [('module_4', 'installed: 1.3.0', 'required: ~= 1.2.3'),
+                    ('module_5', 'installed: 1.2.2', 'required: ~= 1.2.3'),
+                    ('module_6', 'installed: 2.2.2', 'required: ~= 1.2.3'),
+                    ('module_8', 'installed: 1.2', 'required: ~= 1.2.post2'),
+                    ('module_9', 'installed: 1.2.post1', 'required: ~= 1.2.post2')
                     ]
 
         not_satisfied_versions = []
