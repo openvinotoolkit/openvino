@@ -227,7 +227,6 @@ set(SRC
     visitors/op/max_pool.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
-    visitors/op/no_attribute_ops.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
@@ -254,6 +253,7 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
     visitors/op/topk.cpp
