@@ -39,6 +39,7 @@ public:
     std::map<pdpd::TensorName, Output<Node>> getTensorValues() const { return m_tensor_values; };
 
 private:
+    std::string m_path;
     std::vector<std::vector<std::shared_ptr<OpPlacePDPD>>> m_op_places_blocks;
     std::vector<std::map<std::string, std::shared_ptr<TensorPlacePDPD>>> m_var_places_blocks;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
@@ -48,7 +49,6 @@ private:
     const InputModel& m_input_model;
     std::vector<Place::Ptr> m_inputs;
     std::vector<Place::Ptr> m_outputs;
-    std::string m_path;
     std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
 };
 

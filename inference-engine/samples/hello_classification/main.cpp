@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
         }
         std::vector<DataPtr> output_info;
         std::vector<std::string> output_name;
-        for (auto &out : network.getOutputsInfo()) {
+        for (auto& out : network.getOutputsInfo()) {
             out.second->setPrecision(Precision::FP32);
             output_info.push_back(out.second);
             output_name.push_back(out.first);
