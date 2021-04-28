@@ -482,7 +482,7 @@ namespace ngraph
 
                     return result;
                 }
-            }
+            } // namespace
 
             // Calculation of FFT
             void fft(const float* input_data,
@@ -630,6 +630,6 @@ namespace ngraph
                 default:;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

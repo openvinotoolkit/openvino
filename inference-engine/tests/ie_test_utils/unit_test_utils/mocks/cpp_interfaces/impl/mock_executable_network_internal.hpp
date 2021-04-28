@@ -10,7 +10,6 @@
 
 #include "ie_input_info.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ie_iexecutable_network.hpp"
 
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 

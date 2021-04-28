@@ -20,5 +20,5 @@ namespace ngraph
                       const HostTensorVector& out,
                       const HostTensorVector& args);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

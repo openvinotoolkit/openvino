@@ -254,7 +254,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::DepthToSpace::DepthToSpaceMode op::DepthToSpace::mode_from_string(const std::string& mode) const
 {

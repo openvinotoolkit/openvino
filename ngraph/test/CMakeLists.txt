@@ -115,6 +115,7 @@ set(SRC
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/einsum.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
@@ -127,6 +128,7 @@ set(SRC
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
+    type_prop/floor_mod.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
@@ -146,6 +148,7 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
@@ -250,8 +253,10 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
     visitors/op/topk.cpp
+    visitors/op/transpose.cpp
     uint4.cpp
     util.cpp
 )
@@ -332,6 +337,7 @@ set(MULTI_TEST_SRC
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
+    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
@@ -493,6 +499,10 @@ if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
 target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
+endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
