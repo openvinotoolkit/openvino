@@ -153,7 +153,7 @@ TEST_F(NGraphReaderTests, Read_Gather7_Network) {
 			</output>
 		</layer>
 		<layer id="3" name="Gather" type="Gather" version="opset7">
-            <data batch_dims="0"/>
+			<data batch_dims="0"/>
 			<input>
 				<port id="0">
 					<dim>2</dim>
