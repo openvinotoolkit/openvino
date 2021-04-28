@@ -111,7 +111,7 @@ The common workflow contains the following steps:
     * Synchronously - `InferenceEngine::InferRequest::Infer()` method. Blocks until inference is completed.
     * Asynchronously - `InferenceEngine::InferRequest::StartAsync()` method. Check status with the `InferenceEngine::InferRequest::Wait()` method (0 timeout), wait, or specify a completion callback.
 
-7. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
+7. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::InferRequest::GetBlob()` method.
 
 
 Further Reading

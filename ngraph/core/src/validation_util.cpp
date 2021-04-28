@@ -485,8 +485,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              data_batch_shape.rank().get_length() >= 3 &&
-                                  data_batch_shape.rank().get_length() <= 5,
+                              (data_batch_shape.rank().get_length() >= 3 &&
+                               data_batch_shape.rank().get_length() <= 5),
                           "Data batch must have rank of at least 4 or 5 (one batch axis, ",
                           "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
@@ -1235,7 +1235,7 @@ namespace
     }
 
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
-}
+} // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 {

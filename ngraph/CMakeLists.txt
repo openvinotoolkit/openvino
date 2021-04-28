@@ -210,10 +210,7 @@ if (WIN32)
 endif()
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6.0)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnonnull-compare")
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wsign-compare -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
 endif()
 
 if(WIN32)

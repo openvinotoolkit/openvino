@@ -27,7 +27,7 @@ inline void PDPD_ASSERT(bool ex, const std::string& msg = "Unspecified error.") 
 
 #define PDPD_THROW(msg) throw std::runtime_error(std::string("ERROR: ") + msg)
 
-#define NOT_IMPLEMENTED(name) throw std::runtime_error(std::string(name) + " is not implemented");
+#define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")
 
 } // namespace frontend
 } // namespace ngraph

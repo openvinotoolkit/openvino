@@ -25,7 +25,7 @@ std::shared_ptr<Node> makeBinaryConvolution(const Output<Node> &in,
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = std::make_shared<op::Constant>(element::u1, filterWeightsShape);
-    size_t byteNum = ngraph::shape_size(filterWeightsShape) / sizeof(int8_t);
+    const size_t byteNum = (ngraph::shape_size(filterWeightsShape) + 7) / 8;
     int8_t *buffer = const_cast<int8_t *>(filterWeightsNode->get_data_ptr<int8_t>());
     if (filterWeihgts.size() == 0) {
         std::vector<int8_t> weihgts = NGraphFunctions::Utils::generateVector<element::Type_t::i8>(byteNum);

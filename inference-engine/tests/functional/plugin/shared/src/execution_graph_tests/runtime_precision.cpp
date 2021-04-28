@@ -127,7 +127,7 @@ TEST_P(ExecGraphRuntimePrecision, CheckRuntimePrecision) {
 
         if (expectedPrc.second.name() != rtPrecisionPtr->get())
             FAIL() << "`" << expectedPrc.first << "' node runtime precision mismatch: actual = " <<
-                             expectedPrc.second.name() << ", expected = " << rtPrecisionPtr->get();
+                rtPrecisionPtr->get() << ", expected = " << expectedPrc.second.name();
     }
 
     fnPtr.reset();
