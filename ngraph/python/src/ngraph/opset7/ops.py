@@ -91,7 +91,7 @@ def dft(
         axes: NodeInput,
         signal_size: Optional[NodeInput] = None,
 ) -> Node:
-    """Return a node which performs NonMaxSuppression.
+    """Return a node which performs DFT operation.
 
     @param data: Tensor with transformed data.
     @param axes: Tensor with axes to transform.
@@ -112,7 +112,7 @@ def idft(
         axes: NodeInput,
         signal_size: Optional[NodeInput] = None,
 ) -> Node:
-    """Return a node which performs NonMaxSuppression.
+    """Return a node which performs IDFT operation.
 
     @param data: Tensor with transformed data.
     @param axes: Tensor with axes to transform.
