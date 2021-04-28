@@ -15,6 +15,7 @@ class FFTBase(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'out_ports_count': 1,
+            'in_ports_count': 3,
             'version': self.version,
             'infer': self.infer
         }
