@@ -34,7 +34,7 @@ void runtime::ie::IETensor::write(const void* src, size_t bytes)
     }
     if (get_partial_shape().is_dynamic())
     {
-        m_data = move(AlignedBuffer(bytes));
+        m_data = AlignedBuffer(bytes);
     }
     NGRAPH_CHECK(m_data.size() <= bytes,
                  "Buffer over-write. The buffer size: ",

@@ -5,6 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "multi_device_infer_request.hpp"
+#include <ie_input_info.hpp>
+#include <ie_icnn_network.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <blob_factory.hpp>
 
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;
@@ -12,7 +16,7 @@ namespace MultiDevicePlugin {
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
                                                  InferRequest request_to_share_blobs_with)
-        : InferRequestInternal(networkInputs, networkOutputs) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)

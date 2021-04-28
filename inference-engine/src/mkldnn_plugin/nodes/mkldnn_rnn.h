@@ -28,8 +28,19 @@ public:
 private:
     void fillCellDesc();
     void fillSeqDesc();
+    bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
+                                const InferenceEngine::Precision& weightsPrec);
+    void verifyWeights();
+    void verifyBiases();
+    void convertWeightsBlobToBF16();
+
+    template <typename Prec>
+    void fillWeights(const int* gate_map);
+    template <typename Prec>
+    void fillBiases(const int* gate_map);
 
 private:
+    InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
@@ -56,11 +67,14 @@ private:
     const ptrdiff_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const ptrdiff_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    MKLDNNMemoryDesc in_data_d;
-    MKLDNNMemoryDesc out_data_d;
+    std::vector<MKLDNNMemoryDesc> in_data_d;
+    std::vector<MKLDNNMemoryDesc> out_data_d;
 
-    std::vector<MKLDNNMemoryDesc> in_states_d;
-    std::vector<MKLDNNMemoryDesc> out_states_d;
+    enum RNNInOutKind {
+        Layer       = 0,
+        HiddenState = 1,
+        CellState   = 2
+    };
 
     MKLDNNMemoryDesc w_data_d;
     MKLDNNMemoryDesc w_state_d;
@@ -69,7 +83,7 @@ private:
     // List of in/out reorders if required
     std::vector<mkldnn::reorder> exec_before;
     std::vector<mkldnn::reorder> exec_after;
-};
 
+    static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+}; // class MKLDNNRNN
 }  // namespace MKLDNNPlugin
-

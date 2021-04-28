@@ -65,7 +65,7 @@ namespace softplus
         }
         return rc;
     }
-}
+} // namespace softplus
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const

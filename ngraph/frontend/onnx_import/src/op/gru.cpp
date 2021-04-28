@@ -99,7 +99,7 @@ namespace ngraph
 
                         bool m_linear_before_reset;
                     };
-                }
+                } // namespace
 
                 OutputVector gru(const Node& node)
                 {

@@ -8,17 +8,6 @@
 #include <string>
 #include <map>
 
-#include <ie_blob.h>
-#include <description_buffer.hpp>
-#include <debug.h>
-#include <ie_layouts.h>
-#include <threading/ie_executor_manager.hpp>
-#include <blob_transform.hpp>
-#include <ie_parallel.hpp>
-#include <ie_memcpy.h>
-#include <precision_utils.h>
-
-#include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
@@ -33,7 +22,7 @@ using Time = std::chrono::high_resolution_clock;
 TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&                     networkInputs,
                                            const InferenceEngine::OutputsDataMap&                    networkOutputs,
                                            const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork) :
-    InferRequestInternal(networkInputs, networkOutputs),
+    IInferRequestInternal(networkInputs, networkOutputs),
     _executableNetwork(executableNetwork) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
@@ -178,9 +167,9 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 void TemplateInferRequest::inferPreprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
-    // NOTE: After InferRequestInternal::execDataPreprocessing call
+    // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    InferRequestInternal::execDataPreprocessing(_deviceInputs);
+    IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];

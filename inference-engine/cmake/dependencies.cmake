@@ -145,6 +145,11 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_WIN "tbbbind_2_4_static_win.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
+                SHA256 "1a3a05082cc5ef1a764d635793be347b82c795f0e9ced771515fc3706a4dc4f0")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -156,6 +161,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_LIN "tbbbind_2_4_static_lin.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                SHA256 "888582a94f81821f9894cc089db36d5a6c2e0b6998cfa1fec0c027f28c597ada")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -174,6 +183,8 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+
+    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
@@ -307,13 +318,22 @@ if (ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1047.1")
-            set(GNA_HASH "20820e07392a1e876cf5577430c1c4c74b924d8f34cc17bfa3e36e641555e05d")
+            set(GNA_VERSION "02.00.00.1191.0")
+            set(GNA_HASH "a61b4a9133549b0a9f0b46d069f72906ced28bcbbe7d5c361e687645f53a1c8b")
         endif()
+
+        set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
+        if (WIN32)
+            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/win64)
+        else()
+            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
+        endif()
+     
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+                FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")

@@ -115,5 +115,5 @@ namespace ngraph
             bool m_visualize = false;
             bool m_per_pass_validation = true;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph

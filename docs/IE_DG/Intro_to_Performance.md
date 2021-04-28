@@ -29,7 +29,7 @@ Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README
 ## Using Async API
 To gain better performance on accelerators, such as VPU, the Inference Engine uses the asynchronous approach (see
 [Integrating Inference Engine in Your Application (current API)](Integrate_with_customer_application_new_API.md)).
-The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_ssd_async_README).
+The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_cpp).
 Since the pipe-lining relies on the availability of the parallel slack, running multiple inference requests in parallel is essential.
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which enables running a number of inference requests in parallel. Specifying different number of request produces different throughput measurements.
 
