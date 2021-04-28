@@ -203,7 +203,7 @@ void regclass_pyngraph_FrontEndManager(py::module m)
         "load_by_framework",
         &FrontEndManager::loadByFramework,
         py::arg("framework"),
-        py::arg_v("capabilities", ngraph::frontend::FEC_DEFAULT, "FrontEndCapabilities.DEFAULT"));
+        py::arg_v("capabilities", ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT, "FrontEndCapabilities.DEFAULT"));
 }
 
 void regclass_pyngraph_FrontEnd(py::module m)
@@ -263,26 +263,26 @@ void regclass_pyngraph_Place(py::module m)
 
 void regclass_pyngraph_FEC(py::module m)
 {
-    py::class_<ngraph::frontend::FrontEndCapabilities,
-               std::shared_ptr<ngraph::frontend::FrontEndCapabilities>>
+    py::class_<FrontEndCapabilities,
+               std::shared_ptr<FrontEndCapabilities>>
         type(m, "FrontEndCapabilities");
     // type.doc() = "FrontEndCapabilities";
-    type.attr("DEFAULT") = ngraph::frontend::FEC_DEFAULT;
-    type.attr("CUT") = ngraph::frontend::FEC_CUT;
-    type.attr("NAMES") = ngraph::frontend::FEC_NAMES;
-    type.attr("REPLACE") = ngraph::frontend::FEC_REPLACE;
-    type.attr("TRAVERSE") = ngraph::frontend::FEC_TRAVERSE;
-    type.attr("WILDCARDS") = ngraph::frontend::FEC_WILDCARDS;
+    type.attr("DEFAULT") = FrontEndCapabilities::FEC_DEFAULT;
+    type.attr("CUT") = FrontEndCapabilities::FEC_CUT;
+    type.attr("NAMES") = FrontEndCapabilities::FEC_NAMES;
+    type.attr("REPLACE") = FrontEndCapabilities::FEC_REPLACE;
+    type.attr("TRAVERSE") = FrontEndCapabilities::FEC_TRAVERSE;
+    type.attr("WILDCARDS") = FrontEndCapabilities::FEC_WILDCARDS;
 
     type.def(
         "__eq__",
-        [](const ngraph::frontend::FrontEndCapabilities& a,
-           const ngraph::frontend::FrontEndCapabilities& b) { return a == b; },
+        [](const FrontEndCapabilities& a,
+           const FrontEndCapabilities& b) { return a == b; },
         py::is_operator());
 
-    type.def("__str__", [](const ngraph::frontend::FrontEndCapabilities& self) -> std::string {
+    type.def("__str__", [](const FrontEndCapabilities& self) -> std::string {
         std::stringstream ss;
-        ss << self;
+        ss << static_cast<int>(self);
         return ss.str();
     });
 }
