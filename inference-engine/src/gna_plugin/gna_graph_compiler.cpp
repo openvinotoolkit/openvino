@@ -559,22 +559,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions XY (" << convolution._kernel_x << ", " << convolution._kernel_y << ")"
             << " are bigger than input dimensions WH (" << in_width << "," << in_height << ")";
     }
-    const uint32_t filter_n = convolution._out_depth;
-
     const auto inputs = convolution.insData.front().lock();
     const auto outputs = convolution.outData.front();
-
-    // TODO: questionable why for biases that are not in IR we inventing precision
-    auto biasPrecision = convolution._biases ? convolution._biases->getTensorDesc().getPrecision() : outputs->getPrecision();
-
-    const auto inputPrec = OvGnaTypeIntFromBytes(inputs->getPrecision().size());
-    const auto outputPrec = OvGnaTypeIntFromBytes(outputs->getPrecision().size());
-    const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
-    const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
-
-    cnn2dValidator.ValidateCnn2D(layer->name,
-        in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
 
     // have to pad input to let last kernel meets it's corresponding input
     uint32_t num_inputs = in_width * in_height * in_channels;
@@ -589,6 +575,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     }
     uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
 
+    const uint32_t filter_n = convolution._out_depth;
     uint32_t original_num_feature_map_rows = num_feature_map_rows;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
@@ -602,6 +589,18 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     void* ptr_outputs = nullptr;
     void* ptr_weights = nullptr;
     void* ptr_biases = nullptr;
+
+    // TODO: questionable why for biases that are not in IR we inventing precision
+    auto biasPrecision = convolution._biases ? convolution._biases->getTensorDesc().getPrecision() : outputs->getPrecision();
+
+    const auto inputPrec = OvGnaTypeIntFromBytes(inputs->getPrecision().size());
+    const auto outputPrec = OvGnaTypeIntFromBytes(outputs->getPrecision().size());
+    const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
+    const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
+
+    cnn2dValidator.ValidateCnn2D(layer->name,
+        in_height, in_width, in_channels,
+        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
 
     float weight_scale_factor = 1.0f;
     float output_scale_factor = 1.0f;
