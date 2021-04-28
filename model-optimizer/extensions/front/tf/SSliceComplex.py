@@ -64,6 +64,7 @@ class SSliceComplex(FrontReplacementSubgraph):
             return
 
         complex_node = match['complex']
-        after_complex_node = complex_node.out_port(0).get_connection().get_destination().node
-        after_complex_node['input_rank_changed'] = True
+        for dst in complex_node.out_port(0).get_connection().get_destinations():
+            after_complex_node = dst.node
+            after_complex_node['input_rank_changed'] = True
         complex_node.out_port(0).get_connection().set_source(strided_slice_real.in_port(0).get_source())
