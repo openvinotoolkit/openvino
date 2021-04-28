@@ -104,7 +104,9 @@ private:
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+    void transformTo5DCase(const InferenceEngine::SizeVector& dims);
+
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
 
     bool acrossChannels_ = false;
     bool normalizeVariance_ = true;
