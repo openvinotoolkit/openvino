@@ -80,8 +80,9 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
         if (precisionPreserved) {
             auto& rt = node->get_rt_info();
             rt.emplace(
-                ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(precisionPreserved));
+                ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name,
+                std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(
+                    make_shared_attribute<PrecisionPreservedAttribute>(precisionPreserved)));
         }
 
         const auto& typeInfo = node->get_type_info();

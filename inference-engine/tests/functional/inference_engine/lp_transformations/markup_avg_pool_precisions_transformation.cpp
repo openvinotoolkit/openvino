@@ -109,8 +109,19 @@ public:
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
+
         manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
-        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+        //std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
+        //markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
+        //markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+        //manager.run_passes(actualFunction);
+
+        //manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+        std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+        precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(AttributeSource::OutputPort);
+        precisionsPropagation->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<PrecisionsAttribute>>();
+        manager.run_passes(actualFunction);
+
         manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
 
         std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -142,20 +153,20 @@ public:
         manager1.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
 
-        ngraph::pass::Manager manager2;
-        manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
-        manager2.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
+        //ngraph::pass::Manager manager2;
+        //manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
+        //manager2.run_passes(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
 
-        //{
-        //    ngraph::pass::Manager manager;
-        //    //manager.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
-        //    std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
-        //    markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>(AttributeSource::Node);
-        //    markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
-        //    manager.run_passes(actualFunction);
-        //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
-        //}
+        {
+            ngraph::pass::Manager manager;
+            manager.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
+            //std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
+            //markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
+            //markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+            manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
+        }
 
         //ngraph::pass::Manager manager3;
         //manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();

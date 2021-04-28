@@ -13,6 +13,9 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
+#include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -26,7 +29,7 @@ class TRANSFORMATIONS_API CreatePrecisionsDependentAttribute;
 }  // namespace ngraph
 
 template <typename AttributeType, typename OperationType>
-class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
+class TRANSFORMATIONS_API ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
 public:
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
@@ -45,7 +48,7 @@ public:
             const auto& sharedValue = precisionPreservedAttribute->get().sharedValue;
             const auto attribute = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>(
                 std::make_shared<AttributeType>(sharedValue));
-            rtInfo[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = attribute;
+            rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = attribute;
 
             return true;
         };

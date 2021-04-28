@@ -630,13 +630,13 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
 
 bool NetworkHelper::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node) {
     auto& rt = node->get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+    auto it = rt.find(ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name);
     if (it == rt.end()) {
         return false;
     }
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(it->second);
     assert(attribute != nullptr);
-    return attribute->get().sharedValue->value;
+    return attribute->get()->sharedValue->value;
 }
 
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(

@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API PropagateAttributeToPrecisionPreserved;
 }  // namespace ngraph
 
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateAttributeToPrecisionPreserved : public ngraph::pass::MatcherPass {
+class TRANSFORMATIONS_API ngraph::pass::low_precision::PropagateAttributeToPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
     PropagateAttributeToPrecisionPreserved() {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {

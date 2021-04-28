@@ -15,10 +15,10 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 template <class SharedAttributeType>
-class SharedValue;
+class TRANSFORMATIONS_API SharedValue;
 
 template <class SharedValueType>
-class SharedValueAttribute {
+class TRANSFORMATIONS_API SharedValueAttribute {
 public:
     SharedValueAttribute() : sharedValue(std::make_shared<SharedValueType>()) {};
     virtual ~SharedValueAttribute() = default;
@@ -26,7 +26,7 @@ public:
 };
 
 template <class SharedValueAttributeType>
-class SharedValue {
+class TRANSFORMATIONS_API SharedValue {
 public:
     virtual ~SharedValue() = default;
     std::vector<std::weak_ptr<SharedValueAttributeType>> attributes;

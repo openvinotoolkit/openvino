@@ -18,12 +18,12 @@
 
 class PrecisionsAttribute;
 
-class PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
+class TRANSFORMATIONS_API PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
 public:
     std::set<ngraph::element::Type> precisions;
 };
 
-class PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
+class TRANSFORMATIONS_API PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
 public:
     PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions = std::set<ngraph::element::Type>{ ngraph::element::u8, ngraph::element::i8 });
 };

@@ -31,7 +31,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<AvgPoolPrecisionPreservedAttribu
             resultAttributeWrapper = attribute;
         }
 
-        if (!attribute->get()->precisionPreservedValue->value) {
+        if (!attribute->get()->sharedValue->value) {
             return attribute;
         }
     }
@@ -47,10 +47,10 @@ std::string VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::get_string() 
     const size_t rawPointer = (size_t)value.get();
     ss << rawPointer << ": ";
 
-    const size_t precisionPreservedValueRawPointer = (size_t)value->precisionPreservedValue.get();
+    const size_t precisionPreservedValueRawPointer = (size_t)value->sharedValue.get();
     ss << "sharedValue: " << precisionPreservedValueRawPointer << ", ";
 #endif
 
-    ss << "value: " << (value->precisionPreservedValue->value ? "true" : "false");
+    ss << "value: " << (value->sharedValue->value ? "true" : "false");
     return ss.str();
 }

@@ -14,11 +14,19 @@
 
 using namespace ngraph;
 
-template class ngraph::VariantImpl<PrecisionPreservedAttribute>;
+PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) {
+    sharedValue->value = value;
+}
 
-constexpr VariantTypeInfo VariantWrapper<PrecisionPreservedAttribute>::type_info;
+//PrecisionPreservedAttribute::PrecisionPreservedAttribute(std::shared_ptr<SharedValue> value) : sharedValue(value) {
+//    //
+//}
 
-std::string VariantWrapper<PrecisionPreservedAttribute>::get_string() {
+template class ngraph::VariantImpl<PrecisionPreservedAttributePtr>;
+
+constexpr VariantTypeInfo VariantWrapper<PrecisionPreservedAttributePtr>::type_info;
+
+std::string VariantWrapper<PrecisionPreservedAttributePtr>::get_string() {
     auto& value = this->m_value;
     std::stringstream ss;
 
@@ -26,10 +34,10 @@ std::string VariantWrapper<PrecisionPreservedAttribute>::get_string() {
     const size_t rawPointer = (size_t)&this->m_value;
     ss << rawPointer << ": ";
 
-    const size_t sharedRawPointer = (size_t)value.sharedValue.get();
+    const size_t sharedRawPointer = (size_t)value->sharedValue.get();
     ss << "shared: " << sharedRawPointer << ",";
 #endif
 
-    ss << "value: " << (value.sharedValue->value ? "true" : "false");
+    ss << "value: " << (value->sharedValue->value ? "true" : "false");
     return ss.str();
 }

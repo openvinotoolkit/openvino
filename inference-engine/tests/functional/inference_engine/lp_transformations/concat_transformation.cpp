@@ -18,6 +18,7 @@
 
 #include <low_precision/concat.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -202,7 +203,7 @@ public:
             testValues.result.convert2,
             testValues.result.dequantization2,
             {
-                make_shared_attribute<PrecisionPreservedAttribute>(true),
+                make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
                 make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f),
                 make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
             },

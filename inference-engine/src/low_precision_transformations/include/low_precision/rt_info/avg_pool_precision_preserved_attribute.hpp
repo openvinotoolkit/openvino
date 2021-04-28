@@ -14,12 +14,22 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/shared_value_attribute.hpp"
 
 // TODO: not completed
-class AvgPoolPrecisionPreservedAttribute {
+class TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
-    AvgPoolPrecisionPreservedAttribute(std::shared_ptr<PrecisionPreservedAttribute::SharedValue> value) : precisionPreservedValue(value) {}
+    AvgPoolPrecisionPreservedAttribute() = default;
+    //AvgPoolPrecisionPreservedAttribute(std::shared_ptr<PrecisionPreservedSharedValue> value) {
+    //    this->sharedValue = value;
+    //    this->sharedValue->attributes.push_back(this);
+    //    //ngraph::pass::low_precision::NetworkHelper::reassign<PrecisionPreservedSharedValue, PrecisionPreservedAttribute>(
+    //    //    value,
+    //    //    this->sharedValue->attributes);
+    //}
 
     template <class Operation>
     static std::shared_ptr<AvgPoolPrecisionPreservedAttribute> create(const bool value) {
@@ -29,7 +39,7 @@ public:
     }
 
     // TODO: not completed: should be vector to store several shared values, but it's not SharedValueAttribute
-    std::shared_ptr<PrecisionPreservedAttribute::SharedValue> precisionPreservedValue;
+    //std::shared_ptr<PrecisionPreservedAttribute::SharedValue> precisionPreservedValue;
 };
 
 using AvgPoolPrecisionPreservedAttributePtr = std::shared_ptr<AvgPoolPrecisionPreservedAttribute>;
