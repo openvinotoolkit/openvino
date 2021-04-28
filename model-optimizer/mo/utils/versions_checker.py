@@ -61,7 +61,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     # check environment marker
     if len(splited_requirement) > 1:
         env_req = splited_requirement[1]
-        splited_env_req = re.split(r"==|>=|<=|>|<", env_req)
+        splited_env_req = re.split(r"==|>=|<=|>|<|~=", env_req)
         splited_env_req = [l.strip(',') for l in splited_env_req]
         env_marker = splited_env_req[0].strip(' ')
         if env_marker == 'python_version' and env_marker in env_setup:
@@ -69,7 +69,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
             env_req_version_list = []
             splited_required_versions = re.split(r",", env_req)
             for i, l in enumerate(splited_required_versions):
-                for comparison in ['==', '>=', '<=', '<', '>']:
+                for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                     if comparison in l:
                         required_version = splited_env_req[i + 1].strip(' ').replace('"', '')
                         env_req_version_list.append((env_marker, comparison, required_version))
@@ -88,7 +88,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
 
     # parse a requirement for a dependency
     requirement = splited_requirement[0]
-    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<", requirement)
+    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<|~=", requirement)
     splited_versions_by_conditions = [l.strip(',') for l in splited_versions_by_conditions]
 
     if len(splited_versions_by_conditions) == 0:
@@ -98,7 +98,7 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     else:
         splited_required_versions= re.split(r",", requirement)
         for i, l in enumerate(splited_required_versions):
-            for comparison in ['==', '>=', '<=', '<', '>']:
+            for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                 if comparison in l:
                     version_list.append((splited_versions_by_conditions[0], comparison, splited_versions_by_conditions[i + 1]))
                     break
@@ -158,6 +158,15 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
             satisfied = installed_v < req_ver
         elif sign == '==':
             satisfied = installed_v == req_ver
+        elif sign == '~=':
+            req_ver_list = req_ver.vstring.split('.')
+            if 'post' in req_ver_list[-1]:
+                assert len(req_ver_list) >= 3, 'Error during {} module version checking: {} {} {}, please check ' \
+                                               'required version of this module in requirements_*.txt file!'\
+                    .format(name, installed_v, sign, required_v)
+                req_ver_list.pop(-1)
+            idx = len(req_ver_list) - 1
+            satisfied = installed_v >= req_ver and (installed_v.split('.')[:idx] == req_ver_list[:idx])
         else:
             log.error("Error during version comparison")
     else:
