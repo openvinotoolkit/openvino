@@ -115,3 +115,4 @@ def blob_from_file(path_to_bin_file : str) -> BlobWrapper:
     tensor_desc = TensorDesc("U8", array.shape, "C")
     return BlobWrapper(tensor_desc,array)
     
+    
