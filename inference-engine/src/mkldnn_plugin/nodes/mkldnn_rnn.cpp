@@ -36,14 +36,14 @@ static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ngraph::Node>&
          : rnn_direction::unidirectional;
 }
 
-static algorithm ie2dnnl(std::string act_type) {
-    return act_type == "sigmoid" ? algorithm::eltwise_logistic
-         : act_type == "tanh"    ? algorithm::eltwise_tanh
-         : act_type == "relu"    ? algorithm::eltwise_relu
-         : algorithm::undef;
+static mkldnn::algorithm ie2dnnl(std::string act_type) {
+    return act_type == "sigmoid" ? mkldnn::algorithm::eltwise_logistic
+         : act_type == "tanh"    ? mkldnn::algorithm::eltwise_tanh
+         : act_type == "relu"    ? mkldnn::algorithm::eltwise_relu
+         : mkldnn::algorithm::undef;
 }
 
-static algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
+static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
     if (one_of(op->get_type_info(),
             ngraph::op::v3::GRUCell::type_info,
             ngraph::op::v5::GRUSequence::type_info)) {
@@ -51,50 +51,50 @@ static algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
         auto gruSeqOp = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op);
         if (gruCellOp && gruCellOp->get_linear_before_reset() ||
                 gruSeqOp && gruSeqOp->get_linear_before_reset())
-            return algorithm::lbr_gru;
+            return mkldnn::algorithm::lbr_gru;
         else
-            return algorithm::vanilla_gru;
+            return mkldnn::algorithm::vanilla_gru;
     } else if (one_of(op->get_type_info(),
             ngraph::op::v0::LSTMCell::type_info,
             ngraph::op::v4::LSTMCell::type_info,
             ngraph::op::v0::LSTMSequence::type_info,
             ngraph::op::v5::LSTMSequence::type_info)) {
-        return algorithm::vanilla_lstm;
+        return mkldnn::algorithm::vanilla_lstm;
     } else if (one_of(op->get_type_info(),
             ngraph::op::v0::RNNCell::type_info,
             ngraph::op::v5::RNNSequence::type_info)) {
-        return algorithm::vanilla_rnn;
+        return mkldnn::algorithm::vanilla_rnn;
     } else {
         IE_THROW() << "Unsupported cell type";
     }
 }
 
-size_t gatesCount(algorithm alg) {
+size_t gatesCount(mkldnn::algorithm alg) {
     switch (alg) {
-        case algorithm::vanilla_rnn:     return 1;
-        case algorithm::vanilla_gru:
-        case algorithm::lbr_gru:         return 3;
-        case algorithm::vanilla_lstm:    return 4;
+        case mkldnn::algorithm::vanilla_rnn:     return 1;
+        case mkldnn::algorithm::vanilla_gru:
+        case mkldnn::algorithm::lbr_gru:         return 3;
+        case mkldnn::algorithm::vanilla_lstm:    return 4;
         default:
             IE_THROW() << "Unsupported cell type";
             return 0;
     }
 }
 
-size_t statesCount(algorithm alg) {
+size_t statesCount(mkldnn::algorithm alg) {
     switch (alg) {
-        case algorithm::vanilla_rnn:
-        case algorithm::vanilla_gru:
-        case algorithm::lbr_gru:         return 1;
-        case algorithm::vanilla_lstm:    return 2;
+        case mkldnn::algorithm::vanilla_rnn:
+        case mkldnn::algorithm::vanilla_gru:
+        case mkldnn::algorithm::lbr_gru:         return 1;
+        case mkldnn::algorithm::vanilla_lstm:    return 2;
         default:
             IE_THROW() << "Unsupported cell type";
             return 0;
     }
 }
 
-bool haveCellState(algorithm alg) {
-    return alg == algorithm::vanilla_lstm;
+bool haveCellState(mkldnn::algorithm alg) {
+    return alg == mkldnn::algorithm::vanilla_lstm;
 }
 
 const std::map<InferenceEngine::Precision, InferenceEngine::Precision> MKLDNNRNN::weightsByLayerPrec {
@@ -301,7 +301,7 @@ void MKLDNNRNN::fillCellDesc() {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
         out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
     }
-    if (one_of(cell_type, algorithm::vanilla_rnn, algorithm::vanilla_gru, algorithm::lbr_gru, algorithm::vanilla_lstm)) {
+    if (one_of(cell_type, mkldnn::algorithm::vanilla_rnn, mkldnn::algorithm::vanilla_gru, mkldnn::algorithm::lbr_gru, mkldnn::algorithm::vanilla_lstm)) {
         in_candidate.emplace_back(MKLDNNMemoryDesc {WShape, memory::data_type::f32, memory::format_tag::nc});
         in_candidate.emplace_back(MKLDNNMemoryDesc {RShape, memory::data_type::f32, memory::format_tag::nc});
         in_candidate.emplace_back(MKLDNNMemoryDesc {BShape, memory::data_type::f32, memory::format_tag::x});
@@ -316,7 +316,7 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
         IE_THROW() << "No original layer for RNNCell.";
 
     cell_type = ie2dnnl(op);
-    cell_act = algorithm::undef;
+    cell_act = mkldnn::algorithm::undef;
     if (!rnnCellBase->get_activations().empty())
         cell_act = ie2dnnl(rnnCellBase->get_activations()[0]);  // Works only for RNN with one gate
 
@@ -532,22 +532,22 @@ void MKLDNNRNN::copyWeightsData(const std::shared_ptr<ngraph::Node>& op) {
     const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
     const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
     const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
-    if (cell_type == algorithm::vanilla_lstm) {
+    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
         gate_map = gate_map_lstm;
         if (G > gate_map_lstm_size) {
             IE_THROW() << "G isn't equal to the size of gate_map";
         }
-    } else if (cell_type == algorithm::vanilla_gru) {
+    } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
         gate_map = gate_map_gru;
         if (G > gate_map_gru_size) {
             IE_THROW() << "G isn't equal to the size of gate_map";
         }
-    } else if (cell_type == algorithm::lbr_gru) {
+    } else if (cell_type == mkldnn::algorithm::lbr_gru) {
         gate_map = gate_map_gru;
         if (G > gate_map_gru_size) {
             IE_THROW() << "G isn't equal to the size of gate_map";
         }
-    } else if (cell_type == algorithm::vanilla_rnn) {
+    } else if (cell_type == mkldnn::algorithm::vanilla_rnn) {
         gate_map = gate_map_rnn;
         if (G > gate_map_rnn_size) {
             IE_THROW() << "G isn't equal to the size of gate_map";
