@@ -6,7 +6,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "template_itt.hpp"
 #include "transformations/preprocessing/mean_image_or_value.hpp"
 
 using namespace ngraph;
@@ -14,7 +13,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMeanSubtract, "AddMeanSubtract", 0);
 
 ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap & inputInfoMap) {
-    RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);
+    // RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);
     auto param = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
 
     ngraph::matcher_pass_callback callback = [=] (pattern::Matcher& m) {
