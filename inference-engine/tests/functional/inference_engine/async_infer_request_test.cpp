@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 using namespace ::testing;
 using namespace std;

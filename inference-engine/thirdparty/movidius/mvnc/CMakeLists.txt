@@ -35,12 +35,9 @@ endif()
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
             PRIVATE
-            -MMD
-            -MP
             -Wformat
             -Wformat-security
-            -Wall
-            -Wno-error=unused-command-line-argument)
+            -Wall)
     if(CMAKE_C_COMPILER_VERSION VERSION_GREATER 4.8.5)
         target_compile_options(${TARGET_NAME}
                 PRIVATE
