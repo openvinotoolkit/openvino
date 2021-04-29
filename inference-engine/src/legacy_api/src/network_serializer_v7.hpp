@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_icnn_network.hpp>
 #include <legacy/ie_layers.h>
 
 #include <string>

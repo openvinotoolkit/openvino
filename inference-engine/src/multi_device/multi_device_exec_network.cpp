@@ -13,7 +13,6 @@
 
 
 #include "ie_metric_helpers.hpp"
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"

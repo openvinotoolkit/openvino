@@ -9,7 +9,7 @@
 
 #include <inference_engine.hpp>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp/ie_infer_async_request_base.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"

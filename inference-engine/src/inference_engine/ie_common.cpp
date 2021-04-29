@@ -17,7 +17,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ngraph/opsets/opset.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 namespace ExecGraphInfoSerialization {
 //

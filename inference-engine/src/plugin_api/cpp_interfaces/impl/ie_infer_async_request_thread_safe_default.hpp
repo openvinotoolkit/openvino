@@ -9,7 +9,6 @@
 #include <threading/ie_istreams_executor.hpp>
 
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <ie_system_conf.h>
 
 #include <exception>

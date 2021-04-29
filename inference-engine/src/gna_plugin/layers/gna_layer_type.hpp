@@ -7,7 +7,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_icnn_network.hpp>
 #include <caseless.hpp>
 
 #include "backend/dnn_types.h"

@@ -13,7 +13,6 @@
 #include <xml_parse_utils.h>
 
 #include "ie_itt.hpp"
-#include "cpp_interfaces/exception2status.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"

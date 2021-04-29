@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "cpp_interfaces/exception2status.hpp"
+#include "cpp/exception2status.hpp"
 #include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "ie_imemory_state.hpp"
 

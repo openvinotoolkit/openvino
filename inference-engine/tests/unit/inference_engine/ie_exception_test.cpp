@@ -7,9 +7,7 @@
 #include <gmock/gmock.h>
 
 #include "ie_common.h"
-#include "cpp_interfaces/exception2status.hpp"
 
-// TODO: cover <cpp_interfaces/exception2status.hpp> and <details/ie_exception_conversion.hpp> from
 //  tests/unit/inference_engine/exception_test.cpp
 
 TEST(ExceptionTests, CanThrowUsingMacro) {

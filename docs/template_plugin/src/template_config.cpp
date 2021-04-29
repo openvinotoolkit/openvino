@@ -4,7 +4,6 @@
 
 #include <ie_plugin_config.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 #include "template_config.hpp"
 #include "template/template_config.hpp"

@@ -8,7 +8,7 @@
 #include <ie_version.hpp>
 #include <ie_plugin_cpp.hpp>
 
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp/ie_infer_async_request_base.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"

@@ -6,8 +6,8 @@
 #include <gmock/gmock-spec-builders.h>
 #include <cpp/ie_executable_network.hpp>
 
-#include <cpp_interfaces/base/ie_executable_network_base.hpp>
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp/ie_executable_network_base.hpp>
+#include <cpp/ie_infer_async_request_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"

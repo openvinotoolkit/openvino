@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ie_icnn_network.hpp>
-
 #include <legacy/cnn_network_impl.hpp>
 
 namespace pugi {

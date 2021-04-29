@@ -6,7 +6,6 @@
 
 #include "multi_device_infer_request.hpp"
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
 

@@ -61,8 +61,6 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
         IE_SUPPRESS_DEPRECATED_START
-        auto pluginStates = plg->QueryState();
-        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
         return plg->QueryState();
         IE_SUPPRESS_DEPRECATED_END
     }
