@@ -84,6 +84,6 @@ namespace ngraph
                                           const Output<Node>& reduction_axes,
                                           std::size_t p_norm = 2,
                                           float bias = 0.f);
-        }
-    } // namespace builder
+        } // namespace opset1
+    }     // namespace builder
 } // namespace ngraph

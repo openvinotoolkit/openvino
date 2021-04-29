@@ -14,7 +14,6 @@
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
-#include "ie_iexecutable_network.hpp"
 
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
@@ -645,8 +644,8 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
         });
     }
     CommonTestUtils::removeFilesWithExt(newCacheDir2, "blob");
-    std::remove(newCacheDir2.c_str());
-    std::remove(newCacheDir1.c_str());
+    CommonTestUtils::removeDir(newCacheDir2);
+    CommonTestUtils::removeDir(newCacheDir1);
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {
@@ -764,6 +763,8 @@ TEST_P(CachingTest, TestThrowOnExport) {
     }
 }
 
+// TODO: temporary behavior is to no re-throw exception on import error (see 54335)
+// In future add separate 'no throw' test for 'blob_outdated' exception from plugin
 TEST_P(CachingTest, TestThrowOnImport) {
     ON_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).WillByDefault(Throw(1));
     ON_CALL(*mockPlugin, ImportNetworkImpl(_, _)).WillByDefault(Throw(1));
@@ -782,14 +783,14 @@ TEST_P(CachingTest, TestThrowOnImport) {
         });
     }
     {
-        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            EXPECT_ANY_THROW(m_testFunction(ie));
+            EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
     { // Step 3: same load, cache should be deleted due to unsuccessful import on step 2
@@ -1275,12 +1276,9 @@ TEST_P(CachingTest, Load_threads) {
 }
 
 // MULTI-DEVICE test
-// Test that loading of device with one architecture doesn't block loading of device with another architecture
+// Test loading of devices with different architectures
 TEST_P(CachingTest, LoadMulti_Archs) {
-    const auto IMPORT_DELAY_LONG_MS = 3000;
     const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
-    const auto IMPORT_DELAY_SHORT_MS = 100;
-    const auto EXP_MAX_EXEC_TIME_MS = 5500;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
@@ -1302,20 +1300,13 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         deviceToLoad += ",mock." + std::to_string(i);
     }
 
-    auto start = high_resolution_clock::now();
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(2);
 
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT - 2)
-                .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &opt) {
-            auto id = opt.at("DEVICE_ID");
-            if (std::stoi(id) < 2) {
-                std::this_thread::sleep_for(milliseconds(IMPORT_DELAY_LONG_MS));
-            } else {
-                std::this_thread::sleep_for(milliseconds(IMPORT_DELAY_SHORT_MS));
-            }
+                .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &) {
             return createMockIExecutableNet();
         }));
         EXPECT_CALL(*net, ExportImpl(_)).Times(2);
@@ -1324,7 +1315,6 @@ TEST_P(CachingTest, LoadMulti_Archs) {
             ASSERT_NO_THROW(m_testFunction(ie));
         });
     }
-    ASSERT_LT(duration_cast<milliseconds>(high_resolution_clock::now() - start).count(), EXP_MAX_EXEC_TIME_MS);
 }
 
 INSTANTIATE_TEST_CASE_P(CachingTest, CachingTest,

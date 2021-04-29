@@ -58,7 +58,7 @@ namespace absop
         }
         return rc;
     }
-}
+} // namespace absop
 
 bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
