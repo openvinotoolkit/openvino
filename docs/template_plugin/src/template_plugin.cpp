@@ -4,6 +4,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
+#include <ie_algorithm.hpp>
 
 #include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -84,53 +85,20 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
                                                                            const ConfigMap &config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
 
-    auto cfg = Configuration{ config, _cfg };
-    InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
-    InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
-
-    // TODO: check with precisions supported by Template device
-
-    for (auto networkOutput : networkOutputs) {
-        auto output_precision = networkOutput.second->getPrecision();
-
-        if (output_precision != InferenceEngine::Precision::FP32 &&
-            output_precision != InferenceEngine::Precision::FP16 &&
-            output_precision != InferenceEngine::Precision::U8) {
-            IE_THROW(NotImplemented) << "Template device supports only U8, FP16 and FP32 output precision.";
-        }
-    }
-
-    for (auto networkInput : networkInputs) {
-        auto input_precision = networkInput.second->getTensorDesc().getPrecision();
-
-        if (input_precision != InferenceEngine::Precision::FP32 &&
-            input_precision != InferenceEngine::Precision::FP16 &&
-            input_precision != InferenceEngine::Precision::I16 &&
-            input_precision != InferenceEngine::Precision::U8) {
-            IE_THROW(NotImplemented) << "Input image format " << input_precision << " is not supported yet.\n"
-                       << "Supported formats are: FP32, FP16, I16 and U8.";
-        }
-    }
-
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW(NotImplemented) << "TEMPLATE plugin can compile only IR v10 networks";
-    }
-
-    return std::make_shared<ExecutableNetwork>(function, networkInputs, cfg,
+    auto fullConfig = Configuration{ config, _cfg };
+    return std::make_shared<ExecutableNetwork>(network.getFunction(), fullConfig,
         std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network_impl]
-InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
+InferenceEngine::ExecutableNetworkInternal::Ptr
+Plugin::ImportNetworkImpl(std::istream& modelStream, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
 
-    Configuration cfg(config);
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg,
+    auto fullConfig = Configuration{ config, _cfg };
+    return std::make_shared<ExecutableNetwork>(modelStream, fullConfig,
         std::static_pointer_cast<Plugin>(shared_from_this()));
-
-    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 
@@ -138,13 +106,8 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork &network, const ConfigMap& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::QueryNetwork");
 
-    InferenceEngine::QueryNetworkResult res;
-    Configuration cfg{config, _cfg, false};
-
+    Configuration fullConfig{config, _cfg, false};
     auto function = network.getFunction();
-    if (function == nullptr) {
-         IE_THROW(NotImplemented) << "Template Plugin supports only ngraph cnn network representation";
-    }
 
     // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
@@ -212,6 +175,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     }
 
     // 7. Produce the result
+    InferenceEngine::QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }

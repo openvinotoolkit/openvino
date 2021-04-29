@@ -7,8 +7,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/greater_eq.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -49,7 +47,7 @@ namespace greater_equalop
         }
         return rc;
     }
-}
+} // namespace greater_equalop
 
 //---------------------------------- v1 ----------------------------------------
 

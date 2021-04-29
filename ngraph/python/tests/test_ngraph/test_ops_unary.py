@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
@@ -20,7 +8,7 @@ import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_44970, xfail_issue_49913
+from tests import xfail_issue_44970
 
 
 @pytest.mark.parametrize(
@@ -188,7 +176,6 @@ def test_hsigmoid():
     assert node.get_output_element_type(0) == Type.f32
 
 
-@xfail_issue_49913
 def test_gelu_operator_with_parameters():
     runtime = get_runtime()
 
@@ -202,10 +189,9 @@ def test_gelu_operator_with_parameters():
 
     result = computation(data_value)
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
-@xfail_issue_49913
 def test_gelu_operator_with_array():
     runtime = get_runtime()
 
@@ -216,7 +202,7 @@ def test_gelu_operator_with_array():
 
     result = computation()
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
 def test_gelu_tanh_operator_with_parameters():

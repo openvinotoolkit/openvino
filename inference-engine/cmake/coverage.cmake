@@ -1,15 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-set(DLDT_COVERAGE_GCDA_DATA_DIRECTORY "${CMAKE_BINARY_DIR}/inference-engine/src")
 set(DLDT_COVERAGE_BASE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/src")
 
 ie_coverage_clean(REPOSITORY "dldt"
-                  DIRECTORY "${DLDT_COVERAGE_GCDA_DATA_DIRECTORY}")
+                  DIRECTORY "${OV_COVERAGE_GCDA_DATA_DIRECTORY}")
 ie_coverage_capture(INFO_FILE "dldt"
                     BASE_DIRECTORY "${DLDT_COVERAGE_BASE_DIRECTORY}"
-                    DIRECTORY "${DLDT_COVERAGE_GCDA_DATA_DIRECTORY}")
+                    DIRECTORY "${OV_COVERAGE_GCDA_DATA_DIRECTORY}")
 
 # Generate reports
 

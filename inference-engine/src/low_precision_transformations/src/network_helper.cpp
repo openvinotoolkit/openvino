@@ -34,6 +34,17 @@ bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordere
     return false;
 }
 
+bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : childrens) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Collect and return a vector with all nodes that consumes any of the `node` output
 std::vector<Input<Node>> NetworkHelper::consumer_inputs(std::shared_ptr<Node> node) {
     std::vector<Input<Node>> result;
@@ -85,6 +96,35 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
         }
     }
     return true;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
+    const std::shared_ptr<opset1::Constant>& foldingConstant,
+    const std::shared_ptr<Node>& operation,
+    const size_t outIdx) {
+    OutputVector inputs = operation->input_values();
+    OutputVector outputs(operation->get_output_size());
+
+    if (shape_size(foldingConstant->get_shape()) == 1ul) {
+        return toScalar(foldingConstant);
+    } else {
+        inputs[0] = foldingConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        if (std::dynamic_pointer_cast<op::TypeRelaxedBase>(op)) {
+            setOutDataPrecisionForTypeRelaxed(op, inputs[0].get_element_type());
+        }
+
+        // constant folding of constant
+        op->constant_fold(outputs, inputs);
+
+        const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
+        if (result == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+        }
+
+        return result;
+    }
 }
 
 size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights) {
@@ -189,7 +229,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     if (multiplyConst == nullptr)
         return addAfterMultiply;
 
-    const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    const auto x = multiply->get_input_source_output(multiplyInputBranch);
     auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
     std::shared_ptr<Node> bDivA;
@@ -228,14 +268,13 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         bDivA = fold<opset1::Convert>(bDivA, a->get_output_element_type(0));
     }
 
-    std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
-
+    OutputVector inputs{ {}, {} };
     inputs[0] = x;
     inputs[1] = bDivA;
 
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{ x->get_output_element_type(0) },
+        std::vector<element::Type>{ x.get_element_type() },
         ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     copyInfo(addAfterMultiply, newAdd);

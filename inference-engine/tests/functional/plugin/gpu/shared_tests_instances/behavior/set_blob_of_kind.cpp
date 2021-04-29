@@ -10,8 +10,9 @@ using namespace InferenceEngine;
 
 const std::vector<FuncTestUtils::BlobKind> blobKinds = {
     FuncTestUtils::BlobKind::Simple,
-    FuncTestUtils::BlobKind::Compound,
-    FuncTestUtils::BlobKind::BatchOfSimple
+    FuncTestUtils::BlobKind::Compound
+    /* BatchOfSimple is not supported on GPU currently. Batch of remote is supported */
+    /* , FuncTestUtils::BlobKind::BatchOfSimple */
 };
 
 const SetBlobOfKindConfig gpuConfig{}; //nothing special

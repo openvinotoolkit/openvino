@@ -17,9 +17,6 @@
 #include "memory/polymorph_allocator.hpp"
 #include "memory/gna_memory.hpp"
 
-#define FROM_IR_DIM(mem, idx)\
-((mem->getTensorDesc().getDims().size() > (idx) - 1) ? mem->getTensorDesc().getDims()[mem->getTensorDesc().getDims().size() - (idx)] : 1)
-
 struct TranspositionInfo {
     bool transpose;
     size_t num_transpose_rows;

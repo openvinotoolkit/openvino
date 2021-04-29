@@ -44,9 +44,9 @@ namespace maxop
         }
         return rc;
     }
-}
+} // namespace maxop
 
-constexpr NodeTypeInfo op::v1::ReduceMax::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,

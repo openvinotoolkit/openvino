@@ -420,31 +420,31 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::format_tag::x, biases->buffer(),
                                                                 dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
-                    // rewrite onto append_dw_k3s2p1
-//                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                       (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-//                                       (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+                    // todo: rewrite onto append_dw_k3s2p1
+                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                       static_cast<const float *>(PostOpsIntBlobMemory[blob_idx]->GetData()),
+                                       static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()));
 
                     blob_idx += 2;
                 } else {
-                    // rewrite onto append_dw_k3s2p1
-//                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                       static_cast<float *>(getParentEdgeAt(
-//                                               baseInputsNumber + 0)->getMemory().GetData()),
-//                                       static_cast<float *>(getParentEdgeAt(
-//                                               baseInputsNumber + 1)->getMemory().GetData()));
+                    // todo: rewrite onto append_dw_k3s2p1
+                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                       static_cast<const float *>(getParentEdgeAt(
+                                               baseInputsNumber + 0)->getMemory().GetData()),
+                                       static_cast<const float *>(getParentEdgeAt(
+                                               baseInputsNumber + 1)->getMemory().GetData()));
                 }
             } else {
-                // rewrite onto append_dw_k3s2p1
-//                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                   nullptr,
-//                                   nullptr);
+                // todo: rewrite onto append_dw_k3s2p1
+                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                   nullptr,
+                                   nullptr);
             }
 
             if (convolutionNode->wScale != nullptr) {
@@ -482,14 +482,11 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                                             oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift,
-                                     (const float *)PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                     (const float *)PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+                                     static_cast<const float *>(PostOpsIntBlobMemory[blob_idx]->GetData()),
+                                     static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()));
 
                 blob_idx += 2;
             }
-
-            IE_THROW() << "append_dw_conv is not ported";
-
             continue;
         }
 

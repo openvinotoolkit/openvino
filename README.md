@@ -45,5 +45,6 @@ Please report questions, issues and suggestions using:
 [Open Model Zoo]:https://github.com/opencv/open_model_zoo
 [Inference Engine]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
 [Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
-[tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 [nGraph]:https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_DevGuide.html
+[tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
+

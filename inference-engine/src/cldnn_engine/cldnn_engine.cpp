@@ -22,6 +22,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <ie_algorithm.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -32,6 +33,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -323,6 +325,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return false;
                 });
 
+            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                });
+
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
             pass_config->disable<ngraph::pass::ConvertMod>();
@@ -488,7 +495,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id;
+               context_config.device_id == current_config.device_id &&
+               context_config.n_threads == current_config.n_threads;
     };
 
     {
@@ -845,6 +853,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
         if (device_info.supports_fp16)
             capabilities.push_back(METRIC_VALUE(FP16));
         if (device_info.supports_imad || device_info.supports_immad)

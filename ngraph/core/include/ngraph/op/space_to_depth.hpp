@@ -8,8 +8,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -69,7 +67,7 @@ namespace ngraph
                 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const;
             };
-        }
+        } // namespace v0
         using v0::SpaceToDepth;
     } // namespace op
 
@@ -91,5 +89,3 @@ namespace ngraph
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END

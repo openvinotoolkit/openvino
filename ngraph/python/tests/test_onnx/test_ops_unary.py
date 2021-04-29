@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2018-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import onnx
 import onnx.mapping
@@ -22,7 +10,6 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35930
 
 
 @pytest.mark.parametrize(
@@ -390,8 +377,9 @@ def test_cast_to_uint(val_type):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35930
 def test_cast_errors():
+    from onnx.onnx_cpp2py_export.checker import ValidationError
+
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
 
@@ -408,7 +396,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported data type representation
@@ -424,7 +412,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported input tensor data type:

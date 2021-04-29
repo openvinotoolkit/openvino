@@ -1,88 +1,122 @@
 # Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
-## Introduction to the OpenVINO™ Toolkit
+> **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
-The OpenVINO™ toolkit is a comprehensive toolkit that you can use to develop and deploy vision-oriented solutions on
-Intel® platforms. Vision-oriented means the solutions use images or videos to perform specific tasks.
-A few of the solutions use cases include autonomous navigation, digital surveillance cameras, robotics,
-and mixed-reality headsets.
-
-The OpenVINO™ toolkit:
-
-* Enables CNN-based deep learning inference on the edge
-* Supports heterogeneous execution across an Intel&reg; CPU, Intel&reg; Integrated Graphics, Intel&reg; Neural Compute Stick 2
-* Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
-* Includes optimized calls for computer vision standards including OpenCV\*, OpenCL&trade;, and OpenVX\*
-
-The OpenVINO™ toolkit includes the following components:
-
-* Intel® Deep Learning Deployment Toolkit (Intel® DLDT)
-    - [Deep Learning Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) — A cross-platform command-line tool for importing models and
-    preparing them for optimal execution with the Deep Learning Inference Engine. The Model Optimizer supports converting Caffe*,
-    TensorFlow*, MXNet*, Kaldi*, ONNX* models.
-    - [Deep Learning Inference Engine](inference_engine_intro.md) — A unified API to allow high performance inference on many hardware types
-    including Intel® CPU, Intel® Processor Graphics, Intel® FPGA, Intel® Neural Compute Stick 2.
-    - [nGraph](../nGraph_DG/nGraph_dg.md) — graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows the run-time model construction without using Model Optimizer.
-* [OpenCV](https://docs.opencv.org/) — OpenCV* community version compiled for Intel® hardware.
-Includes PVL libraries for computer vision.
-* Drivers and runtimes for OpenCL™ version 2.1
-* [Intel® Media SDK](https://software.intel.com/en-us/media-sdk)
-* [OpenVX*](https://software.intel.com/en-us/cvsdk-ovx-guide) — Intel's implementation of OpenVX*
-optimized for running on Intel® hardware (CPU, GPU, IPU).
-* [Demos and samples](Samples_Overview.md).
-
-
-This Guide provides overview of the Inference Engine describing the typical workflow for performing
+This Guide provides an overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTES:**
-> - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
+After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
-## Table of Contents
+Inference Engine is a set of C++ libraries providing a common API to deliver inference solutions on the platform of your choice: CPU, GPU, or VPU. Use the Inference Engine API to read the Intermediate Representation, set the input and output formats, and execute the model on devices. While the C++ libraries is the primary implementation, C libraries and Python bindings are also available.
 
-* [Inference Engine API Changes History](API_Changes.md)
+For Intel® Distribution of OpenVINO™ toolkit, Inference Engine binaries are delivered within release packages. 
 
-* [Introduction to Inference Engine](inference_engine_intro.md)
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.    
 
-* [Understanding Inference Engine Memory Primitives](Memory_primitives.md)
+To learn about how to use the Inference Engine API for your application, see the [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md) documentation.
 
-* [Introduction to Inference Engine Device Query API](InferenceEngine_QueryAPI.md)
+For complete API Reference, see the [Inference Engine API References](./api_references.html) section.
 
-* [Adding Your Own Layers to the Inference Engine](Extensibility_DG/Intro.md)
+Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
 
-* [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md)
+## Modules in the Inference Engine component
+### Core Inference Engine Libraries ###
 
-* [[DEPRECATED] Migration from Inference Engine Plugin API to Core API](Migration_CoreAPI.md)
+Your application must link to the core Inference Engine libraries:
+* Linux* OS:
+    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
+* Windows* OS:
+    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
+* macOS*:
+    - `libinference_engine.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
 
-* [Introduction to Performance Topics](Intro_to_Performance.md)
+The required C++ header files are located in the `include` directory.
 
-* [Inference Engine Python API Overview](../../inference-engine/ie_bridges/python/docs/api_overview.md)
+This library contains the classes to:
+* Create Inference Engine Core object to work with devices and read network (InferenceEngine::Core)
+* Manipulate network information (InferenceEngine::CNNNetwork)
+* Execute and pass inputs and outputs (InferenceEngine::ExecutableNetwork and InferenceEngine::InferRequest)
 
-* [Using Dynamic Batching feature](DynamicBatching.md)
+### Plugin Libraries to Read a Network Object ###
 
-* [Using Static Shape Infer feature](ShapeInference.md)
+Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
+* Linux* OS:
+    - `libinference_engine_ir_reader.so` to read a network from IR
+    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+* Windows* OS:
+    - `inference_engine_ir_reader.dll` to read a network from IR
+    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
 
-* [Using Low-Precision 8-bit Integer Inference](Int8Inference.md)
+### Device-Specific Plugin Libraries ###
 
-* [Using Bfloat16 Inference](Bfloat16Inference.md)
+For each supported target device, Inference Engine provides a plugin — a DLL/shared library that contains complete implementation for inference on this particular device. The following plugins are available:
 
-* Utilities to Validate Your Converted Model
-    * [Using Cross Check Tool for Per-Layer Comparison Between Plugins](../../inference-engine/tools/cross_check_tool/README.md)
+| Plugin  | Device Type                   |
+| ------- | ----------------------------- |
+|CPU      |	Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
+|GPU      | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics |
+|MYRIAD   |	Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X |
+|GNA      |	Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor |
+|HETERO   | Automatic splitting of a network inference between several devices (for example if a device doesn't support certain layers|
+|MULTI    | Simultaneous inference of the same network on several devices in parallel|
 
-* [Supported Devices](supported_plugins/Supported_Devices.md)
-    * [GPU](supported_plugins/CL_DNN.md)
-    * [CPU](supported_plugins/CPU.md)
-    * [VPU](supported_plugins/VPU.md)
-      * [MYRIAD](supported_plugins/MYRIAD.md)
-      * [HDDL](supported_plugins/HDDL.md)
-    * [Heterogeneous execution](supported_plugins/HETERO.md)
-    * [GNA](supported_plugins/GNA.md)
-    * [MULTI](supported_plugins/MULTI.md)
+The table below shows the plugin libraries and additional dependencies for Linux, Windows and macOS platforms.
 
-* [Pre-Trained Models](@ref omz_models_intel_index)
+| Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
+|--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
+| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `inference_engine_lp_transformations.dylib` |
+| GPU    | `libclDNNPlugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
+| MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
+| HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
+| GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
+| HETERO | `libHeteroPlugin.so`        | Same as for selected plugins                                | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           | `libHeteroPlugin.so`      |  Same as for selected plugins               |
+| MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins                                | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           | `libMultiDevicePlugin.so` |  Same as for selected plugins               |
 
-* [Known Issues](Known_Issues_Limitations.md)
+> **NOTE**: All plugin libraries also depend on core Inference Engine libraries.
 
-**Typical Next Step:** [Introduction to Inference Engine](inference_engine_intro.md)
+Make sure those libraries are in your computer's path or in the place you pointed to in the plugin loader. Make sure each plugin's related dependencies are in the:
+
+* Linux: `LD_LIBRARY_PATH`
+* Windows: `PATH`
+* macOS: `DYLD_LIBRARY_PATH`
+
+On Linux and macOS, use the script `bin/setupvars.sh` to set the environment variables.
+
+On Windows, run the `bin\setupvars.bat` batch file to set the environment variables.
+
+To learn more about supported devices and corresponding plugins, see the [Supported Devices](supported_plugins/Supported_Devices.md) chapter.
+
+## Common Workflow for Using the Inference Engine API
+
+The common workflow contains the following steps:
+
+1. **Create Inference Engine Core object** - Create an `InferenceEngine::Core` object to work with different devices, all device plugins are managed internally by the `Core` object. Register extensions with custom nGraph operations (`InferenceEngine::Core::AddExtension`).
+
+2. **Read the Intermediate Representation** - Using the `InferenceEngine::Core` class, read an Intermediate Representation file into an object of the `InferenceEngine::CNNNetwork` class. This class represents the network in the host memory.
+
+3. **Prepare inputs and outputs format** - After loading the network, specify input and output precision and the layout on the network. For these specification, use the `InferenceEngine::CNNNetwork::getInputsInfo()` and `InferenceEngine::CNNNetwork::getOutputsInfo()`.
+
+4. Pass per device loading configurations specific to this device (`InferenceEngine::Core::SetConfig`), and register extensions to this device (`InferenceEngine::Core::AddExtension`).
+
+5. **Compile and Load Network to device** - Use the `InferenceEngine::Core::LoadNetwork()` method with specific device (e.g. `CPU`, `GPU`, etc.) to compile and load the network on the device. Pass in the per-target load configuration for this compilation and load operation.
+
+6. **Set input data** - With the network loaded, you have an `InferenceEngine::ExecutableNetwork` object. Use this object to create an `InferenceEngine::InferRequest` in which you signal the input buffers to use for input and output. Specify a device-allocated memory and copy it into the device memory directly, or tell the device to use your application memory to save a copy.
+
+7. **Execute** - With the input and output memory now defined, choose your execution mode:
+
+    * Synchronously - `InferenceEngine::InferRequest::Infer()` method. Blocks until inference is completed.
+    * Asynchronously - `InferenceEngine::InferRequest::StartAsync()` method. Check status with the `InferenceEngine::InferRequest::Wait()` method (0 timeout), wait, or specify a completion callback.
+
+8. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
+
+## Video: Inference Engine Concept
+[![](https://img.youtube.com/vi/e6R13V8nbak/0.jpg)](https://www.youtube.com/watch?v=e6R13V8nbak)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/e6R13V8nbak" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
+## Further Reading
+
+For more details on the Inference Engine API, refer to the [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md) documentation.

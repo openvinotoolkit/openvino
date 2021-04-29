@@ -3012,17 +3012,120 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_matmul_float_type)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<int64_t>({-8, 3, 4, 9, -17, 1});
-    test_case.add_input<int64_t>({22, -13, 8, -3, 7, 2});
-    test_case.add_expected_output<int64_t>(Shape{6}, {-8, 3, 4, 0, -3, 1});
+    test_case.add_input<int32_t>({-4, 7, 5, 4, -7, 8});
+    test_case.add_input<int32_t>({2, -3, 8, -2, 3, 5});
+    test_case.add_expected_output<int32_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
 
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_i64)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_i64.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int64_t>({-4, 7, 5, 4, -7, 8});
+    test_case.add_input<int64_t>({2, -3, 8, -2, 3, 5});
+    test_case.add_expected_output<int64_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_broadcast)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_broadcast.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({3});
+    test_case.add_expected_output<int32_t>(Shape{6}, {1, 0, 1, 0, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({22, -13, 8, -3, 7, 2});
+    test_case.add_expected_output<int32_t>(Shape{6}, {-8, 3, 4, 0, -3, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_broadcast)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_broadcast.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({3});
+    test_case.add_expected_output<int32_t>(Shape{6}, {-2, 0, 1, 0, -2, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_f32.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({-4.3, 7.2, 5.0, 4.3, -7.2, 8.0});
+    test_case.add_input<float>({2.1, -3.4, 8.0, -2.1, 3.4, 5.0});
+    test_case.add_expected_output<float>(Shape{6}, {-0.10000038, 0.39999962, 5. , 0.10000038, -0.39999962, 3.});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_param_i64_indices)
@@ -4153,5 +4256,45 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss)
     });
     test_case.add_input<int64_t>({3, 3, 2, 4, 2, 0});
     test_case.add_expected_output<float>(Shape{}, {-0.531306922435760498});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_input_as_shape_default_value)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_default_value.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_input_as_shape_u8_type)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_u8_type.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<uint8_t>(Shape{3, 1, 2}, {3, 3, 3, 3, 3, 3});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_extra_shape)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_extra_shape.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{3, 1, 2, 2, 1}, std::vector<float>(12, 3.0f));
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_shape_attribute)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_shape_attribute.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int32_t>(Shape{2, 3, 4}, std::vector<int32_t>(24, 5));
     test_case.run();
 }

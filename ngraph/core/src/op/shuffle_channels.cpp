@@ -18,7 +18,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::ShuffleChannels::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
                                      const int64_t axis,

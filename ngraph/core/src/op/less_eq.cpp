@@ -7,8 +7,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/less_eq.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -68,7 +66,7 @@ namespace less_equalop
         }
         return rc;
     }
-}
+} // namespace less_equalop
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const

@@ -24,10 +24,8 @@ struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase
     using InferenceEngine::ExecutableNetworkBase::_impl;
 };
 
-static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {
-    return reinterpret_cast<MKLDNNTestExecNetwork*>(
-        reinterpret_cast<TestExecutableNetworkBase*>(
-            execNetwork.get())->_impl.get())->getGraph();
+static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetworkInternal::Ptr execNetwork) {
+    return static_cast<MKLDNNTestExecNetwork*>(execNetwork.get())->getGraph();
 }
 
 class MKLDNNGraphLeaksTests: public ::testing::Test {
@@ -253,7 +251,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         ASSERT_NE(1, network.getOutputsInfo().size());
 
         std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-        InferenceEngine::ExecutableNetwork exeNetwork1;
+        InferenceEngine::IExecutableNetworkInternal::Ptr exeNetwork1;
         ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
         size_t modified_outputs_size = getGraph(exeNetwork1).GetOutputNodes().size();
@@ -262,7 +260,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         ASSERT_NO_THROW(network2 = core.ReadNetwork(model, weights_ptr));
         ASSERT_EQ(1, network2.getOutputsInfo().size());
 
-        InferenceEngine::ExecutableNetwork exeNetwork2;
+        InferenceEngine::IExecutableNetworkInternal::Ptr exeNetwork2;
         ASSERT_NO_THROW(exeNetwork2 = score_engine->LoadNetwork(network2, {}));
 
         size_t original_outputs_size = getGraph(exeNetwork2).GetOutputNodes().size();

@@ -7,8 +7,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not_equal.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -49,7 +47,7 @@ namespace not_equalop
         }
         return rc;
     }
-}
+} // namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
 

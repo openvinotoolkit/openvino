@@ -47,13 +47,14 @@ std::string GetStringEnv(const char* varName);
 struct KernelString {
     std::string str;
     std::string jit;
+    std::string undefs;
     std::string options;
     std::string entry_point;
     bool batch_compilation;
 
-    KernelString() : str(""), jit(""), options(""), entry_point(""), batch_compilation(false) {}
+    KernelString() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false) {}
 
-    std::string get_hash() { return str + jit + options + entry_point; }
+    std::string get_hash() { return str + jit + undefs + options + entry_point; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

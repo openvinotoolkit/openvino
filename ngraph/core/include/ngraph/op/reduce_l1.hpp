@@ -19,8 +19,7 @@ namespace ngraph
             class NGRAPH_API ReduceL1 : public util::ArithmeticReductionKeepDims
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReduceL1", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a reducet L1-norm operation.
                 ReduceL1() = default;
                 /// \brief Constructs a reduce L1-norm operation.
@@ -42,6 +41,6 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        }
-    }
-}
+        } // namespace v4
+    }     // namespace op
+} // namespace ngraph

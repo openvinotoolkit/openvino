@@ -48,6 +48,6 @@ namespace ngraph
                 }
                 return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
             }
-        }
-    }
-}
+        } // namespace utils
+    }     // namespace onnx_import
+} // namespace ngraph

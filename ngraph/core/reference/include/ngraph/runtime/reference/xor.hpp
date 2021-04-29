@@ -38,6 +38,6 @@ namespace ngraph
                         return static_cast<T>((x || y) && !(x && y));
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

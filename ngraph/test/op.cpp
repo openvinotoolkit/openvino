@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -13,6 +14,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/variant.hpp"
+#include "ngraph/opsets/opset.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -48,6 +50,35 @@ TEST(op, provenance_tag)
     auto tags = node->get_provenance_tags();
     ASSERT_TRUE(tags.find(tag1) == tags.end());
     ASSERT_TRUE(tags.find(tag2) != tags.end());
+}
+
+TEST(op, opset_multi_thread) {
+    auto doTest = [&](std::function<const ngraph::OpSet&()> fun) {
+        std::atomic<const ngraph::OpSet*> opset {nullptr};
+        std::atomic_bool failed {false};
+        auto threadFun = [&] () {
+            const ngraph::OpSet* op = &fun();
+            const ngraph::OpSet* current = opset;
+            do {
+                if (current != nullptr && current != op) {
+                    failed = true;
+                    break;
+                }
+            } while (opset.compare_exchange_strong(op, current));
+        };
+        std::thread t1 {threadFun};
+        std::thread t2 {threadFun};
+        t1.join();
+        t2.join();
+        ASSERT_FALSE(failed);
+    };
+    doTest(ngraph::get_opset1);
+    doTest(ngraph::get_opset2);
+    doTest(ngraph::get_opset3);
+    doTest(ngraph::get_opset4);
+    doTest(ngraph::get_opset5);
+    doTest(ngraph::get_opset6);
+    doTest(ngraph::get_opset7);
 }
 
 struct Ship
@@ -93,9 +124,25 @@ TEST(op, variant)
     EXPECT_EQ(ship.y, 4);
 
     auto node = make_shared<op::Parameter>(element::f32, Shape{1});
+    // Check Node RTInfo
     node->get_rt_info()["A"] = var_ship;
     auto node_var_ship = node->get_rt_info().at("A");
     ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_var_ship)));
     Ship& node_ship = as_type_ptr<VariantWrapper<Ship>>(node_var_ship)->get();
     EXPECT_EQ(&node_ship, &ship);
+
+    // Check Node Input<Node> RTInfo
+    auto relu = make_shared<op::Relu>(node);
+    relu->input(0).get_rt_info()["A"] = var_ship;
+    auto node_input_var_ship = node->get_rt_info().at("A");
+    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_input_var_ship)));
+    Ship& node_input_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    EXPECT_EQ(&node_input_ship, &ship);
+
+    // Check Node Input<Node> RTInfo
+    node->output(0).get_rt_info()["A"] = var_ship;
+    auto node_output_var_ship = node->get_rt_info().at("A");
+    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_output_var_ship)));
+    Ship& node_output_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    EXPECT_EQ(&node_output_ship, &ship);
 }

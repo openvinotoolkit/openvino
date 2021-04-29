@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import ast
 import logging as log
 import re
@@ -765,7 +753,7 @@ def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params
     for output in outputs:
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                       infer=None, needs_removal=True)
+                       infer=None, needs_removal=True, symbol_dict={'op': 'Identity'})
         add_edge(graph, output, fake_node_name, **params)
 
 

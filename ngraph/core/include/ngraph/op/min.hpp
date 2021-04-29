@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API ReduceMin : public util::ArithmeticReductionKeepDims
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReduceMin", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a summation operation.
                 ReduceMin() = default;
                 /// \brief Constructs a summation operation.
@@ -37,6 +36,6 @@ namespace ngraph
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

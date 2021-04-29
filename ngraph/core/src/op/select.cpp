@@ -12,8 +12,6 @@
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -148,8 +146,8 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_Select_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(
         output_values, input_values, autob, output_values[0]->get_element_type());

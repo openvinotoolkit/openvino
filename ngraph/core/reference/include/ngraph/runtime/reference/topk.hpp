@@ -11,8 +11,6 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/topk.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace runtime
@@ -136,8 +134,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
-
-NGRAPH_SUPPRESS_DEPRECATED_END
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

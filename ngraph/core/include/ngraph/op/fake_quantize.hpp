@@ -8,8 +8,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -74,9 +72,7 @@ namespace ngraph
                 std::size_t m_levels;
                 AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
             };
-        }
+        } // namespace v0
         using v0::FakeQuantize;
-    }
-}
-
-NGRAPH_SUPPRESS_DEPRECATED_END
+    } // namespace op
+} // namespace ngraph

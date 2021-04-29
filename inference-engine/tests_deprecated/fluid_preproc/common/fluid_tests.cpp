@@ -193,7 +193,7 @@ InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout
     const size_t height = img.size().height;
     const size_t width = img.size().width;
 
-    CV_Assert(cv::DataType<data_t>::depth == img.depth());
+    CV_Assert(cv::DataType<data_t>::depth == img.depth() || (PRC == Precision::FP16 && img.depth() == CV_16F));
 
     SizeVector dims = {1, channels, height, width};
     Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout));;
@@ -237,7 +237,8 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
     const size_t height = img.size().height;
     const size_t width = img.size().width;
 
-    CV_Assert(cv::DataType<data_t>::depth == img.depth());
+    //IE and OpenCV use different data types for FP16 representation, so need to check for it explicitly
+    CV_Assert(cv::DataType<data_t>::depth == img.depth() || ((img.depth() == CV_16F) && (PRC == Precision::FP16)));
 
     data_t* blobData = blobP->buffer().as<data_t*>();
 
@@ -438,11 +439,20 @@ TEST_P(SplitTestGAPI, AccuracyTest)
     cv::Size sz = std::get<2>(params);
     double tolerance = std::get<3>(params);
 
-    int srcType = CV_MAKE_TYPE(depth, planes);
+    auto make_src_type = [planes](int d){
+            return CV_MAKE_TYPE(d, planes);
+    };
+    int srcType = make_src_type(depth);
     int dstType = CV_MAKE_TYPE(depth, 1);
 
     cv::Mat in_mat(sz, srcType);
-    cv::randn(in_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+    bool const is_fp16 = (depth == CV_16F);
+    cv::Mat rnd_mat =  is_fp16 ? cv::Mat(sz, make_src_type(CV_32F)) : in_mat;
+    cv::randn(rnd_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    if (is_fp16) {
+        rnd_mat.convertTo(in_mat, depth);
+    }
 
     std::vector<cv::Mat> out_mats_gapi(planes, cv::Mat::zeros(sz, dstType));
     std::vector<cv::Mat> out_mats_ocv (planes, cv::Mat::zeros(sz, dstType));
@@ -520,12 +530,21 @@ TEST_P(MergeTestGAPI, AccuracyTest)
     cv::Size sz = std::get<2>(params);
     double tolerance = std::get<3>(params);
 
-    int srcType = CV_MAKE_TYPE(depth, 1);
+    auto make_src_type = [](int d){
+            return CV_MAKE_TYPE(d, 1);
+    };
+    int srcType = make_src_type(depth);
     int dstType = CV_MAKE_TYPE(depth, planes);
 
     std::vector<cv::Mat> in_mats(planes, cv::Mat(sz, srcType));
     for (int p = 0; p < planes; p++) {
-        cv::randn(in_mats[p], cv::Scalar::all(127), cv::Scalar::all(40.f));
+        bool const is_fp16 = (depth == CV_16F);
+        cv::Mat rnd_mat =  is_fp16 ? cv::Mat(sz, make_src_type(CV_32F)) : in_mats[p];
+        cv::randn(rnd_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+        if (is_fp16) {
+            rnd_mat.convertTo(in_mats[p], depth);
+        }
     }
 
     cv::Mat out_mat_ocv  = cv::Mat::zeros(sz, dstType);
@@ -754,7 +773,8 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     cv::Scalar mean = cv::Scalar::all(127);
     cv::Scalar stddev = cv::Scalar::all(40.f);
 
-    cv::randn(in_mat1, mean, stddev);
+    if (depth != CV_16F)
+        cv::randn(in_mat1, mean, stddev);
 
     cv::Mat out_mat(size, out_type);
     cv::Mat out_mat_ocv(size, out_type);
@@ -771,7 +791,7 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     size_t out_channels = out_mat.channels();
     CV_Assert(3 == out_channels || 4 == out_channels);
 
-    CV_Assert(CV_8U == depth || CV_32F == depth);
+    CV_Assert(CV_8U == depth || CV_32F == depth || depth == CV_16S || depth == CV_16F);
 
     ASSERT_TRUE(in_mat1.isContinuous() && out_mat.isContinuous());
 
@@ -780,8 +800,21 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     InferenceEngine::SizeVector  in_sv = { 1, in_channels,  in_height,  in_width };
     InferenceEngine::SizeVector out_sv = { 1, out_channels, out_height, out_width };
 
+    auto depth_to_precision = [](int depth) -> Precision::ePrecision {
+        switch (depth)
+        {
+            case CV_8U:  return Precision::U8;
+            case CV_16S: return Precision::I16;
+            case CV_16F: return Precision::FP16;
+            case CV_32F: return Precision::FP32;
+            default:
+                throw std::logic_error("Unsupported configuration");
+        }
+        return Precision::UNSPECIFIED;
+    };
+
     // HWC blob: channels are interleaved
-    Precision precision = CV_8U == depth ? Precision::U8 : Precision::FP32;
+    Precision precision = depth_to_precision(depth);
 
     Blob::Ptr in_blob, out_blob;
     switch (precision)
@@ -795,6 +828,18 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
         in_blob = img2Blob<Precision::FP32>(in_mat1, in_layout);
         out_blob = img2Blob<Precision::FP32>(out_mat, out_layout);
         break;
+
+    case Precision::I16:
+        in_blob = img2Blob<Precision::I16>(in_mat1, in_layout);
+        out_blob = img2Blob<Precision::I16>(out_mat, out_layout);
+        break;
+
+    case Precision::FP16:
+        in_blob =  img2Blob<Precision::FP16>(in_mat1, in_layout);
+        out_blob = img2Blob<Precision::FP16>(out_mat, out_layout);
+
+        break;
+
 
     default:
         FAIL() << "Unsupported configuration";
@@ -813,6 +858,8 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     {
     case Precision::U8:   Blob2Img<Precision::U8>  (out_blob, out_mat, out_layout); break;
     case Precision::FP32: Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
+    case Precision::I16:  Blob2Img<Precision::I16> (out_blob, out_mat, out_layout); break;
+    case Precision::FP16: Blob2Img<Precision::FP16> (out_blob, out_mat, out_layout); break;
     default: FAIL() << "Unsupported configuration";
     }
 

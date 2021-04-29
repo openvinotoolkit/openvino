@@ -40,6 +40,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+
+set_ie_threading_interface_for(clDNN_lib)
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

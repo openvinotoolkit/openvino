@@ -199,7 +199,7 @@ void RawMatcher::match() {
 
             if (config.isAsync) {
                 inferRequest.StartAsync();
-                inferRequest.Wait(IInferRequest::WaitMode::RESULT_READY);
+                inferRequest.Wait(InferRequest::WaitMode::RESULT_READY);
             } else {
                 inferRequest.Infer();
             }

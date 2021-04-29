@@ -53,6 +53,6 @@ namespace ngraph
 
                 bool m_cacheable = false;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

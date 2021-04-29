@@ -175,6 +175,22 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("CUBE_COEFF", params.cube_coeff),
     });
 
+    if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        if (axesUsed[0] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
+        if (axesUsed[1] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
+        if (axesUsed[2] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
+        if (axesUsed[3] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
+        if (axesUsed[4] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
+
+        jit.AddConstants({
+            MakeJitConstant("PADDED_B", b_size_padded),
+            MakeJitConstant("PADDED_F", f_size_padded),
+            MakeJitConstant("PADDED_X", x_size_padded),
+            MakeJitConstant("PADDED_Y", y_size_padded),
+            MakeJitConstant("PADDED_Z", z_size_padded),
+        });
+    }
+
     size_t feature_block_size = GetFeatureBlockSize(params);
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
@@ -207,7 +223,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
