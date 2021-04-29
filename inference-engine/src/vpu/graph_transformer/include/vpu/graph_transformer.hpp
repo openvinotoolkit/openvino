@@ -107,7 +107,7 @@ struct CompilationConfig final {
     bool enablePermuteMerging = true;
     bool enableReplWithSCRelu = false;
     bool enableReplaceWithReduceMean = true;
-    bool enableTensorIteratorUnrolling = false;
+    bool enableTensorIteratorUnrolling = true;
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;

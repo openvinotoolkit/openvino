@@ -199,8 +199,16 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
     auto outputData = outputs;
-    if (outputs.size() == 1) {
-        outputData.push_back(model->addFakeData());
+    const auto& validOutDataIter = std::find_if(outputData.begin(), outputData.end(), [](const vpu::Data& data) {
+        return data != nullptr;
+    });
+
+    VPU_THROW_UNLESS(validOutDataIter != outputData.end(), "Layer {} with type {} failed: all outputs is nullptr", layer->name, layer->type);
+
+    for (auto& out : outputData) {
+        if (out == nullptr) {
+            out = model->addFakeData();
+        }
     }
 
     auto stage = model->addNewStage<LSTMCellStage>(

@@ -56,8 +56,6 @@ private:
     // Update IE Network
     //
 
-    void unrollLoops(
-            ie::CNNNetwork& network);
 
     void detectNetworkBatch(
             ie::CNNNetwork& network,

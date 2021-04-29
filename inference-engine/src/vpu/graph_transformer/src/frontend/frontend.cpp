@@ -21,9 +21,11 @@
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -34,6 +36,9 @@
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -166,7 +171,7 @@ ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
 
 ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
-
+    const auto* env = CompileEnv::getOrNull();
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -191,6 +196,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
     // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
     static const precisions_array precisions = {
         { ngraph::element::i64, ngraph::element::i32 },
@@ -204,7 +212,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     //  ConvertOpSet1ToLegacy can produce constants with I64 precision
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
-
+    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
     auto pass_config = manager.get_pass_config();
     pass_config->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
     pass_config->disable<ngraph::pass::ConvertGELU>();
@@ -219,7 +227,50 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     };
     pass_config->set_callback<ngraph::pass::ConvertMatMulToFC,
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
+    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+            return rnn_cell->get_clip() == 0.0f;
+        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                node)) {
+            return gru_cell->get_clip() == 0.0f
+                   && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                node)) {
+            return lstm_cell->get_clip() == 0.0f &&
+                   lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(node)) {
+            return lstm_cell_v1->get_clip() == 0.0f &&
+                   lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        }
+        return false;
+    };
 
+    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+            [&env, isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                if (!env) {
+                    return false;
+                }
+                if (env->config.forcePureTensorIterator) {
+                    return false;
+                }
+                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                    size_t count_rnn = 0;
+                    for (const auto &op : ti_op->get_body()->get_ops())
+                        count_rnn += isCellPrimitiveSupported(op);
+                    return count_rnn != 1;
+                }
+                return true;
+            });
+    pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
+            [&env](const_node_ptr &node) -> bool {
+                if (!env) {
+                    return true;
+                }
+                return !env->config.forcePureTensorIterator && env->config.enableTensorIteratorUnrolling;
+            });
     manager.run_passes(nGraphFunc);
     IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
@@ -519,8 +570,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
                                             InferenceEngine::details::convertPrecision(precision.second));
         }
         removeConstLayers(network);
-
-        unrollLoops(network);
     }
 
     //
