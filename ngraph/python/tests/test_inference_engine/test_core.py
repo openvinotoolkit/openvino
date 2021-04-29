@@ -7,13 +7,16 @@ from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
 from openvino.inference_engine.ie_api import blob_from_file
-from ..conftest import model_path, plugins_path
+from ..conftest import model_path, model_onnx_path, model_prototxt_path, plugins_path
 import os
 import pytest
 from sys import platform
+from pathlib import Path
 
 
 test_net_xml, test_net_bin = model_path()
+test_net_onnx = model_onnx_path()
+test_net_prototxt = model_prototxt_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 def test_blobs():
@@ -77,7 +80,10 @@ def test_load_network(device):
 
 def test_read_network():
     ie_core = IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(net, IENetwork)
+
+    net = ie_core.read_network(model=test_net_xml)
     assert isinstance(net, IENetwork)
 
 
@@ -85,8 +91,44 @@ def test_read_network_from_memory():
     ie_core = IECore()
     model = open(test_net_xml).read()
     blob = blob_from_file(test_net_bin)
-    net = ie_core.read_network(model, blob)
+    net = ie_core.read_network(model=model, blob=blob)
     assert isinstance(net, IENetwork) 
+
+
+def test_read_network_as_path():
+    ie_core = IECore()
+    net = ie_core.read_network(model=Path(test_net_xml), weights=Path(test_net_bin))
+    assert isinstance(net, IENetwork)
+
+    net = ie_core.read_network(model=test_net_xml,weights=Path(test_net_bin))
+    assert isinstance(net,IENetwork)
+
+    net = ie_core.read_network(model=Path(test_net_xml))
+    assert isinstance(net, IENetwork)
+
+
+def test_read_network_from_onnx():
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_onnx)
+    assert isinstance(net, IENetwork)
+
+
+def test_read_network_from_onnx_as_path():
+    ie_core = IECore()
+    net = ie_core.read_network(model=Path(test_net_onnx))
+    assert isinstance(net, IENetwork)
+
+
+def test_read_network_from_prototxt():
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_prototxt)
+    assert isinstance(net, IENetwork)
+
+
+def test_read_network_from_prototxt_as_path():
+    ie_core = IECore()
+    net = ie_core.read_network(model=Path(test_net_prototxt))
+    assert isinstance(net, IENetwork)
 
 
 def test_get_version(device):
