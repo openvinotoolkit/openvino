@@ -136,7 +136,7 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
     for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
         auto& output = outputs[resultIndex];
         const auto& outputTensor = outputTensors[resultIndex];
-        output.resize(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().size());
+        output.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.data(), output.size());
         if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
                 outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
@@ -300,19 +300,168 @@ bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
 }
 
 namespace {
+template <int Bitwidth, typename Value, typename In,
+          typename std::enable_if<std::is_unsigned<Value>::value, bool>::type = true>
+Value fix_sign(In v) {
+    return v;
+}
+template <int Bitwidth, typename Value, typename In,
+          typename std::enable_if<std::is_signed<Value>::value, bool>::type = true>
+Value fix_sign(In v) {
+    constexpr unsigned sign_bit = 1u << (Bitwidth -1);
+    const bool is_negative_number = v & sign_bit;
+    return is_negative_number ? v | 0xFFF0 : v;
+}
+
+template<int Bitwidth, typename Value>
+class LowPrecisionWrapper {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecisionWrapper(uint8_t* data, int position): data(data), position(position) {}
+
+    operator Value() const {
+        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
+    }
+
+    LowPrecisionWrapper& operator=(Value v) {
+        uint8_t masked_value = v & value_mask;
+        *data &= ~(value_mask << (position * bitwidth));
+        *data |= masked_value << (position * bitwidth);
+        return *this;
+    }
+
+private:
+    int position{elements_in_byte - 1};
+    uint8_t* data;
+};
+
+template<int Bitwidth, typename Value>
+class LowPrecisionWrapperToConst {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecisionWrapperToConst(const uint8_t* data, int position): data(data), position(position) {}
+
+    operator Value() const {
+        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
+    }
+
+private:
+    int position{elements_in_byte - 1};
+    const uint8_t* data;
+};
+
+template<int Bitwidth, typename Value>
+class LowPrecistionRange {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecistionRange(uint8_t* data): data(data) {}
+
+    LowPrecisionWrapper<Bitwidth, Value> operator[](size_t index) const {
+        const ptrdiff_t byte_offset = index / elements_in_byte;
+        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
+        return {data + byte_offset, bit_position};
+    }
+
+    uint8_t* data;
+};
+
+template<int Bitwidth, typename Value>
+class LowPrecistionConstRange {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecistionConstRange(const uint8_t* data) : data(data) {}
+
+    LowPrecisionWrapperToConst<Bitwidth, Value> operator[](size_t index) const {
+        const ptrdiff_t byte_offset = index / elements_in_byte;
+        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
+        return {data + byte_offset, bit_position};
+    }
+
+    const uint8_t* data;
+};
+
+template <element::Type_t FromType, typename std::enable_if<FromType != element::Type_t::u1 &&
+                                                                FromType != element::Type_t::u4 &&
+                                                                FromType != element::Type_t::i4,
+                                                            bool>::type = true>
+const fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
+    return reinterpret_cast<const fundamental_type_for<FromType>*>(data);
+}
+
+template <element::Type_t FromType, typename std::enable_if<FromType != element::Type_t::u1 &&
+                                                                FromType != element::Type_t::u4 &&
+                                                                FromType != element::Type_t::i4,
+                                                            bool>::type = true>
+fundamental_type_for<FromType>* cast_to(uint8_t* data) {
+    return reinterpret_cast<fundamental_type_for<FromType>*>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+LowPrecistionConstRange<1, uint8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<1, uint8_t>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+LowPrecistionRange<1, uint8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<1, uint8_t>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+LowPrecistionConstRange<4, uint8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<4, uint8_t>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+LowPrecistionRange<4, uint8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<4, uint8_t>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+LowPrecistionConstRange<4, int8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<4, int8_t>(data);
+}
+
+template <element::Type_t FromType,
+          typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<4, int8_t>(data);
+}
 
 template <element::Type_t FromType, element::Type_t ToType>
 std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t> &buffer, const size_t elementsCount) {
     using fromPrec = fundamental_type_for<FromType>;
     using toPrec = fundamental_type_for<ToType>;
 
-    NGRAPH_CHECK(buffer.size() >= elementsCount * sizeof(fromPrec), "avoid buffer overflow");
+    const size_t min_buffer_size = [&] {
+        element::Type from_type(FromType);
+        if (from_type.bitwidth() >= 8) {
+            return elementsCount * sizeof(fromPrec);
+        }
+        return from_type.bitwidth() * elementsCount / 8;
+    }();
+
+    NGRAPH_CHECK(buffer.size() >= min_buffer_size, "avoid buffer overflow");
 
     constexpr auto elementSize = sizeof(toPrec);
     std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
 
-    const fromPrec *src = reinterpret_cast<const fromPrec *>(buffer.data());
-    toPrec *dst = reinterpret_cast<toPrec *>(convertedData.data());
+    auto src = cast_to<FromType>(buffer.data());
+    auto dst = cast_to<ToType>(convertedData.data());
     for (size_t i = 0; i < elementsCount; i++) {
         dst[i] = static_cast<toPrec>(src[i]);
     }
@@ -337,6 +486,9 @@ std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t> &
     case element::Type_t::f64: {
         return convertPrecision<FromType, element::Type_t::f64>(output, elementsCount);
     }
+    case element::Type_t::i4: {
+        return convertPrecision<FromType, element::Type_t::i4>(output, elementsCount);
+    }
     case element::Type_t::i8: {
         return convertPrecision<FromType, element::Type_t::i8>(output, elementsCount);
     }
@@ -348,6 +500,12 @@ std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t> &
     }
     case element::Type_t::i64: {
         return convertPrecision<FromType, element::Type_t::i64>(output, elementsCount);
+    }
+    case element::Type_t::u1: {
+        return convertPrecision<FromType, element::Type_t::u1>(output, elementsCount);
+    }
+    case element::Type_t::u4: {
+        return convertPrecision<FromType, element::Type_t::u4>(output, elementsCount);
     }
     case element::Type_t::u8: {
         return convertPrecision<FromType, element::Type_t::u8>(output, elementsCount);
@@ -389,6 +547,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     case element::Type_t::f64: {
         return convertPrecisionFrom<element::Type_t::f64>(output, toPrecision, elementsCount);
     }
+    case element::Type_t::i4: {
+        return convertPrecisionFrom<element::Type_t::i4>(output, toPrecision, elementsCount);
+    }
     case element::Type_t::i8: {
         return convertPrecisionFrom<element::Type_t::i8>(output, toPrecision, elementsCount);
     }
@@ -400,6 +561,12 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
     case element::Type_t::i64: {
         return convertPrecisionFrom<element::Type_t::i64>(output, toPrecision, elementsCount);
+    }
+    case element::Type_t::u1: {
+        return convertPrecisionFrom<element::Type_t::u1>(output, toPrecision, elementsCount);
+    }
+    case element::Type_t::u4: {
+        return convertPrecisionFrom<element::Type_t::u4>(output, toPrecision, elementsCount);
     }
     case element::Type_t::u8: {
         return convertPrecisionFrom<element::Type_t::u8>(output, toPrecision, elementsCount);
