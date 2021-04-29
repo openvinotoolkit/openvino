@@ -24,7 +24,7 @@ void regclass_pyngraph_Function(py::module m)
                  py::arg("parameters"),
                  py::arg("name"),
                  R"(
-                    Create Function.
+                    Create user-defined Function which is a representation of a model.
 
                     Parameters
                     ----------
@@ -44,7 +44,7 @@ void regclass_pyngraph_Function(py::module m)
                  py::arg("parameters"),
                  py::arg("name"),
                  R"(
-                    Create Function.
+                    Create user-defined Function which is a representation of a model.
 
                     Parameters
                     ----------
@@ -80,7 +80,7 @@ void regclass_pyngraph_Function(py::module m)
     function.def("get_ordered_ops",
                  &ngraph::Function::get_ordered_ops,
                  R"(
-                    Return ordered ops used in the function.
+                    Return ops used in the function in topological order.
 
                     Returns
                     ----------

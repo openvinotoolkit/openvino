@@ -153,7 +153,13 @@ void regclass_pyngraph_Dimension(py::module m)
             py::arg("d"),
             R"(
                 Check whether this dimension is a relaxation of the argument.
-                
+                This dimension relaxes (or is a relaxation of) d if:
+
+                (1) this and d are static and equal
+                (2) this dimension contains d dimension
+
+                this.relaxes(d) is equivalent to d.refines(this).
+
                 Parameters
                 ----------
                 d : Dimension
@@ -169,6 +175,12 @@ void regclass_pyngraph_Dimension(py::module m)
             py::arg("d"),
             R"(
                 Check whether this dimension is a refinement of the argument.
+                This dimension refines (or is a refinement of) d if:
+
+                (1) this and d are static and equal
+                (2) d dimension contains this dimension
+
+                this.refines(d) is equivalent to d.relaxes(this).
 
                 Parameters
                 ----------
