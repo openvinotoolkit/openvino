@@ -922,7 +922,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     for (const auto & ext : _exts) {
         InferenceEngine::Version * version = new InferenceEngine::Version();
         ext->GetVersion(const_cast<const Version *&>(version));
-        if (strcmp(version->description, "framework_node_ext") == 0) {
+        if (version->description && strcmp(version->description, "framework_node_ext") == 0) {
             use_framework_node = true;
         }
     }
