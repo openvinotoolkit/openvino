@@ -461,6 +461,18 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
+# SOURCE FOR FRONTEND TESTING
+
+# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
+set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
+# --- END OF --DO_NOT_RELEASE--
+
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
 add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
@@ -532,3 +544,10 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+add_subdirectory(frontend)
+### END FRONTEND ###
