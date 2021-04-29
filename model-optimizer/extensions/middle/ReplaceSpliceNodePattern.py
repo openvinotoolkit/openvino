@@ -18,7 +18,7 @@ from mo.ops.result import Result
 
 
 class ReplaceSpliceNodePattern(MiddleReplacementPattern):
-    """
+    r"""
        This pass decomposes Splice layer to the sequence Slice Concat and Memory layers
        For example:
            Let's suppose we have next graph:

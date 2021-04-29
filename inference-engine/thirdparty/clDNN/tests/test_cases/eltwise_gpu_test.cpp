@@ -3198,9 +3198,6 @@ using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std
 
 template<typename T>
 class BaseEltwiseTest : public ::testing::TestWithParam<T> {
-};
-
-class eltwise_test : public BaseEltwiseTest<eltwise_test_params> {
 public:
     template<typename T1, typename T2>
     VF<float> eltwise_ref(VVVVVVF<T1> input0, VVVVVVF<T2> input1, tensor input0_size, tensor input1_size, eltwise_mode mode) {
@@ -3251,6 +3248,9 @@ public:
 
         return flatten_6d<float>(format::bfwzyx, output);
     }
+};
+
+class eltwise_test : public BaseEltwiseTest<eltwise_test_params> {
 };
 
 TEST_P(eltwise_test, fsv16) {
@@ -3321,6 +3321,7 @@ TEST_P(eltwise_test, fsv16) {
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
+
 
 static std::vector<eltwise_mode> modes = {eltwise_mode::sum, eltwise_mode::prod};
 static std::vector<data_types> types = {data_types::f32, data_types::f16};
@@ -3520,3 +3521,102 @@ INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_precision,
                                 ::testing::ValuesIn(mixed_types),
                                 ::testing::ValuesIn(inputs)
                                 ), );
+
+
+struct eltwise_layout_test_params {
+    eltwise_mode mode;
+    std::vector<int32_t> input0_size;
+    std::vector<int32_t> input1_size;
+    format input0_format;
+    format input1_format;
+    std::string selected_kernel_name;
+};
+
+#define CASE_ELTWISE_TEST1  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST2  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST3  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST4  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST5  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST6  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST8  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
+
+class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
+};
+
+class eltwise_test_mixed_layout : public eltwise_layout_test {};
+TEST_P(eltwise_test_mixed_layout, mixed_layout) {
+    auto p = GetParam();
+
+    auto mode = p.mode;
+    auto input0_size = p.input0_size;
+    auto input1_size = p.input1_size;
+    auto format0 = p.input0_format;
+    auto format1 = p.input1_format;
+    auto selected_kernel = p.selected_kernel_name;
+
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int y0 = input0_size[2];
+    int x0 = input0_size[3];
+
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int y1 = input1_size[2];
+    int x1 = input1_size[3];
+
+    int min_random = -2, max_random = 2;
+    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, 1, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, 1, y1, x1, min_random, max_random);
+    VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
+    VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
+
+    const auto& engine = get_test_engine();
+    auto in0_size = tensor(format::bfyx, input0_size);
+    auto in1_size = tensor(format::bfyx, input1_size);
+
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, in1_size });
+    set_values(input1, input1_rnd_vec);
+    set_values(input2, input2_rnd_vec);
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(reorder("reorder1", "input1", format0, data_types::f32));
+    topology.add(reorder("reorder2", "input2", format1, data_types::f32));
+    topology.add(eltwise("eltwise", {"reorder1", "reorder2"}, mode));
+    topology.add(reorder("out", "eltwise", format::bfyx, data_types::f32));
+    primitive_id out_id = "out";
+
+    network network(engine, topology);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, out_id);
+
+    EXPECT_TRUE(network.get_primitive_info("eltwise").find(selected_kernel) != std::string::npos);
+
+    auto output_memory = outputs.at(out_id).get_memory();
+    auto output_ptr = output_memory.pointer<float>();
+
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
+    for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
+        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_layout,
+                        ::testing::ValuesIn(std::vector<eltwise_layout_test_params>{
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST1},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST2},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST3},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST4},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST5},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST6},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST7},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST8},
+                        }), );

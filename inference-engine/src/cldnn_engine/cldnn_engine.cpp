@@ -22,6 +22,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <ie_algorithm.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -852,6 +853,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
         if (device_info.supports_fp16)
             capabilities.push_back(METRIC_VALUE(FP16));
         if (device_info.supports_imad || device_info.supports_immad)

@@ -165,7 +165,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
 
     @staticmethod
     def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port], port_condition=None):
-        """"
+        r""""
         Returns all intermediate ports and nodes of such a sub-graph:
 
             out_ports

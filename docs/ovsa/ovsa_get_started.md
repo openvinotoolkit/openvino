@@ -20,7 +20,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 - The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
 
-- The Model Developer uses the OpenVINO™ Security Add-on Tool(`ovsatool`) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+- The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
 
 - The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
 
@@ -31,7 +31,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 - The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
 
-- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool(`ovsatool`). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
+- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
 
 </details>
 
@@ -50,6 +50,8 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
 ![Security Add-on Diagram](ovsa_diagram.png)
+
+The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/release_2021_3/docs/fingerprint-changes.md)
 
 ## About the Installation
 The Model Developer, Independent Software Vendor, and User each must prepare one physical hardware machine and one Kernel-based Virtual Machine (KVM). In addition, each person must prepare a Guest Virtual Machine (Guest VM) for each role that person plays. 
@@ -248,8 +250,12 @@ See the QEMU documentation for more information about the QEMU network configura
 
 Networking is set up on the Host Machine. Continue to the Step 3 to prepare a Guest VM for the combined role of Model Developer and Independent Software Vendor.
 
-	
-### Step 3: Set Up one Guest VM for the combined roles of Model Developer and Independent Software Vendor<a name="dev-isv-vm"></a>
+### Step 3: Clone the OpenVINO™ Security Add-on
+
+Download the [OpenVINO™ Security Add-on](https://github.com/openvinotoolkit/security_addon).
+
+
+### Step 4: Set Up one Guest VM for the combined roles of Model Developer and Independent Software Vendor<a name="dev-isv-vm"></a>.
 
 For each separate role you play, you must prepare a virtual machine, called a Guest VM. Because in this release, the Model Developer and Independent Software Vendor roles are combined, these instructions guide you to set up one Guest VM, named `ovsa_isv`.
 
@@ -299,15 +305,28 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
       5. Shut down the Guest VM.<br>
-9. On the host, create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
+9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
    ```sh
    sudo mkdir -p /var/OVSA/
    sudo mkdir /var/OVSA/vtpm
    sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
+   
+   export XDG_CONFIG_HOME=~/.config
+   /usr/share/swtpm/swtpm-create-user-config-files
+   swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_isv_dev --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
    **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
-10. Start the vTPM on Host:
+10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
    ```sh
+    sudo swtpm socket --tpm2 --server port=8280 \
+                      --ctrl type=tcp,port=8281 \
+                      --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
+
+    sudo tpm2_startup --clear -T swtpm:port=8280
+    sudo tpm2_startup -T swtpm:port=8280
+    python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
+    sudo pkill -f vtpm_isv_dev
+     
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
     --tpm2 \
     --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
@@ -335,9 +354,9 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    
 12. Use a VNC client to log on to the Guest VM at `<host-ip-address>:1`
 
-### Step 4: Set Up one Guest VM for the User role
+### Step 5: Set Up one Guest VM for the User role
 
-1. Choose ONE of these options to create a Guest VM for the User role:<br>
+1. Choose **ONE** of these options to create a Guest VM for the User role:<br>
    **Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image**
    1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
    2. Boot the new image. 
@@ -383,7 +402,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,   downscript=<path-to-scripts>/virbr0-qemu-ifdown \
    -vnc :2
    ```
-   7. Choose ONE of these options to install additional required software:
+   7. Choose **ONE** of these options to install additional required software:
       
       **Option 1: Use a script to install additional software**
       1. Copy the script `install_guest_deps.sh` from the `Scripts/reference` directory of the OVSA repository to the Guest VM
@@ -400,19 +419,32 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/) 
       5. Shut down the Guest VM.<br><br>            
 
-2. Create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
+2. Create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
    ```sh
    sudo mkdir /var/OVSA/vtpm/vtpm_runtime
+    
+   export XDG_CONFIG_HOME=~/.config
+   /usr/share/swtpm/swtpm-create-user-config-files
+   swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_runtime --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
-   **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
-3. Start the vTPM:
+   **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+3. Start the vTPM, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
    ```sh
+   sudo swtpm socket --tpm2 --server port=8380 \
+                     --ctrl type=tcp,port=8381 \
+                     --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime &
+
+   sudo tpm2_startup --clear -T swtpm:port=8380
+   sudo tpm2_startup -T swtpm:port=8380
+   python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8380
+   sudo pkill -f vtpm_runtime
+	
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime \
    --tpm2 \
    --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_runtime/swtpm-sock \
    --log level=20
    ```
-4. Start the Guest VM in a new terminal. To do so, either copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository or manually run the command:
+4. Start the Guest VM in a new terminal:
    ```sh
    sudo qemu-system-x86_64 \
     -cpu host \
@@ -450,13 +482,11 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 
 This step is for the combined role of Model Developer and Independent Software Vendor, and the User
 
-1. Download the [OpenVINO™ Security Add-on](https://github.com/openvinotoolkit/security_addon)
-
-2. Go to the top-level OpenVINO™ Security Add-on source directory.
+1. Go to the top-level OpenVINO™ Security Add-on source directory cloned earlier.
    ```sh
    cd security_addon
    ```
-3. Build the OpenVINO™ Security Add-on:
+2. Build the OpenVINO™ Security Add-on:
    ```sh
    make clean all
    sudo make package
@@ -559,7 +589,7 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable <a href="#setup-host">set up steps</a> and <a href="#ovsa-install">installation steps</a> before beginning this section.
 
-This document uses the [face-detection-retail-0004](@ref omz_models_intel_face_detection_retail_0004_description_face_detection_retail_0004) model as an example. 
+This document uses the [face-detection-retail-0004](@ref omz_models_model_face_detection_retail_0044) model as an example. 
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
@@ -577,7 +607,7 @@ The Model Developer creates model, defines access control and creates the user l
    ```sh
    sudo -s
    cd /<username-home-directory>/OVSA/artefacts
-   export OVSA_RUNTIME_ARTEFACTS=$PWD
+	export OVSA_DEV_ARTEFACTS=$PWD
    source /opt/ovsa/scripts/setupvars.sh
    ```
 2. Create files to request a certificate:<br>
@@ -622,7 +652,7 @@ This example uses `curl` to download the `face-detection-retail-004` model from 
    ```
 3. Define and enable the model access control and master license:
    ```sh	
-   /opt/ovsa/bin/ovsatool protect -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p    face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g <output-of-uuidgen>
+	/opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g <output-of-uuidgen>
    ```
 The Intermediate Representation files for the `face-detection-retail-0004` model are encrypted as `face_detection_model.dat` and a master license is generated as `face_detection_model.masterlic`.
 
@@ -703,6 +733,7 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
    cd $OVSA_RUNTIME_ARTEFACTS
    scp custkeystore.csr.crt username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts
    ```
+
 #### Step 3: Receive and load the access controlled model into the OpenVINO™ Model Server
 1. Receive the model as files named
    * `face_detection_model.dat`
@@ -736,14 +767,15 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
    "model_config_list":[
    	{
    	"config":{
-   		"name":"protected-model",
+		"name":"controlled-access-model",
    		"base_path":"/sampleloader/model/fd",
-   		"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "protected_file": "face_detection_model"}
+		"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "face_detection_model"}
    	}
    	}
    ]
    }
    ```
+
 #### Step 4: Start the NGINX Model Server
 The NGINX Model Server publishes the access controlled model.
    ```sh
@@ -773,11 +805,12 @@ For information about the NGINX interface, see https://github.com/openvinotoolki
    ```sh
    curl --create-dirs https://raw.githubusercontent.com/openvinotoolkit/model_server/master/example_client/images/people/people1.jpeg -o images/people1.jpeg
    ```
+
 #### Step 6: Run Inference
 
 Run the `face_detection.py` script:
 ```sh
-python3 face_detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert server.pem --client_cert client.pem --client_key client.key --model_name protected-model
+python3 face_detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert server.pem --client_cert client.pem --client_key client.key --model_name controlled-access-model
 ```	
 
 ## Summary

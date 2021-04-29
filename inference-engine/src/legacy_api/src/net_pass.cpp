@@ -615,8 +615,11 @@ bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
         auto out_data = ti->outData[rule.from];
 
         if (num == 1) {
-            getInputTo(body_list[0].outputs[rule.to]) = getInputTo(out_data);
-            getInputTo(body_list[0].outputs[rule.to]).begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            auto to_data = body_list[0].outputs[rule.to];
+            auto parent = getCreatorLayer(to_data).lock();
+            std::replace(parent->outData.begin(), parent->outData.end(), to_data, out_data);
+            getCreatorLayer(out_data) = parent;
+            CombineData(out_data, to_data);
             continue;
         }
 

@@ -22,5 +22,5 @@ namespace ngraph
                       const size_t elem_size,
                       const std::vector<int64_t>& repeats);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

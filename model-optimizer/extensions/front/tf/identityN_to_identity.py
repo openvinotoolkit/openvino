@@ -7,7 +7,7 @@ from mo.graph.graph import Graph, Node
 
 
 class IdentityN_to_Identity(FrontReplacementPattern):
-    """
+    r"""
     Replaces IdentityN op with several Identity ops.
 
     Example:

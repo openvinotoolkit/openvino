@@ -75,13 +75,23 @@ namespace ngraph
                 param_it++;
             }
         }
+        Graph::Graph(const Graph& graph)
+            : m_parameters(graph.m_parameters)
+            , m_cache{new GraphCache(*graph.m_cache)}
+            , m_graph_proto{graph.m_graph_proto}
+            , m_nodes(graph.m_nodes)
+            , m_inputs(graph.m_inputs)
+            , m_outputs(graph.m_outputs)
+            , m_model{graph.m_model}
+        {
+        }
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
                      Model& model,
                      std::unique_ptr<GraphCache>&& cache)
-            : m_graph_proto{&graph_proto}
+            : m_cache{std::move(cache)}
+            , m_graph_proto{&graph_proto}
             , m_model{&model}
-            , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
             // Process all initializers in the graph
@@ -256,7 +266,7 @@ namespace ngraph
         void Graph::set_friendly_names(const Node& onnx_node,
                                        const OutputVector& ng_node_vector) const
         {
-            for (int i = 0; i < ng_node_vector.size(); ++i)
+            for (size_t i = 0; i < ng_node_vector.size(); ++i)
             {
                 // Trailing optional outputs may not be specified in the ONNX model.
                 // Other optional outputs should have name set to an empty string.

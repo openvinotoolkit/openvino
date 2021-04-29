@@ -32,6 +32,6 @@ namespace ngraph
                         return x < T(0) ? T(x * y) : x;
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
