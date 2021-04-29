@@ -53,7 +53,6 @@
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
-#include "ngraph/op/transpose.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
@@ -1296,85 +1295,6 @@ TEST(eval, evaluate_dynamic_concat)
     ASSERT_EQ(cval, out);
 }
 
-template <element::Type_t T>
-void test_eval(shared_ptr<Function> fun,
-               vector<vector<float>>& inputs,
-               vector<Shape>& x_shapes,
-               vector<Shape>& result_shapes,
-               vector<vector<float>>& results)
-{
-    using IN_T = typename element_type_traits<T>::value_type;
-    std::vector<std::vector<IN_T>> perms{{0, 1}, {1, 0}, {2, 1, 0}};
-    for (size_t i = 0; i < x_shapes.size(); i++)
-    {
-        auto result_tensor = make_shared<HostTensor>();
-        ASSERT_TRUE(fun->evaluate({result_tensor},
-                                  {make_host_tensor<element::Type_t::f32>(x_shapes[i], inputs[i]),
-                                   make_host_tensor<T>(Shape{perms[i].size()}, perms[i])}));
-
-        ASSERT_EQ(result_tensor->get_shape(), result_shapes[i]);
-        auto actual_results = read_vector<float>(result_tensor);
-        ASSERT_EQ(actual_results, results[i]);
-    }
-}
-
-TEST(eval, eval_transpose)
-{
-    auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    vector<shared_ptr<op::Parameter>> axes;
-    axes.push_back(make_shared<op::Parameter>(element::i8, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::i16, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()}));
-
-    axes.push_back(make_shared<op::Parameter>(element::u8, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::u16, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::u32, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::u64, PartialShape{Dimension::dynamic()}));
-
-    std::vector<Shape> x_shapes{Shape{2, 3}, Shape{2, 3}, Shape{2, 2, 3}};
-
-    std::vector<std::vector<float>> inputs{
-        {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}};
-    std::vector<Shape> result_shapes{Shape{2, 3}, Shape{3, 2}, {3, 2, 2}};
-    std::vector<std::vector<float>> results{
-        {1, 2, 3, 4, 5, 6}, {1, 4, 2, 5, 3, 6}, {1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}};
-
-    for (auto& axis : axes)
-    {
-        auto x_transpose = make_shared<op::v1::Transpose>(x, axis);
-        auto fun = make_shared<Function>(NodeVector{x_transpose}, ParameterVector{x, axis});
-
-        switch (axis->get_element_type())
-        {
-        case element::Type_t::i8:
-            test_eval<element::Type_t::i8>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::i16:
-            test_eval<element::Type_t::i16>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::i32:
-            test_eval<element::Type_t::i32>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::i64:
-            test_eval<element::Type_t::i64>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::u8:
-            test_eval<element::Type_t::u8>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::u16:
-            test_eval<element::Type_t::u16>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::u32:
-            test_eval<element::Type_t::u32>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        case element::Type_t::u64:
-            test_eval<element::Type_t::u64>(fun, inputs, x_shapes, result_shapes, results);
-            break;
-        default: NGRAPH_CHECK(false, "Invalid type"); break;
-        }
-    }
-}
 
 TEST(eval, max_pool_v1_dynamic)
 {

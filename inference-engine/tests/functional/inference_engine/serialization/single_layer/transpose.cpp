@@ -4,18 +4,20 @@
 
 #include <vector>
 
-#include "single_layer_tests/transpose.hpp"
-#include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/single_layer/transpose.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
+TEST_P(TransposeLayerTest, Serialize) {
+    Serialize();
+}
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I64,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::I16
+        InferenceEngine::Precision::I32
 };
 
 std::vector<std::vector<size_t>> inputShape2D = {{2, 10}, {10, 2}, {10, 10}};
@@ -33,12 +35,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Transpose2D, TransposeLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
-std::vector<std::vector<size_t>> inputShape4D = {{2, 2, 2, 2}, {1, 10, 2, 3}, {2, 3, 4, 5}};
+std::vector<std::vector<size_t>> inputShape4D = {{2, 2, 2, 2}};
 std::vector<std::vector<size_t>> order4D      = {
-        {}, {0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 1, 2}, {0, 3, 2, 1},
-        {1, 0, 2, 3}, {1, 0, 3, 2}, {1, 2, 0, 3}, {1, 2, 3, 0}, {1, 3, 0, 2}, {1, 3, 2, 0},
-        {2, 0, 1, 3}, {2, 0, 3, 1}, {2, 1, 0, 3}, {2, 1, 3, 0}, {2, 3, 0, 1}, {2, 3, 1, 0},
-        {3, 0, 1, 2}, {3, 0, 2, 1}, {3, 1, 0, 2}, {3, 1, 2, 0}, {3, 2, 0, 1}, {3, 2, 1, 0}
+        {}, {0, 1, 2, 3}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_Transpose4D, TransposeLayerTest,
@@ -53,10 +52,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Transpose4D, TransposeLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
-std::vector<std::vector<size_t>> inputShape5D = {{2, 2, 2, 2, 2}, {1, 10, 2, 3, 4}, {2, 3, 4, 5, 6}};
+std::vector<std::vector<size_t>> inputShape5D = {{2, 3, 4, 5, 6}};
 std::vector<std::vector<size_t>> order5D      = {
-        {}, {0, 1, 2, 3, 4}, {1, 0, 2, 3, 4}, {4, 3, 2, 1, 0}, {0, 2, 3, 4, 1},
-        {1, 4, 2, 3, 0}, {2, 4, 1, 0, 3}, {3, 0, 2, 1, 4}, {4, 1, 0, 3, 2}
+        {}, {0, 1, 2, 3, 4}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_Transpose5D, TransposeLayerTest,
