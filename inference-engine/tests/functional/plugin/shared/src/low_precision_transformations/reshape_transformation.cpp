@@ -66,7 +66,7 @@ void ReshapeTransformation::validate() {
     const std::string typeName = layer->get_type_name();
 
     if (param.isTransformed) {
-        ASSERT_EQ("Eltwise", typeName);
+        ASSERT_EQ("ScaleShiftIE", typeName);
     } else {
         ASSERT_EQ("Reshape", typeName);
     }
