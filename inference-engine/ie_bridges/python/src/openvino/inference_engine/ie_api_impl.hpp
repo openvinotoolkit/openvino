@@ -94,7 +94,9 @@ struct InferRequestWrap {
     int index;
     using cy_callback = void (*)(void*, int);
 
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::IInferRequest::Ptr request_ptr;
+    IE_SUPPRESS_DEPRECATED_END
     Time::time_point start_time;
     double exec_time;
     cy_callback user_callback;
