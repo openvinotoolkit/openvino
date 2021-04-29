@@ -575,6 +575,10 @@ broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
 
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 

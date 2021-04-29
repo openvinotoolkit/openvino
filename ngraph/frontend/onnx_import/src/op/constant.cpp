@@ -3,10 +3,12 @@
 //
 
 #include "op/constant.hpp"
+#include "core/attribute.hpp"
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ngraph
 {
@@ -170,12 +172,47 @@ namespace ngraph
             {
                 OutputVector constant(const onnx_import::Node& node)
                 {
-                    auto attributes = node.get_attribute_names();
-                    NGRAPH_CHECK(attributes.size() == 1,
+                    auto attributes_names = node.get_attribute_names();
+                    NGRAPH_CHECK(attributes_names.size() == 1,
                                  "The Constant op expects exactly one attribute."
                                  "Got: ",
-                                 attributes.size());
-                    return {make_constant(node.get_attribute_value<Tensor>(attributes[0]))};
+                                 attributes_names.size());
+
+                    auto& attribute = node.get_attribute(attributes_names[0]);
+
+                    if (attribute.is_float())
+                    {
+                        return {default_opset::Constant::create(
+                            element::f32, ngraph::Shape{}, {attribute.get_float()})};
+                    }
+                    else if (attribute.is_float_array())
+                    {
+                        auto values = attribute.get_float_array();
+                        return {default_opset::Constant::create(
+                            element::f32, ngraph::Shape{values.size()}, values)};
+                    }
+                    else if (attribute.is_integer())
+                    {
+                        return {default_opset::Constant::create(
+                            element::i64, ngraph::Shape{}, {attribute.get_integer()})};
+                    }
+                    else if (attribute.is_integer_array())
+                    {
+                        auto values = attribute.get_integer_array();
+                        return {default_opset::Constant::create(
+                            element::i64, ngraph::Shape{values.size()}, values)};
+                    }
+                    // else if(attribute.is_string())
+                    // {
+                    //    return {default_opset::Constant::create(element::string, ngraph::Shape{},
+                    //    {attribute.get_string()})};
+                    // }
+                    // else if (attribute.is_string_array()){
+                    //    auto values = attribute.get_string_array();
+                    //    return {default_opset::Constant::create(element::string,
+                    //    ngraph::Shape{values.size()}, values)};
+                    // }
+                    return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
                 }
 
             } // namespace set_13

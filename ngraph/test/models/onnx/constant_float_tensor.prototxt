@@ -5,7 +5,7 @@ graph {
     output: "values"
     op_type: "Constant"
     attribute {
-      name: "value_floats"
+      name: "value"
       t {
         dims: 2
         dims: 3

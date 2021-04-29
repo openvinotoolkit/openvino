@@ -220,6 +220,20 @@ namespace ngraph
             return attr_names;
         }
 
+        const Attribute& Node::get_attribute(const std::string& name) const
+        {
+            const auto& node_attributes = m_pimpl->attributes();
+            auto found_attr =
+                std::find_if(std::begin(node_attributes),
+                             std::end(node_attributes),
+                             [&name](const Attribute& a) { return a.get_name() == name; });
+            if (found_attr == std::end(node_attributes))
+            {
+                throw error::node::UnknownAttribute{this->get_name(), name};
+            }
+            return *found_attr;
+        }
+
         template <>
         float Node::get_attribute_value(const std::string& name, float default_value) const
         {
