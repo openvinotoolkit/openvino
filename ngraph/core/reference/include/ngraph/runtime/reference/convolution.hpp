@@ -46,7 +46,7 @@ namespace ngraph
                                       const Strides& dilation_,
                                       const CoordinateDiff& pads_begin_,
                                       const CoordinateDiff& pads_end_,
-                                      const CoordinateDiff& output_padding_ = {0, 0, 0})
+                                      const CoordinateDiff& output_padding_ = {})
                         : strides{strides_.begin(), strides_.end()}
                         , dilation{dilation_.begin(), dilation_.end()}
                         , pads_begin{pads_begin_.begin(), pads_begin_.end()}
