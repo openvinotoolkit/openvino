@@ -11,6 +11,8 @@
 #include "utils/bfloat16.hpp"
 #include "nodes/common/cpu_convert.h"
 
+#include <ngraph/node.hpp>
+
 #include <string>
 #include <utility>
 
@@ -21,16 +23,24 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-using _RNN = RNNSequenceLayer;  // alias
-
-static rnn_direction ie2mkl(_RNN::Direction &direction) {
-    return direction == _RNN::FWD ? rnn_direction::unidirectional_left2right
-         : direction == _RNN::BWD ? rnn_direction::unidirectional_right2left
-         : direction == _RNN::BDR ? rnn_direction::bidirectional_concat
+static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
+    ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD;
+    if (op->get_type_info() == ngraph::op::v5::GRUSequence::type_info) {
+        direction = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op)->get_direction();
+    } else if (op->get_type_info() == ngraph::op::v0::LSTMSequence::type_info) {
+        direction = ngraph::as_type_ptr<const ngraph::op::v0::LSTMSequence>(op)->get_direction();
+    } else if (op->get_type_info() == ngraph::op::v5::LSTMSequence::type_info) {
+        direction = ngraph::as_type_ptr<const ngraph::op::v5::LSTMSequence>(op)->get_direction();
+    } else if (op->get_type_info() == ngraph::op::v5::RNNSequence::type_info) {
+        direction = ngraph::as_type_ptr<const ngraph::op::v5::RNNSequence>(op)->get_direction();
+    }
+    return direction == ngraph::op::RecurrentSequenceDirection::FORWARD ? rnn_direction::unidirectional_left2right
+         : direction == ngraph::op::RecurrentSequenceDirection::REVERSE ? rnn_direction::unidirectional_right2left
+         : direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? rnn_direction::bidirectional_concat
          : rnn_direction::unidirectional;
 }
 
-static algorithm ie2mkl(std::string act_type) {
+static algorithm ie2dnnl(std::string act_type) {
     return act_type == "sigmoid" ? algorithm::eltwise_logistic
          : act_type == "tanh"    ? algorithm::eltwise_tanh
          : act_type == "relu"    ? algorithm::eltwise_relu
@@ -128,9 +138,9 @@ void MKLDNNRNN::fillCellDesc() {
     if (!one_of(outs.size(), 2, 1))
         THROW_ERROR << "Incorrect number of output ports for layer " << getName();
 
-    auto in_data_dims = getParentEdgeAt(0)->getDims();
-    auto in_h_state_dims = getParentEdgeAt(1)->getDims();
-    auto out_h_state_dims = getChildEdgeAt(0)->getDims();
+    auto in_data_dims = op->get_input_shape(0);
+    auto in_h_state_dims = op->get_input_shape(1);
+    auto out_h_state_dims = op->get_output_shape(0);
 
     if (in_data_dims.ndims() != 2 || in_h_state_dims.ndims() != 2)
         THROW_ERROR << "Incorrect shape of input/output ports for layer " << getName();
@@ -145,7 +155,7 @@ void MKLDNNRNN::fillCellDesc() {
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
+    SizeVector D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
     if (in_data_dims != D_shape
         || in_h_state_dims != S_shape
@@ -153,8 +163,8 @@ void MKLDNNRNN::fillCellDesc() {
         THROW_ERROR << "Incorrect shape of input/output ports for layer " << getName();
 
     if (S == 2) {
-        auto in_c_state_dims = getParentEdgeAt(2)->getDims();
-        auto out_c_state_dims = getChildEdgeAt(1)->getDims();
+        auto in_c_state_dims = op->get_input_shape(2);
+        auto out_c_state_dims = op->get_output_shape(1);
 
         if (in_c_state_dims != S_shape
             || out_c_state_dims != S_shape)
@@ -196,9 +206,15 @@ void MKLDNNRNN::fillCellDesc() {
     w_data_d   = {{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo};
     w_state_d  = {{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo};
 
-    if (bias)
-        w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
+    // Add 5th input
+    w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
+    copyWeightsData(op);
+}
+
+void MKLDNNRNN::fillCellDesc() {
+    // Expected shapes
+    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
     std::vector<TensorDesc> in_candidate, out_candidate;
     in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, dataType, memory::format_tag::nc});
     in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
@@ -215,6 +231,11 @@ void MKLDNNRNN::fillCellDesc() {
         if (runtimePrecision == Precision::BF16 && weights_prec == Precision::FP32)
             convertWeightsBlobToBF16();
     }
+    if (one_of(cell_type, algorithm::vanilla_rnn, algorithm::vanilla_gru, algorithm::lbr_gru, algorithm::vanilla_lstm)) {
+        in_candidate.emplace_back(MKLDNNMemoryDesc {WShape, memory::data_type::f32, memory::format_tag::nc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc {RShape, memory::data_type::f32, memory::format_tag::nc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc {BShape, memory::data_type::f32, memory::format_tag::x});
+    }
 
     createDescriptor(in_candidate, out_candidate);
 }
@@ -229,10 +250,10 @@ void MKLDNNRNN::fillSeqDesc() {
     if (!one_of(rnnLayer->cellType, _RNN::LSTM, _RNN::GRU, _RNN::GRU_LBR, _RNN::RNN))
         THROW_ERROR << "RNN layer supports only LSTM/GRU/RNN cell";
 
-    cell_type = ie2mkl(rnnLayer->cellType);
+    cell_type = ie2dnnl(op);
     cell_act = algorithm::undef;
-    if (!rnnLayer->activations.empty())
-        cell_act = ie2mkl(rnnLayer->activations[0]);  // Works only for RNN with one gate
+    if (!rnnCellBase->get_activations().empty())
+        cell_act = ie2dnnl(rnnCellBase->get_activations()[0]);  // Works only for RNN with one gate
 
     // TODO [oneDNN]: No more supported
     if (rnnLayer->clip != 0.0f) {
@@ -256,11 +277,15 @@ void MKLDNNRNN::fillSeqDesc() {
     if (!one_of(outs.size(), 3, 2, 1))
         THROW_ERROR << "Incorrect number of output ports for layer " << getName();
 
-    auto in_data_dims = getParentEdgeAt(0)->getDims();
-    auto out_data_dims = getChildEdgeAt(0)->getDims();
+    auto in_data_dims = op->get_input_shape(0);
+    auto out_data_dims = op->get_output_shape(0);
 
     if (in_data_dims.ndims() != 3 || out_data_dims.ndims() != 3)
         THROW_ERROR << "Incorrect shape of input/output ports for layer " << getName();
+
+    N = op->get_input_shape(1)[0];
+    nativeOrder = N == in_data_dims[1];
+    out_data_dims.erase(out_data_dims.begin() + 1);
 
     if (!nativeOrder) {
         std::swap(in_data_dims[0], in_data_dims[1]);
@@ -270,9 +295,8 @@ void MKLDNNRNN::fillSeqDesc() {
     G = gatesCount(cell_type);
     S = statesCount(cell_type);
     T = in_data_dims[0];
-    N = in_data_dims[1];
     DC = in_data_dims[2];
-    SC = out_data_dims[2];
+    SC = rnnCellBase->get_hidden_size();
 
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 

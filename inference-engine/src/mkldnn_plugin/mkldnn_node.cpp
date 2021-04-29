@@ -161,17 +161,17 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Pad", Pad },
         { "Transpose", Transpose },
 //        { "Copy", Copy },
-//        { "LSTMCell", RNNCell },
-//        { "GRUCell", RNNCell },
-//        { "RNNCell", RNNCell },
-//        { "LSTMSequence", RNNSeq },
-//        { "GRUSequence", RNNSeq },
-//        { "RNNSequence", RNNSeq },
+        { "LSTMCell", RNNCell },
+        { "GRUCell", RNNCell },
+        { "RNNCell", RNNCell },
+        { "LSTMSequence", RNNSeq },
+        { "GRUSequence", RNNSeq },
+        { "RNNSequence", RNNSeq },
         { "FakeQuantize", FakeQuantize },
         { "BinaryConvolution", BinaryConvolution },
         { "DeformableConvolution", DeformableConvolution },
-//        { "TensorIterator", TensorIterator },
-//        { "Loop", TensorIterator },
+        { "TensorIterator", TensorIterator },
+        { "Loop", TensorIterator },
         { "ReadValue", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Assign", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
@@ -1293,27 +1293,26 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     }
 
     // TODO [NM]: enable after all nodes will be migrated on ngraph
-    // if (newNode == nullptr) {
-    //     try {
-    //         std::unique_ptr<MKLDNNNode> ol(new MKLDNNReferenceNode(op, eng, w_cache, errorMessage));
-    //         if (ol != nullptr && ol->created(extMgr))
-    //             newNode = ol.release();
-    //     } catch (const InferenceEngine::Exception& ex) {
-    //         if (ex.getStatus() != NOT_IMPLEMENTED) {
-    //             throw;
-    //         } else {
-    //             errorMessage += getExceptionDescWithoutStatus(ex);
-    //         }
-    //     }
-    // }
+//     if (newNode == nullptr) {
+//         try {
+//             std::unique_ptr<MKLDNNNode> ol(new MKLDNNReferenceNode(op, eng, w_cache, errorMessage));
+//             if (ol != nullptr && ol->created(extMgr))
+//                 newNode = ol.release();
+//         } catch (const InferenceEngine::Exception& ex) {
+//             if (ex.getStatus() != NOT_IMPLEMENTED) {
+//                 throw;
+//             } else {
+//                 errorMessage += getExceptionDescWithoutStatus(ex);
+//             }
+//         }
+//     }
 
-// TODO [NM]: Not implemented
-//    //  WA-start : TI node requires all attributes to construct internal subgpath
-//    //             including extManager, socket and mkldnn::eng.
-//    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
-//    if (ti != nullptr)
-//        ti->setExtManager(extMgr);
-//    //  WA-end
+    //  WA-start : TI node requires all attributes to construct internal subgpath
+    //             including extManager, socket and mkldnn::eng.
+    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
+    if (ti != nullptr)
+        ti->setExtManager(extMgr);
+    //  WA-end
 
     if (!newNode) {
         std::string errorDetails;

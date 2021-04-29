@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "ie_parallel.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
 #include "mean_image.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
-#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -190,7 +188,7 @@ protected:
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-//    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();

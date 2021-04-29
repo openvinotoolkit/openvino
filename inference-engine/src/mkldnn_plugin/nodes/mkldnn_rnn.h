@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
@@ -17,6 +16,7 @@ public:
     MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNRNN() override = default;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
@@ -26,6 +26,8 @@ public:
     void execute(mkldnn::stream strm) override;
 
 private:
+    void initCell(const std::shared_ptr<ngraph::Node>& op);
+    void initSeq(const std::shared_ptr<ngraph::Node>& op);
     void fillCellDesc();
     void fillSeqDesc();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
