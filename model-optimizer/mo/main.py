@@ -270,7 +270,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if not argv.use_legacy_ir_generation and find_ie_version(silent=True):
+            if not argv.legacy_ir_generation and find_ie_version(silent=True):
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations,
@@ -280,7 +280,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 if return_code != 0 and not argv.silent:
                     log.error("offline_transformations return code {}".format(return_code), extra={'is_warning': True})
         except Exception as e:
-            pass
+            log.error(e, extra={'is_warning': True})
 
         message = str(dict({
             "platform": platform.system(),

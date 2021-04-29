@@ -44,6 +44,7 @@ public:
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
     virtual ~IRParser() = default;
+
 private:
     IParser::Ptr parser;
 };
@@ -58,7 +59,7 @@ public:
 #ifdef IR_READER_V10
 class V10Parser : public IParser {
 public:
-    explicit V10Parser(const std::vector<IExtensionPtr>& exts = {});
+    explicit V10Parser(const std::vector<IExtensionPtr>& exts);
 
     std::shared_ptr<ICNNNetwork> parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;

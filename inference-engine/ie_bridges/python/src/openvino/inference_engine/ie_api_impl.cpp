@@ -157,6 +157,11 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
+/* FrameworkNodeExtension is a temporary extension that is needed to enable FrameworkNode usage
+ * in IRReader for all unknown opsets and operations. To have a connection between Extension and
+ * IRReader we register extensions with specific version equal to "framework_node_ext" which
+ * triggers FrameworkNode usage
+ */
 class FrameworkNodeExtension : public InferenceEngine::IExtension {
 public:
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
