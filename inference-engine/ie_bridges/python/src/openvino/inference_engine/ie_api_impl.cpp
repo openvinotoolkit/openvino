@@ -164,12 +164,8 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
  */
 class FrameworkNodeExtension : public InferenceEngine::IExtension {
 public:
-    void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
-        static InferenceEngine::Version ExtensionDescription = {
-                {1, 0},
-                "1.0",
-                "framework_node_ext"
-        };
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
+        static InferenceEngine::Version ExtensionDescription = {{1, 0}, "1.0", "framework_node_ext"};
 
         versionInfo = &ExtensionDescription;
     }
@@ -177,8 +173,7 @@ public:
     void Unload() noexcept override {}
 };
 
-InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string path_to_xml,
-                                                                     std::string path_to_bin) {
+InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string path_to_xml, std::string path_to_bin) {
     InferenceEngine::Core core;
     core.AddExtension(std::make_shared<FrameworkNodeExtension>());
     auto net = core.ReadNetwork(path_to_xml, path_to_bin);

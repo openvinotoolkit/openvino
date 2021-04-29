@@ -14,7 +14,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/op/util/framework_node.hpp"
+#include "ngraph_ops/framework_node.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 

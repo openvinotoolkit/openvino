@@ -12,7 +12,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/op/util/variable.hpp>
-#include <ngraph/op/util/framework_node.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -20,6 +19,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph_ops/framework_node.hpp>
 #include <set>
 #include <sstream>
 #include <string>
