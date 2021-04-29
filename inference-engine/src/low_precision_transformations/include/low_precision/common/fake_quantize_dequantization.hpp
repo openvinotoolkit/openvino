@@ -8,6 +8,7 @@
 #include <tuple>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -15,7 +16,7 @@ namespace low_precision {
 
 typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDequantizationValues;
 
-class FakeQuantizeDequantization {
+class TRANSFORMATIONS_API FakeQuantizeDequantization {
 public:
     FakeQuantizeDequantization();
 

@@ -19,24 +19,26 @@ namespace pass {
 namespace low_precision {
 
 template <typename AttributeType>
-class TRANSFORMATIONS_API PropagateAttributeToPrecisionPreserved;
+class PropagateAttributeToPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
 
+//using AttributeType = AvgPoolPrecisionPreservedAttribute;
+
 template <typename AttributeType>
-class TRANSFORMATIONS_API ngraph::pass::low_precision::PropagateAttributeToPrecisionPreserved : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::PropagateAttributeToPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
     PropagateAttributeToPrecisionPreserved() {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
-            auto op = m.get_match_root();
-            if (!op || transformation_callback(op)) {
+            auto node = m.get_match_root();
+            if (!node || transformation_callback(node)) {
                 return false;
             }
 
-            if (NetworkHelper::isPrecisionPreserved(op)) {
-                const auto parentRestrictions = getParentInputRestrictions(op);
+            if (NetworkHelper::isPrecisionPreserved(node)) {
+                const auto parentRestrictions = getParentInputRestrictions(node);
                 if (parentRestrictions.empty()) {
                     return false;
                 }
@@ -48,18 +50,20 @@ public:
                 resultAttribute->merge(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
-                    const auto oldAttribute = parentRestrictions[index]->get();
-                    //replaceAttributeInInputs(f, resultAttribute, parentRestrictions[index], node);
-
-                    NetworkHelper::reassign<PrecisionsSharedValue, AttributeType>(
-                        resultAttribute->get()->sharedValue,
-                        parentRestrictions[index]->get()->sharedValue->attributes);
+                    for (const auto attributeWeakPtr : parentRestrictions[index]->get()->sharedValue->attributes) {
+                        auto attribute = attributeWeakPtr.lock();
+                        if (attribute == nullptr) {
+                            continue;
+                        }
+                        attribute->sharedValue = resultAttribute->get()->sharedValue;
+                        resultAttribute->get()->sharedValue->attributes.push_back(attribute);
+                    }
                 }
 
-                auto& rt = op->get_rt_info();
+                auto& rt = node->get_rt_info();
                 rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = resultAttribute;
             } else {
-                for (auto input : op->inputs()) {
+                for (auto input : node->inputs()) {
                     auto parentAttribute = getSourceOutputAttribute(input);
                     if (parentAttribute == nullptr) {
                         continue;
@@ -81,24 +85,55 @@ public:
         this->register_matcher(matcher, callback);
     }
 
-private:
-    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
-        auto inputNode = input.get_source_output().get_node()->shared_from_this();
+    virtual ~PropagateAttributeToPrecisionPreserved() = default;
 
+private:
+    Input<Node> get(const Input<Node>& input) {
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
         if (!dequantization.empty() &&
             (is_type<opset1::Convert>(dequantization.data.get_node())) &&
             is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
-            inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+            //inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+            assert(dequantization.data.get_target_inputs().size() == 1ul);
+            return *dequantization.data.get_target_inputs().begin();
         }
 
-        auto& rt = NetworkHelper::isPrecisionPreserved(inputNode) ? inputNode->get_rt_info() : input.get_source_output().get_rt_info();
-        auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name);
-        if (it == rt.end()) {
-            return nullptr;
-        }
+        return input;
+    }
 
-        const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>(it->second);
+    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
+        //auto inputNode = input.get_source_output().get_node()->shared_from_this();
+        auto input2 = get(input);
+
+        //const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
+        //if (!dequantization.empty() &&
+        //    (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+        //    is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+        //    //inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+        //    assert(dequantization.data.get_target_inputs().size() == 1ul);
+        //    input2 = *dequantization.data.get_target_inputs().begin();
+        //    //input2 = input3;
+        //}
+
+        //// ngraph::is_type<AttributeType>(inputNode)
+        //// TODO: is_type<AttributeType>(inputNode) - is not tested
+        ////getAttribute
+        //auto& rt = NetworkHelper::isPrecisionPreserved(inputNode) ?
+        //    inputNode->get_rt_info() :
+        //    input.get_source_output().get_rt_info();
+        //auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name);
+        //if (it == rt.end()) {
+        //    return nullptr;
+        //}
+
+        //const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>(it->second);
+        //return attribute;
+
+        auto output = input2.get_source_output();
+        std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
+        if (attribute == nullptr) {
+            attribute = getAttribute<std::shared_ptr<AttributeType>>(output.get_node_shared_ptr());
+        }
         return attribute;
     }
     std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> getParentInputRestrictions(

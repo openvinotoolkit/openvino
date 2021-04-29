@@ -29,7 +29,6 @@ class TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedValueAttrib
 public:
     PrecisionPreservedAttribute() = default;
     PrecisionPreservedAttribute(const bool value);
-    //PrecisionPreservedAttribute(std::shared_ptr<SharedValue> value) : sharedValue(value) {}
 };
 
 using PrecisionPreservedAttributePtr = std::shared_ptr<PrecisionPreservedAttribute>;

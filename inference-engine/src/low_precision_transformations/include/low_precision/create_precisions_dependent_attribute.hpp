@@ -14,41 +14,42 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <low_precision/rt_info/precisions_attribute.hpp>
-#include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 template <typename AttributeType, typename OperationType>
-class TRANSFORMATIONS_API CreatePrecisionsDependentAttribute;
+class CreatePrecisionsDependentAttribute;
 
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
 
 template <typename AttributeType, typename OperationType>
-class TRANSFORMATIONS_API ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
 public:
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
 
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
-            auto op = m.get_match_root();
-            if (!op || transformation_callback(op)) {
+            auto node = m.get_match_root();
+            if (!node || transformation_callback(node)) {
                 return false;
             }
 
-            auto& rt = op->get_rt_info();
+            auto& rt = node->get_rt_info();
 
-            const auto precisionPreservedAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(PrecisionPreservedAttribute(false));
-            rt[ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name] = precisionPreservedAttribute;
+            const auto precisionPreservedAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(
+                std::make_shared<PrecisionPreservedAttribute>(false));
+            rt[ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name] = precisionPreservedAttribute;
+            const auto& targetSharedValue = precisionPreservedAttribute->get()->sharedValue;
 
-            const auto& sharedValue = precisionPreservedAttribute->get().sharedValue;
             const auto attribute = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>(
-                std::make_shared<AttributeType>(sharedValue));
+                std::make_shared<AttributeType>());
             rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = attribute;
+
+            NetworkHelper::reassign<PrecisionPreservedSharedValue, AttributeType>(targetSharedValue, { attribute->get() });
 
             return true;
         };

@@ -14,9 +14,10 @@
 
 #include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
 #include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
-#include <low_precision/rt_info/precisions_attribute.hpp>
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/rt_info/shared_value_attribute.hpp>
 
 #include <low_precision/create_attribute.hpp>
 #include <low_precision/create_precisions_dependent_attribute.hpp>
@@ -160,10 +161,10 @@ public:
 
         {
             ngraph::pass::Manager manager;
-            manager.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
-            //std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
-            //markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
-            //markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+            //manager.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
+            std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
+            markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
+            markupAvgPoolPrecision->add_matcher<low_precision::PropagateAttributeToPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
             manager.run_passes(actualFunction);
             ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
         }

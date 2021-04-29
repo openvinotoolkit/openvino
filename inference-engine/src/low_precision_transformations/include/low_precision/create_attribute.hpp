@@ -19,7 +19,7 @@ namespace pass {
 namespace low_precision {
 
 template <typename AttributeType, typename OperationType>
-class TRANSFORMATIONS_API CreateAttribute;
+class CreateAttribute;
 
 }  // namespace low_precision
 }  // namespace pass
