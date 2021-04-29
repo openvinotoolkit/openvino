@@ -404,6 +404,11 @@ Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for th
 
 The Model Optimizer provides explanatory messages if it is unable to run to completion due to issues like typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ has instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
 
+## Video: Converting a TensorFlow Model
+[![](https://img.youtube.com/vi/QW6532LtiTc/0.jpg)](https://www.youtube.com/watch?v=QW6532LtiTc)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
 
 ## Summary
 In this document, you learned:

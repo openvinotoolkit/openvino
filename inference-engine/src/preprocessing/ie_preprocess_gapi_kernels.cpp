@@ -895,7 +895,7 @@ struct linearScratchDesc {
         tmp   = reinterpret_cast<T*>      (mapsy + outH*2);
     }
 
-    static int bufSize(int inW, int inH, int outW, int outH, int lpi) {
+    static int bufSize(int inW, int /*inH*/, int outW, int outH, int lpi) {
         auto size = outW * sizeof(alpha_t)     +
                     outW * sizeof(alpha_t) * 4 +  // alpha clones // previous alpha is redundant?
                     outW * sizeof(index_t)     +
@@ -910,7 +910,7 @@ struct linearScratchDesc {
 template<typename T, typename Mapper, int chanNum = 1>
 static void initScratchLinear(const cv::GMatDesc& in,
                               const         Size& outSz,
-                         cv::gapi::fluid::Buffer& scratch,
+                              cv::gapi::fluid::Buffer& scratch,
                                              int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
     static const auto unity = Mapper::unity;
@@ -1171,7 +1171,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 template<typename T, class Mapper, int numChan>
 static void calcRowLinearC(const cv::gapi::fluid::View  & in,
                            std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan>& out,
-                                  cv::gapi::fluid::Buffer& scratch) {
+                           cv::gapi::fluid::Buffer& scratch) {
     using alpha_type = typename Mapper::alpha_type;
 
     auto  inSz =  in.meta().size;
@@ -2461,6 +2461,58 @@ GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
     }
 };
 
+namespace {
+    template <typename src_t, typename dst_t>
+    void sub(const uint8_t* src, uint8_t* dst, const int width, double c) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i] - c);
+        }
+    }
+
+    template <typename src_t, typename dst_t>
+    void div(const uint8_t* src, uint8_t* dst, const int width, double c) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i] / c);
+        }
+    }
+}  // namespace
+
+GAPI_FLUID_KERNEL(FSubC, GSubC, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, const cv::Scalar &scalar, int depth, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_32F && src.meta().chan == 1);
+
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+
+        sub<float, float>(in, out, width, scalar[0]);
+    }
+};
+
+GAPI_FLUID_KERNEL(FDivC, GDivC, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View &src, const cv::Scalar &scalar, double _scale, int /*dtype*/,
+            cv::gapi::fluid::Buffer &dst) {
+        GAPI_Assert(src.meta().depth == CV_32F && src.meta().chan == 1);
+
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+
+        div<float, float>(in, out, width, scalar[0]);
+    }
+};
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2488,6 +2540,8 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FNV12toRGB
         , FI420toRGB
         , FConvertDepth
+        , FSubC
+        , FDivC
         >();
 }
 

@@ -73,6 +73,6 @@ namespace ngraph
                 std::vector<float> m_activations_beta;
             };
 
-        } // recurrent
-    }     // onnx_import
-} // ngraph
+        } // namespace recurrent
+    }     // namespace onnx_import
+} // namespace ngraph

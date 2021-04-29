@@ -40,5 +40,5 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
             };
         } // namespace v1
-    }
-}
+    }     // namespace op
+} // namespace ngraph

@@ -8,16 +8,29 @@
 namespace CPUTestUtils {
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-    if (v == nchw) return "nchw";
-    if (v == nChw8c) return "nChw8c";
-    if (v == nChw16c) return "nChw16c";
-    if (v == nhwc) return "nhwc";
-    if (v == ncdhw) return "ncdhw";
-    if (v == nCdhw8c) return "nCdhw8c";
-    if (v == nCdhw16c) return "nCdhw16c";
-    if (v == ndhwc) return "ndhwc";
-    if (v == nc) return "nc";
-    if (v == x) return "x";
+#define CASE(_fmt) do { \
+    if (v == _fmt) return #_fmt; \
+} while (0)
+    CASE(undef);
+    CASE(nchw);
+    CASE(nChw8c);
+    CASE(nChw16c);
+    CASE(nhwc);
+    CASE(ncdhw);
+    CASE(nCdhw8c);
+    CASE(nCdhw16c);
+    CASE(ndhwc);
+    CASE(nc);
+    CASE(x);
+    CASE(tnc);
+    CASE(ntc);
+    CASE(ldnc);
+    CASE(ldigo);
+    CASE(ldgoi);
+    CASE(ldio);
+    CASE(ldoi);
+    CASE(ldgo);
+#undef CASE
     assert(!"unknown fmt");
     return "undef";
 }
@@ -39,6 +52,10 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(acdeb);
     CASE(aBcde8b);
     CASE(aBcde16b);
+    CASE(abc);
+    CASE(bac);
+    CASE(abdc);
+    CASE(abdec);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -49,15 +66,23 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(ndhwc);
     CASE(nc);
     CASE(x);
+    CASE(tnc);
+    CASE(ntc);
+    CASE(ldnc);
+    CASE(ldigo);
+    CASE(ldgoi);
+    CASE(ldio);
+    CASE(ldoi);
+    CASE(ldgo);
 #undef CASE
     assert(!"unknown memory format");
     return undef;
 }
 
-std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
+std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix) {
     std::string str;
     for (auto &fmt : fmts) {
-        ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
+        ((str += prefix) += cpu_fmt2str(fmt)) += ",";
     }
     if (!str.empty()) {
         str.pop_back();
@@ -120,18 +145,38 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                     auto shape = parentNode->get_output_tensor(0).get_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
 
-                    if (!should_be_skipped(shape, inFmts[i]))
+                    if (!should_be_skipped(shape, inFmts[i])) {
                         ASSERT_EQ(inFmts[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
+                    }
                 }
             }
-            for (int i = 0; i < outFmts.size(); i++) {
+
+            /* actual output formats are represented as a single string, for example 'fmt1' or 'fmt1, fmt2, fmt3'
+             * convert it to the list of formats */
+            auto getActualOutputMemoryFormats = [] (const std::string& fmtStr) -> std::vector<std::string> {
+                std::vector<std::string> result;
+                std::stringstream ss(fmtStr);
+                std::string str;
+                while (std::getline(ss, str, ',')) {
+                    result.push_back(str);
+                }
+                return result;
+            };
+
+            auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
+
+            for (size_t i = 0; i < outFmts.size(); i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_shape(i);
 
-                if (!should_be_skipped(shape, outFmts[i]))
-                    ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
+                if (should_be_skipped(shape, outFmts[i]))
+                    continue;
+
+                ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
+
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+
             ASSERT_EQ(selectedType, primType);
         }
     }
@@ -145,10 +190,10 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
     if (!inFmts.empty()) {
-        result << "_inFmts=" << fmts2str(inFmts);
+        result << "_inFmts=" << fmts2str(inFmts, "");
     }
     if (!outFmts.empty()) {
-        result << "_outFmts=" << fmts2str(outFmts);
+        result << "_outFmts=" << fmts2str(outFmts, "");
     }
     if (!selectedType.empty()) {
         result << "_primitive=" << selectedType;
@@ -180,11 +225,11 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts)))});
+                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts)))});
+                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
@@ -197,8 +242,11 @@ std::shared_ptr<ngraph::Function>
 CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
                                  const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+   ngraph::ResultVector results;
 
-   ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(newLastNode)};
+   for (int i = 0; i < newLastNode->get_output_size(); i++)
+        results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
+
    return std::make_shared<ngraph::Function>(results, params, name);
 }
 

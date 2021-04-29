@@ -47,7 +47,7 @@ namespace greater_equalop
         }
         return rc;
     }
-}
+} // namespace greater_equalop
 
 //---------------------------------- v1 ----------------------------------------
 

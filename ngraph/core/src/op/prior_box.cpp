@@ -179,7 +179,7 @@ namespace prior_box
         }
         return rc;
     }
-}
+} // namespace prior_box
 
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
