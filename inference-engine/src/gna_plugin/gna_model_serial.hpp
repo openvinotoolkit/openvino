@@ -157,7 +157,6 @@ private:
 
     /**
      * save gna graph to an outpus stream
-     * @param ptr_nnet
      * @param basePtr
      * @param gnaGraphSize
      * @param os
