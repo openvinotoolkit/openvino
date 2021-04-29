@@ -55,6 +55,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ClampLayerTest.*netPrc=U64.*)",
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
 
+        // incorrect reference implementation
+        R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
+        // lpt transformation produce the same names for MatMul and Multiply
+        R"(.*MatMulTransformation.*)",
+        // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
+        R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
         /* ********************************************************** TEMPORARILY DISABLED TESTS ********************************************************** */
         // shared SLT test
@@ -68,59 +74,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*RNNCellTest.*)",
         R"(.*RNNSequenceTest.*)",
         R"(.*TensorIteratorTest.*)",
-        R"(.*VariadicSplitPad.*)",
-
-        // unsupported operation
-        // LPT_BS2/DepthToSpaceTransformation
-        // smoke_LPT_BS3/DepthToSpaceTransformation
-        R"(.*ExecGraphInputsFusingBinConv.*)",
-
-        // dynamic batch
-        R"(.*ReshapeCheckDynBatch.*)",
-        R"(.*DynamicBatchTest.*)",
-        R"(.*InferConfigInTests.*)",
 
         // shared subgraph test
         R"(.*MultipleLSTMCellTest.*)",
-
-        // shared behavior test, falied because QueryNetwork is not implemented
-        R"(.*smoke_QueryNetwork.*)",
-        R"(.*IEClassNetworkTestP.*)",
-        R"(.*IEClassImportExportTestP.*)",
-        R"(.*IEClassExecutableNetworkGetMetricTest.*)",
-        R"(.*IEClassHeteroExecutableNetworkGetMetricTest.*)",
-        R"(.*smoke_LoadNetwork.*)",
-        R"(.*QueryNetworkTest.*)",
-
-        // plug-in specific tests
-        R"(.*GatherElementsCPUTest.*)",
-        R"(.*AddConvertToReorderTest.*)",
-
-        // InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone
-        R"(.*AddOutputsTest.*)",
-
-        // serialize
-        R"(.*ExecGraphTests.*)",
-        R"(.*ExecGraphRuntimePrecision.*)",
-        R"(.*ExecGraphUniqueNodeNames.*)",
-        // smoke_LPT/MatMulTransformation
-        // smoke_LPT/MatMulWithConstantTransformation
-
-        // input/output network
-        R"(.*NetWithLayout.*)",
-        R"(.*SetBlobOfKindTest.*)",
-        R"(.*PreprocessTest.*)",
-        ".*PreprocessConversionTest.*",
-
-        R"(.*VariableStateTest.*)",
-
-        // ******************************************** investigate *********************************************
-        // accuracy difference
-        R"(.*smoke_Convolution3D.*)",
-
-        // TEST: Node type name: "SoftMax" has not been found.
-        R"(.*SoftMaxLayerCPUTest.*)",
-        /* ******************************************************** END TEMPORARILY DISABLED TESTS ******************************************************** */
     };
 
 // TODO [NM]: Disabled until BF16 transformer is not migrated on CPU graph representation.

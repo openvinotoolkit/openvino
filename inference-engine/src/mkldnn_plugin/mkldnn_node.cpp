@@ -101,7 +101,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Sqrt", Eltwise },
         { "Clamp", Eltwise },
         { "Exp", Eltwise },
-        { "Swish", Eltwise },
+        { "SwishCPU", Eltwise },
         { "HSwish", Eltwise },
         { "Mish", Eltwise },
         { "HSigmoid", Eltwise },
@@ -1385,6 +1385,5 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
                                             EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt) ||
                       node->canBePerformedAsScaleShift(this);
     }
-
     return false;
 }

@@ -50,6 +50,8 @@ public:
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
 
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 

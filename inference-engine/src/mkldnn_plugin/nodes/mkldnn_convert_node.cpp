@@ -35,6 +35,15 @@ MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
+MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+                                     const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode("Convert", nodeName, eng, cache) {
+    inDims.emplace_back(dims);
+    addOriginalInputPrecision(inPrc);
+    outDims.emplace_back(dims);
+    addOriginalOutputPrecision(outPrc);
+}
+
 void MKLDNNConvertNode::getSupportedDescriptors() {
     // if tensor descriptors are set via setDescs method we need to update the inDims/outDims data
     // from correspond tensor descriptors.

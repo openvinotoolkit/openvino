@@ -33,7 +33,6 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
         IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
 
     constant = ConstantType::NoConst;
-    constBlob = nullptr;
 
     auto constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
     if (constOp) {
@@ -53,6 +52,19 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
         blob->allocate();
 
         constBlob = blob;
+    }
+}
+
+MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &prc, const std::string &name,
+                                 const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(type, name, eng, cache) {
+    constant = ConstantType::NoConst;
+    if (getType() == Input) {
+        outDims.emplace_back(dims);
+        addOriginalOutputPrecision(prc);
+    }  else if (getType() == Output) {
+        inDims.emplace_back(dims);
+        addOriginalInputPrecision(prc);
     }
 }
 

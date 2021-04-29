@@ -280,6 +280,9 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     }},
     {ngraph::op::v0::Tan::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
         node.algorithm = MKLDNNPlugin::MathTan;
+    }},
+    {ngraph::op::v3::Atanh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAtanh;
     }}
 };
 

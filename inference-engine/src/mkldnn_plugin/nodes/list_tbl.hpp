@@ -64,7 +64,7 @@ MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 MKLDNN_EXTENSION_NODE(BatchToSpaceImpl, BatchToSpace);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 //MKLDNN_EXTENSION_NODE(SimplerNMSImpl, SimplerNMS);
-//MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
+MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
 //MKLDNN_EXTENSION_NODE(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 MKLDNN_EXTENSION_NODE(BucketizeImpl, Bucketize);
 MKLDNN_EXTENSION_NODE(CTCGreedyDecoderImpl, CTCGreedyDecoder);

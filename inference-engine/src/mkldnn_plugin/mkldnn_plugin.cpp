@@ -76,6 +76,8 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 
+#include <ie_algorithm.hpp>
+
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
@@ -506,95 +508,83 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
 
-    IE_THROW() << "Not implemented";
-// TODO [NM]: reimplement QueryNetwork on ngraph
-//
-//    MKLDNNWeightsSharing::Ptr fake_w_cache;
-//    auto function = network.getFunction();
-//    if (function != nullptr) {
-//        std::unordered_set<std::string> originalOps;
-//        for (auto&& node : function->get_ops()) {
-//            originalOps.emplace(node->get_friendly_name());
-//        }
-//
-//        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-//        Config conf = engConfig;
-//        conf.readProperties(config);
-//
-//        if (conf.enableDynamicBatch) {
-//            conf.batchLimit = static_cast<int>(network.getBatchSize());
-//        }
-//
-//        auto clonedNetwork = InferenceEngine::cloneNetwork(network);
-//        Transformation(clonedNetwork, conf);
-//        std::unordered_set<std::string> supported;
-//        std::unordered_set<std::string> unsupported;
-//        for (details::CNNNetworkIterator itLayer{clonedNetwork}; itLayer != details::CNNNetworkIterator(); itLayer++) {
-//            auto layerIsSupported = [&] {
-//                std::unique_ptr<MKLDNNNode> ptr;
-//                try {
-//                    ptr.reset(MKLDNNNode::factory().create(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-//                } catch (InferenceEngine::details::InferenceEngineException&) {
-//                     return false;
-//                }
-//                return true;
-//            } ();
-//            for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
-//                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-//                    if (layerIsSupported) {
-//                        supported.emplace(fusedLayerName);
-//                    } else {
-//                        unsupported.emplace(fusedLayerName);
-//                    }
-//                }
-//            }
-//        }
-//        for (auto&& unsupportedNode : unsupported) {
-//            supported.erase(unsupportedNode);
-//        }
-//        for (auto&& node : function->get_ops()) {
-//            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-//                for (auto&& inputNodeOutput : node->input_values()) {
-//                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-//                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-//                    }
-//                }
-//                for (auto&& outputs : node->outputs()) {
-//                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-//                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
-//                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-//                        }
-//                    }
-//                }
-//            }
-//
-//            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-//                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-//                    supported.erase(node->get_friendly_name());
-//                }
-//            } else if (ngraph::op::is_output(node)) {
-//                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-//                    supported.erase(node->get_friendly_name());
-//                }
-//            }
-//        }
-//
-//        for (auto&& layerName : supported) {
-//            res.supportedLayersMap.emplace(layerName, GetName());
-//        }
-//    } else {
-//        details::CNNNetworkIterator i(network);
-//        while (i != details::CNNNetworkIterator()) {
-//            try {
-//                mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
-//                // if we can create and have not thrown exception, then layer is supported
-//                std::unique_ptr <MKLDNNNode>(MKLDNNNode::factory().create(*i, eng, extensionManager, fake_w_cache));
-//                res.supportedLayersMap.insert({ (*i)->name, GetName() });
-//            } catch (InferenceEngine::details::InferenceEngineException&) {
-//            }
-//            i++;
-//        }
-//    }
+    MKLDNNWeightsSharing::Ptr fake_w_cache;
+    auto function = network.getFunction();
+    if (function != nullptr) {
+        std::unordered_set<std::string> originalOps;
+        for (auto&& node : function->get_ops()) {
+            originalOps.emplace(node->get_friendly_name());
+        }
+
+        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+        Config conf = engConfig;
+        conf.readProperties(config);
+
+        if (conf.enableDynamicBatch) {
+            conf.batchLimit = static_cast<int>(network.getBatchSize());
+        }
+
+        auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
+        Transformation(clonedNetwork, conf);
+        std::unordered_set<std::string> supported;
+        std::unordered_set<std::string> unsupported;
+        for (auto op : ops) {
+            auto layerIsSupported = [&] {
+                std::unique_ptr<MKLDNNNode> ptr;
+                try {
+                    ptr.reset(MKLDNNNode::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                } catch (InferenceEngine::Exception&) {
+                    return false;
+                }
+                return true;
+            } ();
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
+                    if (layerIsSupported) {
+                        supported.emplace(fusedLayerName);
+                    } else {
+                        unsupported.emplace(fusedLayerName);
+                    }
+                }
+            }
+        }
+        for (auto&& unsupportedNode : unsupported) {
+            supported.erase(unsupportedNode);
+        }
+        for (auto&& node : function->get_ops()) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            } else if (ngraph::op::is_output(node)) {
+                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            }
+        }
+
+        for (auto&& layerName : supported) {
+            res.supportedLayersMap.emplace(layerName, GetName());
+        }
+    } else {
+        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
+    }
 
     return res;
 }

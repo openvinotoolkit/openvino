@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <utility>
 #include <cstring>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -254,56 +255,50 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
 }
 
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
-    // TODO [NM]: reimplement w/o using legacy API
-    return false;
-//    InputsDataMap inputs = network.getInputsInfo();
-//
-//    CNNLayerSet inputLayers;
-//    std::unordered_set<CNNLayer *> allLayers;
-//
-//    if (inputs.empty())
-//        return false;
-//
-//    auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
-//    if (secondLayers.empty())
-//        return false;
-//
-//    bool check_result = true;
-//    details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
-//        auto type = TypeFromName(layer->type);
-//        // This is WA for Tile layer
-//        auto tileLayer = dynamic_cast<TileLayer *>(layer.get());
-//        if (tileLayer && tileLayer->axis)
-//            return;
-//
-//        auto reshapeLayer = dynamic_cast<ReshapeLayer *>(layer.get());
-//        if (reshapeLayer &&
-//            type == Reshape &&
-//            (reshapeLayer->outData[0]->getTensorDesc().getDims()[0] ==
-//             reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
-//            return;
-//        }
-//
-//        if (type != Input &&
-//            type != Output &&
-//            type != Convolution &&
-//            type != Deconvolution &&
-//            type != Activation &&
-//            type != Depthwise &&
-//            type != Lrn &&
-//            type != Pooling &&
-//            type != FullyConnected &&
-//            type != Gemm &&
-//            type != Softmax &&
-//            type != Split &&
-//            type != Concatenation &&
-//            type != Eltwise &&
-//            type != Copy) {
-//            check_result = false;
-//        }
-//    }, false);
-//
-//    return check_result;
+    InputsDataMap inputs = network.getInputsInfo();
+
+    if (inputs.empty())
+        return false;
+
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
+    }
+
+    auto ops = function->get_ordered_ops();
+    for (auto op : ops) {
+        auto type = TypeFromName(op->get_type_name());
+        if (type == Tile) {
+            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+            if (!repeatsNode)
+                return false;
+            if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
+                continue;
+        }
+
+        if (type == Reshape) {
+            if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
+                continue;
+        }
+
+        if (type != Input &&
+            type != Output &&
+            type != Convolution &&
+            type != Deconvolution &&
+            type != Lrn &&
+            type != Pooling &&
+            type != FullyConnected &&
+            type != MatMul &&
+            type != Softmax &&
+            type != Split &&
+            type != Concatenation &&
+                type != Eltwise) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 IE_SUPPRESS_DEPRECATED_START

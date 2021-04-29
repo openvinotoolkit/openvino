@@ -70,7 +70,7 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddConvert_CPU) {
     BuildGraph(ngraph::element::bf16);
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Convert", 1);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 0);
+    CheckNodeOfTypeCount(executableNetwork, "Reorder", 1);
 }
 
 /* Test insertion of the Reorder layer if there is one.
@@ -91,7 +91,7 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
     BuildGraph(ngraph::element::i8);
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Convert", 0);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 1);
+    CheckNodeOfTypeCount(executableNetwork, "Reorder", 2);
 }
 } // namespace
 } // namespace LayerTestsDefinitions
