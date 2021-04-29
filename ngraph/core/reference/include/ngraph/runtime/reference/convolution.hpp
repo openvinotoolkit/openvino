@@ -18,15 +18,13 @@
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
-// can't be removed currently due to arm-plugin dependency
-//#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 namespace ngraph
 {
     namespace runtime
     {
         namespace reference
         {
-            namespace convolution_ref
+            namespace
             {
                 constexpr size_t in_batch_axis = 0;
                 constexpr size_t in_channel_axis = 1;
@@ -242,9 +240,8 @@ namespace ngraph
                     NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape,
                                  "Incorrect output shape provided");
                 }
-            } // namespace convolution_ref
+            } // namespace
 
-            using namespace convolution_ref;
             template <typename T>
             void convolution(const T* in,
                              const T* f,
@@ -333,3 +330,6 @@ namespace ngraph
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
+
+// can't be removed currently due to arm-plugin dependency
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"

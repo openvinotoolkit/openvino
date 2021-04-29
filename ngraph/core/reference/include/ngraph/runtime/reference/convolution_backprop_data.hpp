@@ -105,7 +105,6 @@ namespace ngraph
                 }
             } // namespace
 
-            using namespace reference::convolution_ref;
             template <typename T>
             void convolution_backprop_impl(const T* in,
                                            const T* f,
@@ -139,7 +138,7 @@ namespace ngraph
                 Shape filters_shape{f_shape};
                 if (in_shape.size() < 5)
                 {
-                    convolution_ref::extend_to_3D(params, input_shape, filters_shape);
+                    extend_to_3D(params, input_shape, filters_shape);
                 }
 
                 for (size_t i = 0; i < input_shape.size() - 2; ++i)
@@ -202,8 +201,7 @@ namespace ngraph
                     auto filter = f;
                     for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
-                        convolution_ref::convolve_3D_channels(
-                            params, batch, batch_shape, filter, filter_shape, out);
+                        convolve_3D_channels(params, batch, batch_shape, filter, filter_shape, out);
                         filter += filter_size;
                     }
                     batch += batch_size;
