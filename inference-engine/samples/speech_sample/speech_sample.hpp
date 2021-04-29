@@ -27,6 +27,23 @@ static const char target_device_message[] = "Optional. Specify a target device t
                                             "below. "
                                             "The sample will look for a suitable plugin for device specified.";
 
+/// @brief message for execution target
+static const char execution_target_message[] = "Optional (aka, GNA_EXEC_TARGET). Overrides GNA execution target generation. "
+                                               "Should be one of GNA_TARGET_2_0, GNA_TARGET_3_0 or empty. "
+                                               "When empty default value assumed: "
+                                               "If GNA HW is present, use the option corresponding to this HW. "
+                                               "If HW is not present, use the latest supported generation (i.e., GNA_TARGET_3_0 for 2021.4) "
+                                               "The \"latest supported generation\" should be the latest available HW. "
+                                               "For example, for 2021.4 (GNA_TARGET_3_0 is the latest HW), "
+                                               "GNA Plugin does not support features even if they are supported by the GNA library "
+                                               "if not available in the current GNA HW.";
+
+/// @brief message for execution target
+static const char compile_target_message[] = "Optional (aka, GNA_COMPILE_TARGET). Overrides GNA execution target generation. "
+                                             "Should be one of GNA_TARGET_2_0, GNA_TARGET_3_0 or empty. "
+                                             "When empty default value assumed: "
+                                             "same as GNA_EXEC_TARGET";
+
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
@@ -108,6 +125,12 @@ DEFINE_string(m, "", model_message);
 
 /// \brief device the target device to infer on (default CPU) <br>
 DEFINE_string(d, "CPU", target_device_message);
+
+/// \brief GNA execution target <br>
+DEFINE_string(exec_target, "", execution_target_message);
+
+/// \brief GNA compile target <br>
+DEFINE_string(compile_target, "", compile_target_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
