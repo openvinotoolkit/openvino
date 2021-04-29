@@ -50,6 +50,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
+
 add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library

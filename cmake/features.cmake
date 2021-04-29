@@ -10,6 +10,14 @@ ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
+ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
+Supported values:\
+ ALL - enable all ITT counters (default value)\
+ FIRST_INFERENCE - enable only first inference time counters" ALL
+               ALLOWED_VALUES ALL FIRST_INFERENCE)
+
+ie_option (ENABLE_PROFILING_FIRST_INFERENCE "Build with ITT tracing of first inference time." ON)
+
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
 ie_option(ENABLE_TEMPLATE_PLUGIN "Register template plugin into plugins.xml" OFF)

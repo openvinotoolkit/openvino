@@ -29,14 +29,14 @@ namespace ngraph
 {
     namespace pass
     {
-        namespace
+        namespace internal
         {
-            PerfCounters& perf_counters_manager()
+            PerfCounters& perf_counters()
             {
                 static PerfCounters counters;
                 return counters;
             }
-        } // namespace
+        } // namespace internal
     }     // namespace pass
 } // namespace ngraph
 
@@ -72,8 +72,9 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             continue;
         }
 
-        OV_ITT_SCOPED_TASK(itt::domains::nGraphPass_LT,
-                           pass::perf_counters_manager()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE,
+                     itt::domains::nGraphPass_LT,
+                     pass::internal::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 

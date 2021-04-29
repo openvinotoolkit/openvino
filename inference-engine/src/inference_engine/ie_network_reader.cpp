@@ -151,7 +151,6 @@ void assertIfIRv7LikeModel(std::istream & modelStream) {
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
 
@@ -210,11 +209,13 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 binStream.seekg(0, std::ios::beg);
 
                 Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
-                weights->allocate();
 
-                binStream.read(weights->buffer(), fileSize);
-
-                binStream.close();
+                {
+                    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "ReadNetworkWeights");
+                    weights->allocate();
+                    binStream.read(weights->buffer(), fileSize);
+                    binStream.close();
+                }
 
                 // read model with weights
                 auto network = reader->read(modelStream, weights, exts);
@@ -230,7 +231,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStream(model);

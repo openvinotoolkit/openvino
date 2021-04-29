@@ -44,7 +44,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     _cfg{cfg},
     _name{network.getName()},
     _numaNodesWeights(numaNodesWeights) {
-    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
 
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNetwork(network);
@@ -98,7 +98,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         }
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "createConstInputs");
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, const std::vector<size_t>& shape, const std::string& name) {
         LayerParams attrs = {layer->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
