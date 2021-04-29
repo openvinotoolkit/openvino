@@ -49,13 +49,12 @@ def caffe_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
     result = common_caffe_fields(node)
     supported = False
 
-    op = result['op'].lower()
-    if op in lowered_keys_map:
-        layer_type = lowered_keys_map[op]
+    layer_type = result['type'].lower()
+    if layer_type in lowered_keys_map:
+        layer_type = lowered_keys_map[layer_type]
         assert layer_type in caffe_type_extractors
         if layer_type:  # it is either standard or registered via CustomLayersMapping.xml
             attrs = caffe_type_extractors[layer_type](node)
-            # intentionally as Python registry if not found returns None
             if attrs is not None:
                 result.update(attrs)
                 supported = True
