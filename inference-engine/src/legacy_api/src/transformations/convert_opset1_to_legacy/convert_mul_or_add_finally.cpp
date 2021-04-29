@@ -176,7 +176,7 @@ ngraph::matcher_pass_callback get_callback() {
 
         bool is_dequantization = (lin_op->get_rt_info().count("DEQUANTIZATION") != 0) && checkElementwise(lin_op);
 
-        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4)) {
+        if (!is_dequantization && (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4))) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
