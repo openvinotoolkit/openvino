@@ -82,7 +82,7 @@ void regclass_pyngraph_Dimension(py::module m)
     dim.def("get_length",
             &ngraph::Dimension::get_length,
             R"(
-                Convert this dimension to integer.
+                Return this dimension as integer.
                 This dimension must be static and non-negative.
 
                 Returns
@@ -93,7 +93,7 @@ void regclass_pyngraph_Dimension(py::module m)
     dim.def("get_min_length",
             &ngraph::Dimension::get_min_length,
             R"(
-                Convert this dimension's min_dimension to integer.
+                Return this dimension's min_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
                 Returns
@@ -104,7 +104,7 @@ void regclass_pyngraph_Dimension(py::module m)
     dim.def("get_max_length",
             &ngraph::Dimension::get_max_length,
             R"(
-                Convert this dimension's max_dimension to integer.
+                Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
                 Returns
@@ -117,7 +117,7 @@ void regclass_pyngraph_Dimension(py::module m)
             &ngraph::Dimension::same_scheme,
             py::arg("dim"),
             R"(
-                Convert this dimension's max_dimension to integer.
+                Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
                 Parameters
