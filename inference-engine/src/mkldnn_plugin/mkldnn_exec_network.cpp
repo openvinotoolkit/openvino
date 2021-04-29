@@ -48,7 +48,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 //        // Check if network is INT8 or Binary.
 //        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
 //        // BF16 + INT8 or BF16 + BIN.
-//        bool isFloatModel = true;
+       bool isFloatModel = true;
 //        CNNNetworkIterator iter(network);
 //        while (iter != CNNNetworkIterator()) {
 //            if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
