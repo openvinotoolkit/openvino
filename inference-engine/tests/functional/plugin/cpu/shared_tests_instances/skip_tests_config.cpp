@@ -10,8 +10,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // TODO: Issue 26264
-        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=ceil.*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
