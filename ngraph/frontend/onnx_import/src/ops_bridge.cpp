@@ -27,6 +27,7 @@
 #include "op/cast.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
 #include "op/constant_fill.hpp"
@@ -326,6 +327,7 @@ namespace ngraph
             REGISTER_OPERATOR("Conv", 1, conv);
             // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
             REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
+            REGISTER_OPERATOR("Compress", 1, compress);
             REGISTER_OPERATOR("Cos", 1, cos);
             REGISTER_OPERATOR("Cosh", 1, cosh);
             REGISTER_OPERATOR("ConstantFill", 1, constant_fill);

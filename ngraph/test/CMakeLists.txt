@@ -439,7 +439,9 @@ endif()
 
 if (NGRAPH_ONNX_EDITOR_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC onnx/onnx_test_utils.in.cpp)
+    list(APPEND MULTI_TEST_SRC
+        onnx/onnx_test_utils.in.cpp
+        onnx/onnx_import_with_editor.in.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
