@@ -106,12 +106,6 @@ std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, L
         }
         meta.ports_info[i] = port_info;
     }
-    for (const auto &out : node->outputs()) {
-        std::stringstream sstream;
-        sstream << "Can't clone operation " << node << " from model " << meta.source_model
-                << "\nOutput shape is dynamic" << std::endl;
-        NGRAPH_CHECK(out.get_partial_shape().is_static() || !static_inputs, sstream.str());
-    }
     auto op_clone = node->clone_with_new_inputs(op_inputs);
     return op_clone;
 }
@@ -120,10 +114,8 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
                                                     const std::vector<size_t> &weight_ports,
                                                     LayerTestsUtils::OPInfo &meta) {
     ngraph::OutputVector op_inputs;
-    bool static_inputs = true;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
-        static_inputs &= input.get_partial_shape().is_static();
         const auto constant_input = ngraph::get_constant_from_source(input);
         auto port_info = LayerTestsUtils::PortInfo();
         // Input is Parameter or dynamic data pass
@@ -163,12 +155,6 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
         port_info.convert_to_const = true;
         meta.ports_info[i] = port_info;
         op_inputs.push_back(param);
-    }
-    for (const auto &out : node->outputs()) {
-        std::stringstream sstream;
-        sstream << "Can't clone operation " << node << " from model " << meta.source_model
-                << "\nOutput shape is dynamic" << std::endl;
-        NGRAPH_CHECK(out.get_partial_shape().is_static() || !static_inputs, sstream.str());
     }
     auto op_clone = node->clone_with_new_inputs(op_inputs);
     return op_clone;

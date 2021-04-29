@@ -43,7 +43,6 @@ protected:
         OK = 0,
         FAILED = 1,
         RETRY = 2,
-        DYNAMIC_OUTPUT = 3
     };
     SerializationStatus serialize_function(const std::pair<std::shared_ptr<ngraph::Node>, LayerTestsUtils::OPInfo> &op_info,
                             const std::string &serialization_dir);

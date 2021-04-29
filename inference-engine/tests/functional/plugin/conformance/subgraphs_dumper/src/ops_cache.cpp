@@ -137,16 +137,6 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ngraph::Node>, Layer
         }
         auto function = std::make_shared<ngraph::Function>(results, params);
 
-        // TODO: Check 'o.get_partial_shape().is_static()' failed at
-        //  inference-engine/src/transformations/src/transformations/serialize.cpp
-        for (size_t i = 0; i < function->get_output_size(); ++i) {
-            if (function->get_output_partial_shape(i).is_dynamic()) {
-                std::cout << "Can't serialize function related to op: " << std::endl << op.first << std::endl <<
-                          "Output shape on port " << i << " is dynamic" << std::endl;
-                return OPCache::SerializationStatus::DYNAMIC_OUTPUT;
-            }
-        }
-        function->validate_nodes_and_infer_types();
         // TODO: How to define element type for multi-output ops
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
