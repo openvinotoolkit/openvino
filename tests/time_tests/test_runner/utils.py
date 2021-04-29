@@ -164,12 +164,14 @@ def get_cpu_info():
     if os_type_is_linux():
         command = r"lscpu | sed -n 's/Model name:[ \t]*//p'"
         model = subprocess.check_output(command, shell=True)
-    if os_type_is_windows():
+    elif os_type_is_windows():
         command = 'wmic cpu get name | find /v "Name"'
         model = subprocess.check_output(command, shell=True)
-    if os_type_is_darwin():
+    elif os_type_is_darwin():
         command = ['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]
         model = subprocess.check_output(command)
+    else:
+        raise UnsupportedOsError()
     name = model.decode('utf-8').strip()
     frequency = name.split('@')[1].strip()
     return name, frequency
