@@ -50,7 +50,7 @@ MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, cons
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
-        this->axis = concatOp->get_input_shape(0).size() - axis;
+        this->axis = concatOp->get_input_shape(0).size() + axis;
     } else {
         this->axis = axis;
     }

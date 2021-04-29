@@ -28,6 +28,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <string>
 #include <vector>
@@ -900,21 +901,11 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
         node.algorithm = EltwiseExp;
         node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_exp;
     }},
-    {ngraph::op::v4::Swish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
-        auto swishOp = getNgraphOpAs<ngraph::op::v4::Swish>(op);
-        if (swishOp->get_input_size() == 2) {
-            auto alphaConstOp = ngraph::as_type_ptr<ngraph::op::Constant>(swishOp->get_input_node_shared_ptr(1));
-            if (!alphaConstOp) {
-                IE_THROW(NotImplemented)
-                        << "CPU Eltwise node doesn't support ngraph operation Swish with dynamic second input";
-            }
-
-            node.alpha = alphaConstOp->cast_vector<float>()[0];
-        } else {
-            node.alpha = 1.0f;
-        }
+    {SwishNode::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto swishOp = getNgraphOpAs<SwishNode>(op);
         node.algorithm = EltwiseSwish;
         node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_swish;
+        node.alpha = swishOp->get_alpha();
     }},
     {ngraph::op::v4::HSwish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseHswish;
@@ -1769,7 +1760,7 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    specialConvolutionAddFusing = parentNode->getType() == Convolution && getAlgorithm() == EltwiseAdd &&
+    specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
             getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         fillScalesAndShifts(parentNode.get());

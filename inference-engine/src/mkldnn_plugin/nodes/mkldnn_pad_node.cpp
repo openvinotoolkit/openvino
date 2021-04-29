@@ -38,6 +38,13 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op
             errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
             return false;
         }
+        const auto pb = pad->get_pads_begin();
+        const auto pe = pad->get_pads_end();
+        if (std::count_if(pb.begin(), pb.end(), [](ptrdiff_t x) { return x < 0; }) != 0 ||
+                std::count_if(pe.begin(), pe.end(), [](ptrdiff_t x) { return x < 0; }) != 0) {
+            errorMessage = "Doesn't support 'pads_begin' or 'pads_end' negative value";
+            return false;
+        }
     } catch (...) {
         return false;
     }

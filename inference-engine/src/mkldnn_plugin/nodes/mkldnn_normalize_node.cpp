@@ -654,7 +654,7 @@ MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>
         across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
         // One of the corner cases is when axes is an empty list,
         // then we divide each input element by itself resulting value 1 for all non-zero elements
-        cornerCase = op->get_input_shape(AXES).empty();
+        cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }

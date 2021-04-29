@@ -63,11 +63,11 @@ public:
 
             noTrans = op->get_input_size() == 2;
             if (op->get_input_shape(0).size() != 4)
-                IE_THROW() << errorPrefix << " has first input with incorrect rank: " + op->get_input_shape(0).size();
+                IE_THROW() << errorPrefix << " has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size());
             if (op->get_input_shape(1).size() != 2)
-                IE_THROW() << errorPrefix << " has second input with incorrect rank: " + op->get_input_shape(1).size();
+                IE_THROW() << errorPrefix << " has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size());
             if (!noTrans && op->get_input_shape(2).size() != 4)
-                IE_THROW() << errorPrefix << " has third input with incorrect rank: " + op->get_input_shape(2).size();
+                IE_THROW() << errorPrefix << " has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size());
 
             if (psroi) {
                 if (psroi->get_input_size() != 2)

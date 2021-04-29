@@ -105,7 +105,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
     for (int i = 0; i < paddingR.size(); i++) {
-        int with_group = (withGroups) ? 1 : 0;
+        int with_group = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
         int krn = weightDims[with_group + 2 + i];
         int src = getChildEdgeAt(0)->getDims()[2 + i];
         int dst = getParentEdgeAt(0)->getDims()[2 + i];

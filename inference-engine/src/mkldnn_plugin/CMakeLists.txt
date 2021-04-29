@@ -72,7 +72,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_elements.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
