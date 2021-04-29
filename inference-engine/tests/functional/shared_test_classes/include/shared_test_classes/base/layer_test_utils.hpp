@@ -93,7 +93,7 @@ public:
 
             const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
-            if (max == 0 || (diff > static_cast<float>(threshold))) {
+            if (std::isnan(res) || !std::is_floating_point<T>::value || max == 0 || (diff > static_cast<float>(threshold))) {
                 IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
                                    << " at index " << i << " with threshold " << threshold
                                    << " failed";
