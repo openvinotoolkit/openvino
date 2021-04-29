@@ -44,7 +44,7 @@ namespace ngraph
                 {
                     m_bodies[else_body_index] = body;
                 }    
-                ngraph::Output<Node> get_output(int index) cons;
+                ngraph::Output<Node> get_output(size_t index);
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;

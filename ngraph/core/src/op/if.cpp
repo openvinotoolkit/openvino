@@ -63,7 +63,7 @@ ngraph::Rank resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_node, ngrap
     return ngraph::Rank();
 }
 
-ngraph::Output<Node> op::v0::If::get_output(int index)
+ngraph::Output<Node> op::v0::If::get_output(size_t index)
 {
     return ngraph::Output<Node>(shared_from_this(), index);
 }
@@ -281,25 +281,6 @@ std::shared_ptr<Node>
     fill_body(op, else_body_index, new_args);
     op->validate_and_infer_types();
     return op;
-}
-void op::v0::If::set_invariant_input(
-    const Output<Node>& value,
-    const std::shared_ptr<Parameter>& then_parameter,
-    const std::shared_ptr<Parameter>& else_parameter)
-{
-    auto input_index = input_for_value(value).get_index();
-    if (then_parameter != nullptr)
-    {
-        m_input_descriptions[then_body_index].push_back(
-            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
-                input_index, m_bodies[then_body_index]->get_parameter_index(then_parameter)));
-    }
-    if (else_parameter != nullptr) {
-        m_input_descriptions[else_body_index].push_back(
-            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
-                input_index, m_bodies[else_body_index]->get_parameter_index(else_parameter)));
-    }
-    validate_and_infer_types();
 }
 
 bool op::v0::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
