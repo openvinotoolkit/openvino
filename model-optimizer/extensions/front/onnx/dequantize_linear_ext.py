@@ -16,7 +16,7 @@ class DequantizeLinearFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = {}
         if get_onnx_opset_version(node) >= 13:
-            axis = onnx_attr(node, 'axis', 'i', default=1)
+            axis = onnx_attr(node, 'axis', 'i', default=None)
             attrs.update(axis=axis)
         DequantizeLinear.update_node_stat(node, attrs)
         return cls.enabled

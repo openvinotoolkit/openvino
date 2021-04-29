@@ -13,7 +13,7 @@ class DequantizeLinear(Op):
         mandatory_props = {
             'type': None,
             'op': self.op,
-            'axis': 1,
+            'axis': None,
             'version': None,
             'infer': None,
             'out_ports_count': 1,
