@@ -13,7 +13,6 @@
 
 #include <string>
 #include <vector>
-#include <cpp_interfaces/exception2status.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {

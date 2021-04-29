@@ -16,7 +16,6 @@
 #include <ngraph/op/gather.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/op/constant.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {

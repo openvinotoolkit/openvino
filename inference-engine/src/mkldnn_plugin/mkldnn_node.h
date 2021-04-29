@@ -22,7 +22,6 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>

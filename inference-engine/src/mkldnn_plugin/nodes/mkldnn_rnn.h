@@ -32,14 +32,13 @@ private:
     void fillSeqDesc();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
-    void verifyWeights();
-    void verifyBiases();
-    void convertWeightsBlobToBF16();
 
     template <typename Prec>
-    void fillWeights(const int* gate_map);
+    void fillWeights(const std::shared_ptr<ngraph::Node>& op, const int* gate_map, const size_t wIdx, const size_t rIdx);
     template <typename Prec>
-    void fillBiases(const int* gate_map);
+    void fillBiases(const std::shared_ptr<ngraph::Node>& op, const int* gate_map, const size_t bIdx);
+
+    void copyWeightsData(const std::shared_ptr<ngraph::Node>& op);
 
 private:
     InferenceEngine::Precision runtimePrecision;
@@ -87,5 +86,6 @@ private:
     std::vector<mkldnn::reorder> exec_after;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
-}; // class MKLDNNRNN
+};
+
 }  // namespace MKLDNNPlugin
