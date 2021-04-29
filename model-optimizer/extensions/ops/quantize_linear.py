@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
@@ -15,7 +16,7 @@ class QuantizeLinear(Op):
             'op': self.op,
             'axis': None,
             'version': None,
-            'infer': None,
+            'infer': QuantizeLinear.infer,
             'out_ports_count': 1,
             'in_ports_count': 3,
         }
@@ -23,3 +24,7 @@ class QuantizeLinear(Op):
 
     def supported_attrs(self):
         return ['axis']
+
+    @staticmethod
+    def infer(node: None):
+        copy_shape_infer(node)

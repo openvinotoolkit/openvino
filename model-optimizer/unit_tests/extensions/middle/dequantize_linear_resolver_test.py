@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.onnx.dequantize_linear_resolver import DequantizeLinearResolver
+from extensions.middle.dequantize_linear_resolver import DequantizeLinearResolver
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
