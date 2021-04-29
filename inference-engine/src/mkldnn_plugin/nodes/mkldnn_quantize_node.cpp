@@ -1014,21 +1014,36 @@ void MKLDNNQuantizeNode::init() {
 
         bool quantizationOnly = true;
 
-        for (int i = 0; i < cropLow.size(); i++) {
-            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+        // WA: Depending on the hardware, the compiler may enable data movement optimizations that require working with aligned data.
+        // If we receive unaligned data, then working with them can lead to segfault. To avoid this situation, we added a function
+        // that pushes data into aligned memory.
+        auto prepareAlignedData = [](float *newData, const float *oldData, int dataSize) {
+            memcpy(newData, oldData, dataSize * sizeof(float));
+        };
 
-            cropLow[i] = il;
+        std::vector<float> inputLowDataAligned(inputLowAxisSize);
+        prepareAlignedData(&inputLowDataAligned[0], inputLowData, inputLowDataAligned.size());
+
+        std::vector<float> inputHighDataAligned(inputHighAxisSize);
+        prepareAlignedData(&inputHighDataAligned[0], inputHighData, inputHighDataAligned.size());
+
+        std::vector<float> outputLowDataAligned(outputLowAxisSize);
+        prepareAlignedData(&outputLowDataAligned[0], outputLowData, outputLowDataAligned.size());
+
+        std::vector<float> outputHighDataAligned(outputHighAxisSize);
+        prepareAlignedData(&outputHighDataAligned[0], outputHighData, outputHighDataAligned.size());
+
+        for (int i = 0; i < cropLow.size(); i++) {
+            cropLow[i] = inputLowDataAligned[isInputLowBroadcasted ? 0 : i];
         }
 
         for (int i = 0; i < cropHigh.size(); i++) {
-            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
-
-            cropHigh[i] = ih;
+            cropHigh[i] = inputHighDataAligned[isInputHighBroadcasted ? 0 : i];
         }
 
         for (int i = 0; i < inputScale.size(); i++) {
-            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+            float il = inputLowDataAligned[isInputLowBroadcasted ? 0 : i];
+            float ih = inputHighDataAligned[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
             if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
@@ -1042,8 +1057,8 @@ void MKLDNNQuantizeNode::init() {
         }
 
         for (int i = 0; i < outputScale.size(); i++) {
-            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-            float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+            float ol = outputLowDataAligned[isOutputLowBroadcasted ? 0 : i];
+            float oh = outputHighDataAligned[isOutputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
             if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
@@ -1059,7 +1074,7 @@ void MKLDNNQuantizeNode::init() {
         }
 
         for (int i = 0; i < outputShift.size(); i++) {
-            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+            float ol = outputLowDataAligned[isOutputLowBroadcasted ? 0 : i];
 
             outputShift[i] = ol;
 
