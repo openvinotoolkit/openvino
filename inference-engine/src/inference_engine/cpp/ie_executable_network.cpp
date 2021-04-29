@@ -50,6 +50,19 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     this->_impl.swap(newImpl);
 }
 
+ExecutableNetwork::operator IExecutableNetwork::Ptr() {
+    return std::make_shared<ExecutableNetworkBase>(_impl);
+}
+
+std::vector<VariableState> ExecutableNetwork::QueryState() {
+    std::vector<VariableState> controller;
+    EXEC_NET_CALL_STATEMENT(
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
+        });
+    return controller;
+}
+
 IE_SUPPRESS_DEPRECATED_END
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
@@ -68,25 +81,9 @@ void ExecutableNetwork::Export(std::ostream& networkModel) {
     EXEC_NET_CALL_STATEMENT(return _impl->Export(networkModel));
 }
 
-ExecutableNetwork::operator IExecutableNetwork::Ptr() {
-    return std::make_shared<ExecutableNetworkBase>(_impl);
-}
-
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
-    IE_SUPPRESS_DEPRECATED_START
     EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
 }
-
-IE_SUPPRESS_DEPRECATED_START
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT(
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
-        });
-    return controller;
-}
-IE_SUPPRESS_DEPRECATED_END
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
     EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
