@@ -24,6 +24,9 @@
 #include <queue>
 #include <condition_variable>
 #endif
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
@@ -237,14 +240,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 }
 
 kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    int n_threads = _context.get_configuration().n_threads;
-    arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-    arena->initialize(n_threads);
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-    int n_threads = _context.get_configuration().n_threads;
-    pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
-#endif
 }
 
 kernels_cache::kernel_id kernels_cache::set_kernel_source(
@@ -406,6 +401,14 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
         get_program_source(_kernels_code, &batches);
         _one_time_kernels.clear();
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+        int n_threads = _context.get_configuration().n_threads;
+        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
+        arena->initialize(n_threads);
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+        int n_threads = _context.get_configuration().n_threads;
+        pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
+#endif
     }
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
@@ -435,6 +438,22 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
         _kernels_code.clear();
         _pending_compilation = false;
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+        arena.reset();
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+        malloc_trim(0);
+#endif
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+        pool.reset();
+#if defined(__unix__) && !defined(__ANDROID__)
+        malloc_trim(0);
+#endif
+#endif
     }
 }
 
