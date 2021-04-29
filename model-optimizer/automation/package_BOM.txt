@@ -196,6 +196,7 @@ extensions/front/mxnet/elementwise_ext.py
 extensions/front/mxnet/eltwise_scalar_replacers.py
 extensions/front/mxnet/exp_ext.py
 extensions/front/mxnet/expand_dims_ext.py
+extensions/front/mxnet/fft_ext.py
 extensions/front/mxnet/flatten_ext.py
 extensions/front/mxnet/fully_connected_ext.py
 extensions/front/mxnet/gather.py
@@ -701,6 +702,7 @@ extensions/ops/lstm_sequence.py
 extensions/ops/MatMul.py
 extensions/ops/merge.py
 extensions/ops/mvn.py
+extensions/ops/mxfft.py
 extensions/ops/mxrepeat.py
 extensions/ops/mxreshape.py
 extensions/ops/NextIteration.py
