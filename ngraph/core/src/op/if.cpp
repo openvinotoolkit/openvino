@@ -63,17 +63,9 @@ ngraph::Rank resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_node, ngrap
     return ngraph::Rank();
 }
 
-ngraph::Output<Node> op::v0::If::set_output(ngraph::Output<ngraph::Node> then_output,
-                 ngraph::Output<ngraph::Node> else_output)
+ngraph::Output<Node> op::v0::If::get_output(int index)
 {
-    auto output_index = get_output_size();
-    m_output_descriptions[then_body_index].push_back(std::make_shared<BodyOutputDescription>(
-        m_bodies[then_body_index]->get_result_index(then_output), output_index));
-    m_output_descriptions[else_body_index].push_back(std::make_shared<BodyOutputDescription>(
-        m_bodies[else_body_index]->get_result_index(else_output), output_index));
-    set_output_size(output_index + 1);
-    validate_and_infer_types();
-    return ngraph::Output<Node>(shared_from_this(), output_index);
+    return ngraph::Output<Node>(shared_from_this(), index);
 }
 
 void op::v0::If::validate_and_infer_type_body(std::shared_ptr<Function> body,
@@ -101,9 +93,6 @@ void op::v0::If::validate_and_infer_type_body(std::shared_ptr<Function> body,
 void op::v0::If::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_If_validate_and_infer_types);
-  //  NODE_VALIDATION_CHECK(this,
- //                         get_input_size() == m_input_descriptions.size(),
-//                          "Number of inputs must be the same as number of input descriptions");
     auto cond_output = inputs().at(0).get_source_output();
 
     auto cond_partial_shape = cond_output.get_partial_shape();
@@ -231,10 +220,6 @@ void op::v0::If::validate_and_infer_types()
             }
         }
     }
-
-    //NODE_VALIDATION_CHECK(this,
-   //                       get_output_size() == m_output_descriptions.size(),
-   //                       "Number of outputs must be the same as number of output descriptions");
 }
 
 void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,

@@ -30,7 +30,6 @@ namespace ngraph
                     inputs_to_body[input_desc->m_body_parameter_index] =
                         args[input_desc->m_input_index];
                 }
-               // outs_from_body.resize(out_descs[branch_index].size());
                 reference::function(bodies[branch_index], inputs_to_body, outs_from_body);
                 for (auto out_descr : out_descs[branch_index]) 
                 {

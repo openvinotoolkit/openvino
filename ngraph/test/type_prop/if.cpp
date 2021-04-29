@@ -31,13 +31,22 @@ TEST(type_prop, if_simple_test)
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<op::If>(cond);
+    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
     if_op->reserve_bodies(2);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    if_op->set_invariant_input(X, Xt, Xe);
-    if_op->set_invariant_input(Y, Yt, Ye);
-    auto res = if_op->set_output(then_op, else_op);
+    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
+    };
+    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
+    if_op->set_input_descriptions(if_op->then_body_index, inputs);
+    if_op->set_input_descriptions(if_op->else_body_index, inputs);
+    if_op->set_output_descriptions(if_op->then_body_index, outputs);
+    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    if_op->validate_and_infer_types();
+    auto res = if_op->get_output(0);
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
@@ -63,14 +72,22 @@ TEST(type_prop, if_non_const_condition_test)
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<op::If>(cond);
-    if_op->reserve_bodies(2);
+    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    if_op->set_invariant_input(X, Xt, Xe);
-    if_op->set_invariant_input(Y, Yt, Ye);
-    auto res = if_op->set_output(then_op, else_op);
-    auto result0 = make_shared<op::Result>(res);
+    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
+        make_shared<op::If::InvariantInputDescription>(1,0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
+    };
+    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
+        make_shared<op::If::BodyOutputDescription>(0, 0)
+    };
+    if_op->set_input_descriptions(if_op->then_body_index, inputs);
+    if_op->set_input_descriptions(if_op->else_body_index, inputs);
+    if_op->set_output_descriptions(if_op->then_body_index, outputs);
+    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    if_op->validate_and_infer_types();
+    auto result0 = make_shared<op::Result>(if_op->get_output(0));
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
@@ -97,17 +114,21 @@ TEST(type_prop, if_clone_test)
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<op::If>(cond);
-    if_op->reserve_bodies(2);
+    auto if_op = make_shared<op::If>(OutputVector{cond, Xe, Ye});
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    if_op->set_invariant_input(X, Xt, Xe);
-    if_op->set_invariant_input(Y, Yt, Ye);
-    auto res = if_op->set_output(then_op, else_op);
+    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
+    };
+    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
+    if_op->set_input_descriptions(if_op->then_body_index, inputs);
+    if_op->set_input_descriptions(if_op->else_body_index, inputs);
+    if_op->set_output_descriptions(if_op->then_body_index, outputs);
+    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    
 
-    auto new_if = if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew});
-    auto result0 = make_shared<op::Result>(res);
-    Shape out0_shape{32, 40, 10};
-    auto sh = result0->get_output_shape(0);
-    EXPECT_EQ(sh, out0_shape);
+    auto new_if = std::dynamic_pointer_cast<op::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
+    EXPECT_EQ(true, true);
 }
