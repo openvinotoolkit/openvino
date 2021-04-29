@@ -48,16 +48,18 @@ enum Type {
     Concatenation,
     Eltwise,
     Gemm,
-    Crop,
     Reshape,
     Tile,
     SimplerNMS,
     ROIAlign,
     ROIPooling,
     BatchNormalization,
+    DepthToSpace,
     Flatten,
     Pad,
     Permute,
+    SpaceToDepth,
+    StridedSlice,
     Copy,
     MemoryOutput,
     MemoryInput,
@@ -122,8 +124,6 @@ static std::string NameFromType(Type type) {
             return "Concatenation";
         case Depthwise:
             return "Depthwise";
-        case Crop:
-            return "Crop";
         case Reshape:
             return "Reshape";
         case Tile:
@@ -136,12 +136,18 @@ static std::string NameFromType(Type type) {
             return "ROIPooling";
         case BatchNormalization:
             return "BatchNormalization";
+        case DepthToSpace:
+            return "DepthToSpace";
         case Flatten:
             return "Flatten";
         case Pad:
             return "Pad";
         case Permute:
             return "Permute";
+        case SpaceToDepth:
+            return "SpaceToDepth";
+        case StridedSlice:
+            return "StridedSlice";
         case Copy:
             return "Copy";
         case MemoryOutput:
@@ -453,7 +459,7 @@ public:
 
         const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
-            THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
+            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
         for (const auto& desc : descs) {
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
@@ -481,7 +487,7 @@ public:
             }
         }
 
-        THROW_IE_EXCEPTION << "Primitive descriptor was not found for node " << getName() << ".";
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
     static void invertVectorCopyUtoI(const InferenceEngine::PropertyVector<unsigned int>& src, std::vector<ptrdiff_t>& dst) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
     explicit GatherImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             Precision inIdxPrecision = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getPrecision();
             if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::FP16)
@@ -33,7 +33,7 @@ public:
 
             const SizeVector& dictionary_dims = layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getDims();
             if (dictionary_dims.size() == 0)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimension!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimension!";
             // Dictionary must be at least rank axis + 1
             IE_ASSERT(-static_cast<int>(dictionary_dims.size()) <= axis && axis < static_cast<int>(dictionary_dims.size()))
                 << layer->name << " Incorrect input parameters dimensions and axis number!";
@@ -48,7 +48,7 @@ public:
                 dataLength *= dictionary_dims[i];
 
             if (dataLength == 0)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimension!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimension!";
 
             LayerConfig config;
             DataConfig dataConfigIdx, dataConfigDct;
@@ -68,7 +68,7 @@ public:
             config.outConfs.push_back(dataConfigOut);
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

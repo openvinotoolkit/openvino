@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <numeric>
 #include <vector>
@@ -59,7 +47,7 @@ TEST(op_eval, split)
                     {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{1})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{3, 2, 3}));
@@ -93,7 +81,7 @@ TEST(op_eval, split_neg_axis)
                     {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{-2})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1}));
@@ -127,7 +115,7 @@ TEST(op_eval, split_boolean_type)
                     {make_host_tensor<element::Type_t::boolean>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{2})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::boolean);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1, 2}));
@@ -162,7 +150,7 @@ TEST(op_eval, split_1d)
                     {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{0})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::f32);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2}));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
             ASSERT_NO_FATAL_FAILURE(executableApi = createExecutableNetworkFromIR());
         }
 
-        if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+        if (executableApi) {
             for (int i=0; i != config._nrequests; i++ ) {
                 inferRequests.push_back(executableApi.CreateInferRequest());
             }
@@ -116,7 +116,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
         }
 
         auto make_unified_endpoints = [&] () {
-            if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+            if (executableApi) {
                 return std::make_pair(executableApi.GetInputsInfo(), executableApi.GetOutputsInfo());
             }
             auto inputs2 = network.getInputsInfo();
@@ -188,7 +188,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                             inferRequests[i].StartAsync();
                         }
                         for (int i = 0; i != requestProcessed; i++) {
-                            inferRequests[i].Wait(IInferRequest::RESULT_READY);
+                            inferRequests[i].Wait(InferRequest::RESULT_READY);
                         }
                         sts = OK;
                     }
@@ -225,11 +225,11 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
 
                 // Check errors
                 if (sts == GENERAL_ERROR) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Critical error: " << dsc.msg;
+                    IE_THROW() << "Scoring failed! Critical error: " << dsc.msg;
                 } else if (sts == NOT_IMPLEMENTED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Input data is incorrect and not supported!";
+                    IE_THROW() << "Scoring failed! Input data is incorrect and not supported!";
                 } else if (sts == NETWORK_NOT_LOADED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! " << dsc.msg;
+                    IE_THROW() << "Scoring failed! " << dsc.msg;
                 }
                 if (!fetchResult.fetchMore) break;
             }

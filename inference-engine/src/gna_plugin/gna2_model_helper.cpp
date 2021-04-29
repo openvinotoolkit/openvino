@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,7 +156,7 @@ Gna2Shape* create_shape2D_parameter(uint32_t x, uint32_t y) {
 
 void freeGna2Operation(Gna2Operation& operation) {
     if (operation.Operands != nullptr) {
-        for (auto i = 0; i < operation.NumberOfOperands; i++) {
+        for (uint32_t i = 0; i < operation.NumberOfOperands; i++) {
             if (operation.Operands[i] != nullptr) {
                 gnaUserFree(const_cast<Gna2Tensor*>(operation.Operands[i]));
                 operation.Operands[i] = nullptr;
@@ -167,7 +167,7 @@ void freeGna2Operation(Gna2Operation& operation) {
         operation.NumberOfOperands = 0;
     }
     if (operation.Parameters != nullptr) {
-        for (auto i = 0; i < operation.NumberOfParameters; i++) {
+        for (uint32_t i = 0; i < operation.NumberOfParameters; i++) {
             if (operation.Parameters[i] != nullptr) {
                 gnaUserFree(operation.Parameters[i]);
                 operation.Parameters[i] = nullptr;

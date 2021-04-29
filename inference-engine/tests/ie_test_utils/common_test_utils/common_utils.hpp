@@ -1,6 +1,7 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include <iterator>
 #include <vector>
 #include <set>
+#include <chrono>
 
 #include <cpp/ie_cnn_network.h>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
@@ -57,10 +59,7 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
             return layer;
         ++i;
     }
-
-    std::stringstream stream;
-    stream << "Layer " << layerName << " not found in network";
-    throw InferenceEngine::NotFound(stream.str());
+    IE_THROW(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>
@@ -116,6 +115,13 @@ inline auto tuple2Vector(Tuple&& tuple) -> decltype(tuple2Vector(std::declval<Tu
 template<class T>
 inline T getTotal(const std::vector<T>& shape) {
     return shape.empty() ? 0 : std::accumulate(shape.cbegin(), shape.cend(), static_cast<T>(1), std::multiplies<T>());
+}
+
+inline std::string GetTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
 }
 
 }  // namespace CommonTestUtils

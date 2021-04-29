@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,5 +100,5 @@ void ProposalBehTest::Run() {
 }
 
 TEST_P(ProposalBehTest, CompareWithRefs) {
-    ASSERT_THROW(Run(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(Run(), InferenceEngine::Exception);
 }

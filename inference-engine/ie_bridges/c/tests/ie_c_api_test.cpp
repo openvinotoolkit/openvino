@@ -1,5 +1,5 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier : Apache-2.0
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
@@ -53,8 +53,8 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
+        fclose(fp);
     }
-    fclose(fp);
     return read_size;
 }
 
@@ -365,6 +365,48 @@ TEST(ie_core_load_network, loadNetworkNoConfig) {
 
     ie_exec_network_free(&exe_network);
     ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_load_network_from_file, loadNetworkNoConfig) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    ie_exec_network_free(&exe_network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_load_network_from_file, loadNetwork_errorHandling) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(nullptr, xml, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, nullptr, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, nullptr, &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", nullptr, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, nullptr));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "UnregisteredDevice", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
     ie_core_free(&core);
 }
 

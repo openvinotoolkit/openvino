@@ -84,7 +84,7 @@ Each device plugin includes a library of optimized implementations to execute kn
 execute a custom operation. The custom operation extension is implemented according to the target device:
 
 - Custom Operation CPU Extension
-   - A compiled shared library (`.so`, `.dylib` or `.dll`) needed by the CPU Plugin for executing the custom operation
+   - A compiled shared library (`.so` or `.dll`) needed by the CPU Plugin for executing the custom operation
    on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
    details.
 - Custom Operation GPU Extension
@@ -337,12 +337,12 @@ operation for the CPU plugin. The code of  the library is described in the [Exte
 In order to build the extension run the following:<br>
 ```bash
 mkdir build && cd build
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make --jobs=$(nproc)
 ```
 
-The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`). It should be loaded in the
+The result of this command is a compiled shared library (`.so` or `.dll`). It should be loaded in the
 application using `Core` class instance method `AddExtension` like this
 `core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
@@ -368,7 +368,7 @@ python3 mri_reconstruction_demo.py \
 - [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
-- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
+- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 ## Converting Models:

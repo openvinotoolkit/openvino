@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,7 +163,7 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpecialDimension(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
         return false;
     }
 

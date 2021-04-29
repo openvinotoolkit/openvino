@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in, int batch) {
-        if (!IsReady()) THROW_IE_EXCEPTION<< "Wrong state. Topology not ready.";
+        if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
         auto input = inputNodes.find(name);
         if (input != inputNodes.end()) {
@@ -118,11 +118,11 @@ public:
                 if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
                     _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr), in->getTensorDesc().getLayout());
                 } else {
-                    THROW_IE_EXCEPTION << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
+                    IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
                 }
             }
         } else {
-            THROW_IE_EXCEPTION << "Input blob for infer '" << name << "' doesn't correspond to input in network";
+            IE_THROW() << "Input blob for infer '" << name << "' doesn't correspond to input in network";
         }
     }
 
@@ -140,7 +140,7 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
@@ -152,7 +152,7 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
@@ -164,7 +164,7 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
@@ -176,7 +176,7 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
@@ -188,7 +188,7 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
@@ -200,12 +200,12 @@ public:
                         }
 
                         if (in_f->readOnly() == nullptr) {
-                            THROW_IE_EXCEPTION << "Input data was not allocated.";
+                            IE_THROW() << "Input data was not allocated.";
                         }
                     }
                     break;
                     default:
-                        THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
+                        IE_THROW() << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
                 }
 
                 PushInputData(input.first, input.second, batch);

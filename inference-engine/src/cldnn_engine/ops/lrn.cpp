@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& op) {
 
     auto axis_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (!axis_const) {
-        THROW_IE_EXCEPTION << "Unsupported axes node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported axes node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
     auto axis_value = axis_const->cast_vector<int64_t>();
     auto localSize = op->get_nsize();

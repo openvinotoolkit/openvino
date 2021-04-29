@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,9 @@ public:
 
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
 
+    // returns true if at least one child is not FQ
+    static bool notAllChildrensAreFQ(const NodeVector& layer);
+
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
@@ -49,6 +52,12 @@ public:
 
     template <typename OperationType>
     static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType> operation, const element::Type& precision);
+
+    // applies constant folding of operation to constant and returns the specified output
+    static std::shared_ptr<opset1::Constant> foldDequantizationConstant(
+        const std::shared_ptr<opset1::Constant>& foldingConstant,
+        const std::shared_ptr<Node>& operation,
+        const size_t outIdx = 0);
 
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
@@ -135,6 +144,8 @@ public:
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
+
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible

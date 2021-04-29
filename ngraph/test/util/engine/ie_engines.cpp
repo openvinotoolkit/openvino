@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ie_engines.hpp"
 
@@ -71,6 +59,29 @@ namespace
         return ngraph::test::all_close<T>(test_results.first, test_results.second);
     }
 
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        NGRAPH_CHECK(test_results.first.size() == test_results.second.size(),
+                     "Number of expected and computed results don't match");
+
+        std::vector<double> expected_double(test_results.first.size());
+        std::vector<double> result_double(test_results.second.size());
+
+        for (size_t i = 0; i < test_results.first.size(); ++i)
+        {
+            expected_double[i] = static_cast<double>(test_results.first[i]);
+            result_double[i] = static_cast<double>(test_results.second[i]);
+        }
+
+        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    }
+
     /// Compares two blobs elementwise
     inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                   InferenceEngine::MemoryBlob::CPtr expected,
@@ -119,6 +130,9 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::BF16:
+            return compare_blobs<bfloat16>(computed, expected, tolerance_bits);
+            break;
         default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
@@ -148,8 +162,10 @@ namespace
         case element::Type_t::u16: return InferenceEngine::Precision::U16; break;
         case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
-        case element::Type_t::u1: throw std::runtime_error("unsupported type");
-        case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+        case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
+        case element::Type_t::i4:
+        case element::Type_t::u4:
+        case element::Type_t::undefined:
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -183,7 +199,7 @@ void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
-        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+        IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
                            << m_allocated_inputs << " were passed.";
     }
     else
@@ -290,7 +306,7 @@ std::shared_ptr<Function>
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
+            IE_THROW() << "Unsupported operator detected in the graph: "
                                << node->get_type_info().name;
         }
     }
@@ -311,6 +327,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset5.begin(), opset5.end());
     const auto& opset6 = get_opset6().get_type_info_set();
     ie_ops.insert(opset6.begin(), opset6.end());
+    const auto& opset7 = get_opset7().get_type_info_set();
+    ie_ops.insert(opset7.begin(), opset7.end());
     return ie_ops;
 }
 
@@ -323,20 +341,14 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// those definitions and template specializations are required for clang (both Linux and Mac)
 // Without this section the linker is not able to find destructors for missing TBlob specializations
 // which are instantiated in the unit tests that use TestCase and this engine
-#ifdef __clang__
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {
         free();
     }
 
-    template class TBlob<unsigned int>;
-    template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
-    template class TBlob<char>;
-#endif
 } // namespace InferenceEngine

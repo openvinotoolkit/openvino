@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ struct Config {
 #endif
         inputScaleFactors = r.inputScaleFactors;
         gnaFlags = r.gnaFlags;
-        std::lock_guard<std::mutex>(r.mtx4keyConfigMap);
+        std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
         keyConfigMap = r.keyConfigMap;
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
@@ -49,7 +49,7 @@ struct Config {
     std::string GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;
 
-    // precision of GNA hardware model
+    // default precision of GNA hardware model (see QuantI16 quantizer struct)
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     std::string dumpXNNPath;

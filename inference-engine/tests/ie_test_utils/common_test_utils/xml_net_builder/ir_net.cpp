@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ namespace CommonTestUtils {
 void Port::connect(Port &port) {
     auto locked = m_parent.lock();
     if (!locked) {
-        THROW_IE_EXCEPTION << "Error getting parent class";
+        IE_THROW() << "Error getting parent class";
     }
     auto &ir_net = locked->getNetwork();
     ir_net.addEdge(*this, port);

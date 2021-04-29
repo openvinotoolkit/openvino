@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,11 @@ public:
             if (!type.empty()) {
                 const CNNLayerPtr layer = getLayer(network, layerName);
                 if (layer == nullptr) {
-                    THROW_IE_EXCEPTION << "layer was not found " << layerName;
+                    IE_THROW() << "layer was not found " << layerName;
                 }
 
                 if (layer->type != type) {
-                    THROW_IE_EXCEPTION << "layer '" << layer->name << "' type '" << layer->type << "' is not correct, expected " << type;
+                    IE_THROW() << "layer '" << layer->name << "' type '" << layer->type << "' is not correct, expected " << type;
                 }
             }
             checkLayerOuputPrecision(network, layerName, expectedPrecision);
@@ -56,7 +56,7 @@ public:
     static void checkLayerOuputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision) {
         CNNLayerPtr layer = getLayer(network, layerName);
         if (layer == nullptr) {
-            THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
+            IE_THROW() << "layer '" << layerName << "' was not found";
         }
         for (DataPtr data : layer->outData) {
             ASSERT_EQ(expectedPrecision, data->getPrecision()) << " unexpected precision " << data->getPrecision() << " for layer " << layerName;
@@ -66,7 +66,7 @@ public:
     static void checkLayerOuputPrecision(const CNNNetwork& network, const std::string& layerName, std::vector<Precision> expectedPrecisions) {
         CNNLayerPtr layer = getLayer(network, layerName);
         if (layer == nullptr) {
-            THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
+            IE_THROW() << "layer '" << layerName << "' was not found";
         }
         for (DataPtr data : layer->outData) {
             ASSERT_TRUE(std::any_of(

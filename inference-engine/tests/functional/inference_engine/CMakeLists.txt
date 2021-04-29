@@ -1,5 +1,4 @@
-# Copyright (C) 2019-2021 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,6 +15,8 @@ set(LINK_LIBRARIES
     openvino::itt
     openvino::conditional_compilation
     sharedTestClasses
+    inference_engine_snippets
+    offline_transformations
 )
 
 set(DEPENDENCIES

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,7 +100,7 @@ public:
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
-                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(IInferRequest::RESULT_READY));
+                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(InferRequest::RESULT_READY));
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {

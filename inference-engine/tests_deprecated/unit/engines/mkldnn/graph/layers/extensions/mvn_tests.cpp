@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -328,7 +328,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -386,7 +386,7 @@ public:
         try {
             is_blocked = layer->GetParamAsBool("is_blocked");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -403,7 +403,7 @@ public:
                     return 0;
                 return (a + b - 1) / b;
             };
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -601,7 +601,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

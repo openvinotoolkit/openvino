@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,14 +40,14 @@ Paddings getPaddingsInternal(const Layer& layer) {
                         PropertyVector<unsigned>(layer._kernel.size(), 0u)};
             } else {
                 if ((insData.size() > 3 || insData.empty()) && layer.type != "DeformableConvolution")
-                    THROW_IE_EXCEPTION << "number of inputs should be in range [1, 3]";
+                    IE_THROW() << "number of inputs should be in range [1, 3]";
                 if ((insData.size() > 4 || insData.empty()) && layer.type == "DeformableConvolution")
-                    THROW_IE_EXCEPTION << "number of inputs should be in range [2, 4]";
+                    IE_THROW() << "number of inputs should be in range [2, 4]";
                 auto firstInput = insData[0].lock();
-                if (!firstInput) THROW_IE_EXCEPTION << "input is empty";
+                if (!firstInput) IE_THROW() << "input is empty";
                 auto shape = firstInput->getTensorDesc().getDims();
                 auto shape_size = shape.size();
-                if (shape_size < 4 || shape_size > 5) THROW_IE_EXCEPTION << "input shape must be 4D or 5D";
+                if (shape_size < 4 || shape_size > 5) IE_THROW() << "input shape must be 4D or 5D";
 
                 std::vector<int> shapes;
                 shapes.push_back(static_cast<int>(shape[shape_size - 1]));
@@ -91,8 +91,8 @@ Paddings getPaddingsInternal(const Layer& layer) {
             }
         }
         return {layer._padding, layer._pads_end};
-    } catch (const InferenceEngine::details::InferenceEngineException& iee) {
-        THROW_IE_EXCEPTION << errorPrefix << iee.what();
+    } catch (const InferenceEngine::Exception& iee) {
+        IE_THROW() << errorPrefix << iee.what();
     }
 }
 
@@ -107,7 +107,7 @@ public:
         return true;
     }
     bool operator()(CNNLayer* layer) const {
-        THROW_IE_EXCEPTION << "padding calculation for layer: " << layer->name << "(" << layer->type << ") unsupported";
+        IE_THROW() << "padding calculation for layer: " << layer->name << "(" << layer->type << ") unsupported";
     }
 };
 
@@ -124,13 +124,13 @@ int getNumIteration(const TensorIterator& tensorIterator) {
     const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
     const auto getNumIterations = [](const PortMap& rule, const DataPtr& iterableData) -> int {
         if (iterableData == nullptr) {
-            THROW_IE_EXCEPTION << ": Iteration over an invalid data object (null pointer dereference)";
+            IE_THROW() << ": Iteration over an invalid data object (null pointer dereference)";
         }
         const auto& dimensions = iterableData->getDims();
 
         const auto axis = rule.axis;
         if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
-            THROW_IE_EXCEPTION << R"(: Invalid "axis" value in an iteration component: )"
+            IE_THROW() << R"(: Invalid "axis" value in an iteration component: )"
                                << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
         }
         const auto space = dimensions[axis];
@@ -139,7 +139,7 @@ int getNumIteration(const TensorIterator& tensorIterator) {
 
         const auto stride = rule.stride;
         if (stride == 0) {
-            THROW_IE_EXCEPTION << R"(: Invalid "stride" value in an iteration component: )" << rule.stride << " (infinite loop)";
+            IE_THROW() << R"(: Invalid "stride" value in an iteration component: )" << rule.stride << " (infinite loop)";
         }
         const auto step = std::abs(stride);
 
@@ -147,12 +147,12 @@ int getNumIteration(const TensorIterator& tensorIterator) {
         const auto dst = stride < 0 ? start : end;
         const auto length = dst - src;
         if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
-            THROW_IE_EXCEPTION << R"(: Invalid "start"/"stride"/"end" values in an iteration component)"
+            IE_THROW() << R"(: Invalid "start"/"stride"/"end" values in an iteration component)"
                                << ": \"start\" = " << rule.start << ", \"stride\" = " << rule.stride  << ", \"end\" = " << rule.end;
         }
 
         if (length % step != 0) {
-            THROW_IE_EXCEPTION << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
+            IE_THROW() << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
         }
 
         return static_cast<int>(length / step);
@@ -167,7 +167,7 @@ int getNumIteration(const TensorIterator& tensorIterator) {
         }
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(tensorIterator.insData.size())) {
-            THROW_IE_EXCEPTION << R"(: Invalid "from" value: "from" = )" << rule.from
+            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
                                << " inputs number = " << tensorIterator.insData.size() << " (out of range)";
         }
 
@@ -176,7 +176,7 @@ int getNumIteration(const TensorIterator& tensorIterator) {
             isDefault = false;
             numIterations = currentNumIterations;
         } else if (numIterations != currentNumIterations) {
-            THROW_IE_EXCEPTION << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
         }
     }
 
@@ -186,7 +186,7 @@ int getNumIteration(const TensorIterator& tensorIterator) {
         }
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(tensorIterator.outData.size())) {
-            THROW_IE_EXCEPTION << R"(: Invalid "from" value: "from" = )" << rule.from
+            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
                                << " inputs number = " << tensorIterator.outData.size() << " (out of range)";
         }
 
@@ -195,7 +195,7 @@ int getNumIteration(const TensorIterator& tensorIterator) {
             isDefault = false;
             numIterations = currentNumIterations;
         } else if (numIterations != currentNumIterations) {
-            THROW_IE_EXCEPTION << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
         }
     }
 

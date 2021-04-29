@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "matchers/fill_with_data.hpp"
 #include "matchers/weights_matcher.hpp"
 #include <gmock/gmock-generated-actions.h>
+#include <debug.h>
 
 #include <gmock/gmock-more-actions.h>
 #include "gmock/gmock.h"
@@ -166,7 +167,7 @@ void GNAPropagateMatcher :: match() {
                     if (layer->name == pattern.first) {
                         auto weightableLayer = dynamic_pointer_cast<WeightableLayer>(layer);
                         if (!weightableLayer) {
-                            THROW_IE_EXCEPTION << "given layer: " << layer->name <<" doesnt have weights";
+                            IE_THROW() << "given layer: " << layer->name <<" doesnt have weights";
                         }
                         fillWeights(weightableLayer->_weights, pattern.second);
                         break;

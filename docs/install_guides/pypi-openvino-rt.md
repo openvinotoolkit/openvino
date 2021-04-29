@@ -21,16 +21,18 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 
 ## System Requirements
 
-* [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
-* Supported Operating Systems:
-  - Ubuntu* 18.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - Red Hat* Enterprise Linux* 8.2 (64 bit) (python 3.6 or 3.7)
-  - CentOS 7.4 (64 bit) (python 3.6 or 3.7)
-  - macOS* 10.15.x versions (python 3.6, 3.7, 3.8)
-  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions (python 3.6, 3.7, 3.8)
-  - Windows Server* 2016 or higher (python 3.6, 3.7, 3.8)
-> NOTE: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated
+The table below lists the supported operating systems and Python* versions required to run the installation.
+
+| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
+| :------------------------------------------------------------| :---------------------------------------------------|
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7                                            |
+|   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
+|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
+|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
+
+> **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 ## Install the Runtime Package
 
@@ -42,10 +44,14 @@ To avoid dependency conflicts, use a virtual environment. Skip this
 Create virtual environment:
 ```sh
 python -m pip install --user virtualenv 
-python -m venv openvino_env --system-site-packages
+python -m venv openvino_env
 ```
 
-Activate virtual environment:<br>
+> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
+`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+
+### Step 2. Activate Virtual Environment
+
 On Linux and macOS:
 ```sh
 source openvino_env/bin/activate
@@ -55,14 +61,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 2. Set Up and Update pip to the Highest Version
+### Step 3. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 3. Install the Package
+### Step 4. Install the Package
 
 Run the command below: <br>
 
@@ -70,7 +76,7 @@ Run the command below: <br>
    pip install openvino
    ```
 
-### Step 4. Verify that the Package is Installed
+### Step 5. Verify that the Package is Installed
 
 Run the command below:
 ```sh

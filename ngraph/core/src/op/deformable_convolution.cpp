@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/deformable_convolution.hpp"
 #include "itt.hpp"
@@ -183,13 +171,18 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             return;
         }
     }
-
+    // adjust filter shape to reuse regular infer_convolution_forward()
+    const auto new_filters_pshape = [&](int groups) {
+        auto new_shape(filters_shape);
+        new_shape[1] *= groups;
+        return new_shape;
+    }(m_group);
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,
                                              Strides(m_strides.size(), 1), // dummy data dilations
                                              m_pads_begin,
                                              m_pads_end,
-                                             filters_shape,
+                                             new_filters_pshape,
                                              m_strides,
                                              m_dilations);
 

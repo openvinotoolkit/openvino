@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -35,6 +22,7 @@ from mo.ops.result import Result
 
 class EfficientDet(FrontReplacementFromConfigFileGeneral):
     replacement_id = 'AutomlEfficientDet'
+    run_not_recursively = True
 
     def run_before(self):
         from extensions.front.ExpandDimsToUnsqueeze import ExpandDimsToUnsqueeze
@@ -70,10 +58,11 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
         # which includes padding and resizing from the model
         preprocessing_input_node_id = replacement_descriptions['preprocessing_input_node']
         assert preprocessing_input_node_id in graph.nodes, 'The node with name "{}" is not found in the graph. This ' \
-                                                           'node should provide scaled image output and is specified' \
+                                                           'should be a last node before image normalization and is specified' \
                                                            ' in the json file.'.format(preprocessing_input_node_id)
         preprocessing_input_node = Node(graph, preprocessing_input_node_id)
-        preprocessing_input_node.in_port(0).get_connection().set_source(parameter_node.out_port(0))
+        consumer_node = preprocessing_input_node.out_port(0).get_connection().get_destination().node
+        consumer_node.in_port(0).get_connection().set_source(parameter_node.out_port(0))
 
         preprocessing_output_node_id = replacement_descriptions['preprocessing_output_node']
         assert preprocessing_output_node_id in graph.nodes, 'The node with name "{}" is not found in the graph. This ' \

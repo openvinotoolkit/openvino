@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,7 +24,7 @@ endif()
 set(IE_VS_VER_COMPANY_NAME_STR "Intel Corporation")
 set(IE_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
 set(IE_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
-set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2020, Intel Corporation")
+set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
 set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 
 #
@@ -49,6 +49,11 @@ function(ie_add_vs_version_file)
 
     if(NOT TARGET ${VS_VER_NAME})
         message(FATAL_ERROR "${VS_VER_NAME} must define a target")
+    endif()
+
+    get_target_property(target_type ${VS_VER_NAME} TYPE)
+    if(NOT target_type MATCHES "^(SHARED|MODULE)_LIBRARY$")
+        message(FATAL_ERROR "ie_add_vs_version_file can work only with dynamic libraries")
     endif()
 
     macro(_vs_ver_update_variable name)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,24 +19,24 @@ public:
         _errorPrefix = std::string("Layer GatherND with name '") + layer->name + "'";
 
         if (layer->insData.size() != 2 || layer->outData.size() != 1)
-            THROW_IE_EXCEPTION << _errorPrefix << " has invalid number of input/output edges.";
+            IE_THROW() << _errorPrefix << " has invalid number of input/output edges.";
 
         auto data = layer->insData[_dataIndex].lock();
         auto indices = layer->insData[_indicesIndex].lock();
         if (!data || !indices)
-            THROW_IE_EXCEPTION << _errorPrefix << " has nullable inputs.";
+            IE_THROW() << _errorPrefix << " has nullable inputs.";
         Precision dataPrecision = data->getTensorDesc().getPrecision();
         if (dataPrecision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
                 dataPrecision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
                 dataPrecision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-            THROW_IE_EXCEPTION << _errorPrefix << " has unsupported 'data' input precision: " << dataPrecision;
+            IE_THROW() << _errorPrefix << " has unsupported 'data' input precision: " << dataPrecision;
         }
 
         Precision indicesPrecision = indices->getTensorDesc().getPrecision();
         if (indicesPrecision != Precision::I32 &&
                 indicesPrecision != Precision::I16 && indicesPrecision != Precision::U16 &&
                 indicesPrecision != Precision::I8 && indicesPrecision != Precision::U8) {
-            THROW_IE_EXCEPTION << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
+            IE_THROW() << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
         }
 
         _dataTypeSize = dataPrecision.size();
@@ -45,7 +45,7 @@ public:
 
         _batchDims = layer->GetParamAsInt("batch_dims", 0);
         if (_batchDims >= std::min(dataDims.size(), indicesDims.size()))
-            THROW_IE_EXCEPTION << _errorPrefix << " has invalid batch_dims attribute: " << _batchDims;
+            IE_THROW() << _errorPrefix << " has invalid batch_dims attribute: " << _batchDims;
 
         _batchNum = 1lu;
         for (size_t i = 0; i < _batchDims; i++) {
@@ -55,7 +55,7 @@ public:
         _sliceRank = indicesDims[indicesDims.size() - 1];
         _dataRank = dataDims.size() - _batchDims;
         if (_sliceRank > _dataRank)
-            THROW_IE_EXCEPTION << _errorPrefix << " has invalid inputs shapes.";
+            IE_THROW() << _errorPrefix << " has invalid inputs shapes.";
 
         _blockSize = 1;
         for (size_t i = _sliceRank + _batchDims; i < dataDims.size(); i++) {

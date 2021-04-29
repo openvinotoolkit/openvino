@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdlib>
 #include <cstring>
-#include "ie_parallel.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 #include <iostream>
 #include <vector>
@@ -90,19 +90,24 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 #if defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
-int getNumberOfCPUCores() { return parallel_get_max_threads();}
+int getNumberOfCPUCores(bool) { return parallel_get_max_threads();}
 #if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() { return {0}; }
+std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
-#if TBB_INTERFACE_VERSION >= 11100
-    return tbb::info::numa_nodes();
+    return custom::info::numa_nodes();
+}
+// this is impl only with the TBB
+std::vector<int> getAvailableCoresTypes() {
+    return custom::info::core_types();
+}
 #else
-    return {0};
-#endif
+// as the core types support exists only with the TBB, the fallback is same for any other threading API
+std::vector<int> getAvailableCoresTypes() {
+    return {-1};
 }
 #endif
 

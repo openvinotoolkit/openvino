@@ -23,19 +23,9 @@
 | VGG19 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/vgg19.tar.gz) |
 | zfnet512 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/zfnet512.tar.gz) |
 | GPT-2 | [model archive](https://github.com/onnx/models/blob/master/text/machine_comprehension/gpt-2/model/gpt2-10.tar.gz) |
+| YOLOv3 | [model archive](https://github.com/onnx/models/blob/master/vision/object_detection_segmentation/yolov3/model/yolov3-10.tar.gz) |
 
 Listed models are built with the operation set version 8 except the GPT-2 model. Models that are upgraded to higher operation set versions may not be supported.
-
-## Supported Pytorch* Models via ONNX Conversion
-Starting from the 2019R4 release, the OpenVINO™ toolkit officially supports public Pytorch* models (from `torchvision` 0.2.1 and `pretrainedmodels` 0.7.4 packages) via ONNX conversion.
-The list of supported topologies is presented below:
-
-|Package Name|Supported Models|
-|:----|:----|
-| [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html) | alexnet, densenet121, densenet161, densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19 |
-| [Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
-| [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) | |
-| [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) | |
 
 ## Supported PaddlePaddle* Models via ONNX Conversion
 Starting from the R5 release, the OpenVINO™ toolkit officially supports public PaddlePaddle* models via ONNX conversion.

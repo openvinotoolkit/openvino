@@ -1,20 +1,7 @@
 #!/usr/bin/env python3
 
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """
 Use this script to create a wheel with Model Optimizer code:
@@ -22,22 +9,22 @@ Use this script to create a wheel with Model Optimizer code:
 $ python setup.py sdist bdist_wheel
 """
 
-import sys
 import os
 import re
+from shutil import copyfile
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
 
-package_name = 'mo'
+PACKAGE_NAME = 'mo'
 
 # Detect all the framework specific requirements_*.txt files.
 requirements_txt = []
 py_modules = []
 for name in os.listdir():
-    if re.match('requirements(.*)\.txt', name):
+    if re.match(r'requirements(.*)\.txt', name):
         requirements_txt.append(name)
-    if re.match('mo_(.*)\.py', name):
+    if re.match(r'mo(.*)\.py', name):
         py_modules.append(name.split('.')[0])
 
 # Minimal set of dependencies
@@ -54,17 +41,22 @@ class InstallCmd(install):
         install.run(self)
         # Create requirements.txt files for all the frameworks
         for name in requirements_txt:
-            path = os.path.join(self.install_purelib, package_name, name)
+            path = os.path.join(self.install_purelib, PACKAGE_NAME, name)
             with open(path, 'wt') as f:
                 f.write('\n'.join(deps))
-        
-        path = os.path.join(self.install_purelib, package_name, '__init__.py')
+        # Add version.txt if exists
+        version_txt = 'version.txt'
+        if os.path.exists(version_txt):
+            copyfile(os.path.join(version_txt),
+                     os.path.join(self.install_purelib, PACKAGE_NAME, version_txt))
+
+        path = os.path.join(self.install_purelib, PACKAGE_NAME, '__init__.py')
         with open(path, 'wt') as f:
             f.write('import os, sys\n')
-            f.write('from {} import mo\n'.format(package_name))
+            f.write('from {} import mo\n'.format(PACKAGE_NAME))
             # This is required to fix internal imports
             f.write('sys.path.append(os.path.dirname(__file__))\n')
-            # We install a package into custom folder "package_name".
+            # We install a package into custom folder "PACKAGE_NAME".
             # Redirect import to model-optimizer/mo/__init__.py
             f.write('sys.modules["mo"] = mo')
 
@@ -80,7 +72,7 @@ class BuildCmd(build_py):
 
 
 packages = find_packages()
-packages = [package_name + '.' + p for p in packages]
+packages = [PACKAGE_NAME + '.' + p for p in packages]
 
 setup(name='openvino-mo',
       version='0.0.0',
@@ -88,11 +80,22 @@ setup(name='openvino-mo',
       author_email='openvino_pushbot@intel.com',
       url='https://github.com/openvinotoolkit/openvino',
       packages=packages,
-      package_dir={package_name: '.'},
+      package_dir={PACKAGE_NAME: '.'},
       py_modules=py_modules,
       cmdclass={
           'install': InstallCmd,
           'build_py': BuildCmd,
+      },
+      entry_points={
+          'console_scripts': [
+              'mo = mo.__main__:main',
+           ],
+      },
+      package_data={
+        'mo.mo.front.caffe.proto': ['*.proto'],
+        'mo.extensions.front.mxnet': ['*.json'],
+        'mo.extensions.front.onnx': ['*.json'],
+        'mo.extensions.front.tf': ['*.json'],
       },
       classifiers=[
         "Programming Language :: Python :: 3",

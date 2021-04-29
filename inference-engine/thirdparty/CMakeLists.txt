@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,7 +39,7 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__ARCHITECTURE_TARGET "Linux64" CACHE STRING "" FORCE)
     endif()
-
+    set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
     add_subdirectory(clDNN)
 
     # disable CLDNN docs build

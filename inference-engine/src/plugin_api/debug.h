@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,6 @@
 
 #include "ie_algorithm.hpp"
 
-namespace InferenceEngine {
-namespace details {
-
 /**
  * @brief Serializes a `std::vector` to a `std::ostream`
  * @ingroup ie_dev_api_error_debug
@@ -35,6 +32,7 @@ namespace details {
  * @param vec A vector to serialize
  * @return A reference to a `std::stream`
  */
+namespace std {
 template <typename T>
 inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
     if (vec.empty()) return std::operator<<(out, "[]");
@@ -44,7 +42,10 @@ inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
     }
     return out << "]";
 }
+}  // namespace std
 
+namespace InferenceEngine {
+namespace details {
 /**
  * @brief trim from start (in place)
  * @ingroup ie_dev_api_error_debug

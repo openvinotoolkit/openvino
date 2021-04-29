@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     * @param deviceName Name of device load executable network on
      * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -99,6 +99,14 @@ public:
      * @return Metric value corresponding to metric key.
      */
     virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
+
+    /**
+     * @brief Returns devices available for neural networks inference
+     *
+     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * If there more than one device of specific type, they are enumerated with .# suffix.
+     */
+    virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
      * @brief Default virtual destructor

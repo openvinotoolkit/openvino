@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,13 @@ template <class T>
 void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
     if (i == component.size() - 1 || ((component[i + 1].operation != kDnnMaxPoolOp)
                                       && (component[i + 1].operation != kDnnPiecewiselinearOp))) {
+        operation++;
+    }
+}
+
+template <class T>
+void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
+    if (i == component.size() - 1 || (component[i + 1].operation != kDnnMaxPoolOp)) {
         operation++;
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ namespace LayerTestsDefinitions {
 
 void ImportReshapePermuteConv::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
+    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} });

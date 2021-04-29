@@ -1,19 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
@@ -22,7 +8,7 @@ from ngraph.opset4.ops import acosh
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
 from ngraph.opset4.ops import asinh
-from ngraph.opset3.ops import assign
+from ngraph.opset6.ops import assign
 from ngraph.opset1.ops import atan
 from ngraph.opset4.ops import atanh
 from ngraph.opset1.ops import avg_pool
@@ -114,7 +100,7 @@ from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
 from ngraph.opset1.ops import range
-from ngraph.opset3.ops import read_value
+from ngraph.opset6.ops import read_value
 from ngraph.opset4.ops import reduce_l1
 from ngraph.opset4.ops import reduce_l2
 from ngraph.opset1.ops import reduce_logical_and

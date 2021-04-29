@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         dequantizationAfter,
         operation);
 }
+
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -94,7 +95,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const Transpose& transpose,
     const Reshape& reshape2,
     const DequantizationOperations& dequantizationAfter,
-    const std::string operation) {
+    const std::string operation,
+    bool multiplyAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
 
     std::shared_ptr<Node> parentOnActivation = input;
@@ -116,8 +118,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> parentOnWeights;
     {
-        const size_t inputChannelsCount = inputShape[1];
-        const size_t outputChannelsCount = 2 * inputShape[1];
+        size_t numGroups = inputShape[1];
+        size_t inputChannelsCount = inputShape[1];
+        size_t outputChannelsCount = inputShape[1] * 2;
+        if (operation == "GroupConvolution") {
+            inputChannelsCount = inputShape[1] / numGroups;
+            outputChannelsCount = inputShape[1];
+        }
         const Shape shape = constantOnWeights.shapeIsDefined ? constantOnWeights.shape : ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         parentOnWeights = ngraph::opset1::Constant::create(
             constantOnWeights.outPrecision,
@@ -180,8 +187,14 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
                 ngraph::Strides{ 1, 1 }),
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
+        if (multiplyAfter) {
+            const auto& O = lastOperation->get_shape()[1];
+            std::vector<float> weights_val(O, 1);
+            auto constant = op::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
+            lastOperation = std::make_shared<ngraph::opset1::Multiply>(lastOperation, constant);
+        }
     } else {
-        THROW_IE_EXCEPTION << "unknown operation type " << operation;
+        IE_THROW() << "unknown operation type " << operation;
     }
 
     if (!dequantizationAfter.empty()) {

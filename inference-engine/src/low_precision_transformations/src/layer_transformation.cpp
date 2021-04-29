@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,7 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-bool LayerTransformation::canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer)) {
         return false;
     }

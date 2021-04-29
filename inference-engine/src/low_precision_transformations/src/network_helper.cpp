@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 #include <queue>
+#include <numeric>
 
 #include <ngraph/rt_info.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -27,6 +28,17 @@ namespace low_precision {
 bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
     for (auto another : types) {
         if (type.is_castable(another)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : childrens) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
             return true;
         }
     }
@@ -84,6 +96,35 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
         }
     }
     return true;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
+    const std::shared_ptr<opset1::Constant>& foldingConstant,
+    const std::shared_ptr<Node>& operation,
+    const size_t outIdx) {
+    OutputVector inputs = operation->input_values();
+    OutputVector outputs(operation->get_output_size());
+
+    if (shape_size(foldingConstant->get_shape()) == 1ul) {
+        return toScalar(foldingConstant);
+    } else {
+        inputs[0] = foldingConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        if (std::dynamic_pointer_cast<op::TypeRelaxedBase>(op)) {
+            setOutDataPrecisionForTypeRelaxed(op, inputs[0].get_element_type());
+        }
+
+        // constant folding of constant
+        op->constant_fold(outputs, inputs);
+
+        const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
+        if (result == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+        }
+
+        return result;
+    }
 }
 
 size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights) {
@@ -188,7 +229,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     if (multiplyConst == nullptr)
         return addAfterMultiply;
 
-    const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    const auto x = multiply->get_input_source_output(multiplyInputBranch);
     auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
     std::shared_ptr<Node> bDivA;
@@ -227,14 +268,13 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         bDivA = fold<opset1::Convert>(bDivA, a->get_output_element_type(0));
     }
 
-    std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
-
+    OutputVector inputs{ {}, {} };
     inputs[0] = x;
     inputs[1] = bDivA;
 
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{ x->get_output_element_type(0) },
+        std::vector<element::Type>{ x.get_element_type() },
         ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     copyInfo(addAfterMultiply, newAdd);
@@ -1101,7 +1141,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         return 1ul;
     };
 
-    Output<Node> dataNode = inPlace ? node : node->input_value(parentIndex);
+    Output<Node> dataNode = inPlace ? node->output(0) : node->input_value(parentIndex);
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
     std::shared_ptr<opset1::Constant> multiplyConstant;
@@ -1211,6 +1251,40 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         dequantization.subtract = normalized_subtract;
     }
     return dequantization;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise) {
+    const size_t constantIdx = getConstantInputIndex(eltwise);
+    const auto constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(constantIdx));
+
+    const auto getConstWithNormalizeShape = [](
+        const std::shared_ptr<Node>& eltwise,
+        const std::shared_ptr<opset1::Constant>& constant) {
+        const auto constantShape = constant->get_shape();
+        if (constantShape.empty()) {
+            return constant;
+        }
+
+        const auto eltwiseShape = eltwise->get_output_shape(0);
+        if (constantShape.size() < eltwiseShape.size()) {
+            Shape unsqueezeConstantShape(eltwiseShape.size() - constantShape.size());
+            std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
+
+            const auto newConstant = fold<opset1::Unsqueeze>(
+                constant,
+                op::Constant::create(element::i32, Shape{ unsqueezeConstantShape.size() }, unsqueezeConstantShape));
+
+            return as_type_ptr<opset1::Constant>(newConstant);
+        } else {
+            return constant;
+        }
+    };
+
+    const auto normalizedConstant = getConstWithNormalizeShape(eltwise, constant);
+    replace_node(constant, normalizedConstant);
+    copy_runtime_info(constant, normalizedConstant);
+
+    return normalizedConstant;
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization) {

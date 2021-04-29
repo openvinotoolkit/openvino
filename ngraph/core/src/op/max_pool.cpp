@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/max_pool.hpp"
 #include "itt.hpp"
@@ -109,22 +97,26 @@ void op::v1::MaxPool::validate_and_infer_types()
     if (arg_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              m_pads_end.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected pads_end size to be equal to input size - 2. Got: ",
                               m_pads_end.size());
 
         NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_begin.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected pads_begin size to be equal to input size - 2. Got: ",
                               m_pads_begin.size());
         NODE_VALIDATION_CHECK(this,
-                              m_kernel.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_kernel.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected kernel size to be equal to input size - 2. Got: ",
                               m_kernel.size());
         NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected strides size to be equal to input size - 2. Got: ",
-                              m_kernel.size());
+                              m_strides.size());
     }
 
     auto output_shape = PartialShape::dynamic();
@@ -237,7 +229,7 @@ namespace maxpool
         }
         return rc;
     }
-} // namespace
+} // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const

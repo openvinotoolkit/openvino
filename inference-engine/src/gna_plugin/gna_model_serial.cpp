@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <array>
-#include <details/ie_exception.hpp>
 #include <ios>
 #include <iomanip>
 #include <map>
@@ -77,12 +76,17 @@ const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
 GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
+    auto startPos = is.tellg();
+    if (startPos == -1) {
+        THROW_GNA_EXCEPTION << "Can't open stream to import";
+    }
     is.seekg(0, is.end);
     auto stream_len = is.tellg();
     if (stream_len == -1) {
         THROW_GNA_EXCEPTION << "Can't open file to import";
     }
-    is.seekg(0, is.beg);
+    stream_len -= startPos;
+    is.seekg(startPos, is.beg);
 
     HeaderLatest::ModelHeader header;
     header.version.major = 0u;
@@ -103,7 +107,7 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                            std::hex << std::setw(2) << static_cast<short>(header.gnam[3]);
     }
 
-    is.seekg(0, is.beg);
+    is.seekg(startPos, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
     switch (header.version.major) {
         case 2:
@@ -409,10 +413,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         writeBits(layer.NumberOfOperands, os);
 
         for (uint32_t i = 0; i < layer.NumberOfOperands; i++) {
-            if (layer.Operands[i] == nullptr)
+            if (layer.Operands[i] == nullptr) {
                 writeBits(Gna2Tensor{}, os);
-            else
-                writeBits(getTensorWithProperOffset(*layer.Operands[i]), os);
+            } else {
+                Gna2Tensor tensor = getTensorWithProperOffset(*layer.Operands[i]);
+                // we need to remove legacy (up to & including GNA HW 2.0) CNN enforement during export
+                // to avoid issues when importing and running the model on newer GNA HW with libGNA 2.1.x.y
+                if (i == OutOpIdx && layer.Type == Gna2OperationTypeConvolution) {
+                    memset(tensor.Layout, 0, sizeof(tensor.Layout));
+                }
+                writeBits(tensor, os);
+            }
         }
 
         writeBits(layer.NumberOfParameters, os);
@@ -832,7 +843,7 @@ void GNAModelSerial::ImportInputs(std::istream &is,
         InferenceEngine::InputsDataMap& dataMap) {
     dataMap.clear();
 
-    for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
+    for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));
         HeaderLatest::RuntimeEndPoint input;
@@ -861,7 +872,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     dataMap.clear();
     desc.resize(modelHeader.nOutputs);
 
-    for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
+    for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
         HeaderLatest::RuntimeEndPoint output;
@@ -902,7 +913,7 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream &is,
 void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
         const TranspositionInfoMap &transpositionInfoMap) const {
     for (const auto &transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str()) + 1;
+        auto nameSize = strlen(transpositionInfo.first.c_str());
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
         auto fragmentsNum = transpositionInfo.second.size();
