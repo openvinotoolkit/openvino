@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cpp_interfaces/exception2status.hpp>
+#include <cpp/exception2status.hpp>
 
 using namespace InferenceEngine;
 
