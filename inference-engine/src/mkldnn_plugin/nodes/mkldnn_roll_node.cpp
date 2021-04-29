@@ -126,30 +126,23 @@ void MKLDNNRollNode::execute(mkldnn::stream strm) {
     auto shifts = getParentEdgeAt(SHIFT_INDEX)->getBlob();
     auto axes = getParentEdgeAt(AXES_INDEX)->getBlob();
     auto output = getChildEdgeAt(0)->getBlob();
-    const auto& dataPrecision = getInputPrecisions()[0];
-    switch (dataPrecision) {
-        case Precision::I8: {
-            rollImpl<int8_t>(input, shifts, axes, output);
+    const auto dataPrecision = getInputPrecisions()[0];
+    const auto& dataTypeSize = dataPrecision.size();
+    switch (dataTypeSize) {
+        case sizeof(PrecisionTrait<Precision::I8>::value_type): {
+            rollImpl<PrecisionTrait<Precision::I8>::value_type>(input, shifts, axes, output);
             break;
         }
-        case Precision::U8: {
-            rollImpl<uint8_t>(input, shifts, axes, output);
+        case sizeof(PrecisionTrait<Precision::I16>::value_type): {
+            rollImpl<PrecisionTrait<Precision::I16>::value_type>(input, shifts, axes, output);
             break;
         }
-        case Precision::I16: {
-            rollImpl<int16_t>(input, shifts, axes, output);
+        case sizeof(PrecisionTrait<Precision::I32>::value_type): {
+            rollImpl<PrecisionTrait<Precision::I32>::value_type>(input, shifts, axes, output);
             break;
         }
-        case Precision::I32: {
-            rollImpl<int32_t>(input, shifts, axes, output);
-            break;
-        }
-        case Precision::FP32: {
-            rollImpl<float>(input, shifts, axes, output);
-            break;
-        }
-        case Precision::I64: {
-            rollImpl<int64_t>(input, shifts, axes, output);
+        case sizeof(PrecisionTrait<Precision::I64>::value_type): {
+            rollImpl<PrecisionTrait<Precision::I64>::value_type>(input, shifts, axes, output);
             break;
         }
         default:
