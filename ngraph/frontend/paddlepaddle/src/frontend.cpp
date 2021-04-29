@@ -103,8 +103,7 @@ std::shared_ptr<Function>
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
     
-    const auto& global_var_places = model->getVarPlaces(0);
-    for (const auto& name_var : global_var_places)
+    for (const auto& name_var : model->getVarPlaces())
     {
         const auto& var = name_var.second->getDesc();
         if (pdpd::endsWith(name_var.first, "feed") || pdpd::endsWith(name_var.first, "fetch"))
@@ -126,47 +125,45 @@ std::shared_ptr<Function>
         nodes_dict[var->name()] = param;
         parameter_nodes.push_back(param);
     }
-    
-    for (std::size_t i = 0; i < model->getBlockNumber(); i++) {
-        const auto& op_places = model->getOpPlaces(i);
-        for (const auto &op_place : op_places) {
-            const auto& op_type = op_place->getDesc()->type();
-            std::cerr << "Observing " << op_type << "\n";
-            if (op_type == "feed" || op_type == "fetch") {
-                // inputs and outputs are stored in the model already
-                continue;
-            } else {
-                const auto& named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
 
-                // set layer name by the name of first output var
-                if (!named_outputs.empty()) {
-                    const auto &first_output_var = op_place->getOutputPorts().begin()->second.at(
-                            0)->getTargetTensorPDPD()->getDesc();
-                    auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                    node->set_friendly_name(first_output_var->name());
-                    std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                }
+    const auto& op_places = model->getOpPlaces();
+    for (const auto &op_place : op_places) {
+        const auto& op_type = op_place->getDesc()->type();
+        std::cerr << "Observing " << op_type << "\n";
+        if (op_type == "feed" || op_type == "fetch") {
+            // inputs and outputs are stored in the model already
+            continue;
+        } else {
+            const auto& named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
 
-                const auto& out_ports = op_place->getOutputPorts();
-                for (const auto& name_to_outputs : named_outputs) {
-                    const auto& ports = out_ports.at(name_to_outputs.first);
+            // set layer name by the name of first output var
+            if (!named_outputs.empty()) {
+                const auto &first_output_var = op_place->getOutputPorts().begin()->second.at(
+                        0)->getTargetTensorPDPD()->getDesc();
+                auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                node->set_friendly_name(first_output_var->name());
+                std::cerr << "Named with " << node->get_friendly_name() << "\n";
+            }
 
-                    PDPD_ASSERT(ports.size() == name_to_outputs.second.size(),
-                                "The number of output tensors must be equal to "
-                                "the number of outputs of the ngraph node.");
-                    for (size_t idx = 0; idx < ports.size(); ++idx) {
-                        const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
-                        name_to_outputs.second[idx].get_tensor().set_names({var->name()});
-                        // if nodes_dict already has node mapped to this tensor name it usually
-                        // means that it was overwritten using setTensorValue
-                        if (!nodes_dict.count(var->name()))
-                            nodes_dict[var->name()] = name_to_outputs.second[idx];
-                    }
+            const auto& out_ports = op_place->getOutputPorts();
+            for (const auto& name_to_outputs : named_outputs) {
+                const auto& ports = out_ports.at(name_to_outputs.first);
+
+                PDPD_ASSERT(ports.size() == name_to_outputs.second.size(),
+                            "The number of output tensors must be equal to "
+                            "the number of outputs of the ngraph node.");
+                for (size_t idx = 0; idx < ports.size(); ++idx) {
+                    const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
+                    name_to_outputs.second[idx].get_tensor().set_names({var->name()});
+                    // if nodes_dict already has node mapped to this tensor name it usually
+                    // means that it was overwritten using setTensorValue
+                    if (!nodes_dict.count(var->name()))
+                        nodes_dict[var->name()] = name_to_outputs.second[idx];
                 }
             }
         }
     }
-    
+
     for (const auto& _outp_place: model->getOutputs()) {
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
         auto var = outp_place->getDesc();
