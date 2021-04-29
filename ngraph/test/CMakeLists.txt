@@ -462,11 +462,6 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 endforeach()
 
 # SOURCE FOR FRONTEND TESTING
-
-# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
-set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
-# --- END OF --DO_NOT_RELEASE--
-
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 

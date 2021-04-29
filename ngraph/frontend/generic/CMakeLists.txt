@@ -37,19 +37,20 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
             -Wno-unused-private-field -Wno-shadow -Wno-deprecated PUBLIC -Wno-undefined-func-template)
 endif()
 
-install(TARGETS frontend_manager EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-
-install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
-    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.h"
-)
-
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    export(TARGETS frontend_manager NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-endif()
+# TODO: uncomment to include frontend_manager to installation package
+#install(TARGETS frontend_manager EXPORT ngraphTargets
+#        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+#        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+#        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+#
+#install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
+#    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+#    COMPONENT ngraph
+#    FILES_MATCHING
+#        PATTERN "*.hpp"
+#        PATTERN "*.h"
+#)
+#
+#if (NGRAPH_EXPORT_TARGETS_ENABLE)
+#    export(TARGETS frontend_manager NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+#endif()
