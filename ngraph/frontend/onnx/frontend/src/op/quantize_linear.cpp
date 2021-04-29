@@ -201,7 +201,7 @@ OutputVector quantize_linear(const Node& node) {
     auto zero_point = op::detail::get_zero_point(inputs);
 
     return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
-                }
+}
 }  // namespace set_13
 
 }  // namespace op
