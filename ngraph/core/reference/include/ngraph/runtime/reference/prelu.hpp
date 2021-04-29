@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <cstddef>
-#include <numeric>
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph/shape.hpp>
+#include <numeric>
 
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
@@ -25,12 +25,15 @@ namespace ngraph
                        const Shape& arg_shape,
                        const Shape& slope_shape)
             {
-                
-                NGRAPH_CHECK(shape_size(arg_shape) >= shape_size(slope_shape), "Slope shape has to be equal or smaller than first input shape");
-                autobroadcast_binop(
-                    arg, slope, out, arg_shape, slope_shape, ngraph::op::AutoBroadcastType::NUMPY, [](T x, T y) -> T {
-                        return x < T(0) ? T(x * y) : x;
-                    });
+                NGRAPH_CHECK(shape_size(arg_shape) >= shape_size(slope_shape),
+                             "Slope shape has to be equal or smaller than first input shape");
+                autobroadcast_binop(arg,
+                                    slope,
+                                    out,
+                                    arg_shape,
+                                    slope_shape,
+                                    ngraph::op::AutoBroadcastType::NUMPY,
+                                    [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
             }
         } // namespace reference
     }     // namespace runtime
