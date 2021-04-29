@@ -55,7 +55,11 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusi
 
 ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto has_static_4d_shape = [](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(4)(output);
+    };
+
+    auto input = ngraph::pattern::any_input(has_static_4d_shape);
     auto reshape_before_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     auto transpose_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
