@@ -5,8 +5,6 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--apply_low_latency", action="store_true")
-    # parser.add_argument("--apply_pruning", action="store_true")
     parser.add_argument("--input_model")
     parser.add_argument("--framework")
     args = parser.parse_args()
