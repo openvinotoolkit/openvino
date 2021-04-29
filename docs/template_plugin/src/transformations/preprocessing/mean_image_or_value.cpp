@@ -6,7 +6,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "itt.hpp"
+#include "template_itt.hpp"
 #include "transformations/preprocessing/mean_image_or_value.hpp"
 
 using namespace ngraph;

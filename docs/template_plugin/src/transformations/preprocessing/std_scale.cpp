@@ -6,7 +6,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "itt.hpp"
+#include "template_itt.hpp"
 #include "transformations/preprocessing/std_scale.hpp"
 
 using namespace ngraph;

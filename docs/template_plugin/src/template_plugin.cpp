@@ -8,7 +8,6 @@
 
 #include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "preprocessing.hpp"
 
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/graph_util.hpp>
@@ -23,7 +22,8 @@
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
-#include "template_pattern_transformation.hpp"
+#include "transformations/template_pattern_transformation.hpp"
+#include "transformations/preprocessing/preprocessing.hpp"
 
 using namespace TemplatePlugin;
 

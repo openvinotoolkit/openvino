@@ -5,10 +5,11 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 
+#include "template_itt.hpp"
+
 #include "transformations/preprocessing/mean_image_or_value.hpp"
 #include "transformations/preprocessing/std_scale.hpp"
-
-#include "preprocessing.hpp"
+#include "transformations/preprocessing/preprocessing.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
 
