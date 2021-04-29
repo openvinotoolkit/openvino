@@ -35,7 +35,7 @@ MKLDNNRollNode::MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const 
     const auto &dataShape = dataTensor.getDims();
     const auto &dataPrecision = dataTensor.getPrecision();
 
-    if (!MKLDNNPlugin::one_of(dataPrecision, Precision::I8, Precision::U8, Precision::I16, Precision::I32, Precision::FP32, Precision::I64)) {
+    if (!MKLDNNPlugin::one_of(dataPrecision, Precision::I8, Precision::U8, Precision::I16, Precision::I32, Precision::FP32, Precision::I64, Precision::BF16)) {
         IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
     }
     if (dataShape.size() < 1) {
@@ -94,7 +94,6 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
     }
 
     InferenceEngine::Precision precision = inputData->getPrecision();
-
 
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 

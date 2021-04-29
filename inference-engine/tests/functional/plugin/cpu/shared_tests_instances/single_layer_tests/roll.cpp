@@ -17,6 +17,8 @@ const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::I16,
     InferenceEngine::Precision::I32,
     InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::I64,
+    InferenceEngine::Precision::BF16
 };
 
 const auto testCase2DZeroShifts = ::testing::Combine(
