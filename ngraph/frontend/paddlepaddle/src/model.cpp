@@ -33,15 +33,14 @@ public:
     void setTensorValue (Place::Ptr place, const void* value);
     
     std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
-    std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const { return m_op_places_blocks[i]; }
-    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces(int i) const { return m_var_places_blocks[i]; }
-    size_t getBlockNumber() const { return m_op_places_blocks.size(); }
+    std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const { return m_op_places; }
+    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const { return m_var_places; }
     std::map<pdpd::TensorName, Output<Node>> getTensorValues() const { return m_tensor_values; };
 
 private:
     std::string m_path;
-    std::vector<std::vector<std::shared_ptr<OpPlacePDPD>>> m_op_places_blocks;
-    std::vector<std::map<std::string, std::shared_ptr<TensorPlacePDPD>>> m_var_places_blocks;
+    std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
+    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
     // GCC 4.8 limitation: can't create 'm_weights_stream = std::ifstream(...)'
     std::unique_ptr<std::ifstream> m_weights_stream;
@@ -78,28 +77,24 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
 
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
     const auto& blocks = m_fw_ptr->blocks();
-    m_var_places_blocks.resize(cnt_of_blocks);
-    m_op_places_blocks.resize(cnt_of_blocks);
 
     for (int block_idx = 0; block_idx < cnt_of_blocks; block_idx++) {
         const auto& block = blocks[block_idx];
-        auto& var_place_block = m_var_places_blocks[block_idx];
-        auto& op_place_block = m_op_places_blocks[block_idx];
 
         for (const auto& var : block.vars()) {
-            var_place_block[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, std::make_shared<VarDesc>(var));
+            m_var_places[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, std::make_shared<VarDesc>(var));
         }
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, std::make_shared<OpDesc>(op));
-            op_place_block.push_back(op_place);
+            m_op_places.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
                 for (const auto &var_name : output.arguments()) {
                     auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
 
                     // connect out_port and tensor
-                    const auto& tensor = var_place_block.at(var_name);
+                    const auto& tensor = m_var_places.at(var_name);
                     tensor->addProducingPort(out_port);
                     out_port->setTargetTensor(tensor);
 
@@ -114,7 +109,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
                     auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
 
                     // connect in_port and tensor
-                    const auto& tensor = var_place_block.at(var_name);
+                    const auto& tensor = m_var_places.at(var_name);
                     tensor->addConsumingPort(in_port);
                     in_port->setSourceTensor(tensor);
 
@@ -173,10 +168,8 @@ std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getOutputs () const 
 }
 
 Place::Ptr InputModelPDPD::InputModelPDPDImpl::getPlaceByTensorName (const std::string& tensorName) const {
-    for (const auto& var_places_in_block : m_var_places_blocks) {
-        if (var_places_in_block.count(tensorName))
-            return var_places_in_block.at(tensorName);
-    }
+    if (m_var_places.count(tensorName))
+        return m_var_places.at(tensorName);
     return nullptr;
 }
 
@@ -242,16 +235,12 @@ std::vector<uint8_t> InputModelPDPD::readWeight(const std::string& name, int64_t
     return _impl->readWeight(name, len);
 }
 
-std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces(int i) const {
-    return _impl->getOpPlaces(i);
+std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces() const {
+    return _impl->getOpPlaces();
 }
 
-std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarPlaces(int i) const {
-    return _impl->getVarPlaces(i);
-}
-
-size_t InputModelPDPD::getBlockNumber() const {
-    return _impl->getBlockNumber();
+std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarPlaces() const {
+    return _impl->getVarPlaces();
 }
 
 std::map<pdpd::TensorName, Output<Node>> InputModelPDPD::getTensorValues() const {
