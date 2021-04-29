@@ -31,6 +31,10 @@ class MXFFT(Op):
         node_name = node.soft_get('name', node.id)
         input_shape = node.in_port(0).data.get_shape()
         assert input_shape is not None, 'Input shape of MXFFT node {} must not be None'.format(node_name)
+        is_inverse = node.soft_get('is_inverse', False)
         output_shape = input_shape.copy()
-        output_shape[-1] = output_shape[-1] * 2
+        if not is_inverse:
+            output_shape[-1] = output_shape[-1] * 2
+        else:
+            output_shape[-1] = output_shape[-1] // 2
         node.out_port(0).data.set_shape(int64_array(output_shape))
