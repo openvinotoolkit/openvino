@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.argmax import ArgMaxOp
+from extensions.ops.argmin import ArgMinOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -22,5 +22,5 @@ class ArgMinFrontExtractor(FrontExtractorOp):
             'remove_values_output': True
         }
 
-        ArgMaxOp.update_node_stat(node, attrs)
+        ArgMinOp.update_node_stat(node, attrs)
         return cls.enabled
