@@ -14,6 +14,7 @@
 #include "convert_to_leaky_relu.hpp"
 #include "convert_to_swish_cpu.hpp"
 #include "reshape_prelu.hpp"
+#include "rnn_sequences_optimization.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -34,6 +35,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ReshapePRelu>();
     manager.register_pass<ConvertToSwishCPU>();
+    manager.register_pass<OptimizeGRUSequenceTransposes>();
+    manager.register_pass<OptimizeLSTMSequenceTransposes>();
+    manager.register_pass<OptimizeRNNSequenceTransposes>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }

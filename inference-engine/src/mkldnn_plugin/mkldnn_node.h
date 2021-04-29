@@ -11,7 +11,6 @@
 #include <cassert>
 #include <algorithm>
 #include <caseless.hpp>
-#include <ie_common.h>
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"

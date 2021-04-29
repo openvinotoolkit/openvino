@@ -64,19 +64,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         /* ********************************************************** TEMPORARILY DISABLED TESTS ********************************************************** */
         // shared SLT test
-        R"(.*GRUCellTest.*)",
-        R"(.*GRUSequenceTest.*)",
-        R"(.*StaticShapeLoopTest.*)",
-        R"(.*TrivialLoopTest.*)",
-        R"(.*LoopTest.*)",
-        R"(.*LSTMCellTest.*)",
-        R"(.*LSTMSequenceTest.*)",
-        R"(.*RNNCellTest.*)",
-        R"(.*RNNSequenceTest.*)",
-        R"(.*TensorIteratorTest.*)",
-
-        // shared subgraph test
-        R"(.*MultipleLSTMCellTest.*)",
+        R"(.*TensorIteratorCommonClip/TensorIteratorTest.*)"
     };
 
 // TODO [NM]: Disabled until BF16 transformer is not migrated on CPU graph representation.
