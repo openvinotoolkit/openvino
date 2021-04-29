@@ -177,12 +177,15 @@ def main():
     net.batch_size = args.batch_size
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
-    device_name = args.device
+    use_gna = 'GNA' in args.device
+    use_hetero = 'HETERO' in args.device
+
+    devices = args.device.replace('HETERO:', '').split(',')
     plugin_config = None
 
-    if 'GNA' in args.device:
-        device_name = 'GNA'
-        gna_device_mode = args.device if '_' in args.device else 'GNA_AUTO'
+    if use_gna:
+        gna_device_mode = devices[0] if '_' in devices[0] else 'GNA_AUTO'
+        devices[0] = 'GNA'
         # Get a GNA scale factor
         utterances = read_ark_file(args.input)
         scale_factor = get_scale_factor(utterances[0])
@@ -194,8 +197,10 @@ def main():
             'GNA_SCALE_FACTOR': str(scale_factor),
         }
 
+    device_str = f'HETERO:{",".join(devices)}' if use_hetero else devices[0]
+
     log.info('Loading the model to the plugin')
-    exec_net = ie.load_network(net, device_name, plugin_config)
+    exec_net = ie.load_network(net, device_str, plugin_config)
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
 # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
