@@ -40,11 +40,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<size_t> inputShapeSimple = {
-    {1, 32, 64, 16},
-};
-
-const std::vector<size_t> inputShapeSimpleWithPooling = {
-    {1, 32, 128, 32},
+    {1, 32, 64, 32},
 };
 
 const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeq {
@@ -53,19 +49,23 @@ const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeq {
         {2, 2},     // Stride
         {0, 0},     // Pad begin
         {0, 0},     // Pad end
-        3,         // Num out channels
+        16,         // Num out channels
         {1, 1},     //Pooling window
         {1, 1}      //Pooling stride
     },
     {
-        {2, 5},     // Kernel size
-        {2, 3},     // Stride
+        {2, 1},     // Kernel size
+        {2, 1},     // Stride
         {0, 0},     // Pad begin
         {0, 0},     // Pad end
-        8,         // Num out channels
+        8,          // Num out channels
         {1, 1},     //Pooling window
         {1, 1}      //Pooling stride
     },
+};
+
+const std::vector<size_t> inputShapeSimpleWithPooling = {
+    {1, 32, 53, 110},
 };
 
 const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeqWithPooling {
@@ -74,9 +74,9 @@ const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeqWithPoo
         {1, 1},     // Stride
         {0, 0},     // Pad begin
         {0, 0},     // Pad end
-        3,         // Num out channels
-        {2, 3},     //Pooling window
-        {2, 3}      //Pooling stride
+        16,         // Num out channels
+        {3, 3},     //Pooling window
+        {3, 3}      //Pooling stride
     },
     {
         {2, 2},     // Kernel size
@@ -84,7 +84,7 @@ const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeqWithPoo
         {0, 0},     // Pad begin
         {0, 0},     // Pad end
         8,         // Num out channels
-        {2, 3},     //Pooling window
+        {2, 2},     //Pooling window
         {2, 2}      //Pooling stride
     },
 };
@@ -123,15 +123,54 @@ const std::vector<convReluSpecificParams> convReluSpecificParamsFBSeq = {
     },
 };
 
+const InferenceEngine::SizeVector inputShape3 = {
+    {1, 8, 18, 54},
+};
+
+const std::vector<convReluSpecificParams> convReluSpecificParams3Seq = {
+    {
+        {1, 3},     // Kernel size
+        {1, 1},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        32,         // Num out channels
+        {1, 1},     //Pooling window
+        {1, 1}      //Pooling stride
+    },
+    {
+        {2, 1},     // Kernel size
+        {1, 1},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        8,          // Num out channels
+        {1, 1},     //Pooling window
+        {1, 1}      //Pooling stride
+    },
+        {
+        {3, 3},     // Kernel size
+        {3, 3},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        8,          // Num out channels
+        {3, 3},     //Pooling window
+        {3, 3}      //Pooling stride
+    },
+};
+
 const std::vector<convReluSpecificParamsAll> convReluSpecificParamsAllAll = {
     {
         inputShapeSimple,
         convReluSpecificParamsSimpleSeq
     },
     {
-        inputShapeFB,
-        convReluSpecificParamsFBSeq
+        inputShape3,
+        convReluSpecificParams3Seq
     },
+    // Enable when bigger kernels (e.g., 5x7, 9x5) and input padding supported
+    // {
+    //     inputShapeFB,
+    //     convReluSpecificParamsFBSeq
+    // },
     {
         inputShapeSimpleWithPooling,
         convReluSpecificParamsSimpleSeqWithPooling
