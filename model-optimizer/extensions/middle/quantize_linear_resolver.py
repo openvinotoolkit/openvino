@@ -61,8 +61,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
 
         fake_quantize = create_op_with_const_inputs(graph, FakeQuantize, {3: float_array(output_low_value),
                                                                           4: float_array(output_high_value)},
-                                                    {'levels': 256, 'axis': axis,
-                                                     'name': node_name + '/FakeQuantize'})
+                                                    {'levels': 256, 'name': node_name + '/FakeQuantize'})
         quantize_node.in_port(0).get_connection().set_destination(fake_quantize.in_port(0))
 
         # Calculate input_low value
