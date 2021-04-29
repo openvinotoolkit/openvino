@@ -575,7 +575,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     }
     uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
 
-    uint32_t filter_n = convolution._out_depth;
+    const uint32_t filter_n = convolution._out_depth;
     uint32_t original_num_feature_map_rows = num_feature_map_rows;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
@@ -598,6 +598,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
+    cnn2dValidator.ValidateCnn2D(layer->name,
+        in_height, in_width, in_channels,
+        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
 
     float weight_scale_factor = 1.0f;
     float output_scale_factor = 1.0f;
@@ -858,6 +861,21 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
+
+    bool is2DPooling = false;
+    if (dnnComponents.components.size() > 0) {
+        const auto last = dnnComponents.components.back();
+        if (last.dnnComponent.operation == kDnnConvolutional2dOp) {
+            is2DPooling = true;
+        } else if (last.dnnComponent.operation == kDnnPiecewiselinearOp && dnnComponents.components.size() > 1) {
+            const auto& prev2 = *std::prev(dnnComponents.components.cend(), 2);
+            is2DPooling = prev2.dnnComponent.operation == kDnnConvolutional2dOp;
+        }
+    }
+
+    if (is2DPooling) {
+        cnn2dValidator.ValidatePooling2D(layer->name, pooling._kernel_y, pooling._kernel_x, pooling._stride_y, pooling._stride_x);
+    }
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "pooling");
 
