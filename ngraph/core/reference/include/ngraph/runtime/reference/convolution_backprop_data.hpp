@@ -220,7 +220,7 @@ namespace ngraph
                                          const CoordinateDiff& forward_in_pad_bellow,
                                          const CoordinateDiff& forward_in_pad_above,
                                          const Strides& stride,
-                                         const CoordinateDiff& output_padding = {0,0,0})
+                                         const CoordinateDiff& output_padding = {0, 0, 0})
             {
                 std::vector<T> extended_input;
                 std::vector<T> extended_filter;
