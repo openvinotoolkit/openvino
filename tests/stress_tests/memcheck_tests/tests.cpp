@@ -135,7 +135,13 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
         batchSize = batchSize != 0 ? batchSize : 1;
         const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
 
-        for (int counter = 0; counter < nstreams; counter++) {
+        unsigned int nireq = nstreams;
+        try {
+            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        } catch (const std::exception &ex) {
+            log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+        }
+        for (int counter = 0; counter < nireq; counter++) {
             inferRequest = exeNetwork.CreateInferRequest();
             fillBlobs(inferRequest, inputsInfo, batchSize);
 
@@ -145,7 +151,8 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
                 Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
         }
 
-        log_info("Memory consumption after Inference with streams: \"" << nstreams);
+        log_info("Memory consumption after Inference with streams: \"" << nstreams
+                                                                       << "\" with number of infer request: " << nireq);
         memCheckPipeline.record_measures(test_name);
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
