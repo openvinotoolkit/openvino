@@ -96,7 +96,7 @@ def protobuf2nx(graph: Graph, pb):
                 'out': src_port,
                 'in': dst_port,
                 'name': inp,
-                'fw_tensor_debug_info': [(src_id, src_port, inp)],
+                'fw_tensor_debug_info': [(src_id, inp)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -110,7 +110,7 @@ def protobuf2nx(graph: Graph, pb):
                     'out': src_port,
                     'in': 0,
                     'name': out,
-                    'fw_tensor_debug_info': [(fw_name, src_port, out)],
+                    'fw_tensor_debug_info': [(fw_name, out)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']

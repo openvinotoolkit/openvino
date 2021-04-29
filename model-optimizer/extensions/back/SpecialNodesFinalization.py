@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import re
 from collections import defaultdict
 
 import numpy as np
 
 from extensions.back.pass_separator import BackFinish
-from extensions.ops.tensor_iterator import TensorIterator, get_internal_node_by_layer_id
+from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
@@ -77,7 +78,8 @@ class CreateConstNodesReplacement(BackReplacementPattern):
 
         if self._check_bin_attrs(node):
             if node.has_valid('value'):
-                const_node_name = graph.unique_id(node.id + '_const')
+                const_node_name = node.soft_get('name', node.id)
+                const_node_name = graph.unique_id(re.sub(r'\/Output_\d+\/Data_(.?)+', '', const_node_name))
                 log.debug("Added Const node '{}'".format(const_node_name))
                 const_node = Const(graph, {'name': const_node_name, 'value': node.value,
                                            'force_shape': node.soft_get('force_shape', None),

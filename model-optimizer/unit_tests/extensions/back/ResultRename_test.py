@@ -13,8 +13,8 @@ nodes = {
     **regular_op('Op2', {'type': 'Op2', 'kind': 'op', 'op': 'Op2'}),
     **result('result1'),
     **result('result2'),
-    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1_tensor')]},
-    'Op2_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op2_tensor')]},
+    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 'Op1_tensor')]},
+    'Op2_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 'Op2_tensor')]},
 }
 
 

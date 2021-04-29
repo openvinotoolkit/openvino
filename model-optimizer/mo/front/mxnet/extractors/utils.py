@@ -114,8 +114,8 @@ def create_mxnet_edge(src_node_id: str, dst_node_id: str, src_port: int, dst_por
     edge_attrs = {
         'in': src_port,
         'out': dst_port,
-        # debug anchor for framework name, out port and tensor name
-        'fw_tensor_debug_info': [(framework_name, dst_port, framework_name)],
+        # debug anchor for framework name and tensor name
+        'fw_tensor_debug_info': [(framework_name, framework_name + ":" + str(dst_port))],
         'in_attrs': ['in'],
         'out_attrs': ['out'],
         'data_attrs': ['fw_tensor_debug_info']
