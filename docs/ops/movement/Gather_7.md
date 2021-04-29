@@ -140,7 +140,7 @@ output_shape = (2, 3)
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
 *axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. 
-Allowed values are from `[-len(data.shape), len(indices.shape) - 1]` and `axis >= batch_dims`. 
+Allowed values are from `[-len(data.shape), len(data.shape) - 1]` and `axis >= batch_dims`. 
 **Required**.
 
 **Outputs**
