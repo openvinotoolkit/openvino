@@ -19,7 +19,7 @@ class LayoutChangeForEinsum(BackReplacementPattern):
     """
     enabled = True
     force_shape_inference = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'tf' and graph.graph['layout'] != 'NCHW']
+    graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
 
     def find_and_replace_pattern(self, graph: Graph):
         import extensions.middle.InsertLayoutPropagationTransposes as InsertTransposes

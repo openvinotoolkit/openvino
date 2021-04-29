@@ -83,7 +83,6 @@ class TestEinsum(unittest.TestCase):
         ([int64_array([11, 1, 4, 3]), int64_array([3, 11, 7, 5])], "a...b,b...->a...", None),
         # missed ellipsis
         ([int64_array([11, 1, 4, 3]), int64_array([3, 11, 7, 4])], "a...b,b...->a", None),
-
     ])
     def test_invalid_cases(self, input_shapes, equation, ref_output_shape):
         graph = create_einsum_graph(input_shapes, equation)

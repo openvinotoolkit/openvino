@@ -61,7 +61,6 @@ class LayoutChangeForEinsumTests(unittest.TestCase):
                                 'einsum_d': {'shape': np.array([2, 12, 7, 8, 10])},
                             }, nodes_with_edges_only=True)
         graph.graph['fw'] = 'tf'
-        graph.graph['layout'] = 'NCHW'
 
         graph_ref = build_graph(nodes_attributes,
                                 [*connect('placeholder_3', '0:transpose_1'),
