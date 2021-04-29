@@ -25,7 +25,7 @@ KERNEL (detection_output)(__global UNIT_TYPE* input_location, __global UNIT_TYPE
     __local uint scores_size[NUM_CLASSES * NUM_OF_IMAGES];
     __local bool stillSorting;
 
-    printf(" detection_output | local_id = [%3d] NUM_OF_ITEMS = [%3d]\n", local_id, NUM_OF_ITEMS);
+    printf(" detection_output | global_id = [%3d] local_id = [%3d]\n", idx, (uint)get_local_id(0));
 
     uint indexes_class_0[NUM_OF_PRIORS];
 

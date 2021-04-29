@@ -70,30 +70,32 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
 DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params) {
     DetectionOutputKernelRef::DispatchData dispatchData;
 
-    // Number of all work items is set to total number of bounding boxes -
-    // one bounding box is procerssed by one work item
-    size_t num_classes = (params.detectOutParams.share_location) ? 1 : params.detectOutParams.num_classes;
+    // // Number of all work items is set to total number of bounding boxes -
+    // // one bounding box is procerssed by one work item
+    // size_t num_classes = (params.detectOutParams.share_location) ? 1 : params.detectOutParams.num_classes;
 
-    // Size of input0 (input location), if shared loaction it is equal to size of one class,
-    // else it has size of all items for all classes
-    size_t bboxesNum = params.inputs[0].LogicalSize() / PRIOR_BOX_SIZE / num_classes;
-    // Work group size is set to number of bounding boxes per image for sorting purpose
-    // (access to one table with sorted values)
-    size_t work_group_size = bboxesNum / params.inputs[0].Batch().v;
+    // // Size of input0 (input location), if shared loaction it is equal to size of one class,
+    // // else it has size of all items for all classes
+    // size_t bboxesNum = params.inputs[0].LogicalSize() / PRIOR_BOX_SIZE / num_classes;
+    // // Work group size is set to number of bounding boxes per image for sorting purpose
+    // // (access to one table with sorted values)
+    // size_t work_group_size = bboxesNum / params.inputs[0].Batch().v;
 
-    if (work_group_size > 256) {
-        work_group_size = work_group_size / ((work_group_size / 256) + 1) + 1;
-    }
+    // if (work_group_size > 256) {
+    //     work_group_size = work_group_size / ((work_group_size / 256) + 1) + 1;
+    // }
 
-    bboxesNum = work_group_size * params.inputs[0].Batch().v;
+    // bboxesNum = work_group_size * params.inputs[0].Batch().v;
 
-    dispatchData.gws[0] = Align(bboxesNum, work_group_size);
-    dispatchData.gws[1] = 1;
-    dispatchData.gws[2] = 1;
+    // dispatchData.gws[0] = Align(bboxesNum, work_group_size);
+    // dispatchData.gws[1] = 1;
+    // dispatchData.gws[2] = 1;
 
-    dispatchData.lws[0] = work_group_size;
-    dispatchData.lws[1] = 1;
-    dispatchData.lws[2] = 1;
+    // dispatchData.lws[0] = work_group_size;
+    // dispatchData.lws[1] = 1;
+    // dispatchData.lws[2] = 1;
+    dispatchData.gws = { 1, 1, 1};
+    dispatchData.lws = { 1, 1, 1};
 
     return dispatchData;
 }

@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/shape.hpp"
@@ -669,7 +670,7 @@ namespace ngraph
                             numKept += numDet;
                         }
                     }
-
+                    std::cout << "ngraph ref result =====================================" << std::endl;
                     size_t count = 0;
                     for (size_t i = 0; i < numImages; ++i)
                     {
@@ -711,6 +712,13 @@ namespace ngraph
                                 result[count * 7 + 4] = ymin;
                                 result[count * 7 + 5] = xmax;
                                 result[count * 7 + 6] = ymax;
+                                std::cout << "[" << result[count * 7 + 0] << ", "
+                                    << result[count * 7 + 1] << ", "
+                                    << result[count * 7 + 2] << ", "
+                                    << result[count * 7 + 3] << ", "
+                                    << result[count * 7 + 4] << ", "
+                                    << result[count * 7 + 5] << ", "
+                                    << result[count * 7 + 6] << "]" << std::endl;
                                 ++count;
                             }
                         }
@@ -718,7 +726,9 @@ namespace ngraph
                     if (count < numResults)
                     {
                         result[count * 7 + 0] = -1;
+                        std::cout << "[" << result[count * 7 + 0] << ", , , , , , ]" << std::endl;
                     }
+                    std::cout << "=====================================================" << std::endl;
                 }
             };
         } // namespace reference
