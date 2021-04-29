@@ -44,13 +44,23 @@ ONNX_FUNCTION_TESTS = {
 }
 
 UNSUPPORTED_OPS = [
+    "ConcatFromSequence",
+    "MaxRoiPool",
+    "Multinomial",
+    "RandomNormal",
+    "RandomNormalLike",
+    "RandomUniform",
+    "RandomUniformLike",
     "SequenceAt",
-    "SequenceConstruct",
-    "SequenceEmpty",
     "SequenceErase",
-    "SequenceInsert",
     "SequenceLength",
 ]
+
+# ops supported by OV but not tested by ONNX compliance tests
+SUPPORTED_OPS = ["GlobalLpPool", "LpNormalization", "LpPool", "SpaceToDepth"]
+
+# training related ops, should not be added to the report
+DO_NOT_REPORT = ["Adagrad", "Adam", "Momentum"]
 
 
 def find_tested_op(nodeid):

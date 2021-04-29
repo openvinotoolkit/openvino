@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from tests.coverage.compliance.helpers import find_tested_op, UNSUPPORTED_OPS
+from tests.coverage.compliance.helpers import find_tested_op, DO_NOT_REPORT, SUPPORTED_OPS, UNSUPPORTED_OPS
 
 
 class ONNXTest:
@@ -39,8 +39,11 @@ class ComplianceReporter:
 
     def report_ops(self, report_path):
         ops_report_lines = list(map(lambda op: op + ";Failed\n", UNSUPPORTED_OPS))
+        ops_report_lines.extend(list(map(lambda op: op + ";No tests\n", SUPPORTED_OPS)))
 
         for op in self.ops_report:
+            if op in DO_NOT_REPORT:
+                continue
             op_test_results = self.ops_report[op]
             if all(res == "passed" for res in op_test_results):
                 ops_report_lines.append(op + ";Passed\n")
