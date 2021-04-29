@@ -6,14 +6,16 @@
 
 #include <vector>
 
+#include <transformations_visibility.hpp>
+
+
 #include "ngraph/op/op.hpp"
 #include "ngraph/partial_shape.hpp"
 
 namespace ngraph {
 namespace op {
-namespace util {
 
-class NGRAPH_API FrameworkNodeAttrs {
+class TRANSFORMATIONS_API FrameworkNodeAttrs {
 public:
     void set_opset_name(const std::string& opset_name) { m_opset_name = opset_name; }
 
@@ -34,7 +36,7 @@ private:
     std::map<std::string, std::string> m_attrs;
 };
 
-class NGRAPH_API FrameworkNode : public Op {
+class TRANSFORMATIONS_API FrameworkNode : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -55,14 +57,13 @@ private:
 
     FrameworkNodeAttrs m_attrs;
 };
-} // namespace util
 } // namespace op
 
 template <>
-class NGRAPH_API AttributeAdapter<op::util::FrameworkNodeAttrs>
-    : public DirectValueAccessor<op::util::FrameworkNodeAttrs> {
+class TRANSFORMATIONS_API AttributeAdapter<op::FrameworkNodeAttrs>
+    : public DirectValueAccessor<op::FrameworkNodeAttrs> {
 public:
-    AttributeAdapter(op::util::FrameworkNodeAttrs& value);
+    AttributeAdapter(op::FrameworkNodeAttrs& value);
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
     const DiscreteTypeInfo& get_type_info() const override { return type_info; }

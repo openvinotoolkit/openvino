@@ -526,11 +526,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             a->set(buffer);
         }
     } else if (auto a = ngraph::as_type<
-                        ngraph::AttributeAdapter<ngraph::op::util::FrameworkNodeAttrs>>(&adapter)) {
+                        ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         const auto & type = XMLParseUtils::GetStrAttr(node, "type");
         const auto & version = XMLParseUtils::GetStrAttr(node, "version");
 
-        ngraph::op::util::FrameworkNodeAttrs node_attrs;
+        ngraph::op::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
         node_attrs.set_type_name(type);
 
@@ -849,7 +849,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     }
 
     if (!ngraphNode && m_use_framework_node) {
-        ngraphNode = std::make_shared<ngraph::op::util::FrameworkNode>(inputs);
+        ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
         ngraphNode->visit_attributes(visitor);
 

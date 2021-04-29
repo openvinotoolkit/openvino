@@ -320,7 +320,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::util::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
