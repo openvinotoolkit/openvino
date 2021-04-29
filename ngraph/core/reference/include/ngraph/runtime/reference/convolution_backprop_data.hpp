@@ -330,7 +330,7 @@ namespace ngraph
                                          const CoordinateDiff& forward_in_pad_bellow,
                                          const CoordinateDiff& forward_in_pad_above,
                                          const Strides& stride,
-                                         const CoordinateDiff& output_padding)
+                                         const CoordinateDiff& output_padding = {0, 0, 0})
             {
                 convolution_backprop_in(delta_in,
                                         filter,
