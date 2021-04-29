@@ -264,7 +264,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-            auto output_max_value = static_cast<double>(std::numeric_limits<int16_t>::max());
+            auto output_max_value = static_cast<double>((inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max());
 
             auto x_min = fp32eq(fmod(powerLayer->power, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
             x_min = std::max(x_min, -pow_domain);

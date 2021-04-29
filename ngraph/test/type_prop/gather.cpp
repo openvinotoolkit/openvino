@@ -27,6 +27,40 @@ TEST(type_prop, gather_axis_0)
     ASSERT_EQ(G->get_axis(), 0);
 }
 
+TEST(type_prop, gather_7_uint8)
+{
+    // Gather_1 must allow even if indices is not int32/int64
+    PartialShape data_shape{3, 2};
+    PartialShape indices_shape{2, 2};
+    PartialShape out_shape{2, 2, 2};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::u8, indices_shape);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(D, I, A);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    ASSERT_EQ(G->get_axis(), 0);
+}
+
+TEST(type_prop, gather_7_float32)
+{
+    // Gather_1 should allow non int32/int64 indices
+    PartialShape data_shape{3, 2};
+    PartialShape indices_shape{2, 2};
+    PartialShape out_shape{2, 2, 2};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::f32, indices_shape);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(D, I, A);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    ASSERT_EQ(G->get_axis(), 0);
+}
+
 TEST(type_prop, gather_axis_1)
 {
     Shape params_shape{3, 3};
@@ -55,7 +89,7 @@ TEST(type_prop, gather_v1_incorrect_axis_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Axes input must be scalar or have 1 element (shape:"));
+                             std::string("Axis input must be scalar or have 1 element"));
     }
     catch (...)
     {
@@ -77,7 +111,7 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The axis must => 0 and <= input_rank (axis:"));
+                             std::string("The axis must be >= 0 and < data_rank. But instead got axis"));
     }
     catch (...)
     {
@@ -241,7 +275,7 @@ TEST(type_prop, gather_7_axis_not_set)
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
     ASSERT_EQ(G->get_element_type(), element::f32);
@@ -260,7 +294,7 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims)
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     ASSERT_EQ(G->get_element_type(), element::f32);
@@ -279,7 +313,7 @@ TEST(type_prop, gather_7_axis_not_set_negative_batch)
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     ASSERT_EQ(G->get_element_type(), element::f32);
@@ -303,7 +337,7 @@ TEST(type_prop, gather_7_incorrect_axis_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Axes input must be scalar or have 1 element"));
+                             std::string("Axis input must be scalar or have 1 element"));
     }
     catch (...)
     {
@@ -326,7 +360,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("The axis must be => 0 and < data_rank. But instead got"));
+            error.what(), std::string("The axis must be >= 0 and < data_rank. But instead got"));
     }
     catch (...)
     {
@@ -414,6 +448,66 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
         EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("batch_dims must be <= indices_rank"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+// disabled until decision of type constrains for gather
+TEST(type_prop, DISABLED_gather_7_indices_type_check)
+{
+    PartialShape data_shape{1, 20, 20, 22, 22};
+    PartialShape indices_shape{1, 3};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::f32, indices_shape);
+    int64_t axis = 4;
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    int64_t batch_dims = 0;
+
+    try
+    {
+        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "indices element_type check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("Indices element type must be of an integral number type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+// disabled until decision of type constrains for gather
+TEST(type_prop, DISABLED_gather_7_axis_type_check)
+{
+    PartialShape data_shape{1, 20, 20, 22, 22};
+    PartialShape indices_shape{1, 3};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    int64_t axis = 4;
+    auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
+    int64_t batch_dims = 0;
+
+    try
+    {
+        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "axis element_type check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("Axis element type must be of an integral number type"));
     }
     catch (...)
     {

@@ -42,8 +42,6 @@ xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support dif
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
 xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Det")
-xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -56,8 +54,6 @@ xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B 
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
-                                      "Required attribute 'to' is missing.")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "

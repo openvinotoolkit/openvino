@@ -67,7 +67,7 @@ namespace ngraph
                 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const;
             };
-        }
+        } // namespace v0
         using v0::SpaceToDepth;
     } // namespace op
 

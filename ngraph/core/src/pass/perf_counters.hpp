@@ -30,5 +30,5 @@ namespace ngraph
             std::mutex m_mutex;
             counters_map m_counters;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph

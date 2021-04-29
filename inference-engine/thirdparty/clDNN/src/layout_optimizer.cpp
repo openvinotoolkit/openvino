@@ -236,7 +236,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
-    if (prev.is_type<permute>() && fmt_prev.dimension() == fmt_next.dimension()) {
+    if (prev.is_type<permute>()) {
         return true;
     }
     return false;
@@ -772,8 +772,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         auto input_tensor = node.get_dependency(0).get_output_layout().size;
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
-        float r = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
-        if (r > 0.5f)
+        float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        float stride_cost = 1/static_cast<float>(prim->stride.spatial[0]);
+        if (f_cost * stride_cost > 0.1f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
             expected_format = cldnn::format::bfyx;
