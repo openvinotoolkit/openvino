@@ -13,7 +13,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
-#include <legacy/ngraph_ops/eltwise.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
 #include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
@@ -60,12 +60,13 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
         std::vector<element::Type>{});
 
     const auto weights = std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst);
-    std::shared_ptr<Node> eltwise = std::make_shared<ngraph::op::Eltwise>(relu, weights, ELTWISE_TYPE::Prod);
-    addDequantizationAttribute(eltwise);
+    const auto bias = std::make_shared<opset1::Constant>(element::f32, inputShape, 0.0);
+    std::shared_ptr<Node> scaleShift = std::make_shared<ngraph::op::ScaleShiftIE>(relu, weights, bias);
+    addDequantizationAttribute(scaleShift);
 
-    eltwise->set_friendly_name("output");
+    scaleShift->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(eltwise) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(scaleShift) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvertMulOrAddTransformationWithDequantization");
 }
 
