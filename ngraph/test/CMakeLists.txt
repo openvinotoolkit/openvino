@@ -228,6 +228,7 @@ set(SRC
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
+    visitors/op/prelu.cpp
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
