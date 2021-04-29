@@ -2461,6 +2461,58 @@ GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
     }
 };
 
+namespace {
+    template <typename src_t, typename dst_t>
+    void sub(const uint8_t* src, uint8_t* dst, const int width, double c) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i] - c);
+        }
+    }
+
+    template <typename src_t, typename dst_t>
+    void div(const uint8_t* src, uint8_t* dst, const int width, double c) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i] / c);
+        }
+    }
+}  // namespace
+
+GAPI_FLUID_KERNEL(FSubC, GSubC, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, const cv::Scalar &scalar, int depth, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_32F && src.meta().chan == 1);
+
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+
+        sub<float, float>(in, out, width, scalar[0]);
+    }
+};
+
+GAPI_FLUID_KERNEL(FDivC, GDivC, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View &src, const cv::Scalar &scalar, double _scale, int /*dtype*/,
+            cv::gapi::fluid::Buffer &dst) {
+        GAPI_Assert(src.meta().depth == CV_32F && src.meta().chan == 1);
+
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+
+        div<float, float>(in, out, width, scalar[0]);
+    }
+};
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2488,6 +2540,8 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FNV12toRGB
         , FI420toRGB
         , FConvertDepth
+        , FSubC
+        , FDivC
         >();
 }
 

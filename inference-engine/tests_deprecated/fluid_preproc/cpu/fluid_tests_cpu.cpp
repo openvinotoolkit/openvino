@@ -183,6 +183,20 @@ INSTANTIATE_TEST_CASE_P(ConvertDepthFluid, ConvertDepthTestGAPI,
                                        cv::Size( 320,  200)),
                                 Values(1)));
 
+INSTANTIATE_TEST_CASE_P(DivCFluid, DivCTestGAPI,
+                        Combine(Values(CV_32F),
+                                Values(1),      //channels
+                                Values(TEST_SIZES),
+                                Values(cv::Scalar{0.229}),
+                                Values(0)));
+
+INSTANTIATE_TEST_CASE_P(SubCFluid, SubCTestGAPI,
+                        Combine(Values(CV_32F),
+                                Values(1),      //channels
+                                Values(TEST_SIZES),
+                                Values(cv::Scalar{0.229}),
+                                Values(0.00001)));
+
 INSTANTIATE_TEST_CASE_P(ResizeRoiTestFluid, ResizeRoiTestGAPI,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR),
@@ -283,6 +297,10 @@ INSTANTIATE_TEST_CASE_P(Reorder_CHW2HWC, ColorConvertTestIE,
                                 Values(InferenceEngine::NHWC),
                                 Values(TEST_SIZES),
                                 Values(0)));
+
+INSTANTIATE_TEST_CASE_P(MeanValueGAPI32F, MeanValueGAPI,
+                        Combine(Values(TEST_SIZES),
+                                Values(0.00001)));
 
 //------------------------------------------------------------------------------
 
