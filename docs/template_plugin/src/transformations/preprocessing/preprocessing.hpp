@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(AddPreprocessing);
+class AddPreprocessing;
 
 }  // namespace pass
 }  // namespace ngraph

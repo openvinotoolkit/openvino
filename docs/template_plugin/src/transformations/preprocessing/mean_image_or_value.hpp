@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API AddMeanSubtract;
+class AddMeanSubtract;
 
 }  // namespace pass
 }  // namespace ngraph

@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API AddStdScale;
+class AddStdScale;
 
 }  // namespace pass
 }  // namespace ngraph
