@@ -103,7 +103,7 @@ class FFTBase(Op):
 
 class DFT(FFTBase):
     op = 'DFT'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -119,7 +119,7 @@ class DFT(FFTBase):
 
 class IDFT(FFTBase):
     op = 'IDFT'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
