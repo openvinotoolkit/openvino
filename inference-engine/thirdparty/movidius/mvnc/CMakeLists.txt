@@ -39,7 +39,8 @@ if(NOT WIN32)
             -MP
             -Wformat
             -Wformat-security
-            -Wall)
+            -Wall
+            -Wno-error=unused-command-line-argument)
     if(CMAKE_C_COMPILER_VERSION VERSION_GREATER 4.8.5)
         target_compile_options(${TARGET_NAME}
                 PRIVATE
