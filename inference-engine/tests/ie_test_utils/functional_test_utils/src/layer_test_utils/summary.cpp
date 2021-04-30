@@ -114,18 +114,16 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
 }
 
 void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
-    auto isWithoutFunctionalOpGraph = [&function](){
-        for (const auto &op : function->get_ordered_ops()) {
-            if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
-                !ngraph::is_type<ngraph::op::Constant>(op) &&
-                !ngraph::is_type<ngraph::op::Result>(op)) {
-                return false;
-            }
+    bool isFunctionalGraph = false;
+    for (const auto &op : function->get_ordered_ops()) {
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
         }
-        return true;
-    };
-    bool isFunctionalGraph = !isWithoutFunctionalOpGraph();
-    
+    }
+
     for (const auto &op : function->get_ordered_ops()) {
         if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
             ngraph::is_type<ngraph::op::Constant>(op) ||
