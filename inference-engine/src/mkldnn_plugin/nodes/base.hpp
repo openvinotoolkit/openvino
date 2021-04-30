@@ -141,7 +141,9 @@ public:
             impls.push_back(ILayerImpl::Ptr(new IMPL(ngraphOp)));
         } catch (const InferenceEngine::Exception& ex) {
             strncpy(resp->msg, ex.what(), sizeof(resp->msg) - 1);
+            IE_SUPPRESS_DEPRECATED_START
             return ex.getStatus() != OK ? ex.getStatus() : GENERAL_ERROR;
+            IE_SUPPRESS_DEPRECATED_END
         }
         return OK;
     }

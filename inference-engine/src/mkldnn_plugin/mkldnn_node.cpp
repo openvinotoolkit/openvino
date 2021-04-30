@@ -1272,11 +1272,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     } catch (const InferenceEngine::Exception& ex) {
+        IE_SUPPRESS_DEPRECATED_START
         if (ex.getStatus() != NOT_IMPLEMENTED) {
             throw;
         } else {
             errorMessage += getExceptionDescWithoutStatus(ex);
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     if (newNode == nullptr) {
@@ -1285,11 +1287,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
+            IE_SUPPRESS_DEPRECATED_START
             if (ex.getStatus() != NOT_IMPLEMENTED) {
                 throw;
             } else {
                 errorMessage += getExceptionDescWithoutStatus(ex);
             }
+            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -1300,11 +1304,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 //             if (ol != nullptr && ol->created(extMgr))
 //                 newNode = ol.release();
 //         } catch (const InferenceEngine::Exception& ex) {
+//             IE_SUPPRESS_DEPRECATED_START
 //             if (ex.getStatus() != NOT_IMPLEMENTED) {
 //                 throw;
 //             } else {
 //                 errorMessage += getExceptionDescWithoutStatus(ex);
 //             }
+//             IE_SUPPRESS_DEPRECATED_END
 //         }
 //     }
 
