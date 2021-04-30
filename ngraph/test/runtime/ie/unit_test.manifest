@@ -866,8 +866,6 @@ broadcast_algo_matrix_stride_3
 
 # Cannot find blob with name: Parameter_1
 dyn_group_convolution_backprop_data
-dynamic_transpose
-transpose
 
 # todo: check negative indices implementation
 gather_2d_negative_and_positive_indices_axis_0_2d_input
@@ -1151,6 +1149,8 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_input
 IE_CPU.onnx_model_reduce_sum_13_input_dynamic
 IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
 IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+IE_CPU.transpose_axes_parameter_static_shapes
+IE_CPU.transpose_axes_parameter_dynamic_shapes
 
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
