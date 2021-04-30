@@ -21,8 +21,8 @@ using ngraph::test::ValueMap;
 TEST(attributes, convolution_backprop_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 12, 224, 224});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 1, 3, 5, 5});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
+    auto filters = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
@@ -41,8 +41,8 @@ TEST(attributes, convolution_backprop_op)
 TEST(attributes, convolution_backprop_output_shape_output_padding)
 {
     NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 20, 224, 224});
-    const auto filter = make_shared<op::Parameter>(element::f32, Shape{4, 5, 2, 3, 3});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
+    const auto filter = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     const auto output_shape = make_shared<op::Parameter>(element::i32, Shape{1});
 
     const auto strides = Strides{2, 1};
@@ -71,4 +71,3 @@ TEST(attributes, convolution_backprop_output_shape_output_padding)
     EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
     EXPECT_EQ(g_convolution->get_output_padding(), convolution->get_output_padding());
 }
-
