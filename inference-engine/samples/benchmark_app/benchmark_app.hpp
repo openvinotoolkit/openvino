@@ -128,7 +128,7 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
-                                          "All CNNNetwork options (like re-shape) will be ignored";
+                                             "All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";

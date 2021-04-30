@@ -333,7 +333,7 @@ int main(int argc, char* argv[]) {
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir} });
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
@@ -348,10 +348,7 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                                  {"load network time (ms)", duration_ms}
-                                          });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
             if (batchSize == 0) {
                 batchSize = 1;
             }
