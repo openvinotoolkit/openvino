@@ -45,7 +45,7 @@ public:
     virtual ~GatherNDKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_nd_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_nd_params& params, const optional_params&) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

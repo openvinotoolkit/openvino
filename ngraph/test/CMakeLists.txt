@@ -497,9 +497,15 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(unit-test_obj PRIVATE
             $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
+    # to make sure onnx headers are generated
+    add_dependencies(unit-test_obj onnx_proto)
+
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test_obj PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
+
+# to make sure gtest is downloaded and built
+add_dependencies(unit-test_obj ext_gtest)
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(unit-test_obj PRIVATE -Wno-missing-braces -Wno-error=sign-compare)
