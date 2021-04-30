@@ -135,6 +135,13 @@ namespace ngraph
                     return __make_ng_constant<char>(element::boolean, tensor);
                 }
 
+                template <>
+                inline std::shared_ptr<default_opset::Constant>
+                    make_ng_constant<Tensor::Type::bfloat16>(const Tensor& tensor)
+                {
+                    return __make_ng_constant<ngraph::bfloat16>(element::bf16, tensor);
+                }
+
                 inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tensor)
                 {
 #define MAKE_NG_CONSTANT(data_type_)                                                               \
@@ -154,6 +161,7 @@ namespace ngraph
                         MAKE_NG_CONSTANT(Tensor::Type::uint32);
                         MAKE_NG_CONSTANT(Tensor::Type::uint64);
                         MAKE_NG_CONSTANT(Tensor::Type::boolean);
+                        MAKE_NG_CONSTANT(Tensor::Type::bfloat16);
                     default: throw error::tensor::invalid_data_type{tensor};
                     }
                 }
@@ -202,16 +210,6 @@ namespace ngraph
                         return {default_opset::Constant::create(
                             element::i64, ngraph::Shape{values.size()}, values)};
                     }
-                    // else if(attribute.is_string())
-                    // {
-                    //    return {default_opset::Constant::create(element::string, ngraph::Shape{},
-                    //    {attribute.get_string()})};
-                    // }
-                    // else if (attribute.is_string_array()){
-                    //    auto values = attribute.get_string_array();
-                    //    return {default_opset::Constant::create(element::string,
-                    //    ngraph::Shape{values.size()}, values)};
-                    // }
                     return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
                 }
 

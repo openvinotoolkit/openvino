@@ -4309,6 +4309,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_tensor)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_bfloat_tensor)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_bfloat_tensor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0, 5, 10, 15, 20, 25});
+    test_case.run();
+}
+
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_scalar)
 {
     auto function = onnx_import::import_onnx_model(
