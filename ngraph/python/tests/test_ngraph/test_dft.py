@@ -133,7 +133,7 @@ def test_dft_1d():
     dft_node = ng.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
-    np_results = np.fft.fft(np.squeeze(input_data.view(dtype=np.complex64), axis=-1))
+    np_results = np.fft.fft(np.squeeze(input_data.view(dtype=np.complex64), axis=-1), axis=2)
     expected_results = np_results.view(dtype=np.float32).reshape((2, 10, 10, 2))
     assert np.allclose(dft_results, expected_results, atol=0.00001)
 
