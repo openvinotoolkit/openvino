@@ -326,6 +326,20 @@ void LayerTestsCommon::GenerateInputs() {
     }
 }
 
+std::vector<float> LayerTestsCommon::GenerateWeights(size_t size, int minValue, int maxValue, int seed) const {
+    std::vector<float> res;
+
+    std::mt19937 gen(seed);
+    // chose values between this int range to cover various data type and negative values
+    std::uniform_int_distribution<int> dist(minValue, maxValue);
+
+    for (size_t i = 0; i < size; i++) {
+        res.push_back(
+                static_cast<float>(dist(gen)));
+    }
+    return res;
+}
+
 void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
 

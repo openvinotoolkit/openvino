@@ -53,6 +53,8 @@ class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
 
+    virtual std::vector<float> GenerateWeights(size_t size, int minValue = -10, int maxValue = 10, int seed = 1) const;
+
     virtual void Run();
 
     virtual void Serialize();
