@@ -49,6 +49,12 @@ static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode
         };
 #endif
 
+static const std::set<std::string> supportedTargets = {
+    GNAConfigParams::GNA_TARGET_2_0,
+    GNAConfigParams::GNA_TARGET_3_0,
+    ""
+};
+
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
         auto key = item.first;
@@ -119,10 +125,11 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 pluginGna2DeviceConsistent = procType->second.second;
 #endif
             }
-        } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
-            gnaExecTarget = value;
-        } else if (key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
-            gnaCompileTarget = value;
+        } else if (key == GNA_CONFIG_KEY(EXEC_TARGET) || key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
+            if (supportedTargets.count(value) == 0) {
+                THROW_GNA_EXCEPTION << "Unsupported GNA config value (key, value): (" << key << ", " << value << ")";
+            }
+            (key == GNA_CONFIG_KEY(EXEC_TARGET) ? gnaExecTarget : gnaCompileTarget) = value;
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.compact_mode = true;
