@@ -161,7 +161,7 @@ namespace ngraph
         {
             static constexpr bool value = true;
         };
-    
+
         template <>
         struct supports_ops_stats_collection<IE_CPU_Engine>
         {

@@ -9,6 +9,7 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_control.hpp"
+#include "util/test_environment.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -44,6 +45,7 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
         pad_value,
         auto_pad);
     auto f = make_shared<Function>(bin_conv, ParameterVector{inputs_param});
+    REPORT(f);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -76,6 +78,7 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
     auto conv = make_shared<op::v1::Convolution>(
         inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
+    REPORT(f);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

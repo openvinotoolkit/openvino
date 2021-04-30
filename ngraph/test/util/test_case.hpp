@@ -162,13 +162,7 @@ namespace ngraph
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results(tolerance_bits);
-
-                if (supports_ops_stats_collection<Engine>::value)
-                {
-                    m_engine.update_ops_stats(res == testing::AssertionSuccess()
-                                                  ? PassRate::Statuses::PASSED
-                                                  : PassRate::Statuses::SKIPPED);
-                }
+                update_ops_stats(res);
 
                 if (res != testing::AssertionSuccess())
                 {
@@ -186,6 +180,7 @@ namespace ngraph
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results_with_tolerance_as_fp(tolerance);
+                update_ops_stats(res);
 
                 if (res != testing::AssertionSuccess())
                 {
@@ -200,6 +195,15 @@ namespace ngraph
             }
 
         private:
+            void update_ops_stats(const testing::AssertionResult& res)
+            {
+                if (supports_ops_stats_collection<Engine>::value)
+                {
+                    m_engine.update_ops_stats(res == testing::AssertionSuccess()
+                                                  ? PassRate::Statuses::PASSED
+                                                  : PassRate::Statuses::SKIPPED);
+                }
+            }
             Engine m_engine;
             std::shared_ptr<Function> m_function;
             size_t m_input_index = 0;

@@ -25,32 +25,60 @@ namespace ngraph
             return *p_instance;
         }
 
-        void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
+        void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function>& function,
+                                     PassRate::Statuses status)
         {
-            // TODO: Do we need to count skips?
-            auto it = opsStats.find(op);
-            if (it != opsStats.end())
+            if (!function)
             {
-                auto& passrate = it->second;
-                switch (status)
-                {
-                case PassRate::PASSED: passrate.passed += 1; break;
-                case PassRate::FAILED: passrate.failed += 1; break;
-                case PassRate::SKIPPED: passrate.skipped += 1; break;
-                }
+                return;
+            }
+            for (const auto& op : function->get_ordered_ops())
+            {
+                updateOPsStats(op, status);
+            }
+        }
+        void Summary::updateOPsStats(const std::shared_ptr<ngraph::Node>& op,
+                                     PassRate::Statuses status)
+        {
+            if (!op || ngraph::is_type<ngraph::op::Parameter>(op) ||
+                ngraph::is_type<ngraph::op::Constant>(op) ||
+                ngraph::is_type<ngraph::op::Result>(op))
+            {
+                return;
+            }
+            else if (ngraph::is_type<ngraph::op::TensorIterator>(op))
+            {
+                updateOPsStats(op->get_type_info(), status);
+                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                updateOPsStats(ti->get_function(), status);
+            }
+            else if (ngraph::is_type<ngraph::op::v5::Loop>(op))
+            {
+                updateOPsStats(op->get_type_info(), status);
+                auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+                updateOPsStats(loop->get_function(), status);
             }
             else
             {
-                switch (status)
-                {
-                case PassRate::PASSED: opsStats[op] = PassRate(1, 0, 0); break;
-                case PassRate::FAILED: opsStats[op] = PassRate(0, 1, 0); break;
-                case PassRate::SKIPPED: opsStats[op] = PassRate(0, 0, 1); break;
-                }
+                updateOPsStats(op->get_type_info(), status);
             }
         }
 
-        void TestEnvironment::TearDown()
+        void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
+        {
+            // TODO: Do we need to count skips?
+            auto& passrate = opsStats[op];
+            switch (status)
+            {
+            case PassRate::PASSED: passrate.passed += 1; break;
+            case PassRate::FAILED: passrate.failed += 1; break;
+            case PassRate::SKIPPED: passrate.skipped += 1; break;
+            }
+        }
+
+        void TestEnvironment::TearDown() { writeReport(); }
+
+        void TestEnvironment::writeReport(const std::string& reportFileName) const
         {
             std::vector<ngraph::OpSet> opsets;
             opsets.push_back(ngraph::get_opset1());
@@ -94,7 +122,7 @@ namespace ngraph
                 root.append_attribute("timestamp").set_value(timeNow);
 
                 root.remove_child("ops_list");
-                root.child("results").remove_child(s.deviceName.c_str());
+                root.child("results").remove_child(s.getDeviceName().c_str());
             }
             else
             {
@@ -107,12 +135,12 @@ namespace ngraph
             for (const auto& op : opsInfo)
             {
                 std::string name = std::string(op.name) + "-" + std::to_string(op.version);
-                //pugi::xml_node entry = 
+                // pugi::xml_node entry =
                 opsNode.append_child(name.c_str());
             }
 
             pugi::xml_node resultsNode = root.child("results");
-            pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
+            pugi::xml_node currentDeviceNode = resultsNode.append_child(s.getDeviceName().c_str());
             for (const auto& it : stats)
             {
                 std::string name =
@@ -133,5 +161,5 @@ namespace ngraph
                 std::cout << "Failed to write report to " << reportFileName << "!" << std::endl;
             }
         }
-    }
-}
+    } // namespace test
+} // namespace ngraph
