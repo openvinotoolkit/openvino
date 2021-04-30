@@ -25,16 +25,17 @@ private:
     size_t calculateShiftOffset(size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize);
 
     template <typename DataType>
-    void rollImpl(const InferenceEngine::Blob::CPtr &inputBlob, const InferenceEngine::Blob::CPtr &shiftsBlob,
-                  const InferenceEngine::Blob::CPtr &axesBlob, const InferenceEngine::Blob::Ptr &outputBlob);
+    void rollImpl();
+
+    std::vector<size_t> shape;
+    const static std::vector<size_t> supportedPrecisionSizes;
+    std::string layerErrorPrefix;
+    size_t numOfDims;
 
     const size_t DATA_INDEX = 0ul;
     const size_t SHIFT_INDEX = 1ul;
     const size_t AXES_INDEX = 2ul;
     const size_t numberOfInputs = 3ul;
-
-    size_t numOfDims;
-    std::vector<size_t> shape;
 };
 
 }  // namespace MKLDNNPlugin

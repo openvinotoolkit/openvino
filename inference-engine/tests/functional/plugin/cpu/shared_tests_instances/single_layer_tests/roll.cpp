@@ -17,7 +17,6 @@ const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::I16,
     InferenceEngine::Precision::I32,
     InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::I64,
     InferenceEngine::Precision::BF16
 };
 
@@ -64,8 +63,8 @@ const auto testCaseNegativeUnorderedAxes4D = ::testing::Combine(
 const auto testCaseRepeatingAxes5D = ::testing::Combine(
     ::testing::Values(std::vector<size_t>{2, 16, 32, 32}), // Input shape
     ::testing::ValuesIn(inputPrecision), // Precision
-    ::testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 8, 1, 1}), // Shift
-    ::testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 2, -2, -3}), // Axes
+    ::testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 2, 8, 1, 1}), // Shift
+    ::testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 3, 2, -2, -3}), // Axes
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

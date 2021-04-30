@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 MKLDNNRollNode::MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
                 MKLDNNNode(layer, eng, cache) {
-    const std::string layerErrorPrefix = "Roll layer with name '" + layer->name + "'";
+    layerErrorPrefix = "Roll layer with name '" + layer->name + "'";
     if (layer->insData.size() != numberOfInputs) {
         IE_THROW() << layerErrorPrefix << " has incorrect number of input/output edges!";
     }
@@ -32,18 +32,18 @@ MKLDNNRollNode::MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const 
     }
 
     const auto &dataTensor = data->getTensorDesc();
-    const auto &dataShape = dataTensor.getDims();
+    shape = dataTensor.getDims();
     const auto &dataPrecision = dataTensor.getPrecision();
 
-    if (!MKLDNNPlugin::one_of(dataPrecision, Precision::I8, Precision::U8, Precision::I16, Precision::I32, Precision::FP32, Precision::I64, Precision::BF16)) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
-    }
-    if (dataShape.size() < 1) {
-        IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.size();
-    }
-    numOfDims = dataShape.size();
+    if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
+        IE_THROW() << layerErrorPrefix << "has unsupported precision: " << dataPrecision.name();
 
-    if (dataShape != layer->outData[0]->getTensorDesc().getDims()) {
+    if (shape.size() < 1) {
+        IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << shape.size();
+    }
+    numOfDims = shape.size();
+
+    if (shape != layer->outData[0]->getTensorDesc().getDims()) {
         IE_THROW() << layerErrorPrefix << " has different 'data' input and output dimensions";
     }
 
@@ -78,8 +78,6 @@ MKLDNNRollNode::MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const 
     if (shiftTensorRank > 1) {
         IE_THROW() << layerErrorPrefix << " doesn't support 'shift' input tensor with rank: " << shiftTensorRank;
     }
-
-    shape = dataShape;
 }
 void MKLDNNRollNode::getSupportedDescriptors() {}
 
@@ -90,7 +88,7 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
     auto inputData = getCnnLayer()->insData[0].lock();
 
     if (inputData == nullptr) {
-        IE_THROW() << "Roll layer with name '" + getCnnLayer()->name + "'" << " has nullable data";
+        IE_THROW() << layerErrorPrefix << " has nullable 'data'";
     }
 
     InferenceEngine::Precision precision = inputData->getPrecision();
@@ -101,7 +99,7 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 
     auto dataMemoryFormat = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
+    config.dynBatchSupport = false;
 
     auto createDataConfig = [](const MKLDNNDims& dims, memory::data_type dataType) -> InferenceEngine::DataConfig {
         InferenceEngine::DataConfig dataConfig;
@@ -122,31 +120,23 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 
 
 void MKLDNNRollNode::execute(mkldnn::stream strm) {
-    auto input = getParentEdgeAt(DATA_INDEX)->getBlob();
-    auto shifts = getParentEdgeAt(SHIFT_INDEX)->getBlob();
-    auto axes = getParentEdgeAt(AXES_INDEX)->getBlob();
-    auto output = getChildEdgeAt(0)->getBlob();
-    const auto dataPrecision = getInputPrecisions()[0];
+    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I8>::value_type>(input, shifts, axes, output);
+            rollImpl<PrecisionTrait<Precision::I8>::value_type>();
             break;
         }
         case sizeof(PrecisionTrait<Precision::I16>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I16>::value_type>(input, shifts, axes, output);
+            rollImpl<PrecisionTrait<Precision::I16>::value_type>();
             break;
         }
         case sizeof(PrecisionTrait<Precision::I32>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I32>::value_type>(input, shifts, axes, output);
-            break;
-        }
-        case sizeof(PrecisionTrait<Precision::I64>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I64>::value_type>(input, shifts, axes, output);
+            rollImpl<PrecisionTrait<Precision::I32>::value_type>();
             break;
         }
         default:
-            IE_THROW() << "Roll has unsupported 'data' input precision: " << dataPrecision.name();
+            IE_THROW() << layerErrorPrefix <<  "has unsupported 'data' input precision: " << dataPrecision.name();
     }
 }
 
@@ -157,16 +147,20 @@ size_t MKLDNNRollNode::calculateShiftOffset(size_t dataOffset, size_t dimShift, 
 }
 
 template <typename DataType>
-void MKLDNNRollNode::rollImpl(const Blob::CPtr &inputBlob, const Blob::CPtr &shiftsBlob, const Blob::CPtr &axesBlob, const Blob::Ptr &outputBlob) {
-    const auto *axes = axesBlob->cbuffer().as<const int32_t*>() + axesBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    const auto *shifts = shiftsBlob->cbuffer().as<const int32_t *>() + shiftsBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+void MKLDNNRollNode::rollImpl() {
+    const auto dataEdge = getParentEdgeAt(DATA_INDEX);
+    const auto axesEdge = getParentEdgeAt(AXES_INDEX);
+    const auto shiftsEdge = getParentEdgeAt(SHIFT_INDEX);
 
-    const auto *input =
-            inputBlob->cbuffer().as<const DataType *>() + inputBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    auto *output = outputBlob->buffer().as<DataType *>() + outputBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    const auto *axes = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
+    const auto *shifts = reinterpret_cast<const int32_t*>(shiftsEdge->getMemoryPtr()->GetPtr());
 
+    const auto *input = reinterpret_cast<const DataType*>(dataEdge->getMemoryPtr()->GetPtr());
+    auto *output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     std::vector<size_t> shiftsVector(numOfDims, 0);
-    for (size_t dim = 0; dim < axesBlob->size(); ++dim) {
+
+    const size_t axesLength = axesEdge->getDims()[0];
+    for (size_t dim = 0; dim < axesLength ; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
         int32_t shiftSum = shiftsVector[currentAxis] + shifts[dim];
         int32_t dimSize = shape[currentAxis];
@@ -174,22 +168,21 @@ void MKLDNNRollNode::rollImpl(const Blob::CPtr &inputBlob, const Blob::CPtr &shi
     }
 
     const size_t blockSize = shape.back();
-    const size_t totalElements = inputBlob->size();
+    const size_t totalElements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
     const size_t leftBlockSize = blockSize - shiftsVector.back();
     const size_t rightBlockSize = blockSize - leftBlockSize;
     const size_t elementSize = sizeof(DataType);
 
-    size_t nIterations = totalElements / blockSize;
+    const size_t nIterations = totalElements / blockSize;
+    const auto strides = dataEdge->getDesc().getBlockingDesc().getStrides();
     parallel_for(nIterations, [&](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;
 
-        size_t segmentSize = 1;
         for (int dim = numOfDims - 1; dim >= 0; --dim) {
-            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], segmentSize, shape[dim]);
-            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], segmentSize, shape[dim]);
-            segmentSize *= shape[dim];
+            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
+            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
         }
 
         if (leftBlockSize > 0)
@@ -210,5 +203,7 @@ bool MKLDNNRollNode::created() const {
 }
 
 void MKLDNNRollNode::createPrimitive() {}
+
+const std::vector<size_t> MKLDNNRollNode::supportedPrecisionSizes = {1, 2, 4};
 
 REG_MKLDNN_PRIM_FOR(MKLDNNRollNode, Roll)
