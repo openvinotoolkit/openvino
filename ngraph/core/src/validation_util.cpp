@@ -603,8 +603,10 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
                               "Input element types do not match.");
     }
 
-    NODE_VALIDATION_CHECK(
-        node, et_result.is_real(), "Input element types must be floating-point. Got: ", et_result);
+    NODE_VALIDATION_CHECK(node,
+                          et_result.is_dynamic() || et_result.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          et_result);
 
     // Extract channel dimension from input shape.
     Dimension channel_dim{Dimension::dynamic()};
