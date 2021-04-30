@@ -18,7 +18,6 @@
 #include "multi-device/multi_device_config.hpp"
 #include <string>
 #include <ie_core.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <thread>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
