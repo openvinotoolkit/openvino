@@ -25,7 +25,6 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         return false;
     }();
     if (!op_found) {
-        // TODO: Extend for subgraphs caching
         const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
         LayerTestsUtils::OPInfo meta(source_model);
         try {
@@ -39,7 +38,6 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
 }
 
 void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const std::string &source_model) {
-    func->validate_nodes_and_infer_types();
     size_t cached_ops_count = m_ops_cache.size();
     for (const auto &op : func->get_ordered_ops()) {
         if (ngraph::is_type<ngraph::op::Parameter>(op) ||

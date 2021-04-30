@@ -13,33 +13,11 @@
 
 #include "ops_cache.hpp"
 #include "op_cloner.hpp"
+#include "utils/dynamism_resolver.hpp"
+#include "utils/model_wrap_struct.hpp"
 #include "gflag_config.hpp"
 #include <stdlib.h>
 #include <string.h>
-
-struct Model {
-    std::string xml;
-    std::string bin;
-    size_t size;
-
-    Model(std::string model) {
-        xml = model;
-        bin = CommonTestUtils::replaceExt(model, "bin");
-        if (CommonTestUtils::fileExists(bin)) {
-            size = CommonTestUtils::fileSize(bin);
-        } else {
-            size = 0;
-        }
-    }
-
-    bool operator<(const Model &m) const {
-        return size < m.size;
-    }
-
-    bool operator>(const Model &m) const {
-        return size > m.size;
-    }
-};
 
 int main(int argc, char *argv[]) {
     uint8_t ret_code = 0;
@@ -57,14 +35,14 @@ int main(int argc, char *argv[]) {
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
-        const auto content  = CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
+        const auto content = CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
         input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
     }
-    std::vector<Model> models;
+    std::vector<SubgraphsDumper::Model> models;
     auto xml_regex = std::regex(FLAGS_path_regex);
     for (const auto &file : input_folder_content) {
         if (std::regex_match(file, xml_regex)) {
-            models.emplace_back(Model(file));
+            models.emplace_back(SubgraphsDumper::Model(file));
         }
     }
     std::sort(models.begin(), models.end());
@@ -76,7 +54,6 @@ int main(int argc, char *argv[]) {
 
     auto ie = InferenceEngine::Core();
     auto cache = SubgraphsDumper::OPCache::make_cache();
-
     time_t rawtime;
     struct tm *timeinfo;
     char buffer[20];
@@ -98,6 +75,18 @@ int main(int argc, char *argv[]) {
 
                 InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
                 auto function = net.getFunction();
+                if (FLAGS_eliminate_dynamism) {
+                    try {
+                        SubgraphsDumper::resolve_dynamic_shapes(function);
+                    } catch (std::exception &e) {
+                        std::cout << "Failed to eliminate dynamism from model " << model.xml
+                                  << "\n Exception occurred:\n" << e.what() << "\nModel will be processed as is."
+                                  << std::endl;
+                    }
+                }
+                for (const auto &op : function->get_ordered_ops()) {
+                    std::cout << op << std::endl;
+                }
                 cache->update_ops_cache(function, model.xml);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
