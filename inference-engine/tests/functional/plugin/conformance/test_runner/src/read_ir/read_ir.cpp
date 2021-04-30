@@ -10,8 +10,10 @@ namespace ConformanceTests {
 using namespace LayerTestsDefinitions;
 
 const char* targetDevice = "";
-std::vector<std::string> IRFolderPaths = {};
 const char* targetPluginName = "";
+
+std::vector<std::string> IRFolderPaths = {};
+std::vector<std::string> disabledTests = {};
 
 namespace {
 INSTANTIATE_TEST_CASE_P(conformance,
