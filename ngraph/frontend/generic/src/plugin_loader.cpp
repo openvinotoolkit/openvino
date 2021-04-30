@@ -46,14 +46,14 @@ static std::vector<std::string> listFiles(const std::string& path)
             auto file = path + FileSeparator + std::string(ent->d_name);
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
-            if (!S_ISDIR(stat_path.st_mode) && file.find("_frontend.so") != std::string::npos)
+            if (!S_ISDIR(stat_path.st_mode) && file.find("_ngraph_frontend.so") != std::string::npos)
             {
                 res.push_back(std::move(file));
             }
         }
     }
 #else
-    std::string searchPath = path + FileSeparator + "*_frontend.dll";
+    std::string searchPath = path + FileSeparator + "*_ngraph_frontend*.dll";
     WIN32_FIND_DATA fd;
     HANDLE handle = ::FindFirstFile(searchPath.c_str(), &fd);
     if (handle != INVALID_HANDLE_VALUE)

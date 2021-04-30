@@ -6,11 +6,11 @@
 #include "frontend_manager/frontend_manager_defs.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 
-#ifdef mock1_frontend_EXPORTS // defined if we are building the plugin DLL (instead of using it)
+#ifdef mock1_ngraph_frontend_EXPORTS // defined if we are building the plugin DLL (instead of using it)
 #define MOCK_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define MOCK_API NGRAPH_HELPER_DLL_IMPORT
-#endif // mock1_frontend_EXPORTS
+#endif // mock1_ngraph_frontend_EXPORTS
 
 using namespace ngraph;
 using namespace ngraph::frontend;

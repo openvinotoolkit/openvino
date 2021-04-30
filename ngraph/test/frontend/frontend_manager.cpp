@@ -8,6 +8,15 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
+#ifdef _WIN32
+    #include <Shlwapi.h>
+    #pragma comment(lib, "shlwapi.lib")
+#else
+    #include <libgen.h>         // dirname
+    #include <unistd.h>         // readlink
+    #include <linux/limits.h>   // PATH_MAX
+#endif
+
 using namespace ngraph;
 using namespace ngraph::frontend;
 
@@ -18,6 +27,25 @@ static int set_test_env(const char* name, const char* value)
 #elif defined(__linux) || defined(__APPLE__)
     std::string var = std::string(name) + "=" + value;
     return setenv(name, value, 0);
+#endif
+}
+
+static std::string currentExeDir()
+{
+#ifdef _WIN32
+    char exePath[MAX_PATH];
+    auto length = GetModuleFileNameA(NULL, exePath, MAX_PATH);
+    PathRemoveFileSpec(exePath);
+    return exePath;
+#else
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    const char *path = nullptr;
+    if (count != -1)
+    {
+        path = dirname(result);
+    }
+    return path;
 #endif
 }
 
@@ -35,11 +63,15 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 {
+    std::string currentDir = currentExeDir();
+    std::string fePath;
 #ifdef _WIN32
-    set_test_env("OV_FRONTEND_PATH", ".;.\\lib");
+    fePath = currentDir + ";" + currentDir+"\\lib";
 #else  // _WIN32
-    set_test_env("OV_FRONTEND_PATH", ".:./lib");
+    fePath = currentDir + ":" + currentDir+"/lib";
 #endif
+    set_test_env("OV_FRONTEND_PATH", fePath.c_str());
+
     FrontEndManager fem;
     auto frontends = fem.availableFrontEnds();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());

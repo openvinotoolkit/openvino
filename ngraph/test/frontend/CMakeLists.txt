@@ -3,12 +3,12 @@
 #
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
-add_library(mock1_frontend SHARED ${SRC})
+add_library(mock1_ngraph_frontend SHARED ${SRC})
 
-target_compile_definitions(mock1_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
+target_compile_definitions(mock1_ngraph_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
 
-target_include_directories(mock1_frontend PRIVATE ".")
+target_include_directories(mock1_ngraph_frontend PRIVATE ".")
 
-target_include_directories(mock1_frontend PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
-target_link_libraries(mock1_frontend PRIVATE frontend_manager)
-add_dependencies(unit-test mock1_frontend)
+target_include_directories(mock1_ngraph_frontend PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
+target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
+add_dependencies(unit-test mock1_ngraph_frontend)
