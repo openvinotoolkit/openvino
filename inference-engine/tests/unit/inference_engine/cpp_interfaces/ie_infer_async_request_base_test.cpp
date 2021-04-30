@@ -9,8 +9,7 @@
 #include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
 #include <ie_plugin_cpp.hpp>
-#include <cpp_interfaces/exception2status.hpp>
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp/ie_infer_async_request_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
@@ -25,6 +24,8 @@ using namespace InferenceEngine::details;
 
 constexpr const char* MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
 constexpr const char* MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME;
+
+IE_SUPPRESS_DEPRECATED_START
 
 class InferRequestBaseTests : public ::testing::Test {
 protected:

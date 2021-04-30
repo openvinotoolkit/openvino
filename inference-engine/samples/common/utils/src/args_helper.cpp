@@ -5,24 +5,24 @@
 #include "samples/args_helper.hpp"
 
 #include <gflags/gflags.h>
-#include <iostream>
 #include <sys/stat.h>
 
+#include <iostream>
 #include <samples/slog.hpp>
 
 #ifdef _WIN32
-#include <samples/os/windows/w_dirent.h>
+    #include <samples/os/windows/w_dirent.h>
 #else
-#include <dirent.h>
+    #include <dirent.h>
 #endif
 
 /**
-* @brief Checks input file argument and add it to files vector
-* @param files reference to vector to store file names
-* @param arg file or folder name
-* @return none
-*/
-void readInputFilesArguments(std::vector<std::string> &files, const std::string& arg) {
+ * @brief Checks input file argument and add it to files vector
+ * @param files reference to vector to store file names
+ * @param arg file or folder name
+ * @return none
+ */
+void readInputFilesArguments(std::vector<std::string>& files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
         slog::warn << "File " << arg << " cannot be opened!" << slog::endl;
@@ -43,10 +43,11 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
             return;
         }
 
-        struct dirent *ep;
+        struct dirent* ep;
         while (nullptr != (ep = readdir(dp.get()))) {
             std::string fileName = ep->d_name;
-            if (fileName == "." || fileName == "..") continue;
+            if (fileName == "." || fileName == "..")
+                continue;
             files.push_back(arg + "/" + ep->d_name);
         }
     } else {
@@ -55,14 +56,19 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
 }
 
 /**
-* @brief This function find -i key in input args. It's necessary to process multiple values for single key
-* @param files reference to vector
-* @return none.
-*/
-void parseInputFilesArguments(std::vector<std::string> &files) {
+ * @brief This function find -i key in input args. It's necessary to process multiple values for
+ * single key
+ * @param files reference to vector
+ * @return none.
+ */
+void parseInputFilesArguments(std::vector<std::string>& files) {
     std::vector<std::string> args = gflags::GetArgvs();
-    const auto is_image_arg = [](const std::string& s){ return s == "-i" || s == "--images";};
-    const auto is_arg = [](const std::string& s){return s.front() == '-';};
+    const auto is_image_arg = [](const std::string& s) {
+        return s == "-i" || s == "--images";
+    };
+    const auto is_arg = [](const std::string& s) {
+        return s.front() == '-';
+    };
     const auto img_start = std::find_if(begin(args), end(args), is_image_arg);
     if (img_start == end(args)) {
         return;
@@ -85,7 +91,6 @@ void parseInputFilesArguments(std::vector<std::string> &files) {
 }
 
 namespace {
-
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
         return {};
@@ -122,11 +127,9 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-
 using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
 
-InferenceEngine::Precision getPrecision(std::string value,
-                                               const supported_precisions_t& supported_precisions) {
+InferenceEngine::Precision getPrecision(std::string value, const supported_precisions_t& supported_precisions) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);
 
     const auto precision = supported_precisions.find(value);
@@ -139,24 +142,16 @@ InferenceEngine::Precision getPrecision(std::string value,
 
 InferenceEngine::Precision getPrecision(const std::string& value) {
     static const supported_precisions_t supported_precisions = {
-         { "FP32", InferenceEngine::Precision::FP32 },
-         { "FP16", InferenceEngine::Precision::FP16 },
-         { "BF16", InferenceEngine::Precision::BF16 },
-         { "U64", InferenceEngine::Precision::U64 },
-         { "I64", InferenceEngine::Precision::I64 },
-         { "U32", InferenceEngine::Precision::U32 },
-         { "I32", InferenceEngine::Precision::I32 },
-         { "U16", InferenceEngine::Precision::U16 },
-         { "I16", InferenceEngine::Precision::I16 },
-         { "U8", InferenceEngine::Precision::U8 },
-         { "I8", InferenceEngine::Precision::I8 },
-         { "BOOL", InferenceEngine::Precision::BOOL },
+        {"FP32", InferenceEngine::Precision::FP32}, {"FP16", InferenceEngine::Precision::FP16}, {"BF16", InferenceEngine::Precision::BF16},
+        {"U64", InferenceEngine::Precision::U64},   {"I64", InferenceEngine::Precision::I64},   {"U32", InferenceEngine::Precision::U32},
+        {"I32", InferenceEngine::Precision::I32},   {"U16", InferenceEngine::Precision::U16},   {"I16", InferenceEngine::Precision::I16},
+        {"U8", InferenceEngine::Precision::U8},     {"I8", InferenceEngine::Precision::I8},     {"BOOL", InferenceEngine::Precision::BOOL},
     };
 
     return getPrecision(value, supported_precisions);
 }
 
-void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string &iop) {
+void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string& iop) {
     const auto user_precisions_map = parseArgMap(iop);
 
     auto inputs = network.getInputsInfo();
@@ -179,10 +174,9 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
     }
 }
 
-} // namespace
+}  // namespace
 
-void processPrecision(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
-        const std::string &iop) {
+void processPrecision(InferenceEngine::CNNNetwork& network, const std::string& ip, const std::string& op, const std::string& iop) {
     if (!ip.empty()) {
         const auto user_precision = getPrecision(ip);
         for (auto&& layer : network.getInputsInfo()) {
@@ -203,12 +197,10 @@ void processPrecision(InferenceEngine::CNNNetwork& network, const std::string &i
 }
 
 namespace {
-
 using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
 using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
 
-InferenceEngine::Layout getLayout(std::string value,
-                                         const supported_layouts_t& supported_layouts) {
+InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& supported_layouts) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);
 
     const auto layout = supported_layouts.find(value);
@@ -221,14 +213,9 @@ InferenceEngine::Layout getLayout(std::string value,
 
 InferenceEngine::Layout getLayout(const std::string& value) {
     static const supported_layouts_t supported_layouts = {
-            { "NCDHW", InferenceEngine::Layout::NCDHW },
-            { "NDHWC", InferenceEngine::Layout::NDHWC },
-            { "NCHW", InferenceEngine::Layout::NCHW },
-            { "NHWC", InferenceEngine::Layout::NHWC },
-            { "CHW", InferenceEngine::Layout::CHW },
-            { "HWC", InferenceEngine::Layout::HWC},
-            { "NC", InferenceEngine::Layout::NC },
-            { "C", InferenceEngine::Layout::C },
+        {"NCDHW", InferenceEngine::Layout::NCDHW}, {"NDHWC", InferenceEngine::Layout::NDHWC}, {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},   {"CHW", InferenceEngine::Layout::CHW},     {"HWC", InferenceEngine::Layout::HWC},
+        {"NC", InferenceEngine::Layout::NC},       {"C", InferenceEngine::Layout::C},
     };
 
     return getLayout(value, supported_layouts);
@@ -236,14 +223,10 @@ InferenceEngine::Layout getLayout(const std::string& value) {
 
 bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
     static const matchLayoutToDims_t matchLayoutToDims = {
-        {static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5 },
-        {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5 },
-        {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4 },
-        {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4 },
-        {static_cast<size_t>(InferenceEngine::Layout::CHW), 3 },
-        {static_cast<size_t>(InferenceEngine::Layout::NC), 2 },
-        {static_cast<size_t>(InferenceEngine::Layout::C), 1 }
-    };
+        {static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5}, {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
+        {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},  {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
+        {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},   {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
+        {static_cast<size_t>(InferenceEngine::Layout::C), 1}};
 
     const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
     if (dims == matchLayoutToDims.end()) {
@@ -284,7 +267,7 @@ void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string io
     }
 }
 
-} // namespace
+}  // namespace
 
 void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, const std::string& ol, const std::string& iol) {
     if (!il.empty()) {

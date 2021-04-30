@@ -61,7 +61,7 @@ namespace sqrtop
         }
         return rc;
     }
-}
+} // namespace sqrtop
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

@@ -23,5 +23,5 @@ namespace ngraph
                              const Shape& end_token_shape,
                              const element::Type& type);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

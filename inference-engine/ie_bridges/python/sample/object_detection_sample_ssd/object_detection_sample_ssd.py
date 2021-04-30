@@ -12,9 +12,10 @@ from openvino.inference_engine import IECore
 
 
 def parse_args() -> argparse.Namespace:
-    '''Parse and return command line arguments'''
+    """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
+    # fmt: off
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to an .xml or .onnx file with a trained model.')
@@ -30,7 +31,7 @@ def parse_args() -> argparse.Namespace:
                            'is acceptable. The sample will look for a suitable plugin for device specified. '
                            'Default value is CPU.')
     args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
-
+    # fmt: on
     return parser.parse_args()
 
 
@@ -38,7 +39,7 @@ def main():  # noqa
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
-# ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
+    # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating Inference Engine')
     ie = IECore()
 
@@ -50,20 +51,20 @@ def main():  # noqa
         log.info(f'Loading the {args.device} configuration: {args.config}')
         ie.set_config({'CONFIG_FILE': args.config}, args.device)
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
+    # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
     # (.xml and .bin files) or (.onnx file)
     net = ie.read_network(model=args.model)
 
     if len(net.input_info) != 1:
         log.error('The sample supports only single input topologies')
-        return - 1
+        return -1
 
     if len(net.outputs) != 1 and not ('boxes' in net.outputs or 'labels' in net.outputs):
         log.error('The sample supports models with 1 output or with 2 with the names "boxes" and "labels"')
         return -1
 
-# ---------------------------Step 3. Configure input & output----------------------------------------------------------
+    # ---------------------------Step 3. Configure input & output----------------------------------------------------------
     log.info('Configuring input and output blobs')
     # Get name of input blob
     input_blob = next(iter(net.input_info))
@@ -78,15 +79,15 @@ def main():  # noqa
         net.outputs['boxes'].precision = 'FP32'
         net.outputs['labels'].precision = 'U16'
 
-# ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+    # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
 
-# ---------------------------Step 5. Create infer request--------------------------------------------------------------
-# load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-# instance which stores infer requests. So you already created Infer requests in the previous step.
+    # ---------------------------Step 5. Create infer request--------------------------------------------------------------
+    # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
+    # instance which stores infer requests. So you already created Infer requests in the previous step.
 
-# ---------------------------Step 6. Prepare input---------------------------------------------------------------------
+    # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     original_image = cv2.imread(args.input)
     image = original_image.copy()
     _, _, net_h, net_w = net.input_info[input_blob].input_data.shape
@@ -100,11 +101,11 @@ def main():  # noqa
     # Add N dimension to transform to NCHW
     image = np.expand_dims(image, axis=0)
 
-# ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     res = exec_net.infer(inputs={input_blob: image})
 
-# ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # ---------------------------Step 8. Process output--------------------------------------------------------------------
     # Generate a label list
     if args.labels:
         with open(args.labels, 'r') as f:
@@ -139,8 +140,7 @@ def main():  # noqa
             xmax = int(xmax * w)
             ymax = int(ymax * h)
 
-            log.info(f'Found: label = {label}, confidence = {confidence:.2f}, '
-                     f'coords = ({xmin}, {ymin}), ({xmax}, {ymax})')
+            log.info(f'Found: label = {label}, confidence = {confidence:.2f}, ' f'coords = ({xmin}, {ymin}), ({xmax}, {ymax})')
 
             # Draw a bounding box on a output image
             cv2.rectangle(output_image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
@@ -148,9 +148,8 @@ def main():  # noqa
     cv2.imwrite('out.bmp', output_image)
     log.info('Image out.bmp created!')
 
-# ----------------------------------------------------------------------------------------------------------------------
-    log.info('This sample is an API example, '
-             'for any performance measurements please use the dedicated benchmark_app tool\n')
+    # ----------------------------------------------------------------------------------------------------------------------
+    log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
 
 
