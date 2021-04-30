@@ -8,9 +8,9 @@
 #include <memory>
 #include <string>
 
-#include "cpp_interfaces/exception2status.hpp"
+#include "cpp/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
-#include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include "ie_variable_state_base.hpp"
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"

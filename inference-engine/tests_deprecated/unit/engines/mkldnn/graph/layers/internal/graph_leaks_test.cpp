@@ -20,10 +20,6 @@ public:
     }
 };
 
-struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase {
-    using InferenceEngine::ExecutableNetworkBase::_impl;
-};
-
 static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetworkInternal::Ptr execNetwork) {
     return static_cast<MKLDNNTestExecNetwork*>(execNetwork.get())->getGraph();
 }
