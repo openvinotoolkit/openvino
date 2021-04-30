@@ -13,10 +13,10 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
-add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::frontend_manager ALIAS frontend_manager)
 
-target_link_libraries(frontend_manager PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(frontend_manager PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME frontend_manager
@@ -25,11 +25,10 @@ endif()
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}> ${ONNX_IMPORT_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
-target_include_directories(frontend_manager SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_DIR}
-        ${FRONTEND_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
+                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
+target_include_directories(frontend_manager SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${FRONTEND_INCLUDE_DIR})
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${ONNX_IMPORT_INCLUDE_DIR}  ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
+target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     target_compile_options(frontend_manager PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
