@@ -124,8 +124,9 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i] + inData[i], outData[i]);
+        }
     }
 }
 
@@ -255,8 +256,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+        for (size_t i = 0; i < inBlob->size(); i++) {
+            ASSERT_EQ(inData[i] + 5, outData[i]);
+        }
     }
 }
 
@@ -511,8 +513,9 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i]*2, outData[i]);
+        }
     }
 }
 

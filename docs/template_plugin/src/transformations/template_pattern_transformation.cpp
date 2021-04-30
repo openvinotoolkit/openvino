@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_pattern_transformation.hpp"
-#include "template_function_transformation.hpp"
+#include "transformations/template_pattern_transformation.hpp"
+#include "transformations/template_function_transformation.hpp"
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
