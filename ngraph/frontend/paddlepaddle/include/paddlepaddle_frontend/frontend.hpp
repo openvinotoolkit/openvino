@@ -31,7 +31,7 @@ class NGRAPH_API FrontEndPDPD : public FrontEnd
                                                  const std::shared_ptr<InputModelPDPD>& model);
 public:
 
-    FrontEndPDPD () { PDPD_CHECK(false, "FrontEnd failed"); };
+    FrontEndPDPD () = default;
 
     InputModel::Ptr loadFromFile (const std::string& path) const override
     {

@@ -31,9 +31,8 @@ class NGRAPH_API InputModelPDPD : public InputModel
     std::shared_ptr<InputModelPDPDImpl> _impl;
 
     std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
-    std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const;
-    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces(int i) const;
-    size_t getBlockNumber() const;
+    std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
+    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
     std::map<std::string, Output<Node>> getTensorValues() const;
 
 public:
