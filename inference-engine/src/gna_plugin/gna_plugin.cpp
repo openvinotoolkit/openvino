@@ -1519,6 +1519,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         return gnaOperation.Type == Gna2OperationTypeConvolution ?
             kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
     };
+    (void)getOrientation;
 #else
     auto getOrientation = [](intel_nnet_layer_t & layer) {
         return layer.nLayerKind == INTEL_CONVOLUTIONAL ?
