@@ -545,7 +545,7 @@ void XmlDeserializer::on_adapter(
 
 std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
         ngraph::ParameterVector parameters;
@@ -604,7 +604,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphNodes");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphNodes");
 
     FunctionNodes func_nodes;
 
@@ -665,7 +665,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         func_nodes.all.emplace_back(node);
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphFunction");
 
     auto function = std::make_shared<ngraph::Function>(
         func_nodes.results, func_nodes.sinks, func_nodes.parameters, GetStrAttr(root, "name", ""));
@@ -700,13 +700,6 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             port.dims.push_back(dim);
         }
 
-        ngraph::element::Type type(ngraph::element::Type_t::undefined);
-        // Input port hasn't precision
-        if (!input) {
-            const std::string& preStr = GetStrAttr(parentNode, "precision");
-            type = InferenceEngine::details::convertPrecision(preStr);
-        }
-        port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
             for (size_t i = 0; i < names.size(); i++) {
@@ -883,7 +876,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     XmlDeserializer visitor(root, weights, opsets, variables);
     visitor.on_attribute("net", function);
 
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
