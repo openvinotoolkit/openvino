@@ -5,7 +5,6 @@
 import argparse
 import logging as log
 import sys
-from collections.abc import Iterable
 from io import BufferedReader
 from timeit import default_timer
 
@@ -46,7 +45,7 @@ def get_scale_factor(matrix: np.ndarray) -> float:
         return target_max / max_val
 
 
-def read_ark_file(file_name: str) -> list:
+def read_ark_file(file_name: str) -> dict:
     """Read utterance matrices from a .ark file"""
     def read_key(file: BufferedReader) -> str:  # noqa: VNE002
         """Read a identifier of utterance matrix"""
@@ -77,21 +76,24 @@ def read_ark_file(file_name: str) -> list:
 
         return matrix
 
-    matrix_list = []
+    utterances = {}
     with open(file_name, 'rb') as file:
-        while read_key(file):
-            matrix_list.append(read_matrix(file))
+        while True:
+            key = read_key(file)
+            if not key:
+                break
+            utterances[key] = read_matrix(file)
 
-    return matrix_list
+    return utterances
 
 
-def write_ark_file(file_name: str, matrices: Iterable):
+def write_ark_file(file_name: str, utterances: dict):
     """Write utterance matrices to a .ark file"""
     with open(file_name, 'wb') as file:
-        for i, matrix in enumerate(matrices):
+        for key, matrix in utterances.items():
             # write a matrix key
-            key = f'utterance_{i} '
             file.write(key.encode())
+            file.write(' '.encode())
             file.write('\0B'.encode())
 
             # write a matrix precision
@@ -152,6 +154,24 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     log.info(f'stdev error: {stdev_error}')
 
 
+def read_utterance_file(file_name: str) -> dict:
+    file_extension = file_name[-3:]
+
+    if file_extension == 'ark':
+        return read_ark_file(file_name)
+    elif file_extension == 'npz':
+        return dict(np.load(file_name))
+
+
+def write_utterance_file(file_name: str, utterances: dict):
+    file_extension = file_name[-3:]
+
+    if file_extension == 'ark':
+        write_ark_file(file_name, utterances)
+    elif file_extension == 'npz':
+        np.savez(file_name, **utterances)
+
+
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
@@ -187,8 +207,9 @@ def main():
         gna_device_mode = devices[0] if '_' in devices[0] else 'GNA_AUTO'
         devices[0] = 'GNA'
         # Get a GNA scale factor
-        utterances = read_ark_file(args.input)
-        scale_factor = get_scale_factor(utterances[0])
+        utterances = read_utterance_file(args.input)
+        key = sorted(utterances)[0]
+        scale_factor = get_scale_factor(utterances[key])
         log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
 
         plugin_config = {
@@ -207,35 +228,35 @@ def main():
 # instance which stores infer requests. So you already created Infer requests in the previous step.
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    utterances = read_ark_file(args.input)
+    utterances = read_utterance_file(args.input)
     if args.reference:
-        references = read_ark_file(args.reference)
+        references = read_utterance_file(args.reference)
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    results = []
+    results = {}
     infer_times = []
 
-    for matrix in utterances:
+    for key, matrix in utterances.items():
         start_infer_time = default_timer()
-        results.append(infer_matrix(matrix, exec_net, input_blob, out_blob))
+        results[key] = infer_matrix(matrix, exec_net, input_blob, out_blob)
         infer_times.append(default_timer() - start_infer_time)
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
-    for i in range(len(results)):
-        log.info(f'Utterance {i}')
-        log.info(f'Frames in utterance: {utterances[i].shape[0]}')
+    for i, key in enumerate(results):
+        log.info(f'Utterance {i} ({key})')
+        log.info(f'Frames in utterance: {results[key].shape[0]}')
         log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
 
         if args.reference:
-            compare_with_reference(results[i], references[i])
+            compare_with_reference(results[key], references[key])
 
         log.info('')
 
     log.info(f'Total sample time: {sum(infer_times) * 1000:.2f}ms')
 
     if args.output:
-        write_ark_file(args.output, results)
+        write_utterance_file(args.output, results)
         log.info(f'File {args.output} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
