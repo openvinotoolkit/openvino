@@ -6,22 +6,19 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 #include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
 
 TEST(attributes, tanh_op)
 {
-    using namespace opset6;
-
-    NodeBuilder::get_ops().register_factory<Tanh>();
-    const auto data_node = make_shared<Parameter>(element::f32, Shape{1});
-    const auto tanh = make_shared<Tanh>(data_node);
+    NodeBuilder::get_ops().register_factory<op::Tanh>();
+    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto tanh = make_shared<op::Tanh>(data_node);
 
     const NodeBuilder builder(tanh);
     const auto tanh_attr_number = 0;
