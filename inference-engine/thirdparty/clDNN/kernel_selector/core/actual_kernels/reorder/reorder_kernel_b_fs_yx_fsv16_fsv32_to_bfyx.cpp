@@ -2,119 +2,112 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorder_kernel_bfyx_to_blocked_format.h"
+#include "reorder_kernel_b_fs_yx_fsv16_fsv32_to_bfyx.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
 #include <string>
 #include <functional>
 #include <cmath>
 
-// Tile size : 4x4 or 8x8
-#define MIN_TILE_SIZE 4
+// Tile size : 8x8
+#define HALF_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
 
 namespace kernel_selector {
-ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
+ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::UINT8);
-    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT64);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::UINT16);
+    k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::INT16);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
 
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
 
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
 
-    k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
+    k.EnableDifferentTypes();
 
     return k;
 }
 
-static inline std::string GetTiledInputOrder(size_t size) {
+static inline std::string GetTiledOutputOrder(size_t size) {
     std::string order_str = "";
     switch (size) {
     case 4:
-        order_str = "b, f + lh, y, x";
+        order_str = "b, f, y, x";
         break;
     case 5:
-        order_str = "b, f + lh, z, y, x";
+        order_str = "b, f, z, y, x";
         break;
-    default: throw std::runtime_error("Unsupported combination\n");
+    case 6:
+        order_str = "b, f, w, z, y, x";
+        break;
+    default: throw std::runtime_error("Unsupported size\n");
     }
     return order_str;
 }
 
 static inline size_t GetFsvAlignment(const reorder_params& params) {
-    const auto& out = params.output;
+    const auto& in = params.inputs[0];
     int fsv_alignment = -1;
-    switch (out.GetLayout()) {
-    case DataLayout::b_fs_yx_fsv4:
-        fsv_alignment = 4;
-        break;
+    switch (in.GetLayout()) {
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:
-    case DataLayout::bs_fs_yx_bsv16_fsv16:
-    case DataLayout::bs_fs_zyx_bsv16_fsv16:
         fsv_alignment = 16;
         break;
     case DataLayout::b_fs_yx_fsv32:
-    case DataLayout::fs_b_yx_fsv32:
     case DataLayout::b_fs_zyx_fsv32:
         fsv_alignment = 32;
         break;
     default:
-        throw std::runtime_error("Unsupported combination\n");
+        throw std::runtime_error("Unsupported input\n");
     }
     return fsv_alignment;
 }
 
 static inline size_t GetTileSize(const reorder_params& params) {
-    const Datatype input_type = params.inputs[0].GetDType();
-    const Datatype output_type = params.output.GetDType();
+    size_t tile_size = 0;
 
-    // i64 supports tile size 4
-    if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        return MIN_TILE_SIZE;
+    const auto& in = params.inputs[0];
+    switch (in.GetLayout()) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+        tile_size = DEFAULT_TILE_SIZE;
+        break;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+        tile_size = HALF_TILE_SIZE;
+        break;
+    default:
+        throw std::runtime_error("Unsupported input\n");
     }
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv4) {
-        return MIN_TILE_SIZE;
-    }
-
-    if (params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
-        return MIN_TILE_SIZE;
-    }
-
-    return DEFAULT_TILE_SIZE;
+    return tile_size;
 }
 
 static inline std::vector<size_t> GetGWS(const reorder_params& params) {
     const auto& in = params.inputs[0];
-    const size_t tile_size = GetTileSize(params);
     const size_t fsv_alignment = GetFsvAlignment(params);
 
-    std::vector<size_t> gws = { (fsv_alignment / tile_size),
-        CeilDiv(in.X().v, tile_size) * in.Y().v * in.Z().v,
+    std::vector<size_t> gws = { CeilDiv(in.X().v, DEFAULT_TILE_SIZE) * fsv_alignment,
+        in.Y().v * in.Z().v,
         in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment) };
 
     return gws;
@@ -146,67 +139,53 @@ static std::vector<size_t> GetBestLwsFromGws(const reorder_params& params, const
         }
         max_num_work_items /= lws[dim];
     }
+
     return lws;
 }
 
-CommonDispatchData ReorderKernel_bfyx_to_blocked_format::SetDefault(const reorder_params& params) const {
+CommonDispatchData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::SetDefault(const reorder_params& params) const {
     CommonDispatchData dispatchData;
-    const size_t tile_size = GetTileSize(params);
+
     dispatchData.gws = GetGWS(params);
-    dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, tile_size, tile_size);
+    dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, DEFAULT_TILE_SIZE, DEFAULT_TILE_SIZE);
     return dispatchData;
 }
 
-JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder_params& params) const {
+JitConstants ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
 
-    const size_t b = params.inputs[0].Batch().v;
     const size_t f = params.inputs[0].Feature().v;
     const size_t x = params.inputs[0].X().v;
     const size_t tile_size = GetTileSize(params);
-    const size_t input_ndims = params.inputs[0].GetDims().size();
+    const size_t output_ndims = params.output.GetDims().size();
     const size_t fsv_alignment = GetFsvAlignment(params);
 
-    const auto& gws = GetGWS(params);
-    const auto& lws = GetBestLwsFromGws(params, gws, tile_size, tile_size);
-    const uint64_t total_lws = lws[0] * lws[1] * lws[2];
-
-    jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM", CeilDiv(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
+    jit.AddConstant(MakeJitConstant("DEFAULT_TILE_SIZE", DEFAULT_TILE_SIZE));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
-    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
+    jit.AddConstant(MakeJitConstant("DEFAULT_STRIDE", 16));
 
-    if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        jit.AddConstant(MakeJitConstant("FS_B_YX_FSV", 1));
-    }
-
-    if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-        params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
-        jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
-        jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, fsv_alignment)));
-    }
-
-    // whether F is tile_size-aligned
-    if (f % tile_size == 0) {
-        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
-    } else {
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
+    // whether F is aligned
+    if (f % fsv_alignment != 0) {
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % fsv_alignment));
         jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
+    } else {
+        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
     }
 
     // whether x is tile_size-aligned
-    if (x % tile_size != 0) {
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % tile_size));
+    if (x % DEFAULT_TILE_SIZE != 0) {
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % DEFAULT_TILE_SIZE));
         jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
-        jit.AddConstant(MakeJitConstant("X_NO_REMAINDER_CONDITION", "(x < (INPUT0_SIZE_X - X_REMAINDER_SIZE))"));
     }
 
     return jit;
 }
 
-KernelsData ReorderKernel_bfyx_to_blocked_format::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORDER);
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
@@ -214,7 +193,7 @@ KernelsData ReorderKernel_bfyx_to_blocked_format::GetKernelsData(const Params& p
     return GetCommonKernelsData(orgParams, options);
 }
 
-bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optional_params& o) const {
+bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const optional_params& o) const {
     if (!ReorderKernelBase::Validate(p, o)) {
         return false;
     }
@@ -223,7 +202,8 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
     const auto& input = params.inputs[0];
     const auto& output = params.output;
 
-    if (input.GetDims().size() != output.GetDims().size()) {
+    // decreamental-dims is not supported
+    if (input.GetDims().size() > output.GetDims().size()) {
         return false;
     }
 
@@ -240,7 +220,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
     return true;
 }
 
-KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_5;
+KernelsPriority ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector
