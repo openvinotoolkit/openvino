@@ -68,7 +68,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     const element::Type& netPrecision,
     const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const std::shared_ptr<opset1::Constant>& value) {
-    const auto weights =
+    auto weights =
         value != nullptr ?
             value :
             std::make_shared<opset1::Constant>(
@@ -79,6 +79,9 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     dequantizationStructure.setPrecision(netPrecision);
     if (!dequantizationOnWeights.subtract.constantPrecision.is_real()) {
         dequantizationStructure.subtract.constantPrecision = dequantizationOnWeights.subtract.constantPrecision;
+    }
+    if (weights->get_element_type().is_real()) {
+        weights = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
     }
     const auto dq = makeDequantization(weights, dequantizationStructure);
 

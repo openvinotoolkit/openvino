@@ -298,8 +298,8 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {{ngraph::element::f32}, {}, { std::vector<float>{0.02f, 0.01f, 0.02f, 0.01f, 0.02f, 0.01f, 0.02f, 0.01f} }},
             {},
             {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            false
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
+            true
         }
     },
 };
