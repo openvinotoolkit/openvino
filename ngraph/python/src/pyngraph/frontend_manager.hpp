@@ -25,3 +25,4 @@ void regclass_pyngraph_FrontEnd(py::module m);
 void regclass_pyngraph_InputModel(py::module m);
 void regclass_pyngraph_FEC(py::module m);
 void regclass_pyngraph_Place(py::module m);
+void regclass_pyngraph_CheckFailureFrontEnd(py::module m);

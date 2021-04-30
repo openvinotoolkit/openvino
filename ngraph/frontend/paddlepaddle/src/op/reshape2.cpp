@@ -16,7 +16,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "reshape2.hpp"
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -31,7 +31,7 @@ NamedOutputs reshape2(const NodeContext& node) {
         auto shape_node = ngraph::opset6::Constant::create(ngraph::element::i32, {shape_attr.size()}, shape_attr);
         return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)}, {"Out"});
     } else {
-        NOT_IMPLEMENTED("reshape2 with shape as input");
+        PDPD_NOT_IMPLEMENTED("reshape2 with shape as input");
     }
 }
 

@@ -39,6 +39,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regclass_pyngraph_PyRTMap(m);
     regclass_pyngraph_Node(m);
     regclass_pyngraph_Place(m);
+    regclass_pyngraph_CheckFailureFrontEnd(m);
     regclass_pyngraph_FEC(m);
     regclass_pyngraph_FrontEndManager(m);
     regclass_pyngraph_FrontEnd(m);

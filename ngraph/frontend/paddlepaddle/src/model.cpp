@@ -4,7 +4,7 @@
 
 #include <paddlepaddle_frontend/model.hpp>
 #include <paddlepaddle_frontend/place.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
 #include <fstream>
 #include "framework.pb.h"
@@ -151,7 +151,7 @@ std::vector<uint8_t> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::s
         stream_ptr = m_weights_stream.get();
     } else {
         is = std::unique_ptr<std::ifstream>(new std::ifstream(m_path + "/" + name, std::ios::in | std::ifstream::binary));
-        PDPD_ASSERT(is && is->is_open(), "Cannot open file for constant value.");
+        PDPD_CHECK(is && is->is_open(), "Cannot open file for constant value.");
         stream_ptr = is.get();
     }
     std::vector<char> header(16);
@@ -190,7 +190,7 @@ std::shared_ptr<TensorPlacePDPD> castToTensorPlace(const Place::Ptr& place) {
     } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(place)) {
         return out_port_place->getTargetTensorPDPD();
     }
-    PDPD_THROW("Cannot cast this Place to TensorPlacePDPD.");
+    PDPD_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
 }
 
 } // namespace pdpd
@@ -215,7 +215,7 @@ void InputModelPDPD::InputModelPDPDImpl::extractSubgraph (const std::vector<Plac
 }
 
 void InputModelPDPD::InputModelPDPDImpl::setDefaultShape (Place::Ptr place, const ngraph::Shape& shape) {
-    NOT_IMPLEMENTED("setDefaultShape");
+    PDPD_NOT_IMPLEMENTED("setDefaultShape");
 }
 
 void InputModelPDPD::InputModelPDPDImpl::setPartialShape (Place::Ptr place, const ngraph::PartialShape& p_shape) {

@@ -17,7 +17,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
-
+#include "exceptions.hpp"
 #include "model.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
@@ -31,16 +31,14 @@ class NGRAPH_API FrontEndPDPD : public FrontEnd
                                                  const std::shared_ptr<InputModelPDPD>& model);
 public:
 
-    FrontEndPDPD ()
-    {
-    }
+    FrontEndPDPD () { PDPD_CHECK(false, "FrontEnd failed"); };
 
-    virtual InputModel::Ptr loadFromFile (const std::string& path) const override
+    InputModel::Ptr loadFromFile (const std::string& path) const override
     {
         return std::make_shared<InputModelPDPD>(path);
     }
 
-    virtual std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
+    std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
 };
 
 } // namespace frontend

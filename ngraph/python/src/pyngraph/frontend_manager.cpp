@@ -20,6 +20,8 @@
 
 #include "frontend_manager/frontend_manager.hpp"
 #include "pyngraph/function.hpp"
+#include "frontend_manager.hpp"
+
 
 namespace py = pybind11;
 
@@ -99,3 +101,15 @@ void regclass_pyngraph_FEC(py::module m)
            const ngraph::frontend::FrontEndCapabilities& b) { return a == b; },
         py::is_operator());
 }
+
+void regclass_pyngraph_CheckFailureFrontEnd(py::module m) {
+    static py::exception<ngraph::frontend::CheckFailureFrontEnd> exc(m, "CheckFailureFrontEnd");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try {
+            if (p) std::rethrow_exception(p);
+        } catch (const ngraph::frontend::CheckFailureFrontEnd &e) {
+            exc(e.what());
+        }
+    });
+}
+

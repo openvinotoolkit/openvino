@@ -33,7 +33,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 #include "decoder.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -52,7 +52,7 @@ NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
     const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
-    PDPD_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
+    PDPD_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found for ", op->type(), " node.");
     pdpd::NamedInputs named_inputs;
     const auto& input_ports = op_place->getInputPorts();
     for (const auto& name_to_ports : input_ports) {
@@ -84,7 +84,7 @@ std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<Tensor
 {
     const auto& var_desc = tensor_place->getDesc();
     std::cout << "Reading tensor " << var_desc->name() << std::endl;
-    PDPD_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+    PDPD_CHECK(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
     const auto& tensor = var_desc->type().lod_tensor().tensor();
     const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
@@ -151,7 +151,7 @@ std::shared_ptr<Function>
                 for (const auto& name_to_outputs : named_outputs) {
                     const auto& ports = out_ports.at(name_to_outputs.first);
 
-                    PDPD_ASSERT(ports.size() == name_to_outputs.second.size(),
+                    PDPD_CHECK(ports.size() == name_to_outputs.second.size(),
                                 "The number of output tensors must be equal to "
                                 "the number of outputs of the ngraph node.");
                     for (size_t idx = 0; idx < ports.size(); ++idx) {

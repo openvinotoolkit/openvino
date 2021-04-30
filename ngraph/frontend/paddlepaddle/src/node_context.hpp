@@ -16,7 +16,7 @@
 
 #pragma once
 #include "decoder.hpp"
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -52,7 +52,7 @@ public:
     /// Returns exactly one input with a given name; throws if there is no inputs or there are more than one input
     Output<Node> get_ng_input (const std::string& name) const
     {
-        PDPD_ASSERT(name_map.at(name).size() == 1);
+        PDPD_CHECK(name_map.at(name).size() == 1);
         return name_map.at(name).at(0);
     }
 
@@ -70,11 +70,12 @@ public:
             get_attribute<T>(name);
             return true;
         }
-        catch(const AttributeNotFound&) {
+        catch(const CheckFailurePDPD&) {
             return false;
         }
     }
 
+    const std::string& op_type() const { return node.get_op_type(); }
     std::vector<OutPortName> get_output_names() const { return node.get_output_names(); }
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node> &ngraph_node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
@@ -115,7 +116,7 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     NamedOutputs named_outputs;
     const auto& ngraph_outputs = ngraph_node->outputs();
     const auto& pdpd_op_output_names = this->get_output_names();
-    PDPD_ASSERT(ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
+    PDPD_CHECK(ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
     for (const auto& pdpd_name : pdpd_op_output_names) {
         if (std::find(required_pdpd_out_names.begin(), required_pdpd_out_names.end(), pdpd_name) != required_pdpd_out_names.end())
             named_outputs[pdpd_name] = {ngraph_outputs[0]};

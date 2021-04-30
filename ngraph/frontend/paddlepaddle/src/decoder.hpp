@@ -29,6 +29,7 @@
 #include "framework.pb.h"
 
 #include <paddlepaddle_frontend/frontend.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -38,14 +39,8 @@ namespace frontend {
 
 extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
 
-// TODO: Inherit from one of the ngraph classes
-class AttributeNotFound : public std::exception
-{};
-
 class DecoderPDPDProto
 {
-    paddle::framework::proto::OpDesc op;
-
 public:
     explicit DecoderPDPDProto (const paddle::framework::proto::OpDesc& _op) : op(_op) {}
 
@@ -60,6 +55,11 @@ public:
     ngraph::element::Type get_dtype(const std::string& name, ngraph::element::Type def) const;
 
     std::vector<std::string> get_output_names() const;
+    const std::string& get_op_type() const { return op.type(); }
+
+private:
+    std::vector<paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
+    paddle::framework::proto::OpDesc op;
 };
 
 }

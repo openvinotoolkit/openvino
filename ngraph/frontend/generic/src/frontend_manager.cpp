@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/except.hpp>
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 #include "onnx_import/onnx.hpp"
 #endif
@@ -36,11 +35,6 @@ namespace ngraph
 {
     namespace frontend
     {
-
-        #define FRONT_END_NOT_IMPLEMENTED(NAME) throw std::runtime_error(#NAME " is not implemented for this FrontEnd class");
-        #define FRONT_END_ASSERT(EXPRESSION) \
-            { if (!(EXPRESSION)) throw "AssertionFailed"; }
-
         std::vector<Place::Ptr> InputModel::getInputs () const
         {
             FRONT_END_NOT_IMPLEMENTED(getInputs);
@@ -478,7 +472,7 @@ namespace ngraph
             }
             ~Impl() = default;
             FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec) {
-                FRONT_END_ASSERT(m_factories.count(framework))
+                FRONT_END_CHECK(m_factories.count(framework));
                 return m_factories[framework](fec);
             }
 
@@ -503,8 +497,7 @@ namespace ngraph
             }
         };
 
-        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {
-        }
+        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {}
         FrontEndManager::~FrontEndManager() = default;
 
         FrontEnd::Ptr FrontEndManager::loadByFramework(const std::string& framework, FrontEndCapabilities fec)
