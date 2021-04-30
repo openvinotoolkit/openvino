@@ -180,7 +180,7 @@ void op::v0::If::validate_and_infer_types()
         for (auto output_index : then_output_indexes) 
         {
             auto description_find_lambda = [=](MultiSubgraphOutputDescriptionPtr& descr) {
-                return descr->m_output_index == output_index;
+                return descr->m_output_index == static_cast<uint64_t>(output_index);
             };
 
             auto then_output_description = *find_if(m_output_descriptions[then_body_index].begin(), 
