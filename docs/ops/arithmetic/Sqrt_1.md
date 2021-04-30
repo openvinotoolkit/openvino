@@ -12,8 +12,8 @@
 o_{i} = \sqrt{a_{i}}
 \f]
 
-If the input value is negative, then the result is undefined.\
-For integer element type the result is rounded (half up) to the nearest integer value.
+* If the input value is negative, then the result is undefined.
+* For integer element type the result is rounded (half up) to the nearest integer value.
 
 **Attributes**: *Sqrt* operation has no attributes.
 
