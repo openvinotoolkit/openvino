@@ -461,64 +461,79 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-add_executable(unit-test ${SRC})
+# object library allows to start compilation before all dependencies are built
+add_library(unit-test_obj OBJECT ${SRC})
 
-target_include_directories(unit-test PRIVATE ".")
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-
-add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
-add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
-
-if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
-endif()
+target_compile_definitions(unit-test_obj PRIVATE
+    "-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\""
+    "-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\""
+    NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
 
 if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
+    target_compile_options(unit-test_obj PRIVATE -g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
-target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        ngraph::builder
-                                        openvino::conditional_compilation)
+target_include_directories(unit-test_obj PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime
+    $<TARGET_PROPERTY:ie_backend,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:ngraph::builder,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_include_directories(unit-test_obj SYSTEM PRIVATE
+    $<TARGET_PROPERTY:ngraph_test_util,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(unit-test
+    target_include_directories(unit-test_obj
         SYSTEM PRIVATE
+            $<TARGET_PROPERTY:onnx_importer,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
             ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(unit-test
-        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test_obj PRIVATE
+            $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+    target_include_directories(unit-test_obj PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
-
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
-if(NOT WIN32)
-    target_link_libraries(unit-test PRIVATE pthread)
-endif()
-target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
+    target_compile_options(unit-test_obj PRIVATE -Wno-missing-braces -Wno-error=sign-compare)
 endif()
 
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
-    target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    target_compile_options(unit-test_obj PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 # So many type_prop tests these days that we need to set /bigobj flag for MSVC.
 # We should probably split up type_prop.cpp.
 if (MSVC)
-    target_compile_options(unit-test PRIVATE "/bigobj")
+    target_compile_options(unit-test_obj PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE ie_backend)
+if (NGRAPH_INTERPRETER_ENABLE)
+    target_compile_definitions(unit-test_obj PRIVATE NGRAPH_INTERPRETER_ENABLE)
+endif()
+
+# create executable
+
+add_executable(unit-test $<TARGET_OBJECTS:unit-test_obj>)
+
+target_link_libraries(unit-test PRIVATE ie_backend ${CMAKE_DL_LIBS}
+                                        ngraph_test_util ngraph::builder
+                                        openvino::conditional_compilation)
+
+if(NOT WIN32)
+    target_link_libraries(unit-test_obj PRIVATE pthread)
+endif()
+
+if(UNIT_TESTS_DEPENDENCIES)
+    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
@@ -529,6 +544,5 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
