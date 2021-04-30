@@ -108,6 +108,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Round", Eltwise },
         { "PRelu", Eltwise },
         { "Erf", Eltwise },
+        { "SoftPlus", Eltwise },
         { "Reshape", Reshape },
         { "Squeeze", Reshape },
         { "Unsqueeze", Reshape },
@@ -1381,7 +1382,7 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     } else if (node->getType() == Eltwise) {
         return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt) ||
+                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt, EltwiseSoftRelu) ||
                       node->canBePerformedAsScaleShift(this);
     }
     return false;

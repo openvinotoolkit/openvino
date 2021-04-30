@@ -939,6 +939,10 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     {ngraph::op::v0::Erf::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseErf;
     }},
+    {ngraph::op::v4::SoftPlus::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseSoftRelu;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_soft_relu;
+    }},
 };
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
