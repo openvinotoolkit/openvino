@@ -16,7 +16,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::frontend_manager ALIAS frontend_manager)
 
-target_link_libraries(frontend_manager PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES})
+target_link_libraries(frontend_manager PRIVATE ${CMAKE_DL_LIBS} ngraph)
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME frontend_manager
