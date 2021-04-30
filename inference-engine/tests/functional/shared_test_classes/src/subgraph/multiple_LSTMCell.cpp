@@ -436,7 +436,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
+        manager.register_pass<ngraph::pass::LowLatency_v2>(); // LowLatency enables UnrollTI
         manager.run_passes(function);
         LoadNetwork();
     }

@@ -69,7 +69,7 @@ namespace ngraph
          *  ->(ReadValue)-> input1[BE_1 ->Parameter->Layers ...->Result->BE_1]output1 ->(Assign)
          *                                                                      \
          *                                                                       ->...
-         * After applying both of these transformations, the resulting network can be inferred
+         * After applying the transformation, the resulting network can be inferred
          * step by step, the states will store between inferences.
          */
         class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
@@ -78,23 +78,13 @@ namespace ngraph
             NGRAPH_RTTI_DECLARATION;
             enum class InitialValue
             {
-                PARAMETER,
-                CONST
+                PARAMETER_SUBGRAPH,
+                CONST_SUBGRAPH
             };
 
-            LowLatency_v2() = default;
-
-            explicit LowLatency_v2(int64_t iterations)
-                : m_iterations(iterations)
-            {
-            }
-
-            explicit LowLatency_v2(LowLatency_v2::InitialValue init_value)
-                : m_init_value(init_value)
-            {
-            }
-
-            LowLatency_v2(LowLatency_v2::InitialValue init_value, int64_t iterations)
+            explicit LowLatency_v2(
+                int64_t iterations = 1,
+                LowLatency_v2::InitialValue init_value = InitialValue::CONST_SUBGRAPH)
                 : m_init_value(init_value)
                 , m_iterations(iterations)
             {
@@ -103,8 +93,8 @@ namespace ngraph
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
-            InitialValue m_init_value = InitialValue::CONST;
-            int64_t m_iterations = 1;
+            InitialValue m_init_value;
+            int64_t m_iterations;
         };
     } // namespace pass
 } // namespace ngraph

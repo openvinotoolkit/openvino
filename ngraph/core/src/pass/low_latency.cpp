@@ -129,13 +129,15 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
     ngraph::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
 }
 
-Output<Node> create_init_subgraph(const Output<Node>& in_node)
+Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
+                                  const Output<Node>& in_node)
 {
     using namespace opset7;
 
     auto const_zero = make_shared<Constant>(in_node.get_element_type(), Shape{1}, 0);
     auto shape_of = make_shared<ShapeOf>(in_node);
     auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
+    copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});
     return broadcast->output(0);
 }
 
@@ -164,6 +166,7 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                     auto iterations =
                         std::make_shared<Constant>(element::i64, Shape{}, m_iterations);
                     replace_node(trip_count, iterations);
+                    loop->validate_and_infer_types();
                 }
                 else
                 {
@@ -193,13 +196,14 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                     // Layers -> [new op: ReadValue] -> Subgraph operation
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     Output<Node> read_value_in = input.get_source_output();
-                    if (m_init_value == InitialValue::CONST)
+                    if (m_init_value == InitialValue::CONST_SUBGRAPH)
                     {
-                        read_value_in = create_init_subgraph(read_value_in);
+                        read_value_in = create_init_subgraph(sub_graph_op, read_value_in);
                     }
                     auto read_value = make_shared<ReadValue>(read_value_in, variable);
                     input.replace_source_output(read_value->output(0));
                     read_value->set_friendly_name(var_name);
+                    ngraph::copy_runtime_info(sub_graph_op, read_value);
 
                     /* insert Assign
                     // Subgraph operation -> [new op: Assign]
@@ -207,7 +211,7 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                     //                      ---> Layers -> ...
                     */
                     const auto& out_desc = sub_graph_op->get_output_descriptions();
-                    bool is_assign_found = std::any_of(
+                    bool is_output_exist = std::any_of(
                         out_desc.begin(),
                         out_desc.end(),
                         [&merged_in](
@@ -215,7 +219,7 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                             return out->m_body_value_index == merged_in->m_body_value_index;
                         });
                     // Create new output if it doesn't exist.
-                    if (!is_assign_found)
+                    if (!is_output_exist)
                     {
                         sub_graph_op->get_iter_value(
                             func->get_results().at(merged_in->m_body_value_index));
@@ -230,7 +234,6 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                             // control dependency so that ReadValue is processed before Assign
                             assign->add_control_dependency(read_value);
                             assigns.emplace_back(assign);
-                            is_assign_found = true;
                             break;
                         }
                     }
