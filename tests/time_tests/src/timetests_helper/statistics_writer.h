@@ -21,7 +21,8 @@ class StatisticsWriter {
 private:
   std::ofstream statistics_file;
   std::map<std::pair<int, std::string>, std::pair<std::string, float>> time_structure;
-  int order_count = 0;
+  std::map<std::string, int> order_structure;
+  int tab_count = 0;
 
   StatisticsWriter() = default;
   StatisticsWriter(const StatisticsWriter &) = delete;
@@ -52,23 +53,24 @@ public:
   /**
    * @brief Compute order for statistics operations.
    */
-  void addOrderCount() {
-    order_count++;
+  void addOrderCount(const std::pair<std::string, int> &order_record) {
+    order_structure.insert(order_record);
+    tab_count++;
   }
 
   void deleteOrderCount() {
-    order_count--;
+    tab_count--;
   }
 
   /**
    * @brief Writes statistics in map structure.
    */
-  void addToTimeStructure(const std::pair<std::string, float> &record, int &order_number) {
+  void addToTimeStructure(const std::pair<std::string, float> &record) {
     std::string tabs = "";
-    for (int i = 0; i < order_count - 1; ++i) {
+    for (int i = 0; i < tab_count - 1; ++i) {
       tabs += "  ";
     }
-    time_structure.insert({std::make_pair(order_number, tabs), record});
+    time_structure.insert({std::make_pair(order_structure[record.first], tabs), record});
   }
 
   /**
@@ -81,6 +83,6 @@ public:
       statistics_file << (x.first).second << "- " << (x.second).first << ":" << '\n'
                       << (x.first).second << "  " << "- " << (x.second).second << '\n';
     }
-    statistics_file << "---" << '\n' << "# Time in microseconds";
+    statistics_file << "---" << '\n' << "measurement_unit: microsecs";
   }
 };

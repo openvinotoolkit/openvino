@@ -39,7 +39,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  * @brief Function calls `runPipeline` with mandatory time tracking of full run
  */
 int _runPipeline() {
-  SCOPED_TIMER(full_run, 0);
+  SCOPED_TIMER(full_run);
   return runPipeline(FLAGS_m, FLAGS_d);
 }
 

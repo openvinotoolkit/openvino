@@ -25,26 +25,26 @@ int runPipeline(const std::string &model, const std::string &device) {
     size_t batchSize = 0;
 
     {
-      SCOPED_TIMER(first_inference_latency, 1);
+      SCOPED_TIMER(first_inference_latency);
       {
-        SCOPED_TIMER(load_plugin, 2);
+        SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
       }
       {
-        SCOPED_TIMER(create_exenetwork, 3);
+        SCOPED_TIMER(create_exenetwork);
         if (TimeTest::fileExt(model) == "blob") {
-          SCOPED_TIMER(import_network, 4);
+          SCOPED_TIMER(import_network);
           exeNetwork = ie.ImportNetwork(model, device);
         }
         else {
           {
-            SCOPED_TIMER(read_network, 5);
+            SCOPED_TIMER(read_network);
             cnnNetwork = ie.ReadNetwork(model);
             batchSize = cnnNetwork.getBatchSize();
           }
 
           {
-            SCOPED_TIMER(load_network, 6);
+            SCOPED_TIMER(load_network);
             exeNetwork = ie.LoadNetwork(cnnNetwork, device);
           }
         }
@@ -52,11 +52,11 @@ int runPipeline(const std::string &model, const std::string &device) {
     }
 
     {
-      SCOPED_TIMER(first_inference, 7);
+      SCOPED_TIMER(first_inference);
       inferRequest = exeNetwork.CreateInferRequest();
 
       {
-        SCOPED_TIMER(fill_inputs, 8)
+        SCOPED_TIMER(fill_inputs)
         batchSize = batchSize != 0 ? batchSize : 1;
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
         fillBlobs(inferRequest, inputsInfo, batchSize);

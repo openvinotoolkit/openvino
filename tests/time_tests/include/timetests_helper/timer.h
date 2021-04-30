@@ -17,17 +17,16 @@ When destroyed, reports duration.
 class Timer {
 private:
   std::string name;
-  int order;
   time_point start_time;
 
 public:
   /// Constructs Timer object and measures start time.
-  Timer(const std::string &timer_name, int order_number);
+  Timer(const std::string &timer_name);
 
   /// Destructs Timer object, measures duration and reports it.
   ~Timer();
 };
 
-#define SCOPED_TIMER(timer_name, order_number) TimeTest::Timer timer_name(#timer_name, order_number);
+#define SCOPED_TIMER(timer_name) TimeTest::Timer timer_name(#timer_name);
 
 } // namespace TimeTest

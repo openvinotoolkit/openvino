@@ -24,21 +24,21 @@ int runPipeline(const std::string &model, const std::string &device) {
     InferRequest inferRequest;
 
     {
-      SCOPED_TIMER(first_inference_latency, 1);
+      SCOPED_TIMER(first_inference_latency);
       {
-        SCOPED_TIMER(load_plugin, 2);
+        SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
       }
       {
-        SCOPED_TIMER(load_network, 3);
+        SCOPED_TIMER(load_network);
         ie.SetConfig({{"CACHE_DIR", "models_cache"}});
         exeNetwork = ie.LoadNetwork(model, device);
       }
       {
-        SCOPED_TIMER(first_inference, 4);
+        SCOPED_TIMER(first_inference);
         inferRequest = exeNetwork.CreateInferRequest();
         {
-          SCOPED_TIMER(fill_inputs, 5)
+          SCOPED_TIMER(fill_inputs)
           const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
           fillBlobs(inferRequest, inputsInfo, 1);
         }
