@@ -16,7 +16,7 @@ class ReluReluFusionMatcher;
 }  // namespace ngraph
 
 // ! [graph_rewrite:template_transformation_hpp]
-// template_pattern_transformation.hpp
+// transformations/template_pattern_transformation.hpp
 /**
  * @ingroup ie_transformation_common_api
  * @brief Add transformation description.

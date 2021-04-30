@@ -52,6 +52,7 @@ supported_components = [
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',
+    'timeheightconvolutioncomponent',
 ]
 
 
@@ -332,7 +333,7 @@ def create_edge_attrs(prev_layer_id: str, next_layer_id: str, tensor_name: str, 
         'out': out_port,
         'in': in_port,
         'name': next_layer_id,
-        'fw_tensor_debug_info': [(prev_layer_id, out_port, tensor_name)],
+        'fw_tensor_debug_info': [(prev_layer_id, tensor_name + ":" + str(out_port))],
         'in_attrs': ['in', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info']
