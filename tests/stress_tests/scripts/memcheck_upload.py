@@ -80,8 +80,8 @@ def info_from_test_config(test_conf):
     test_conf_root = test_conf_obj.getroot()
     records = {}
     for model_rec in test_conf_root.find("models"):
-        model = model_rec.attrib["name"]
-        records[Path(model)] = {
+        model_name = model_rec.attrib["name"]
+        records[model_name] = {
             "framework": model_rec.attrib.get("framework"),
             "source": model_rec.attrib.get("source"),
         }
