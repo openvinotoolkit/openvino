@@ -269,7 +269,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
                 createDescriptor({in_candidate}, {out_candidate});
-            } else if (IC == 3 || IC == 1) {
+            } else if (IC < 4) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -298,7 +298,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
                 createDescriptor({in_candidate}, {out_candidate});
-            } else if (IC == 3 || IC == 1) {
+            } else if (IC < 4) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -760,46 +760,6 @@ InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
     return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
 }
 
-void MKLDNNConvolutionNode::selectOptimalPrimitiveDescriptor() {
-    // use the default choice
-    MKLDNNNode::selectOptimalPrimitiveDescriptor();
-
-    auto nspcPartialDesc = PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector());
-    auto selectedSpd = getSelectedPrimitiveDescriptor();
-    if (!selectedSpd) {
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getName();
-    }
-
-    // nspc pd has been already chosen
-    if (nspcPartialDesc == PartialBlkDesc::extractFrom(selectedSpd->getConfig().inConfs[0].desc)) {
-        return;
-    }
-
-    // Additional heuristic that forces the convolution to be executed with nspc layout in the accuracy aware quantized networks
-    bool hasNspcOutput = false;
-    for (size_t i = 0; i < getChildEdges().size(); ++i) {
-        auto childNode = getChildEdgeAt(i)->getChild();
-        if (childNode->getType() == Convolution) {
-            if (auto childConv = std::dynamic_pointer_cast<MKLDNNConvolutionNode>(childNode)) {
-                hasNspcOutput = childConv->canBeExecutedInInt8();
-            }
-        }
-    }
-
-    if (hasNspcOutput) {
-        auto type = selectedSpd->getImplementationType(); // prevent less optimized implementation
-        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
-            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
-            if (type == supportedType) {
-                if (nspcPartialDesc == PartialBlkDesc::extractFrom(getSupportedPrimitiveDescriptors()[i].getConfig().outConfs[0].desc)) {
-                    selectPrimitiveDescriptorByIndex(i);
-                    break;
-                }
-            }
-        }
-    }
-}
-
 bool MKLDNNConvolutionNode::isNspcAvailable() const {
     using impl::cpu::x64::mayiuse;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
@@ -818,7 +778,16 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than 2048
         size_t IC = inpDims[1];
         size_t OC = convLayer->_out_depth;
-        if (std::max(IC, OC) >= 2048) {
+
+        auto weightDimsReversItr = weightDims.rbegin();
+        bool is1x1 = (*weightDimsReversItr == 1) && (*(++weightDimsReversItr) == 1);
+
+        unsigned thresholdNumChennels = 128u; // for avx and below
+        if (mayiuse(impl::cpu::x64::avx512_common) || is1x1) {
+            thresholdNumChennels = 2048u;
+        }
+
+        if (std::max(IC, OC) >= thresholdNumChennels) {
             return false;
         }
         if (!mayiuse(impl::cpu::x64::avx)) {
