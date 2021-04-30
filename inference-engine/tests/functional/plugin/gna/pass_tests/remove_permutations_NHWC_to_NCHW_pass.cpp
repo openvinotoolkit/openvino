@@ -158,10 +158,9 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
@@ -250,10 +249,9 @@ class RemovePermutationsWithTwoConvTest : public testing::WithParamInterface<rem
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
@@ -338,10 +336,9 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
