@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
                 timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
 
                 strftime(buffer, 20, "%H:%M:%S", timeinfo);
-                std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models + 1 << "]Processing model: "
+                std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models << "]Processing model: "
                           << model.xml << std::endl;
                 if (!CommonTestUtils::fileExists(model.bin)) {
                     std::cout << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
