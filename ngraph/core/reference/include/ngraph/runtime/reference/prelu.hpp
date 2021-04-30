@@ -26,11 +26,13 @@ namespace ngraph
                        const Shape& slope_shape)
             {
                 Shape broadcasted_slope(slope_shape.begin(), slope_shape.end());
-                broadcasted_slope.insert(broadcasted_slope.begin(), arg_shape.size() - broadcasted_slope.size(), 1);
+                broadcasted_slope.insert(
+                    broadcasted_slope.begin(), arg_shape.size() - broadcasted_slope.size(), 1);
 
-                for (int i = arg_shape.size() - 1; i >= 0; i--) 
+                for (int i = arg_shape.size() - 1; i >= 0; i--)
                 {
-                    NGRAPH_CHECK(broadcasted_slope[i] == arg_shape[i] || broadcasted_slope[i] == 1, "Invalid slope shape");
+                    NGRAPH_CHECK(broadcasted_slope[i] == arg_shape[i] || broadcasted_slope[i] == 1,
+                                 "Invalid slope shape");
                 }
                 NGRAPH_CHECK(shape_size(arg_shape) >= shape_size(slope_shape),
                              "Slope shape has to be equal or smaller than first input shape");
