@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include "ngraph/file_util.hpp"
 
 #include "plugin_loader.hpp"
 
@@ -34,40 +35,31 @@ using namespace ngraph::frontend;
 static std::vector<std::string> listFiles(const std::string& path)
 {
     std::vector<std::string> res;
-#ifndef WIN32
-    struct dirent *ent;
-    DIR *dir = opendir(path.c_str());
-    if (dir != nullptr)
+    try
     {
-        std::unique_ptr<DIR, void (*)(DIR *)> closeGuard(dir, [](DIR *d)
-        { closedir(d); });
-        while ((ent = readdir(dir)) != NULL)
+        ngraph::file_util::iterate_files(path, [&res](const std::string& file, bool is_dir)
         {
-            auto file = path + FileSeparator + std::string(ent->d_name);
-            struct stat stat_path;
-            stat(file.c_str(), &stat_path);
-            if (!S_ISDIR(stat_path.st_mode) && file.find("_ngraph_frontend.so") != std::string::npos)
+            if (!is_dir)
             {
-                res.push_back(std::move(file));
-            }
-        }
-    }
+#ifdef _WIN32
+                if (file.find("_ngraph_frontend") != std::string::npos &&
+                    file.find(".dll") != std::string::npos)
+                {
+                    res.push_back(file);
+                }
 #else
-    std::string searchPath = path + FileSeparator + "*_ngraph_frontend*.dll";
-    WIN32_FIND_DATA fd;
-    HANDLE handle = ::FindFirstFile(searchPath.c_str(), &fd);
-    if (handle != INVALID_HANDLE_VALUE)
-    {
-        do
-        {
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-            {
-                res.push_back(path + FileSeparator + fd.cFileName);
-            }
-        } while(::FindNextFile(handle, &fd));
-        ::FindClose(handle);
-    }
+                if (file.find("_ngraph_frontend.so") != std::string::npos)
+                {
+                    res.push_back(file);
+                }
 #endif
+            }
+        }, false, true);
+    }
+    catch(...)
+    {
+        // Ignore exceptions
+    }
     return res;
 }
 
@@ -75,10 +67,8 @@ std::vector<PluginData> ngraph::frontend::loadPlugins(const std::string& dirName
 {
     auto files = listFiles(dirName);
     std::vector<PluginData> res;
-    // std::cout << "Loading directory: " << dirName << "\n";
     for (const auto& file : files)
     {
-        // std::cout << "Checking plugin: " << file << "\n";
         auto shared_object = DLOPEN(file);
         if (!shared_object)
         {
