@@ -45,12 +45,12 @@ namespace ngraph
 
                 std::fill(output, output + shape_size(output_shape), T{0});
 
-                // Single ROI is describad by (batch_id, x1, y1, x2, y2)
+                // Single ROI is described by (batch_id, x1, y1, x2, y2)
                 const size_t roi_attrs_count = 5;
 
                 for (size_t roi_idx = 0; roi_idx < rois_count; ++roi_idx)
                 {
-                    // Pointer to the begining of the ROI coords tuple
+                    // Pointer to the beginning of the ROI coords tuple
                     const T* roi = rois_input + roi_idx * roi_attrs_count;
 
                     // Index of the corresponding input batch
@@ -59,13 +59,15 @@ namespace ngraph
                         continue;
 
                     // Left top ROI corner
-                    const float roi_x1 = static_cast<float>(round(roi[1])) * spatial_scale - 0.5f;
-                    const float roi_y1 = static_cast<float>(round(roi[2])) * spatial_scale - 0.5f;
+                    const float roi_x1 =
+                        static_cast<float>(std::round(roi[1])) * spatial_scale - 0.5f;
+                    const float roi_y1 =
+                        static_cast<float>(std::round(roi[2])) * spatial_scale - 0.5f;
                     // Right down ROI corner
                     const float roi_x2 =
-                        static_cast<float>(round(roi[3]) + 1.0f) * spatial_scale - 0.5f;
+                        static_cast<float>(std::round(roi[3]) + 1.0f) * spatial_scale - 0.5f;
                     const float roi_y2 =
-                        static_cast<float>(round(roi[4]) + 1.0f) * spatial_scale - 0.5f;
+                        static_cast<float>(std::round(roi[4]) + 1.0f) * spatial_scale - 0.5f;
 
                     const float roi_width = std::max<float>(roi_x2 - roi_x1, 0.1f);
                     const float roi_height = std::max<float>(roi_y2 - roi_y1, 0.1f);
@@ -100,30 +102,27 @@ namespace ngraph
                                         offsets_input_shape[1] / num_coords;
                                     const size_t class_sub_channels =
                                         channels_out / coords_sub_channels;
-                                    const size_t offset_channel_idx =
-                                        c_idx_out / class_sub_channels;
+                                    const size_t roi_channel_idx = c_idx_out / class_sub_channels;
 
                                     const size_t off_bin_w_idx = w_idx_out * part_size / width_out;
                                     const size_t off_bin_h_idx = h_idx_out * part_size / height_out;
 
-                                    T x_offset_value =
-                                        offsets_input[(((roi_idx * coords_sub_channels +
-                                                         offset_channel_idx) *
-                                                        num_coords) *
-                                                           part_size +
-                                                       off_bin_h_idx) *
-                                                          part_size +
-                                                      off_bin_w_idx];
+                                    const size_t offsets_channel_idx =
+                                        (roi_idx * coords_sub_channels + roi_channel_idx) *
+                                        num_coords;
 
-                                    T y_offset_value =
-                                        offsets_input[(((roi_idx * coords_sub_channels +
-                                                         offset_channel_idx) *
-                                                            num_coords +
-                                                        1) *
-                                                           part_size +
-                                                       off_bin_h_idx) *
-                                                          part_size +
-                                                      off_bin_w_idx];
+                                    const size_t x_offset_idx =
+                                        (offsets_channel_idx * part_size + off_bin_h_idx) *
+                                            part_size +
+                                        off_bin_w_idx;
+
+                                    const size_t y_offset_idx =
+                                        ((offsets_channel_idx + 1) * part_size + off_bin_h_idx) *
+                                            part_size +
+                                        off_bin_w_idx;
+
+                                    T x_offset_value = offsets_input[x_offset_idx];
+                                    T y_offset_value = offsets_input[y_offset_idx];
 
                                     x_offset_value *= trans_std;
                                     y_offset_value *= trans_std;
