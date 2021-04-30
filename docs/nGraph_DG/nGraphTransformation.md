@@ -77,7 +77,7 @@ Also `ngraph::FunctionPass` based transformations can be executed via `pass::Man
 Template for MatcherPass transformation class
 @snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
-@snippet src/transformations/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
+@snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
 To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
