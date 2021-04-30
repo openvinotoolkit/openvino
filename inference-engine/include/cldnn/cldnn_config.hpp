@@ -13,59 +13,6 @@
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
-
-namespace Metrics {
-
-#define DECLARE_GPU_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(GPU_##name, __VA_ARGS__)
-#define GPU_METRIC_KEY(name) METRIC_KEY(GPU_##name)
-
-/**
- * @brief Metric to get a type of GPU (integrated or discrete). The return value is either "iGPU" or "dGPU" string
- */
-DECLARE_GPU_METRIC_KEY(DEVICE_TYPE, std::string);
-
-/**
- * @brief Metric to check if DP4A instruction is supported by selected GPU device
- */
-DECLARE_GPU_METRIC_KEY(SUPPORTS_DP4A, bool);
-
-/**
- * @brief Metric to get GFX IP version in format "major.minor.revision" string
- */
-DECLARE_GPU_METRIC_KEY(GFX_VERSION, std::string);
-
-/**
- * @brief Metric to get device id. Returns string with hex ID
- */
-DECLARE_GPU_METRIC_KEY(DEVICE_ID, std::string);
-
-/**
- * @brief Metric to get global GPU memory size in bytes.
- */
-DECLARE_GPU_METRIC_KEY(GLOBAL_MEM_SIZE, uint64_t);
-
-/**
- * @brief Metric to get number of slices on current GPU.
- */
-DECLARE_GPU_METRIC_KEY(NUM_SLICES, uint32_t);
-
-/**
- * @brief Metric to get number of sub-slices per slice on current GPU.
- */
-DECLARE_GPU_METRIC_KEY(NUM_SUB_SLICES_PER_SLICE, uint32_t);
-
-/**
- * @brief Metric to get number execution units per sub-slice on current GPU.
- */
-DECLARE_GPU_METRIC_KEY(NUM_EUS_PER_SUB_SLICE, uint32_t);
-
-/**
- * @brief Metric to get number HW threads per EU on current GPU.
- */
-DECLARE_GPU_METRIC_KEY(NUM_THREADS_PER_EU, uint32_t);
-
-}  // namespace Metrics
-
 /**
  * @brief GPU plugin configuration
  */

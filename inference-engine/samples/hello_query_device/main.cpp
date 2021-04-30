@@ -11,6 +11,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <ie_plugin_config.hpp>
 
 using namespace InferenceEngine;
 
@@ -62,6 +63,17 @@ void printParameterValue(const Parameter& value) {
         std::cout << std::get<0>(values) << ", ";
         std::cout << std::get<1>(values) << ", ";
         std::cout << std::get<2>(values);
+        std::cout << " }";
+        std::cout << std::endl;
+    } else if (value.is<Metrics::DeviceType>()) {
+        auto v = value.as<Metrics::DeviceType>();
+        std::cout << v << std::endl;
+    } else if (value.is<std::map<InferenceEngine::Precision, float>>()) {
+        auto values = value.as<std::map<InferenceEngine::Precision, float>>();
+        std::cout << "{ ";
+        for (auto& kv : values) {
+            std::cout << kv.first << ": " << kv.second << "; ";
+        }
         std::cout << " }";
         std::cout << std::endl;
     } else if (value.is<std::tuple<unsigned int, unsigned int>>()) {

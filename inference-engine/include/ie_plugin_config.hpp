@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 
@@ -96,6 +99,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "BIN" - device can support models with BIN layers
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
  *  - "BATCHED_BLOB" - device can support BatchedBlob
+ *  - "HW_MATMUL" - device has hardware block for matrix multiplication
  */
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
@@ -106,6 +110,7 @@ DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);
 DECLARE_METRIC_VALUE(WINOGRAD);
 DECLARE_METRIC_VALUE(BATCHED_BLOB);
+DECLARE_METRIC_VALUE(HW_MATMUL);
 
 /**
  * @brief Metric to provide information about a range for streams on platforms where streams are supported.
@@ -147,6 +152,46 @@ DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
  * @brief Metric which defines the device architecture.
  */
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
+
+/**
+ * @brief Enum to define possible device types
+ */
+enum class DeviceType {
+    integrated = 0,
+    discrete = 1,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+    switch (deviceType) {
+        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
+        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
+        default: os << "unknown"; break;
+    }
+
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
+ */
+DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
+
+/**
+ * @brief Metric which defines size of memory in bytes available for the device
+ */
+DECLARE_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
+
+/**
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ */
+DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
+
+/**
+ * @brief Metric to get microarchitecture identifier in arbitrary device specific format
+ */
+DECLARE_METRIC_KEY(UARCH_VERSION, std::string);
 
 /**
  * @brief Metric which defines support of import/export functionality by plugin

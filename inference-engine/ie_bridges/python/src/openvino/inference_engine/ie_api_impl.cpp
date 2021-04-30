@@ -3,6 +3,7 @@
 //
 
 #include "ie_api_impl.hpp"
+#include "ie_plugin_config.hpp"
 
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
@@ -156,6 +157,21 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
         return dict;
+    } else if (param.is<std::map<InferenceEngine::Precision, float>>()) {
+        auto val = param.as<std::map<InferenceEngine::Precision, float>>();
+        PyObject* dict = PyDict_New();
+        for (const auto& it : val) {
+            std::stringstream s;
+            s << it.first;
+            PyDict_SetItemString(dict, s.str().c_str(), PyFloat_FromDouble((double)it.second));
+        }
+        return dict;
+    } else if (param.is<InferenceEngine::Metrics::DeviceType>()) {
+        auto val = param.as<InferenceEngine::Metrics::DeviceType>();
+        using namespace InferenceEngine;
+        std::stringstream s;
+        s << val;
+        return PyUnicode_FromString(s.str().c_str());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return (PyObject*)NULL;
