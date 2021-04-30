@@ -1114,7 +1114,7 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
         }
 
         return eltwiseNode->isSum() ||
-               isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
+               isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, SoftRelu,
                                                   Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt});
     }
 

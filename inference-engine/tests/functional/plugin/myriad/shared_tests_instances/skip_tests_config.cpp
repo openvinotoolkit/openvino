@@ -37,5 +37,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
         // TODO: Issue 51804
         ".*PreprocessConversionTest.*oPRC=U8.*",
+        // TODO: Issue 54163
+        R"(.*ActivationLayerTest.*SoftPlus.*)",
     };
 }

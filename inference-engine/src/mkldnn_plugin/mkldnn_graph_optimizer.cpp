@@ -615,7 +615,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
             (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
             IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid,
-                                               Round})));
+                                               Round, SoftRelu})));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -694,7 +694,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
                 IE_THROW() << "Cannot get Eltwise node " << childNode->getName();
 
             if (IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish,
-                                                   Hsigmoid, Round})) {
+                                                   Hsigmoid, Round, SoftRelu})) {
                 return true;
             } else if (IsOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu})) {
                 if (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() != 2)
@@ -1053,7 +1053,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
             return ((eltwiseNode->getOpType() == MulAdd && node->getCnnLayer()->blobs.size() == 2) ||
                     (eltwiseNode->getOpType() == Prelu) ||
                     IsOneOf(eltwiseNode->getOpType(), {Relu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish,
-                                                       Hsigmoid, Round}));
+                                                       Hsigmoid, Round, SoftRelu}));
         }
 
         return false;
@@ -1269,7 +1269,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
              IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid,
-                                                Round})));
+                                                Round, SoftRelu})));
     };
 
     for (auto &graphNode : graphNodes) {
@@ -1568,7 +1568,7 @@ void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
             if (eltwiseNode == nullptr)
                 IE_THROW() << "Cannot get Eltwise node " << node->getName();
             return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
-                                                      Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
+                                                      Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt, SoftRelu}) ||
                     ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
                      (eltwiseNode->getOpType() == Prelu));
         }

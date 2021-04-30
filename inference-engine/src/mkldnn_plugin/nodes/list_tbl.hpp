@@ -32,7 +32,6 @@ MKLDNN_EXTENSION_NODE(MathImpl, Selu);
 MKLDNN_EXTENSION_NODE(MathImpl, Sign);
 MKLDNN_EXTENSION_NODE(MathImpl, Sin);
 MKLDNN_EXTENSION_NODE(MathImpl, Sinh);
-MKLDNN_EXTENSION_NODE(MathImpl, SoftPlus);
 MKLDNN_EXTENSION_NODE(MathImpl, Softsign);
 MKLDNN_EXTENSION_NODE(MathImpl, Tan);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronTopKROIsImpl, ExperimentalDetectronTopKROIs);

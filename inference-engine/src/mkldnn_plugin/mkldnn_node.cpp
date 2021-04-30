@@ -80,6 +80,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
+        { "SoftPlus", Eltwise },
         { "Norm", Lrn },
         { "LRN", Lrn },
         { "Pooling", Pooling },
