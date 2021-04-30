@@ -29,10 +29,10 @@ graph {
         elem_type: 16
         shape {
           dim {
-            dim_value: 5
+            dim_value: 2
           }
           dim {
-            dim_value: 5
+            dim_value: 3
           }
         }
       }

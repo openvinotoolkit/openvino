@@ -30,7 +30,6 @@ namespace ngraph
             }
 
             const std::vector<Attribute>& attributes() const;
-            std::vector<std::string> get_attribute_names() const;
             OutputVector get_ng_nodes(const Node& node) const;
             OutputVector get_ng_inputs() const;
 

@@ -4315,7 +4315,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_bfloat_tensor)
         file_util::path_join(SERIALIZED_ZOO, "onnx/constant_bfloat_tensor.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0, 5, 10, 15, 20, 25});
+    test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0.f, 5.f, 10.f, 15.f, 20.f, 25.f});
     test_case.run();
 }
 
