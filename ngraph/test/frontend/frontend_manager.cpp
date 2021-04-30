@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,16 @@
 
 using namespace ngraph;
 using namespace ngraph::frontend;
+
+static int set_test_env(const char* name, const char* value)
+{
+#ifdef _WIN32
+    return _putenv_s(name, value);
+#elif defined(__linux) || defined(__APPLE__)
+    std::string var = std::string(name) + "=" + value;
+    return setenv(name, value, 0);
+#endif
+}
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
@@ -25,7 +35,12 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 {
-    FrontEndManager fem("."); // specify current lib dir
+#ifdef _WIN32
+    set_test_env("OV_FRONTEND_PATH", ".;.\\lib");
+#else  // _WIN32
+    set_test_env("OV_FRONTEND_PATH", ".:./lib");
+#endif
+    FrontEndManager fem;
     auto frontends = fem.availableFrontEnds();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
 }

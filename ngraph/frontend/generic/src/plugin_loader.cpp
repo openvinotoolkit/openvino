@@ -3,16 +3,12 @@
 //
 
 #ifdef _WIN32
-#include <Windows.h>
-#include <direct.h>
-const char FileSeparator[] = "\\";
+    #include <Windows.h>
+    #include <direct.h>
 #else  // _WIN32
-
-#include <unistd.h>
-#include <dirent.h>
-#include <dlfcn.h>
-
-const char FileSeparator[] = "/";
+    #include <unistd.h>
+    #include <dirent.h>
+    #include <dlfcn.h>
 #endif  // _WIN32
 
 #include <string>
@@ -91,7 +87,7 @@ std::vector<PluginData> ngraph::frontend::loadPlugins(const std::string& dirName
 
         PluginHandle guard([shared_object, file]()
                            {
-                               std::cout << "Closing plugin library " << file << std::endl;
+                               // std::cout << "Closing plugin library " << file << std::endl;
                                DLCLOSE(shared_object);
                            });
 
@@ -102,7 +98,7 @@ std::vector<PluginData> ngraph::frontend::loadPlugins(const std::string& dirName
         }
         FrontEndVersion plugInfo{reinterpret_cast<FrontEndVersion>(infoAddr())};
 
-        if (std::string(plugInfo) != OV_FRONTEND_API_VERSION)
+        if (plugInfo != OV_FRONTEND_API_VERSION)
         {
             // Plugin has incompatible API version, do not load it
             continue;

@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/except.hpp>
+#include <ngraph/env_util.hpp>
 
 #include "frontend_manager/frontend_manager.hpp"
 #include "plugin_loader.hpp"
@@ -22,9 +23,9 @@ namespace ngraph
             std::vector<PluginHandle> m_loadedLibs; // must be a first class member (destroyed last)
             std::map<std::string, FrontEndFactory> m_factories;
         public:
-            Impl(const std::string& dirName)
+            Impl()
             {
-                registerPlugins(dirName);
+                registerPlugins();
             }
 
             ~Impl() = default;
@@ -59,28 +60,37 @@ namespace ngraph
             }
 
         private:
-            void registerPlugins(const std::string& dirName)
+            void registerPlugins()
             {
                 auto registerFromDir = [&](const std::string& dir)
                 {
-                    auto plugins = loadPlugins(dir);
-                    for (auto& plugin : plugins)
+                    if (!dir.empty())
                     {
-                        registerFrontEnd(plugin.m_pluginInfo.m_name, plugin.m_pluginInfo.m_creator);
-                        m_loadedLibs.push_back(std::move(plugin.m_libHandle));
+                        auto plugins = loadPlugins(dir);
+                        for (auto& plugin : plugins)
+                        {
+                            registerFrontEnd(plugin.m_pluginInfo.m_name, plugin.m_pluginInfo.m_creator);
+                            m_loadedLibs.push_back(std::move(plugin.m_libHandle));
+                        }
                     }
                 };
-                if (!dirName.empty())
+                std::string envPath = ngraph::getenv_string("OV_FRONTEND_PATH");
+                if (!envPath.empty())
                 {
-                    registerFromDir(dirName);
-                    registerFromDir(dirName+"/lib");
+                    auto start = 0u;
+                    auto sepPos = envPath.find(PathSeparator, start);
+                    while (sepPos != std::string::npos)
+                    {
+                        registerFromDir(envPath.substr(start, sepPos - start));
+                        start = sepPos + 1;
+                        sepPos = envPath.find(PathSeparator, start);
+                    }
+                    registerFromDir(envPath.substr(start, sepPos));
                 }
-                registerFromDir("./frontends");
-                registerFromDir("./lib/frontends");
             }
         };
 
-        FrontEndManager::FrontEndManager(const std::string& dirName) : m_impl(new Impl(dirName))
+        FrontEndManager::FrontEndManager() : m_impl(new Impl())
         {
         }
 

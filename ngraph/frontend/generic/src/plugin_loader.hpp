@@ -6,6 +6,14 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
+#ifdef _WIN32
+const char FileSeparator[] = "\\";
+const char PathSeparator[] = ";";
+#else  // _WIN32
+const char FileSeparator[] = "/";
+const char PathSeparator[] = ":";
+#endif
+
 namespace ngraph
 {
     namespace frontend

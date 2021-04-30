@@ -19,7 +19,7 @@ class FrontEndMock: public FrontEnd
 {
 };
 
-extern "C" MOCK_API char* GetAPIVersion()
+extern "C" MOCK_API FrontEndVersion GetAPIVersion()
 {
     return OV_FRONTEND_API_VERSION;
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,3 +11,4 @@ target_include_directories(mock1_frontend PRIVATE ".")
 
 target_include_directories(mock1_frontend PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
 target_link_libraries(mock1_frontend PRIVATE frontend_manager)
+add_dependencies(unit-test mock1_frontend)

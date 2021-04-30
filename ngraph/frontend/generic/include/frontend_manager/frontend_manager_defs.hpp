@@ -6,7 +6,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#define OV_FRONTEND_API_VERSION "0.0.1"
+#define OV_FRONTEND_API_VERSION 1 // Increment each time when FrontEnd/InputModel/Place interface is changed
 
 #ifdef frontend_manager_EXPORTS // defined if cmake is building the frontend_manager DLL (instead of using it)
 #define FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
