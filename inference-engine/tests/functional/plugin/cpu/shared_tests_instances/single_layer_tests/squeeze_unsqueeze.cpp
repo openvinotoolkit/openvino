@@ -10,36 +10,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ShapeAxesVec> axesVectors = {
-        {{4, 2, 1, 3}},
-        {{4, 2, 1, 3}, {2}},
-        {{1, 1, 1, 1}},
-        {{1, 1, 1, 1}, {-1}},
-        {{1, 1, 1, 1}, {0}},
-        {{1, 1, 1, 1}, {1}},
-        {{1, 1, 1, 1}, {2}},
-        {{1, 1, 1, 1}, {3}},
-        {{1, 1, 1, 1}, {0, 1}},
-        {{1, 1, 1, 1}, {0, 2}},
-        {{1, 1, 1, 1}, {0, 3}},
-        {{1, 1, 1, 1}, {1, 2}},
-        {{1, 1, 1, 1}, {2, 3}},
-        {{1, 1, 1, 1}, {0, 1, 2}},
-        {{1, 1, 1, 1}, {0, 2, 3}},
-        {{1, 1, 1, 1}, {1, 2, 3}},
-        {{1, 1, 1, 1}, {0, 1, 2, 3}},
-        {{1, 2, 3, 4}, {0}},
-        {{2, 1, 3, 4}},
-        {{2, 1, 3, 4}, {1}},
-        {{1}},
-        {{1}, {0}},
-        {{1}, {-1}},
-        {{1, 2}},
-        {{1, 2}, {0}},
-        {{2, 1}},
-        {{2, 1}, {1}},
-        {{2, 1}, {-1}},
-    };
+std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors = {
+        {{1, 1, 1, 1}, {{}, {-1}, {0}, {1}, {2}, {3}, {0, 1}, {0, 2}, {0, 3}, {1, 2}, {2, 3}, {0, 1, 2}, {0, 2, 3}, {1, 2, 3}, {0, 1, 2, 3}}},
+        {{1, 2, 3, 4}, {{}, {0}}},
+        {{2, 1, 3, 4}, {{}, {1}}},
+        {{1}, {{}, {-1}, {0}}},
+        {{1, 2}, {{}, {0}}},
+        {{2, 1}, {{}, {1}, {-1}}},
+};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -53,7 +31,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
 
 INSTANTIATE_TEST_CASE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(axesVectors),
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
