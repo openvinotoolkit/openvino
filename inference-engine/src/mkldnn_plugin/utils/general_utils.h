@@ -42,6 +42,7 @@ constexpr inline bool implication(bool cause, bool cond) {
 
 inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
     std::string desc = ex.what();
+    IE_SUPPRESS_DEPRECATED_START
     if (ex.getStatus() != 0) {
         size_t pos = desc.find("]");
         if (pos != std::string::npos) {
@@ -52,6 +53,7 @@ inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exceptio
             }
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     return desc;
 }
