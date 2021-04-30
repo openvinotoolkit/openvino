@@ -14,7 +14,7 @@ from mo.ops.const import Const
 
 
 class CompressQuantizeWeights(BackReplacementPattern):
-    """
+    r"""
     Compress weights transformation goal is to pre-quantize data to minimize runtime calculations with constant data.
     To achieve this goal we perform FakeQuantize decomposition to separate quantization from dequantization in it.
 
@@ -71,9 +71,9 @@ class CompressQuantizeWeights(BackReplacementPattern):
                 WARNING: division by zero imposes restriction -- input_high can not be equal to input_low
             zero_point = input_low - output_low / scale
 
-    TODO: step 5 is NOT IMPLEMENTED YET AS LPT hasn't report it need it
+    TODO: step 5 is NOT IMPLEMENTED YET AS LPT hasn't report it needs it
     Step 5: Having zero_point == 0 is really beneficial for performance, so we try to fuse Subtract up to the Constant
-        to acheive zero_point==0. It is not always possible because of the quantized_dtype possible range of values.
+        to achieve zero_point==0. It is not always possible because of the quantized_dtype possible range of values.
 
     Step 6: From the nature of Subtract and Multiply operations they may be optimized out in cases:
             zero_point == 0
