@@ -54,7 +54,7 @@ enum Algorithm {
     EltwiseSqrt,
     EltwiseLinear, // TODO [NM]: looks like unused - remove
     EltwiseBoundedRelu, // TODO [NM]: looks like unused - remove
-    EltwiseSoftRelu, // TODO [NM]: looks like unused - remove
+    EltwiseSoftRelu,
     EltwiseRelu6, // TODO [NM]: looks like unused - remove
     EltwiseExp,
     EltwiseClamp,
