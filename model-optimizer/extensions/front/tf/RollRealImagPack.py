@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.graph_utils import correct_roll_axes
+from mo.front.tf.graph_utils import add_constant_to_negative_values
 from mo.graph.graph import Graph
 
 
@@ -66,6 +67,6 @@ class RollRealImagPack(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
         unroll = match['unroll']
-        correct_roll_axes(unroll)
+        add_constant_to_negative_values(unroll, 2, int64_array(-1))
         pack = match['pack']
         pack.out_port(0).get_connection().set_source(unroll.out_port(0))

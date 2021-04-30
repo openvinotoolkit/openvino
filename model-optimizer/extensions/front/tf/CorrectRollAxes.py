@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import correct_roll_axes
+from mo.front.tf.graph_utils import add_constant_to_negative_values
 from mo.graph.graph import Graph
 
 
@@ -22,5 +23,5 @@ class CorrectRollAxes(FrontReplacementSubgraph):
 
     def find_and_replace_pattern(self, graph: Graph):
         for roll in graph.get_op_nodes(op='Roll', input_rank_changed=True):
-            correct_roll_axes(roll)
+            add_constant_to_negative_values(roll, 2, int64_array(-1))
             del roll['input_rank_changed']

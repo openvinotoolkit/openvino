@@ -12,7 +12,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph, rename_nodes
+from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.convolution import Convolution
@@ -188,25 +188,29 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
     return activation_node
 
 
-def correct_roll_axes(roll: Node):
+def add_constant_to_negative_values(node: Node, port_idx: int, added_value: np.array):
     """
-    This function corrects axes of TF Roll node, if this node is before or after of TF (I)FFT operation.
-    :param roll: Node to correct axes.
+    This function adds the given values to negative elements of value from the given input port.
+    :param node: node with corrected values in the input port port_idx
+    :param port_idx: input port index for negative values
+    :param added_value: the value to add
     :return: None
     """
-    axes_source = roll.in_port(2).get_source()
-    axes_node = roll.in_port(2).get_source().node
-    axes_node_name = axes_node.soft_get('name', axes_node.id)
+    negative_values_source = node.in_port(port_idx).get_source()
+    negative_values_node = node.in_port(port_idx).get_source().node
+    negative_values_node_name = negative_values_node.soft_get('name', negative_values_node.id)
 
-    graph = roll.graph
+    graph = node.graph
 
-    less_node = create_op_with_const_inputs(graph, Less, {1: int64_array(0)}, {'name': axes_node_name + '/Less'})
-    mul_node = create_op_with_const_inputs(graph, Mul, {1: int64_array(-1)}, {'name': axes_node_name + '/Mul'})
+    less_node = create_op_with_const_inputs(graph, Less,
+                                            {1: np.array(0, dtype=added_value.dtype)},
+                                            {'name': negative_values_node_name + '/Less'})
+    mul_node = create_op_with_const_inputs(graph, Mul, {1: added_value}, {'name': negative_values_node_name + '/Mul'})
 
-    roll.in_port(2).get_connection().set_destination(less_node.in_port(0))
+    node.in_port(port_idx).get_connection().set_destination(less_node.in_port(0))
     less_node.out_port(0).connect(mul_node.in_port(0))
 
     add_node = Add(graph, {}).create_node()
     mul_node.out_port(0).connect(add_node.in_port(1))
-    axes_source.connect(add_node.in_port(0))
-    add_node.out_port(0).connect(roll.in_port(2))
+    negative_values_source.connect(add_node.in_port(0))
+    add_node.out_port(0).connect(node.in_port(port_idx))
