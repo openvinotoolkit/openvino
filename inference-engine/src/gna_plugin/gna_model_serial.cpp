@@ -308,12 +308,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor);
                 }
             }
         }
@@ -617,12 +617,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor );
                 }
             }
         }
@@ -913,7 +913,7 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream &is,
 void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
         const TranspositionInfoMap &transpositionInfoMap) const {
     for (const auto &transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str()) + 1;
+        auto nameSize = strlen(transpositionInfo.first.c_str());
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
         auto fragmentsNum = transpositionInfo.second.size();

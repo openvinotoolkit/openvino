@@ -150,7 +150,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params,
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
         }
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         clKernelData& kernel = kd.kernels[i];
 

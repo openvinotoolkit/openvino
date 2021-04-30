@@ -22,3 +22,4 @@ _set_if_not_defined(ENABLE_VPU OFF)
 
 # fix conversion from uint64_t / int64_t to size_t
 _set_if_not_defined(NGRAPH_ONNX_IMPORT_ENABLE OFF)
+_set_if_not_defined(NGRAPH_ONNX_EDITOR_ENABLE OFF)

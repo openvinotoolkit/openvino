@@ -753,7 +753,7 @@ def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params
     for output in outputs:
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                       infer=None, needs_removal=True)
+                       infer=None, needs_removal=True, symbol_dict={'op': 'Identity'})
         add_edge(graph, output, fake_node_name, **params)
 
 
@@ -860,8 +860,9 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
                                         name=get_new_placeholder_name(node_id, is_out_port, port)))
 
+    fw_name = Node(graph, node_id).soft_get('name')
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
+                  'fw_tensor_debug_info': [(fw_name, fw_name)],
                   'data_attrs': ['fw_tensor_debug_info']}
     if not data:
         if is_out_port:

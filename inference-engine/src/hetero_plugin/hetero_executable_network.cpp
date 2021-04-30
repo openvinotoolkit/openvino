@@ -24,9 +24,11 @@
 #include "transformations/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
+#include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
@@ -638,7 +640,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 }
 
-InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         InputsDataMap networkInputs,
         OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
@@ -655,7 +657,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
                                                 _blobNameMap);
 }
 
-IInferRequest::Ptr HeteroExecutableNetwork::CreateInferRequest() {
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 

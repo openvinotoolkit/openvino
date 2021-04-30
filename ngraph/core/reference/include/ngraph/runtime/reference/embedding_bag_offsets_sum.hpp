@@ -32,7 +32,7 @@ namespace ngraph
                 {
                     embDepth *= outShape[i];
                 }
-                memset(out, 0, shape_size(outShape) * sizeof(T));
+                std::fill(out, out + shape_size(outShape), T{0});
 
                 auto get_indices = [&](size_t emb_index,
                                        const U*& indices_ref,
@@ -41,7 +41,7 @@ namespace ngraph
                                        bool& with_weights) {
                     if (emb_index >= offsets_size)
                         throw ngraph_error("Invalid embedding bag index.");
-                    if (offsets[emb_index] >= indices_count)
+                    if (static_cast<size_t>(offsets[emb_index]) >= indices_count)
                         throw ngraph_error(
                             std::string(
                                 "Offset value exceeds indices size in the model.\noffset: ") +
@@ -116,6 +116,6 @@ namespace ngraph
 
             } // embeddingBagOffsetsSum
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

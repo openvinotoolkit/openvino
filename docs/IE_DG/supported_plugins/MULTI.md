@@ -92,11 +92,20 @@ Notice that until R2 you had to calculate number of requests in your application
 Notice that every OpenVINO sample that supports "-d" (which stays for "device") command-line option transparently accepts the multi-device.
 The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
 Below is example command-line to evaluate HDDL+GPU performance with that:
-```bash
-$ ./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
+
+```sh
+./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
 ```
 Notice that you can use the FP16 IR to work with multi-device (as CPU automatically upconverts it to the fp32) and rest of devices support it naturally. 
 Also notice that no demos are (yet) fully optimized for the multi-device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
 
+## Video: MULTI Plugin
+[![](https://img.youtube.com/vi/xbORYFEmrqU/0.jpg)](https://www.youtube.com/watch?v=xbORYFEmrqU)
+\htmlonly
+<iframe width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
+
 ## See Also
 * [Supported Devices](Supported_Devices.md)
+
+

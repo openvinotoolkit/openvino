@@ -13,7 +13,7 @@ from mo.ops.shape import Shape
 
 
 class InterpolateWithConcat(FrontReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
 
     BEFORE:

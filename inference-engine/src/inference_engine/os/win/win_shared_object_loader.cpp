@@ -254,8 +254,7 @@ class SharedObjectLoader::Impl {
     }
 };
 
-SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
-}
+SharedObjectLoader::~SharedObjectLoader() {}
 
 SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl = std::make_shared<Impl>(pluginName);

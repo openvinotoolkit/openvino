@@ -8,19 +8,17 @@
 """ Pytest configuration for compilation tests.
 
 Sample usage:
-python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
-    --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
-    --benchmark_app=./bin/benchmark_app test_collect.py
+python3 -m pytest --test_conf=<path to test config> \
+    --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
+    --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
+    --openvino_ref=<Path to root directory with installed OpenVINO>
 """
 
 import sys
 import pytest
 import yaml
-
 from inspect import getsourcefile
 from pathlib import Path
-
-from tests_utils import write_session_info, SESSION_INFO_FILE
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
@@ -40,11 +38,6 @@ def pytest_addoption(parser):
         "--sea_runtool",
         type=Path,
         help="Path to sea_runtool.py"
-    )
-    parser.addoption(
-        "--benchmark_app",
-        type=Path,
-        help="Path to the benchmark_app tool",
     )
     parser.addoption(
         "--collector_dir",
@@ -85,35 +78,10 @@ def pytest_generate_tests(metafunc):
     metafunc.parametrize("test_id, model", params, ids=ids)
 
 
-@pytest.fixture(scope="function")
-def test_info(request, pytestconfig):
-    """Fixture function for getting the additional attributes of the current test."""
-    setattr(request.node._request, "test_info", {})
-    if not hasattr(pytestconfig, "session_info"):
-        setattr(pytestconfig, "session_info", [])
-
-    yield request.node._request.test_info
-
-    pytestconfig.session_info.append(request.node._request.test_info)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def save_session_info(pytestconfig, artifacts):
-    """Fixture function for saving additional attributes to configuration file."""
-    yield
-    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
-
-
 @pytest.fixture(scope="session")
 def sea_runtool(request):
     """Fixture function for command-line option."""
     return request.config.getoption("sea_runtool")
-
-
-@pytest.fixture(scope="session")
-def benchmark_app(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption("benchmark_app")
 
 
 @pytest.fixture(scope="session")

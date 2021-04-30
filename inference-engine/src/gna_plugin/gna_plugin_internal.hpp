@@ -46,7 +46,7 @@ public:
         defaultConfig.UpdateFromMap(config);
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
@@ -54,19 +54,17 @@ public:
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
 
-        return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, plg));
+        return std::make_shared<GNAExecutableNetwork>(modelFileName, plg);
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
-        return make_executable_network(std::make_shared<GNAExecutableNetwork>(networkModel, plg));
+        return std::make_shared<GNAExecutableNetwork>(networkModel, plg);
     }
-
-    using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
     std::string GetName() const noexcept override {
         return GetCurrentPlugin()->GetName();

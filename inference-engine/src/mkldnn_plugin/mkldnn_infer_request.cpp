@@ -19,11 +19,13 @@
 #include "nodes/mkldnn_memory_node.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_async_infer_request.h"
+#include <debug.h>
+
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
-: InferRequestInternal(networkInputs, networkOutputs)
+: IInferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));

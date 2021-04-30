@@ -1,0 +1,4 @@
+# Hung:
+.*AvgPool_1199829.*
+.*AvgPool_1201153.*
+.*ROIPooling_1199827.*

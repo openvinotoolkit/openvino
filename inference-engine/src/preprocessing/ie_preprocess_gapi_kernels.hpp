@@ -152,8 +152,17 @@ namespace gapi {
         }
     };
 
+    G_TYPED_KERNEL(GSubC, <cv::GMat(cv::GMat, cv::GScalar, int)>, "com.intel.ie.math.subC") {
+        static cv::GMatDesc outMeta(cv::GMatDesc a, cv::GScalarDesc, int ddepth) {
+            return a.withDepth(ddepth);
+        }
+    };
 
-
+    G_TYPED_KERNEL(GDivC, <cv::GMat(cv::GMat, cv::GScalar, double, int)>, "com.intel.ie.math.divC") {
+        static cv::GMatDesc outMeta(cv::GMatDesc a, cv::GScalarDesc, double, int ddepth) {
+            return a.withDepth(ddepth);
+        }
+    };
     cv::gapi::GKernelPackage preprocKernels();
 
 }  // namespace gapi
