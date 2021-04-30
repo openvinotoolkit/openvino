@@ -453,6 +453,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
+    // Skip FakeQuantize and ScaleShift between Convolution and Input
+    if (LayerInfo(connectedInputLayer).isFakeQuantize()) {
+            connectedInputLayer = CNNNetPrevLayerSkipCertain(connectedInputLayer, 0, [](CNNLayerPtr l) {
+            return LayerInfo(l).isScaleShift();
+        });
+    }
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input) {
@@ -626,6 +632,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         ptr_weights,
         ptr_biases);
 
+    currentComponent.num_bytes_per_input = inputs->getPrecision().size();
     currentComponent.num_bytes_per_output = outputs->getPrecision().size();
 
     if (inputs->getLayout() == Layout::NHWC) {

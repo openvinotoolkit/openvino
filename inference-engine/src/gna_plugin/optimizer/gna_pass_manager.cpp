@@ -371,19 +371,21 @@ namespace {
 
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
-    // conv->relu->maxpooling
-    // changing it to conv->maxpooling->relu
+    // conv->activation->maxpooling
+    // changing it to conv->maxpooling->activation
     for (auto & l : *pLayers) {
         auto pool = LayerInfo(l);
         if (!pool.isMaxPooling()) continue;
 
         // don't reorder if pooling is 2D for CNN2D
         auto pooling = dynamic_cast<PoolingLayer*>(l.get());
-        if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
+        // todo: return the check for stride after it'll be fixed in MO for Kaldi models
+        if (pooling == nullptr || (is2D(pooling->_kernel))) continue;
 
         // checking prev layer type
-        auto activation = LayerInfo(CNNNetPrevLayer(l));
-        if (!activation.isActivation()) continue;
+        auto actLayer = CNNNetPrevLayer(l);
+        auto activation = LayerInfo(actLayer);
+        if (!activation.isActivation() || actLayer->insData.size() > 1) continue;
 
         // if activation came from convolution
         auto convolution = LayerInfo(CNNNetPrevLayer(static_cast<InferenceEngine::CNNLayer*>(activation)));
