@@ -35,8 +35,6 @@ endif()
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
             PRIVATE
-            -MMD
-            -MP
             -Wformat
             -Wformat-security
             -Wall)
