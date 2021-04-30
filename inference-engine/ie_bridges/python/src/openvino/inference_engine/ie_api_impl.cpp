@@ -322,6 +322,8 @@ std::map<std::string, InferenceEngine::CDataPtr> InferenceEnginePython::IEExecNe
     return pyOutputs;
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr) {
     InferenceEngine::ResponseDesc response;
     IE_CHECK_CALL(request_ptr->SetBlob(blob_name.c_str(), blob_ptr, &response));
@@ -427,6 +429,8 @@ std::map<std::string, InferenceEnginePython::ProfileInfo> InferenceEnginePython:
     return perf_map;
 }
 
+IE_SUPPRESS_DEPRECATED_END
+
 std::string InferenceEnginePython::get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
     std::string version_str = std::to_string(version->apiVersion.major) + ".";
@@ -487,6 +491,7 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
     }
     infer_requests.resize(num_requests);
     InferenceEngine::ResponseDesc response;
+    IE_SUPPRESS_DEPRECATED_START
     for (size_t i = 0; i < num_requests; ++i) {
         InferRequestWrap& infer_request = infer_requests[i];
         infer_request.index = i;
@@ -496,6 +501,7 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
         IE_CHECK_CALL(infer_request.request_ptr->SetUserData(&infer_request, &response));
         infer_request.request_ptr->SetCompletionCallback(latency_callback);
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(const std::string& modelPath, const std::string& binPath) {

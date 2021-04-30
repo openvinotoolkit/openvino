@@ -11,7 +11,6 @@
 
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
 #include <ie_remote_context.hpp>
