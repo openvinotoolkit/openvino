@@ -24,6 +24,7 @@
 #include "gna-api.h"
 #endif
 
+#include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
 
 //#define MODEL_DUMP
@@ -130,7 +131,7 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
-    if (isUpTo20GnaHwDevice() && isGnaLibVersion2_1) {
+    if (enforceLegacyCnnNeeded()) {
         enforceLegacyCnns(gnaModel);
     }
 #if GNA_LIB_VER == 2 && defined MODEL_DUMP
@@ -154,15 +155,36 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
     checkGna2Status(status, "Gna2ModelRelease");
 }
 
+bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
+    auto devVersion = getExecutionTargetDevice();
+    return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(devVersion);
+}
+
+Gna2DeviceVersion GNADeviceHelper::getExecutionTargetDevice() const {
+    const volatile uint32_t executionTarget0x30 = 0x30;
+    if (executionTarget.empty()) {
+        if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
+            return isGnaLibVersion2_1 ? static_cast<Gna2DeviceVersion>(executionTarget0x30) : Gna2DeviceVersion2_0;
+        return detectedGnaDevVersion;
+    } else if (executionTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+        if (!isGnaLibVersion2_1)
+            THROW_GNA_EXCEPTION << "Unsupported GNA execution target " << executionTarget << " when GNA Library version is 2.0.X.X";
+        return static_cast<Gna2DeviceVersion>(executionTarget0x30);
+    } else if (executionTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
+        return Gna2DeviceVersion2_0;
+    }
+    THROW_GNA_EXCEPTION << "Unknown execution target: \"" << executionTarget << "\"";
+}
+
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
-    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation && !isGnaLibVersion2_1) {
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId,
-            isUpTo20GnaDevice() ? gna2HwConsistency : detectedGnaDevVersion);
-        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency");
+    if (swExactMode) {
+        const auto consistentDevice = getExecutionTargetDevice();
+        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
+        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
     }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
     checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");

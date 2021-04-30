@@ -106,28 +106,28 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_HARDWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersion1_0);
+    EXPECT_EQ(config.swExactMode, true);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_AUTO));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeAuto);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "");
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "abc");
