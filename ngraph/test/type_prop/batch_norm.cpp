@@ -50,7 +50,7 @@ TYPED_TEST_CASE_P(BatchNormTest);
 TYPED_TEST_P(BatchNormTest, batch_norm_inference_basic_data_batch_rank_2)
 {
     PartialShape data_batch_shape{10, 100};
-    element::Type inputs_et = element::i32;
+    element::Type inputs_et = element::f32;
 
     std::vector<BatchNormInferInputs> ch_inputs =
     {
@@ -74,7 +74,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_basic_data_batch_rank_2)
 TYPED_TEST_P(BatchNormTest, batch_norm_inference_basic_data_batch_rank_4)
 {
     PartialShape data_batch_shape{1, 10, 224, 224};
-    element::Type inputs_et = element::i32;
+    element::Type inputs_et = element::f16;
 
     std::vector<BatchNormInferInputs> ch_inputs =
     {
@@ -193,6 +193,50 @@ TYPED_TEST_P(BatchNormTest,
         PartialShape{64, 3, Dimension::dynamic(), 224}));
 }
 
+TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_inputs_element_types)
+{
+    PartialShape data_batch_shape{10, 100};
+
+    const std::vector<element::Type> inputs_et{
+        element::i32,
+        element::u32,
+        element::boolean
+    };
+
+    double eps = 0.001;
+
+    std::vector<BatchNormInferParams> bn_tests;
+    for (const auto& et : inputs_et)
+    {
+        std::vector<BatchNormInferInputs> ch_inputs =
+        {
+            {et, PartialShape{100}, "gamma"},
+            {et, PartialShape{100}, "beta"},
+            {et, PartialShape{100}, "mean"},
+            {et, PartialShape{100}, "variance"}
+        };
+
+        bn_tests.push_back(BatchNormInferParams{et, data_batch_shape, ch_inputs, eps});
+    }
+
+    for(const auto& params : bn_tests)
+    {
+        try
+        {
+            auto bn = makeBatchNormOp<TypeParam>(params);
+            FAIL() << "Invalid input element types not detected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(error.what(), "Input element types must be floating-point");
+        }
+        catch (...)
+        {
+            FAIL() << "Input element types check failed for unexpected reason";
+        }
+    }
+}
+
 TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_inputs_element_types)
 {
     // Data batch input element type and shape
@@ -211,7 +255,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_inputs_element_typ
     const double epsilon = 0.001;
 
     std::vector<BatchNormInferParams> bn_params;
-    bn_params.push_back(BatchNormInferParams{element::i32,
+    bn_params.push_back(BatchNormInferParams{element::f16,
                                              data_batch_ps,
                                              bn_ch_inputs,
                                              epsilon});
@@ -219,7 +263,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_inputs_element_typ
     for(size_t i = 0; i < bn_ch_inputs.size(); i++)
     {
         std::vector<BatchNormInferInputs> inputs = bn_ch_inputs;
-        (inputs[i]).in_et = element::i32;
+        (inputs[i]).in_et = element::f16;
         bn_params.push_back(BatchNormInferParams{data_batch_et,
                                                  data_batch_ps,
                                                  inputs,
@@ -440,6 +484,45 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_input_channels_count_ze
     }
 }
 
+TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_epsilon)
+{
+    PartialShape data_batch_shape{10, 100};
+    element::Type inputs_et = element::f32;
+
+    std::vector<BatchNormInferInputs> ch_inputs =
+    {
+        {inputs_et, PartialShape{100}, "gamma"},
+        {inputs_et, PartialShape{100}, "beta"},
+        {inputs_et, PartialShape{100}, "mean"},
+        {inputs_et, PartialShape{100}, "variance"}
+    };
+
+    double eps_zero = 0.0;
+    double eps_neg = -1.0;
+
+    const std::vector<BatchNormInferParams> bn_tests{
+        BatchNormInferParams{inputs_et, data_batch_shape, ch_inputs, eps_zero},
+        BatchNormInferParams{inputs_et, data_batch_shape, ch_inputs, eps_neg}
+    };
+
+    for(const auto& params : bn_tests)
+    {
+        try
+        {
+            auto bn = makeBatchNormOp<TypeParam>(params);
+            FAIL() << "Invalid 'epsilon' attribute value not detected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'epsilon' must have non-zero positive floating-point value.");
+        }
+        catch (...)
+        {
+            FAIL() << "Positive 'epsilon' attribute value check failed for unexpected reason";
+        }
+    }
+}
+
 REGISTER_TYPED_TEST_CASE_P(
     BatchNormTest,
     batch_norm_inference_basic_data_batch_rank_2,
@@ -448,13 +531,15 @@ REGISTER_TYPED_TEST_CASE_P(
     batch_norm_inference_data_batch_rank_static_channel_inputs_rank_dynamic,
     batch_norm_inference_data_batch_rank_dynamic_some_channel_inputs_rank_static,
     batch_norm_inference_data_batch_rank_static_some_channel_inputs_rank_static,
+    batch_norm_inference_invalid_inputs_element_types,
     batch_norm_inference_incompatible_inputs_element_types,
     batch_norm_inference_invalid_data_batch_input_rank,
     batch_norm_inference_incompatible_channel_input_ranks,
     batch_norm_inference_incompatible_channel_inputs_channel_count,
     batch_norm_inference_invalid_channel_inputs_rank,
     batch_norm_inference_incompatible_data_batch_and_channel_inputs_channel_count,
-    batch_norm_inference_invalid_input_channels_count_zero);
+    batch_norm_inference_invalid_input_channels_count_zero,
+    batch_norm_inference_invalid_epsilon);
 
 using Types = ::testing::Types<op::v0::BatchNormInference, op::v5::BatchNormInference>;
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BatchNormTest, Types, );
