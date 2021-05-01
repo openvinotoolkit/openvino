@@ -293,7 +293,7 @@ configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEn
                                         "IE_CPACK_IE_INCLUDE_DIR")
 
 write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-                                 VERSION "2021.4" # TODO
+                                 VERSION "2.1.0" # TODO
                                  COMPATIBILITY SameMajorVersion) # TODO
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
