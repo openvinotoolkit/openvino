@@ -13,5 +13,5 @@
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
 
-// TODO: remove
+// remove in 2022.1 major release
 #include <iostream>
