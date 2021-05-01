@@ -144,10 +144,11 @@ configure_file(
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
     @ONLY)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    COPYONLY)
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+    VERSION "2021.4" # TODO
+    COMPATIBILITY SameMajorVersion) # TODO
 
 #
 # Coverage

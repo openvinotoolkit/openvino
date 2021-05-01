@@ -135,12 +135,12 @@ endif()
 
 if(IE_NOT_FOUND_MESSAGE)
     # the flag is used to throw a custom message in case if the IE package is not found.
-    find_package(InferenceEngine 2.1 QUIET)
+    find_package(InferenceEngine 2021.4 QUIET)
     if (NOT(InferenceEngine_FOUND))
         message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
     endif()
 else()
-    find_package(InferenceEngine 2.1 REQUIRED)
+    find_package(InferenceEngine 2021.4 REQUIRED)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
