@@ -11,6 +11,12 @@
 #include "backend.hpp"
 #include "ngraph/file_util.hpp"
 
+#ifdef _WIN32
+const char FrontEndPathSeparator[] = ";";
+#else
+const char FrontEndPathSeparator[] = ":";
+#endif // _WIN32
+
 using namespace ngraph;
 using namespace ngraph::frontend;
 
@@ -40,6 +46,7 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 {
     std::string fePath =
             ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
+    fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
 
     FrontEndManager fem;

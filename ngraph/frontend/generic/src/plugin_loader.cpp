@@ -39,20 +39,19 @@ static std::vector<std::string> listFiles(const std::string& path)
     {
         ngraph::file_util::iterate_files(path, [&res](const std::string& file, bool is_dir)
         {
-            if (!is_dir)
+            if (!is_dir && file.find("_ngraph_frontend") != std::string::npos)
             {
 #ifdef _WIN32
-                if (file.find("_ngraph_frontend") != std::string::npos &&
-                    file.find(".dll") != std::string::npos)
-                {
-                    res.push_back(file);
-                }
+                std::string ext = ".dll";
+#elif defined(__APPLE__)
+                std::string ext = ".dylib";
 #else
-                if (file.find("_ngraph_frontend.so") != std::string::npos)
+                std::string ext = ".so";
+#endif
+                if (file.find(ext) != std::string::npos)
                 {
                     res.push_back(file);
                 }
-#endif
             }
         }, false, true);
     }

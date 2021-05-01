@@ -9,10 +9,10 @@
 #ifdef _WIN32
 const char FileSeparator[] = "\\";
 const char PathSeparator[] = ";";
-#else  // _WIN32
+#else
 const char FileSeparator[] = "/";
 const char PathSeparator[] = ":";
-#endif
+#endif // _WIN32
 
 namespace ngraph
 {
