@@ -3,6 +3,19 @@
 #
 
 function(set_ie_threading_interface_for TARGET_NAME)
+    macro(ext_message TRACE_LEVEL)
+         if (TRACE_LEVEL STREQUAL FATAL_ERROR)
+             if(InferenceEngine_FIND_REQUIRED)
+                 message(FATAL_ERROR "${ARGN}")
+             elseif(NOT InferenceEngine_FIND_QUIETLY)
+                 message(WARNING "${ARGN}")
+             endif()
+             return()
+         elseif(NOT InferenceEngine_FIND_QUIETLY)
+             message(${TRACE_LEVEL} "${ARGN}")
+         endif ()
+    endmacro()
+
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         find_package(TBB COMPONENTS tbb tbbmalloc)
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
