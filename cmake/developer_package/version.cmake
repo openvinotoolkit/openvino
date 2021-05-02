@@ -31,11 +31,12 @@ macro(ie_parse_ci_build_number)
         set(IE_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
         set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
-    else()
-        set(IE_VERSION_MAJOR 2021)
-        set(IE_VERSION_MINOR 4)
-        set(IE_VERSION_PATCH 0)
     endif()
+
+    # TODO:
+    # parse static version from ie_version.hpp
+    # and compare with information from CI_BUILD_NUMBER
+
     set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
 endmacro()
 
