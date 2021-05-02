@@ -21,6 +21,9 @@
 
 include(CMakeFindDependencyMacro)
 
+# need to store current PACKAGE_PREFIX_DIR, because it's overwritten by ngraph one
+set(IE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
+
 set(THREADING "@THREADING@")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
@@ -54,12 +57,15 @@ endfunction()
 
 if(TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
-    _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/InferenceEngineTargets.cmake")
     set(InferenceEngine_LIBRARIES IE::inference_engine IE::inference_engine_c_api)
 endif()
 
+# restore PACKAGE_PREFIX_DIR
+set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
+
+_ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
 
 set_and_check(_ie_parallel "@PACKAGE_IE_PARALLEL_CMAKE@")
