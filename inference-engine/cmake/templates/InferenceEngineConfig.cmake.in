@@ -46,10 +46,10 @@ find_dependency(ngraph
 function(_ie_target_no_deprecation_error)
     if(NOT MSVC)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set_target_properties(${ARNV} PROPERTIES
+            set_target_properties(${ARGV} PROPERTIES
                 INTERFACE_COMPILE_OPTIONS "-diag-warning=1786")
         else()
-            set_target_properties(${ARNV} PROPERTIES
+            set_target_properties(${ARGV} PROPERTIES
                 INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
         endif()
     endif()
@@ -67,8 +67,5 @@ set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
 
 _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
-
-set_and_check(_ie_parallel "@PACKAGE_IE_PARALLEL_CMAKE@")
-include(${_ie_parallel})
 
 check_required_components(InferenceEngine)
