@@ -295,9 +295,10 @@ configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/Inf
                               INSTALL_DESTINATION share
                               PATH_VARS ${PATH_VARS})
 
-write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-                                 VERSION "2.1.0" # TODO
-                                 COMPATIBILITY SameMajorVersion) # TODO
+configure_file(
+    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+    "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
+    COPYONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
