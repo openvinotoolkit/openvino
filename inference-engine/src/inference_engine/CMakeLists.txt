@@ -218,7 +218,8 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
 # install TBB
 
 list(APPEND core_components ngraph)
-list(APPEND PATH_VARS "IE_CPACK_IE_INCLUDE_DIR" "IE_NGRAPH_CMAKE_PATH")
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
+                      "IE_PARALLEL_CMAKE")
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
@@ -275,17 +276,19 @@ install(EXPORT InferenceEngineTargets
 
 include(CMakePackageConfigHelpers)
 
-set(IE_NGRAPH_CMAKE_PATH "${CMAKE_BINARY_DIR}/ngraph")
-set(IE_CPACK_IE_INCLUDE_DIR ${PUBLIC_HEADERS_DIR})
+set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
+set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
+set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
 
-set(IE_CPACK_IE_INCLUDE_DIR "include")
-set(IE_NGRAPH_CMAKE_PATH "../ngraph/cmake")
+set(IE_INCLUDE_DIR "include")
+set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
+set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 
 configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"

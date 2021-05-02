@@ -4,6 +4,8 @@
 
 #include "cropResize_tests.hpp"
 
+#include "ie_parallel.hpp"
+
 #ifdef USE_OPENCV
 
 #define COMBINE_WITH_DEFAULT(_dims, _in_layouts, _color_formats) \
