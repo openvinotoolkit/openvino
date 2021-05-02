@@ -301,6 +301,6 @@ write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineConfig-vers
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${InferenceEngine_SOURCE_DIR}/share/ie_parallel.cmake"
+              "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core)
