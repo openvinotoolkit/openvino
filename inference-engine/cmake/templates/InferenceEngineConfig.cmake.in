@@ -25,6 +25,7 @@ set(THREADING "@THREADING@")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
     find_dependency(TBB
+                    COMPONENTS tbb tbbmalloc
                     CONFIG
                     PATHS ${TBBROOT}/cmake
                           ${_tbb_dir}

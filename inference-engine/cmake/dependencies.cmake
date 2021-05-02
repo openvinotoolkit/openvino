@@ -18,7 +18,6 @@ else()
     set(MODELS_BRANCH "master")
 endif()
 
-
 if (ENABLE_DATA)
     add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/models/src/data")
