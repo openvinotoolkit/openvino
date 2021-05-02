@@ -238,7 +238,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
             COMPONENT tbb)
     set(IE_TBB_CMAKE_PATH_INSTALL "external/tbb/cmake")
-    set(IE_TBB_CMAKE_PATH "${TBB}/cmake/")
+    set(IE_TBB_CMAKE_PATH "${IEDevScripts_DIR}/")
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_CMAKE_PATH_INSTALL}

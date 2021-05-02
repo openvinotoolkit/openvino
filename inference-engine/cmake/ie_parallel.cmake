@@ -17,7 +17,11 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endmacro()
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        find_package(TBB COMPONENTS tbb tbbmalloc)
+        # TODO: ie_parallel.cmake becomes IE source tree dependent
+        find_package(TBB COMPONENTS tbb tbbmalloc
+                     PATHS IEDevScripts_DIR
+                     NO_CMAKE_FIND_ROOT_PATH
+                     NO_DEFAULT_PATH)
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
