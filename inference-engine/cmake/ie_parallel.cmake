@@ -15,12 +15,20 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endif()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
+
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
-    elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY")
+    elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
+           target_type STREQUAL "MODULE_LIBRARY")
+        set(LINK_TYPE "PRIVATE")
+    elseif(target_type STREQUAL "STATIC_LIBRARY")
+        # TODO: inference_engine_s, inference_engine_preproc_s
+        set(LINK_TYPE "PRIVATE")
+    elseif(target_type STREQUAL "SHARED_LIBRARY")
+        # TODO: inference_engine only
         set(LINK_TYPE "PRIVATE")
     else()
-        set(LINK_TYPE "PUBLIC")
+        ext_message(WARNING "Unknown target type")
     endif()
 
     function(ie_target_link_libraries TARGET_NAME LINK_TYPE)

@@ -36,23 +36,26 @@ find_dependency(ngraph
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
+function(_ie_target_no_deprecation_error)
+    if(NOT MSVC)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+            set_target_properties(${ARNV} PROPERTIES
+                INTERFACE_COMPILE_OPTIONS "-diag-warning=1786")
+        else()
+            set_target_properties(${ARNV} PROPERTIES
+                INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
+        endif()
+    endif()
+endfunction()
+
 if(TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
+    _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/InferenceEngineTargets.cmake")
     set(InferenceEngine_LIBRARIES IE::inference_engine IE::inference_engine_c_api)
 endif()
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_CPACK_IE_INCLUDE_DIR@")
-
-# if(NOT MSVC)
-#     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-#         set_target_properties(${InferenceEngine_LIBRARIES} PROPERTIES
-#             INTERFACE_COMPILE_OPTIONS "-diag-warning=1786")
-#     else()
-#         set_target_properties(${InferenceEngine_LIBRARIES} PROPERTIES
-#             INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
-#     endif()
-# endif()
 
 check_required_components(InferenceEngine)
