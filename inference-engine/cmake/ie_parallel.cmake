@@ -23,7 +23,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                          NO_CMAKE_FIND_ROOT_PATH
                          NO_DEFAULT_PATH)
         else()
-            find_package(TBB COMPONENTS tbb tbbmalloc)
+            find_dependency(TBB COMPONENTS tbb tbbmalloc)
         endif()
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
