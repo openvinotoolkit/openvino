@@ -14,7 +14,10 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
+    foreach(var CI_BUILD_NUMBER IE_VERSION
+                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+        set(${var} "${${var}}" PARENT_SCOPE)
+    endforeach()
 endfunction()
 
 set_ci_build_number()

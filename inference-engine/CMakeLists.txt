@@ -147,8 +147,8 @@ configure_file(
 include(CMakePackageConfigHelpers)
 
 write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    VERSION "2.1.0" # TODO
-    COMPATIBILITY SameMajorVersion) # TODO
+    VERSION ${IE_VERSION}
+    COMPATIBILITY ExactVersion)
 
 #
 # Coverage
