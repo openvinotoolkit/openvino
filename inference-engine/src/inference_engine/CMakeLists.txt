@@ -238,12 +238,14 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
     install(FILES "${TBB}/LICENSE"
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
             COMPONENT tbb)
-    set(IE_TBB_CMAKE_PATH_INSTALL "external/tbb/cmake")
-    set(IE_TBB_CMAKE_PATH "${IEDevScripts_DIR}/")
-    list(APPEND PATH_VARS "IE_TBB_CMAKE_PATH")
+
+    set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
+    set(IE_TBB_DIR "${TBB_DIR}")
+    list(APPEND PATH_VARS "IE_TBB_DIR")
+
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_CMAKE_PATH_INSTALL}
+            DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_DIR_INSTALL}
             COMPONENT tbb)
 endif()
 
@@ -283,7 +285,7 @@ configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEn
 
 set(IE_CPACK_IE_INCLUDE_DIR "include")
 set(IE_NGRAPH_CMAKE_PATH "../ngraph/cmake")
-set(IE_TBB_CMAKE_PATH "${IE_TBB_CMAKE_PATH_INSTALL}")
+set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 
 configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
