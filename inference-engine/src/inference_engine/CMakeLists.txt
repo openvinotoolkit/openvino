@@ -218,6 +218,7 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
 # install TBB
 
 list(APPEND core_components ngraph)
+list(APPEND PATH_VARS "IE_CPACK_IE_INCLUDE_DIR" "IE_NGRAPH_CMAKE_PATH")
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
@@ -239,6 +240,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             COMPONENT tbb)
     set(IE_TBB_CMAKE_PATH_INSTALL "external/tbb/cmake")
     set(IE_TBB_CMAKE_PATH "${IEDevScripts_DIR}/")
+    list(APPEND PATH_VARS "IE_TBB_CMAKE_PATH")
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_CMAKE_PATH_INSTALL}
@@ -277,9 +279,7 @@ set(IE_CPACK_IE_INCLUDE_DIR ${PUBLIC_HEADERS_DIR})
 configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
-                               PATH_VARS "IE_TBB_CMAKE_PATH"
-                                         "IE_NGRAPH_CMAKE_PATH"
-                                         "IE_CPACK_IE_INCLUDE_DIR")
+                               PATH_VARS ${PATH_VARS})
 
 set(IE_CPACK_IE_INCLUDE_DIR "include")
 set(IE_NGRAPH_CMAKE_PATH "../ngraph/cmake")
@@ -288,9 +288,7 @@ set(IE_TBB_CMAKE_PATH "${IE_TBB_CMAKE_PATH_INSTALL}")
 configure_package_config_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
                               INSTALL_DESTINATION share
-                              PATH_VARS "IE_TBB_CMAKE_PATH"
-                                        "IE_NGRAPH_CMAKE_PATH"
-                                        "IE_CPACK_IE_INCLUDE_DIR")
+                              PATH_VARS ${PATH_VARS})
 
 write_basic_package_version_file("${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
                                  VERSION "2.1.0" # TODO

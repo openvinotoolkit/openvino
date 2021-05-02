@@ -48,6 +48,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${LIBRARIES})
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})

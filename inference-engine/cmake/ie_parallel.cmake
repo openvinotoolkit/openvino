@@ -17,11 +17,16 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endmacro()
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        # TODO: ie_parallel.cmake becomes IE source tree dependent
-        find_package(TBB COMPONENTS tbb tbbmalloc
-                     PATHS IEDevScripts_DIR
-                     NO_CMAKE_FIND_ROOT_PATH
-                     NO_DEFAULT_PATH)
+        if(IEDevScripts_DIR)
+            find_package(TBB COMPONENTS tbb tbbmalloc
+                        PATHS IEDevScripts_DIR
+                        NO_CMAKE_FIND_ROOT_PATH
+                        NO_DEFAULT_PATH)
+        else()
+            find_package(TBB COMPONENTS tbb tbbmalloc
+                         PATHS ${TBBROOT}/cmake
+                               ${_tbb_cmake})
+        endif()
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
@@ -39,10 +44,12 @@ function(set_ie_threading_interface_for TARGET_NAME)
            target_type STREQUAL "MODULE_LIBRARY")
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # TODO: inference_engine_s, inference_engine_preproc_s
+        # Affected libraries: inference_engine_s, inference_engine_preproc_s
+        # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
         # TODO: inference_engine only
+        # Why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
     else()
         ext_message(WARNING "Unknown target type")

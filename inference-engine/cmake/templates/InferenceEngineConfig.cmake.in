@@ -58,4 +58,7 @@ endif()
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_CPACK_IE_INCLUDE_DIR@")
 
+# TODO: IE options for case if TARGET inference_engine
+# TODO: do we need to include ie_parallel.cmake?
+
 check_required_components(InferenceEngine)
