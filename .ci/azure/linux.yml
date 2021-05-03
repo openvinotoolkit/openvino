@@ -121,72 +121,72 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  # - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-  #   displayName: 'nGraph UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+    displayName: 'nGraph UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
-  #   displayName: 'IE UT old'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+    displayName: 'IE UT old'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
-  #   displayName: 'IE UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+    displayName: 'IE UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
-  #   displayName: 'CPU UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+    displayName: 'CPU UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
-  #   displayName: 'GNA UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+    displayName: 'GNA UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
-  #   displayName: 'VPU UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+    displayName: 'VPU UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-  #   displayName: 'ONNX Importer UT'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+    displayName: 'ONNX Importer UT'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-  #   displayName: 'IE FuncTests'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+    displayName: 'IE FuncTests'
+    continueOnError: false
 
-  # - script: $(BIN_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
-  #   displayName: 'TEMPLATE FuncTests'
-  #   continueOnError: false
+  - script: $(BIN_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
+    displayName: 'TEMPLATE FuncTests'
+    continueOnError: false
 
   - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
 
-  # - script: |
-  #     export DATA_PATH=$(MODELS_PATH)
-  #     export MODELS_PATH=$(MODELS_PATH)
-  #     python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  #   workingDirectory: $(WORK_DIR)
-  #   displayName: 'MklDnnFunctionalTests'
-  #   continueOnError: false
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
+    workingDirectory: $(WORK_DIR)
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: false
 
-  # - script: |
-  #     export DATA_PATH=$(MODELS_PATH)
-  #     export MODELS_PATH=$(MODELS_PATH)
-  #     $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
-  #   displayName: 'IE CAPITests'
-  #   continueOnError: false
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+    displayName: 'IE CAPITests'
+    continueOnError: false
 
-  # - script: |
-  #     export DATA_PATH=$(MODELS_PATH)
-  #     export MODELS_PATH=$(MODELS_PATH)
-  #     export LD_LIBRARY_PATH=$(BIN_DIR)/lib
-  #     export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
-  #     env
-  #     cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-  #     pytest pytest --junitxml=TEST-PythonAPI.xml
-  #   displayName: 'Python API Tests'
-  #   continueOnError: false
-  #   enabled: false
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      export LD_LIBRARY_PATH=$(BIN_DIR)/lib
+      export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
+      env
+      cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
+      pytest pytest --junitxml=TEST-PythonAPI.xml
+    displayName: 'Python API Tests'
+    continueOnError: false
+    enabled: false
 
   - task: PublishTestResults@2
     condition: always()
