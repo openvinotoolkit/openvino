@@ -119,7 +119,7 @@ public:
      *
      * @return A shared pointer of the current network
      */
-    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator ICNNNetwork::Ptr();
 
     /**
@@ -128,7 +128,7 @@ public:
      *
      * @return An instance of the current network
      */
-    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator ICNNNetwork&();
 
     /**
@@ -137,7 +137,7 @@ public:
      *
      * @return A const reference of the current network
      */
-    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator const ICNNNetwork&() const;
     IE_SUPPRESS_DEPRECATED_END
 
@@ -165,6 +165,7 @@ public:
      */
     void addOutput(const std::string& layerName, size_t outputIndex = 0);
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
@@ -178,6 +179,7 @@ public:
      * @param inputShapes - map of pairs: name of corresponding data and its dimension.
      */
     void reshape(const ICNNNetwork::InputShapes& inputShapes);
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Serialize network to IR and weights files.

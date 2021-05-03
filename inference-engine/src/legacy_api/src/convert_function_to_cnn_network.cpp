@@ -1783,7 +1783,7 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
 }
 
 void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
-                                  const ICNNNetwork &network,
+                                  const CNNNetwork &network,
                                   CNNNetworkImpl* cnnNetworkImpl,
                                   bool keep_constant_inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
@@ -1904,10 +1904,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         IE_THROW() << "\nUnsupported dynamic ops: \n" << err_log.str();
     }
 
-    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
+    IE_SUPPRESS_DEPRECATED_START
+    const auto & icnnnetwork = static_cast<const ICNNNetwork &>(network);
+    IE_SUPPRESS_DEPRECATED_END
+    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
 
-    InputsDataMap thisInputDataMap;
-    network.getInputsInfo(thisInputDataMap);
+    InputsDataMap thisInputDataMap = network.getInputsInfo();
 
     // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
@@ -2174,7 +2176,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 }
 
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
-                                                             const ICNNNetwork &network,
+                                                             const CNNNetwork &network,
                                                              bool keep_constant_inputs) {
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);

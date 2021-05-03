@@ -85,7 +85,7 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     auto convertedNet = InferenceEngine::CNNNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
     // Remove convert layer
     InferenceEngine::NetPass::ConvertPrecision(convertedNet, Precision::I64, Precision::I32);
@@ -109,7 +109,7 @@ TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     ASSERT_NO_THROW(auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet));
 }
 
@@ -459,8 +459,8 @@ TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto inputInfo = cnnNet.getInput(name);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    auto inputInfo = cnnNet.getInputsInfo()[name];
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::NO_RESIZE);
     inputInfo->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_AREA);
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
@@ -915,7 +915,7 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
         ngraph = std::make_shared<ngraph::Function>(results, sinks, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
     auto status = convertedNet->setBatchSize(4, nullptr);
     EXPECT_EQ(status, StatusCode::OK);
@@ -1476,9 +1476,7 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     auto nGraphFunc = network.getFunction();
 
     ngraph::pass::Manager manager;
-
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
     manager.run_passes(nGraphFunc);
 
     auto clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);

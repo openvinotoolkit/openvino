@@ -88,11 +88,14 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
 
 CNNNetworkImpl::CNNNetworkImpl() {}
 
-CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
-    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
+    IE_SUPPRESS_DEPRECATED_START
+    auto & icnnnetwork = static_cast<const ICNNNetwork &>(cnnnetwork);
+    IE_SUPPRESS_DEPRECATED_END
+    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&icnnnetwork);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
+    auto graph = ngraph::clone_function(*ngraphImplPtr->getFunction());
 
     ::ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
@@ -104,16 +107,8 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
 
-    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
+    InferenceEngine::details::convertFunctionToICNNNetwork(graph, cnnnetwork, this, false);
 }
-
-IE_SUPPRESS_DEPRECATED_START
-
-CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & ngraphImpl) :
-    CNNNetworkImpl(static_cast<const ICNNNetwork&>(ngraphImpl)) {
-}
-
-IE_SUPPRESS_DEPRECATED_END
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
