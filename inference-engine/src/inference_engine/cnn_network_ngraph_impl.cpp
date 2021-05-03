@@ -98,7 +98,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
     : _ngraph_function(nGraph), _ie_extensions(exts) {
-    // Restore usual attributes for ICNNNetwork
+    // Restore usual attributes for CNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);

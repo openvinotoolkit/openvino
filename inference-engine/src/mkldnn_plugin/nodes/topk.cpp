@@ -96,7 +96,7 @@ public:
                 addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
                     { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN) });
 
-                // TODO: WA... While ICNNNetwork has no clear rule to fill tensor precision
+                // TODO: WA... While CNNNetwork has no clear rule to fill tensor precision
                 //       it use precision of parent layer. So each output tensor Data object has
                 //       precision of producing layer. For TopK that is not true. Second output is
                 //       integer tensor. Will change it for corresponding output desc.
