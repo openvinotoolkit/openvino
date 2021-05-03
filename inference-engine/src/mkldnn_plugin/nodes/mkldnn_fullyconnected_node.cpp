@@ -71,11 +71,22 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
+        //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
         if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
                 inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }
+    }
+
+    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
+        && outputDataType == memory::data_type::bf16) {
+        outputDataType = memory::data_type::f32;
+    }
+
+    if (inputDataType == memory::data_type::bf16
+        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+        outputDataType = memory::data_type::bf16;
     }
 
     auto * fcLayer = dynamic_cast<FullyConnectedLayer*>(getCnnLayer().get());

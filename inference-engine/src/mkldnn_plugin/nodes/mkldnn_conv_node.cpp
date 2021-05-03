@@ -278,6 +278,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
     MKLDNNMemoryDesc in_candidate, out_candidate;
     if (canBeExecutedInInt8()) {
+        //  We have to extend convolution_x8s8s32x from oneDNN to support BF16 output data type
+        if (outputDataType == memory::data_type::bf16)
+            outputDataType = memory::data_type::f32;
+        if (eltwisePrecision == Precision::BF16)
+            eltwisePrecision = Precision::FP32;
         in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                 getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
         out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
