@@ -174,37 +174,10 @@ static std::string NameFromType(Type type) {
             return "ScatterNDUpdate";
         case Interpolate:
             return "Interpolate";
-<<<<<<< HEAD
-        case ReduceAnd:
-            return "ReduceAnd";
-        case ReduceL1:
-            return "ReduceL1";
-        case ReduceL2:
-            return "ReduceL2";
-        case ReduceLogSum:
-            return "ReduceLogSum";
-        case ReduceLogSumExp:
-            return "ReduceLogSumExp";
-        case ReduceMax:
-            return "ReduceMax";
-        case ReduceMean:
-            return "ReduceMean";
-        case ReduceMin:
-            return "ReduceMin";
-        case ReduceOr:
-            return "ReduceOr";
-        case ReduceProd:
-            return "ReduceProd";
-        case ReduceSum:
-            return "ReduceSum";
-        case ReduceSumSquare:
-            return "ReduceSumSquare";
-        case Roll:
-            return "Roll";
-=======
         case Reduce:
             return "Reduce";
->>>>>>> [CPU] Reduce node migration on nGraph (#35)
+        case Roll:
+            return "Roll";
         default:
             return "Unknown";
     }

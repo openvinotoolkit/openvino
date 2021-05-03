@@ -683,115 +683,11 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
 //    }
 }
 
-void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
-//    auto &graphNodes = graph.GetNodes();
-//
-//    for (int i = 0; i < graphNodes.size(); i++) {
-//        const auto& bn = graphNodes[i];
-//        if (bn->getType() == BatchNormalization) {
-//            const auto& outputNodesMap = graph.GetOutputNodesMap();
-//            const std::string node_name = bn->getName();
-//            // Check that the node is not output node
-//            if (std::find_if(outputNodesMap.begin(), outputNodesMap.end(),
-//                            [&node_name](const MKLDNNNodePtr& x) {
-//                                return x->getName() == node_name;}) == outputNodesMap.end()) {
-//                if (bn->getChildEdges().size() == 1) {
-//                    auto child = bn->getChildEdgeAt(0)->getChild();
-//                    if (child->type == Eltwise && child->getCnnLayer()->type == "ScaleShift") {
-//                        bn->fuseWith(child);
-//
-//                        auto parentEdges = child->parentEdges;
-//                        for (auto &parentEdge : parentEdges) {
-//                            auto p_edge = parentEdge.lock();
-//                            if (p_edge->getParent()->getType() == BatchNormalization)
-//                                continue;
-//
-//                            removeEdge(graph, p_edge);
-//                        }
-//
-//                        graph.DropNode(child);
-//                    }
-//                }
-//            }
-//        }
-//    }
-}
-
-void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
-//    auto& graphNodes = graph.GetNodes();
-//
-//    auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
-//        auto* binConv = dynamic_cast<MKLDNNBinaryConvolutionNode *>(conv.get());
-//        if (binConv) {
-//            if (!binConv->canFuse(activation))
-//                return false;
-//        }
-//
-//        if (!activation->getCnnLayer())
-//            return false;
-//
-//        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(activation.get());
-//
-//        return eltwiseNode &&
-//            (eltwiseNode->getOpType() == Relu ||
-//            (conv->getCnnLayer()->precision == Precision::FP32 &&
-//            IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish, Hsigmoid,
-//                                               Round})));
-//    };
-//
-//    for (int i = 0; i < graphNodes.size(); i++) {
-//        if (graphNodes[i]->getType() == Convolution || graphNodes[i]->getType() == BinaryConvolution) {
-//            auto conv = graphNodes[i];
-//
-//            auto fuse = [&] (MKLDNNNodePtr relu) {
-//                conv->fuseWith(relu);
-//            };
-//
-//            if (conv->getChildEdges().size() == 1) {
-//                auto ch1 = conv->getChildEdgeAt(0)->getChild();
-//
-//                if (isFusingSupported(conv, ch1)) {
-//                    fuse(ch1);
-//
-//                    if (ch1->getChildEdges().size() == 1) {
-//                        auto ch2 = ch1->getChildEdgeAt(0)->getChild();
-//
-//                        if (isFusingSupported(conv, ch2)) {
-//                            fuse(ch2);
-//                            graph.DropNode(ch2);
-//                        }
-//                    }
-//                    graph.DropNode(ch1);
-//                } else {
-//                    if (ch1->type == Pooling) {
-//                        auto pool = ch1;
-//
-//                        auto* pLayer = dynamic_cast<PoolingLayer *>(pool->getCnnLayer().get());
-//                        if (pLayer == nullptr)
-//                            IE_THROW() << "Cannot get pooling layer " << pool->getName();
-//                        bool is_max_pool = pLayer->_type == PoolingLayer::PoolType::MAX;
-//
-//                        if (is_max_pool && pool->getChildEdges().size() == 1) {
-//                            auto ch2 = pool->getChildEdgeAt(0)->getChild();
-//                            if (isFusingSupported(conv, ch2)) {
-//                                fuse(ch2);
-//                                graph.DropNode(ch2);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-}
-
 static bool BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-    return childNode->getType() == Quantize &&
+    return childNode->getType() == FakeQuantize &&
         one_of(Precision::BF16,
-            parentNode->getCnnLayer()->precision,
-            childNode->getCnnLayer()->precision,
-            parentNode->getCnnLayer()->outData[0].get()->getPrecision(),
-            childNode->getCnnLayer()->outData[0].get()->getPrecision());
+            parentNode->getOriginalOutputPrecisionAtPort(0),
+            childNode->getOriginalOutputPrecisionAtPort(0));
 }
 
 void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph) {
@@ -811,6 +707,12 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
             parent++;
             continue;
         }
@@ -1087,6 +989,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
             parent++;
             continue;
         }
