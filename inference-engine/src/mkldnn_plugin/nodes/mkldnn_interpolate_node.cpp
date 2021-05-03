@@ -386,6 +386,13 @@ private:
         Xbyak::Label out_loop_label;
         Xbyak::Label out_loop_end;
 
+        Xbyak::Reg64 reg_work_amount_bk = reg_src_aux2;
+        Xbyak::Reg64 reg_oc_off_bk = rsi;
+        mov(reg_work_amount_bk, ptr[reg_params + GET_OFF(work_amount)]);
+        if (attr_.post_ops_.len() != 0) {
+            mov(reg_oc_off_bk, ptr[reg_params + GET_OFF(oc_off)]);
+        }
+
         Xbyak::Reg64 reg_work_amount_out = reg_src_aux1;
         mov(reg_work_amount_out, jcp_.OW);
         L(out_loop_label);
@@ -410,9 +417,9 @@ private:
             mov(reg_index_offset, dword[reg_index]);
             add(reg_src_aux, reg_index_offset);
 
-            mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+            mov(reg_work_amount, reg_work_amount_bk);
             if (attr_.post_ops_.len() != 0)
-                mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
+                mov(reg_oc_off, reg_oc_off_bk);
 
             L(nn_loop_label);
             {

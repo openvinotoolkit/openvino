@@ -236,6 +236,7 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
         fusingRelu,
         fusingSwish,
+        fusingFakeQuantizePerChannelRelu,
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
