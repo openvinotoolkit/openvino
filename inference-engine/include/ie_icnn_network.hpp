@@ -30,6 +30,8 @@ class Function;
 
 namespace InferenceEngine {
 
+_IE_SUPPRESS_DEPRECATED_START_GCC
+
 /**
  * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
  * @interface ICNNNetwork
@@ -37,10 +39,12 @@ namespace InferenceEngine {
  */
 class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork): public std::enable_shared_from_this<ICNNNetwork> {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief A shared pointer to a ICNNNetwork interface
      */
     using Ptr = std::shared_ptr<ICNNNetwork>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Returns nGraph function
@@ -191,9 +195,14 @@ public:
     }
 
 protected:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Default destructor.
      */
     ~ICNNNetwork() = default;
+    IE_SUPPRESS_DEPRECATED_END
 };
+
+_IE_SUPPRESS_DEPRECATED_END_GCC
+
 }  // namespace InferenceEngine

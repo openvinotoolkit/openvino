@@ -50,8 +50,8 @@ public:
 
     ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept;
 
-    std::shared_ptr<ICNNNetwork> getNetwork() {
-        return network;
+    CNNNetwork getNetwork() {
+        return CNNNetwork(network);
     }
 
     StatusCode getName(char* name, size_t len, ResponseDesc* resp) noexcept {
