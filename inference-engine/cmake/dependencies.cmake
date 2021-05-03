@@ -95,45 +95,6 @@ if (GEMM STREQUAL "MKL")
     debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
-## Intel OMP package
-if (THREADING STREQUAL "OMP")
-    reset_deps_cache(OMP)
-    if (WIN32 AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_WIN "iomp.zip"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
-    elseif(LINUX AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_LIN "iomp.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
-    elseif(APPLE AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_MAC "iomp_20190130_mac.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
-    else()
-        message(FATAL_ERROR "Intel OMP is not available on current platform")
-    endif()
-    update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    log_rpath_from_dir(OMP "${OMP}/lib")
-    debug_message(STATUS "intel_omp=" ${OMP})
-    
-    ie_cpack_add_component(omp REQUIRED)
-    file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} 
-            DESTINATION "deployment_tools/inference_engine/external/omp/lib"
-            COMPONENT omp)
-    
-endif ()
-
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)

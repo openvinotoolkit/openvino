@@ -8,7 +8,6 @@ setlocal enabledelayedexpansion
 for /f "delims=" %%x in (dependencies_64.txt) do (set "%%x")
 
 for %%A in ("%MKL%") do set MKL_FILENAME=%%~nxA
-for %%A in ("%OMP%") do set OMP_FILENAME=%%~nxA
 for %%A in ("%MYRIAD%") do set MYRIAD_FILENAME=%%~nxA
 for %%A in ("%GNA%") do set GNA_FILENAME=%%~nxA
 for %%A in ("%OPENCV%") do set OPENCV_FILENAME=%%~nxA
@@ -17,7 +16,6 @@ for %%A in ("%VPU_FIRMWARE_MA2X8X%") do set VPU_FIRMWARE_MA2X8X_FILENAME=%%~nxA
 for %%A in ("%TBB%") do set TBB_FILENAME=%%~nxA
 
 call :DownloadFile MKL %MKL%
-call :DownloadFile OMP %OMP%
 call :DownloadFile MYRIAD %MYRIAD%
 call :DownloadFile GNA %GNA%
 call :DownloadFile OPENCV %OPENCV%
@@ -29,7 +27,6 @@ for /f "delims=" %%x in (ld_library_rpath_64.txt) do (set "%%x")
 
 set PATH=%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\MKL\%MKL_FILENAME%%MKL%;%PATH%
-set PATH=%DL_SDK_TEMP%\test_dependencies\OMP\%OMP_FILENAME%%OMP%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\GNA\%GNA_FILENAME%%GNA%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%%OPENCV%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\TBB\%TBB_FILENAME%%TBB%;%PATH%

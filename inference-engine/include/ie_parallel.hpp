@@ -6,8 +6,11 @@
  * @brief Contains declarations and definitions for sequential and multi-threading implementations.
  *
  * Multi-threading support is implemented in two variants: using the Threading Building Blocks library and OpenMP*
- * product. To build a particular implementation, use the corresponding identifier: IE_THREAD_TBB, IE_THREAD_TBB_AUTO,
- * IE_THREAD_OMP or IE_THREAD_SEQ.
+ * product. To build a particular implementation, use the corresponding identifier:
+ *
+ *  - IE_THREAD_TBB
+ *  - IE_THREAD_TBB_AUTO
+ *  - IE_THREAD_SEQ
  *
  * @file ie_parallel.hpp
  */
@@ -18,7 +21,6 @@
 #include <type_traits>
 
 #define IE_THREAD_TBB 0
-#define IE_THREAD_OMP 1
 #define IE_THREAD_SEQ 2
 #define IE_THREAD_TBB_AUTO 3
 
@@ -74,41 +76,6 @@ inline int parallel_get_env_threads() {
 #else
 #define PARTITIONING
 #endif
-#elif IE_THREAD == IE_THREAD_OMP
-#include <omp.h>
-
-#include <algorithm>
-#include <cstdlib>
-#include <string>
-
-/* MSVC still supports omp 2.0 only */
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-#define collapse(x)
-#endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-inline int parallel_get_max_threads() {
-    return omp_get_max_threads();
-}
-inline int parallel_get_num_threads() {
-    return omp_get_num_threads();
-}
-inline int parallel_get_thread_num() {
-    return omp_get_thread_num();
-}
-inline void parallel_set_num_threads(int n) {
-    omp_set_num_threads(n);
-}
-inline int parallel_get_env_threads() {
-    int env_cores = 0;
-    if (getenv("OMP_NUM_THREADS") != nullptr) {
-        try {
-            env_cores = std::stoi(getenv("OMP_NUM_THREADS"));
-        } catch (const std::exception&) {
-            env_cores = 0;
-        }
-    }
-    return env_cores;
-}
-
 #elif IE_THREAD == IE_THREAD_SEQ
 #include <algorithm>  // NOLINT
 inline int parallel_get_env_threads() {
@@ -142,14 +109,6 @@ void parallel_nt(int nthr, const F& func) {
     tbb::parallel_for(0, nthr, [&](int ithr) {
         func(ithr, nthr);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-    if (nthr == 1) {
-        func(0, 1);
-        return;
-    }
-
-#pragma omp parallel num_threads(nthr)
-    func(parallel_get_thread_num(), parallel_get_num_threads());
 #elif IE_THREAD == IE_THREAD_SEQ
     func(0, 1);
 #endif
@@ -176,11 +135,6 @@ void parallel_nt_static(int nthr, const F& func) {
             func(ithr, nthr);
         },
         tbb::static_partitioner {});
-
-#elif IE_THREAD == IE_THREAD_OMP
-
-#pragma omp parallel num_threads(nthr)
-    { func(parallel_get_thread_num(), parallel_get_num_threads()); }
 #endif
 }
 
@@ -188,9 +142,6 @@ template <typename I, typename F>
 void parallel_sort(I begin, I end, const F& comparator) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     tbb::parallel_sort(begin, end, comparator);
-#elif IE_THREAD == IE_THREAD_OMP
-    // TODO: propose OpenMP version
-    std::sort(begin, end, comparator);
 #elif IE_THREAD == IE_THREAD_SEQ
     std::sort(begin, end, comparator);
 #endif
@@ -218,9 +169,6 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
     using T0_IT = T0;
 #endif
 
-#if IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel for reduction(+ : sum) schedule(static)
-#endif
     for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
         sum += static_cast<R>(func(dim1));
     }
@@ -256,9 +204,6 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
     using T1_IT = T1;
 #endif
 
-#if IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel for collapse(2) reduction(+ : sum) schedule(static)
-#endif
     for (T0_IT dim2 = 0; dim2 < D0; dim2++) {
         for (T1_IT dim1 = 0; dim1 < D1; dim1++) {
             sum += func(dim2, dim1);
@@ -299,9 +244,6 @@ R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const
     using T2_IT = T2;
 #endif
 
-#if IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel for collapse(3) reduction(+ : sum) schedule(static)
-#endif
     for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
         for (T1_IT dim2 = 0; dim2 < static_cast<T1_IT>(D1); dim2++) {
             for (T2_IT dim3 = 0; dim3 < static_cast<T2_IT>(D2); dim3++) {
@@ -404,9 +346,6 @@ void parallel_for(const T0& D0, const F& func) {
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_1d(ithr, nthr, D0, func);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel
-    for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_1d(0, 1, D0, func);
 #endif
@@ -449,9 +388,6 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_2d(ithr, nthr, D0, D1, func);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel
-    for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_2d(0, 1, D0, D1, func);
 #endif
@@ -495,9 +431,6 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_3d(ithr, nthr, D0, D1, D2, func);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel
-    for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
 #endif
@@ -542,9 +475,6 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_4d(ithr, nthr, D0, D1, D2, D3, func);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel
-    for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_4d(0, 1, D0, D1, D2, D3, func);
 #endif
@@ -591,9 +521,6 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
     });
-#elif IE_THREAD == IE_THREAD_OMP
-#pragma omp parallel
-    for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);
 #endif

@@ -21,15 +21,6 @@ namespace InferenceEngine {
 INFERENCE_ENGINE_API_CPP(std::exception_ptr&) CurrentException();
 
 /**
- * @brief      Checks whether OpenMP environment variables are defined
- * @ingroup    ie_dev_api_system_conf
- *
- * @param[in]  includeOMPNumThreads  Indicates if the omp number threads is included
- * @return     `True` if any OpenMP environment variable is defined, `false` otherwise
- */
-INFERENCE_ENGINE_API_CPP(bool) checkOpenMpEnvVars(bool includeOMPNumThreads = true);
-
-/**
  * @brief      Returns available CPU NUMA nodes (on Linux, and Windows [only with TBB], single node is assumed on all other OSes)
  * @ingroup    ie_dev_api_system_conf
  * @return     NUMA nodes

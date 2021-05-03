@@ -25,20 +25,19 @@ if (ENABLE_MKL_DNN)
     endif()
 endif()
 
-# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+# "MKL-DNN library based on TBB or Sequential implementation: TBB|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
     set(THREADING_DEFAULT "TBB")
 endif()
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
-set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
+set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "TBB_AUTO" AND
-    NOT THREADING STREQUAL "OMP" AND
     NOT THREADING STREQUAL "SEQ")
-    message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
+    message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO or SEQ. Default option is ${THREADING_DEFAULT}")
 endif()
 
 if (ENABLE_GNA)

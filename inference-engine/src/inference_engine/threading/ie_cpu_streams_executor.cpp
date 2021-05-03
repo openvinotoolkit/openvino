@@ -113,19 +113,6 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             }
-#elif IE_THREAD == IE_THREAD_OMP
-            omp_set_num_threads(_impl->_config._threadsPerStream);
-            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
-                CpuSet processMask;
-                int    ncpus = 0;
-                std::tie(processMask, ncpus) = GetProcessMask();
-                if (nullptr != processMask) {
-                    parallel_nt(_impl->_config._threadsPerStream, [&] (int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex + _impl->_config._threadBindingOffset;
-                        PinThreadToVacantCore(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
-                    });
-                }
-            }
 #elif IE_THREAD == IE_THREAD_SEQ
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 PinCurrentThreadToSocket(_numaNodeId);

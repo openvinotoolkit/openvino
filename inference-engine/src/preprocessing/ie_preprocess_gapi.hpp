@@ -40,20 +40,18 @@ class PreprocEngine {
                       const std::vector<std::vector<cv::gapi::own::Mat>>& src,
                       std::vector<std::vector<cv::gapi::own::Mat>>& dst,
                       int batch_size,
-                      bool omp_serial,
                       Update update);
 
     template<typename BlobTypePtr>
     void preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
-        ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
-        int batch_size);
+        ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, int batch_size);
 
 public:
     PreprocEngine();
     static void checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst);
     static int getCorrectBatchSize(int batch_size, const Blob::Ptr& roiBlob);
     void preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
-        ColorFormat in_fmt, bool omp_serial, int batch_size = -1);
+        ColorFormat in_fmt, int batch_size = -1);
 };
 
 }  // namespace InferenceEngine

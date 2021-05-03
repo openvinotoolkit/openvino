@@ -817,17 +817,10 @@ int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
 
 void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
     const std::vector<std::vector<cv::gapi::own::Mat>>& batched_input_plane_mats,
-    std::vector<std::vector<cv::gapi::own::Mat>>& batched_output_plane_mats, int batch_size, bool omp_serial,
+    std::vector<std::vector<cv::gapi::own::Mat>>& batched_output_plane_mats, int batch_size,
     Update update) {
 
-    const int thread_num =
-#if IE_THREAD == IE_THREAD_OMP
-        omp_serial ? 1 :    // disable threading for OpenMP if was asked for
-#endif
-        0;                  // use all available threads
-
-    // to suppress unused warnings
-    (void)(omp_serial);
+    const int thread_num = 0;  // use all available threads
 
     // Split the whole graph into `total_slices` slices, where
     // `total_slices` is provided by the parallel runtime and assumed
@@ -898,7 +891,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
 
 template<typename BlobTypePtr>
 void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
-    ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
+    ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt,
     int batch_size) {
 
     validateBlob(inBlob);
@@ -973,12 +966,12 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
     auto batched_input_plane_mats  = bind_to_blob(inBlob,  batch_size);
     auto batched_output_plane_mats = bind_to_blob(outBlob, batch_size);
 
-    executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
-        omp_serial, update);
+    executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats,
+                 batch_size, update);
 }
 
 void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-        const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
+        const ResizeAlgorithm& algorithm, ColorFormat in_fmt, int batch_size) {
     const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
 
     // output is always a memory blob
@@ -997,8 +990,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected NV12Blob";
         }
-        return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+        return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, batch_size);
     }
     case ColorFormat::I420: {
         auto inI420Blob = as<I420Blob>(inBlob);
@@ -1006,8 +998,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected I420Blob";
         }
-        return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+        return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, batch_size);
     }
 
     default:
@@ -1016,8 +1007,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected MemoryBlob";
         }
-        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, batch_size);
     }
 }
 }  // namespace InferenceEngine

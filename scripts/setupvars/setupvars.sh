@@ -34,16 +34,12 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine" ]; then
     system_type=$(ls "$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/")
     IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/$system_type
 
-    if [[ -e ${IE_PLUGINS_PATH}/arch_descriptions ]]; then
-        export ARCH_ROOT_DIR=${IE_PLUGINS_PATH}/arch_descriptions
-    fi
-
     export HDDL_INSTALL_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     else
-        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 
     HDDL_UNITE_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
