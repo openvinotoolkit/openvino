@@ -33,13 +33,40 @@ macro(ie_parse_ci_build_number)
         set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
     endif()
 
-    # TODO:
-    # parse static version from ie_version.hpp
-    # and compare with information from CI_BUILD_NUMBER
+    if(NOT DEFINED repo_root)
+        message(FATAL_ERROR "repo_root is not defined")
+    endif()
+
+    if(DEFINED IE_MAIN_SOURCE_DIR)
+        set(ie_version_hpp "${IE_MAIN_SOURCE_DIR}/include/ie_version.hpp")
+        if(NOT EXISTS ${ie_version_hpp})
+            message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
+        endif()
+
+        file(STRINGS "${ie_version_hpp}" IE_VERSION_PARTS REGEX "#define IE_VERSION_[A-Z]+[ ]+" )
+
+        string(REGEX REPLACE ".+IE_VERSION_MAJOR[ ]+([0-9]+).*" "\\1"
+               IE_VERSION_MAJOR_HPP "${IE_VERSION_PARTS}")
+        string(REGEX REPLACE ".+IE_VERSION_MINOR[ ]+([0-9]+).*" "\\1"
+               IE_VERSION_MINOR_HPP "${IE_VERSION_PARTS}")
+        string(REGEX REPLACE ".+IE_VERSION_PATCH[ ]+([0-9]+).*" "\\1"
+               IE_VERSION_PATCH_HPP "${IE_VERSION_PARTS}")
+
+        foreach(var IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+            if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
+                message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
+                    and from ie_version.hpp (${${var}_HPP}) are different")
+            else()
+                # CI_BUILD_NUMBER is not defined well, take info from ie_verison.hpp as a baseline
+                set(${var} ${${var}_HPP})
+            endif()
+        endforeach()
+    else()
+        message(FATAL_ERROR "IE_MAIN_SOURCE_DIR is not defined. No way to extract version")
+    endif()
 
     set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
 endmacro()
-
 
 if (DEFINED ENV{CI_BUILD_NUMBER})
     set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
@@ -50,6 +77,11 @@ else()
     set(custom_build "custom_${GIT_BRANCH}_${GIT_COMMIT_HASH}")
     set(CI_BUILD_NUMBER "${custom_build}")
 endif()
+
+# provides Inference Engine version
+# 1. If CI_BUILD_NUMBER is defined, parses this information
+# 2. Otherwise, parses ie_version.hpp
+ie_parse_ci_build_number()
 
 function (addVersionDefines FILE)
     foreach (VAR ${ARGN})
