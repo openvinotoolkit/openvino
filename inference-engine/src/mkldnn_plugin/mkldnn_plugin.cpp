@@ -424,7 +424,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
     if (implNetwork) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
-        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        // valid for CNNNetworkImpl only, while there's no API in CNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
         if (!is_transformed) {

@@ -14,11 +14,15 @@ CNNNetwork::CNNNetwork() :
     network(), actual() {
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network)
     : network(network) {
     actual = network.get();
     if (actual == nullptr) IE_THROW() << "CNNNetwork was not initialized.";
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
                        const std::vector<IExtensionPtr>& exts) {
@@ -69,6 +73,7 @@ size_t CNNNetwork::getBatchSize() const {
     return actual->getBatchSize();
 }
 
+IE_SUPPRESS_DEPRECATED_START
 
 CNNNetwork::operator ICNNNetwork::Ptr() {
     return network;
@@ -83,6 +88,8 @@ CNNNetwork::operator const ICNNNetwork&() const {
     if (actual == nullptr) IE_THROW() << "CNNNetwork was not initialized.";
     return *actual;
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ngraph::Function> CNNNetwork::getFunction() {
     if (actual == nullptr) IE_THROW() << "CNNNetwork was not initialized.";

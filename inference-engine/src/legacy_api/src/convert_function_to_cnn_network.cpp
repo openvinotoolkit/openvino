@@ -2132,7 +2132,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             auto inIndex = layer->input(i).get_index();
             if (cnnLayer->insData.size() <= (inIndex - count_of_skipped) ||
                 prevCnnLayer->outData.size() <= output_port.get_index() || count_of_skipped > inIndex)
-                IE_THROW() << "Cannot create ICNNNetwork. Network structure is incorrect! "
+                IE_THROW() << "Cannot create CNNNetwork. Network structure is incorrect! "
                                    << "Input port " << inIndex << " (max " << cnnLayer->insData.size() << ") of "
                                    << cnnLayer->type << " layer " << cnnLayer->name
                                    << " cannot be connected with output port " << output_port.get_index()

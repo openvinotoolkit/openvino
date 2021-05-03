@@ -15,6 +15,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 class MockNotEmptyICNNNetwork final : public ICNNNetwork {
 public:
     static constexpr const char* INPUT_BLOB_NAME = "first_input";
@@ -77,5 +79,7 @@ public:
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode(const ICNNNetwork::InputShapes &, ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, StatusCode(const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

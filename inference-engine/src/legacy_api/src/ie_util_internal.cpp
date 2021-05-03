@@ -158,8 +158,10 @@ CNNNetwork cloneNetwork(const CNNNetwork& network) {
 }
 
 details::CNNNetworkImplPtr cloneNet(const CNNNetwork& origin_network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(CNNNetwork)");
+    IE_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ICNNNetwork> clonedNetwork;
+    IE_SUPPRESS_DEPRECATED_END
     // Call conversion only on the copy of nGraph function
     if (origin_network.getFunction()) {
         // Copy and call conversion

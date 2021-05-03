@@ -110,7 +110,7 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
-    // INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
     virtual StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept = 0;
     IE_SUPPRESS_DEPRECATED_END
 

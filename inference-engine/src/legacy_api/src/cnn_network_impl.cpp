@@ -391,8 +391,10 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
+        IE_SUPPRESS_DEPRECATED_START
         Serialization::Serialize(xmlPath, binPath, CNNNetwork(
             std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
+        IE_SUPPRESS_DEPRECATED_END
         return OK;
 #endif
     } catch (const Exception& e) {
