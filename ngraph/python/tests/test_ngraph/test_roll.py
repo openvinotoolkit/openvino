@@ -1,10 +1,8 @@
 import ngraph as ng
 import numpy as np
-from tests import xfail_issue_49391
 from tests.runtime import get_runtime
 
 
-@xfail_issue_49391
 def test_roll():
     runtime = get_runtime()
     input = np.reshape(np.arange(10), (2, 5))

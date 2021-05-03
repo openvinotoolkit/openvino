@@ -505,5 +505,9 @@ std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const float& off_val,
                                          const int64_t& axis);
 
+std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
+                                       const ngraph::Output<Node>& shiftNode,
+                                       const ngraph::Output<Node>& axesNode);
+
 }  // namespace builder
 }  // namespace ngraph
