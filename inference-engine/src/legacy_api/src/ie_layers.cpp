@@ -180,7 +180,7 @@ unsigned int CNNLayer::GetParamAsUInt(const char* param, unsigned int def) const
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
                           ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        long value = std::stol(val);
+        long long value = std::stoll(val);
         if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
             IE_THROW() << message;
         }
@@ -195,7 +195,7 @@ unsigned int CNNLayer::GetParamAsUInt(const char* param) const {
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
                           ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        long value = std::stol(val);
+        long long value = std::stoll(val);
         if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
             IE_THROW() << message;
         }
@@ -215,7 +215,7 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param, std::vect
     if (vals.empty()) return def;
     while (getline(stream, str, ',')) {
         try {
-            long value = std::stol(str);
+            long long value = std::stoll(str);
             if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
                 IE_THROW() << message;
             }
@@ -236,7 +236,7 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param) const {
                           name + ". Value " + vals + " cannot be casted to unsigned int.";
     while (getline(stream, str, ',')) {
         try {
-            long value = std::stol(str);
+            long long value = std::stoll(str);
             if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
                 IE_THROW() << message;
             }

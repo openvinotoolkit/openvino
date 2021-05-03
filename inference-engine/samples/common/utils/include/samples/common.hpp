@@ -14,6 +14,7 @@
 #include <functional>
 #include <inference_engine.hpp>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <list>
 #include <map>

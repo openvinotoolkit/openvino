@@ -9,7 +9,7 @@
 #include <exception>
 #include <map>
 #include <vector>
-#include <iostream>
+
 namespace detail {
 namespace onnx {
     enum Field {

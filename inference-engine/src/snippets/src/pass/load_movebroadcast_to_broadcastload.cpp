@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include <iostream>
-
 ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBroadcastLoad() {
     MATCHER_SCOPE(LoadMoveBroadcastToBroadcastLoad);
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();

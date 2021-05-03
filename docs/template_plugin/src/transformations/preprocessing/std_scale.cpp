@@ -14,7 +14,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::AddStdScale, "AddStdScale", 0);
 
 ngraph::pass::AddStdScale::AddStdScale(const ScaleMap& inputInfoMap) {
     // RUN_ON_FUNCTION_SCOPE(AddStdScale);
-    auto param = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
+    auto label = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
 
     ngraph::matcher_pass_callback callback = [=] (pattern::Matcher& m) {
         auto param = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(m.get_match_root());
@@ -42,7 +42,7 @@ ngraph::pass::AddStdScale::AddStdScale(const ScaleMap& inputInfoMap) {
     };
 
     // Register pattern with Parameter operation as a pattern root node
-    auto m = std::make_shared<ngraph::pattern::Matcher>(param, "AddStdScale");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(label, "AddStdScale");
     // Register Matcher
     register_matcher(m, callback);
 }

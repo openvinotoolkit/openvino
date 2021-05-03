@@ -5,7 +5,6 @@
 #define NOMINMAX
 
 #include <cstdlib>
-#include <iostream>
 #include <vector>
 #include <cstring>
 #include <list>

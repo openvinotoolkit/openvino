@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-#include <iostream>
 #include <numeric>
 
 using namespace ngraph;

@@ -4,7 +4,6 @@
 
 // clang-format off
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <regex>
 #include <samples/common.hpp>

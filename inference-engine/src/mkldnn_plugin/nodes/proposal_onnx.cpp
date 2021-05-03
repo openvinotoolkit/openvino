@@ -304,13 +304,6 @@ public:
         }
     }
 
-    void print_shape(const Blob::Ptr& b) {
-        for (size_t i = 0; i < b->getTensorDesc().getDims().size(); ++i) {
-            std::cout << b->getTensorDesc().getDims()[i] << ", ";
-        }
-        std::cout << std::endl;
-    }
-
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
         try {

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include "ie_allocator.hpp"
 
 namespace InferenceEngine {
