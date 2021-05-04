@@ -62,54 +62,6 @@ class MXFFTToDFT(MiddleReplacementPattern):
                 self.convert_ifft_to_dft(graph, mx_fft)
             else:
                 self.convert_fft_to_dft(graph, mx_fft)
-            # mx_fft_name = mx_fft.soft_get('name', mx_fft.id)
-            #
-            # mx_fft_input_shape = mx_fft.in_port(0).data.get_shape()
-            # assert mx_fft_input_shape is not None, 'Input shape of MXFFT node {} must not be None'.format(mx_fft_name)
-            # input_rank = len(mx_fft_input_shape)
-            #
-            # pads_begin = np.zeros(input_rank + 1, dtype=np.int64)
-            # pads_end = np.zeros(input_rank + 1, dtype=np.int64)
-            # pads_end[-1] = 1
-            #
-            # unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array([-1])},
-            #                                              {'name': mx_fft_name + '/Unsqueeze'})
-            # pad_node = create_op_with_const_inputs(graph, Pad, {1: pads_begin, 2: pads_end},
-            #                                        {'name': mx_fft_name + '/Pad', 'mode': 'constant'},
-            #                                        unsqueeze_node)
-            #
-            # if not mx_fft.soft_get('is_inverse', False):
-            #     dft_node = create_op_with_const_inputs(graph, DFT, {1: int64_array([-1])},
-            #                                            {'name': mx_fft_name + '/DFT', 'in_ports_count': 2},
-            #                                            pad_node)
-            #     new_shape = np.zeros(input_rank, dtype=np.int64)
-            #     new_shape[-1] = -1
-            #     reshape_node = create_op_with_const_inputs(graph, Reshape, {1: new_shape}, {}, dft_node)
-            #     mx_fft.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
-            #     mx_fft.out_port(0).get_connection().set_source(reshape_node.out_port(0))
-            #     rename_nodes([(mx_fft, mx_fft_name + '/to_be_removed'), (reshape_node, mx_fft_name)])
-            # else:
-            #     dft_node = create_op_with_const_inputs(graph, IDFT, {1: int64_array([-1])},
-            #                                            {'name': mx_fft_name + '/IDFT', 'in_ports_count': 2},
-            #                                            pad_node)
-            #     ss = create_op_with_const_inputs(graph, StridedSlice,
-            #                                      {1: pads_begin,
-            #                                       2: pads_end,
-            #                                       3: int64_array(np.ones(len(pads_begin), dtype=np.int64))
-            #                                       },
-            #                                      {'name': mx_fft_name + '/real_part',
-            #                                       'begin_mask': pads_end,
-            #                                       'end_mask': pads_end,
-            #                                       'new_axis_mask': np.zeros(input_rank + 1, dtype=np.int64),
-            #                                       'shrink_axis_mask': np.zeros(input_rank + 1, dtype=np.int64),
-            #                                       'ellipsis_mask': np.zeros(input_rank + 1, dtype=np.int64)
-            #                                       },
-            #                                      dft_node)
-            #     squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([-1])}, {}, ss)
-            #
-            #     mx_fft.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
-            #     mx_fft.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
-            #     rename_nodes([(mx_fft, mx_fft_name + '/to_be_removed'), (squeeze_node, mx_fft_name)])
 
     def convert_fft_to_dft(self, graph: Graph, mx_fft: Node):
         mx_fft_name = mx_fft.soft_get('name', mx_fft.id)
@@ -156,4 +108,52 @@ class MXFFTToDFT(MiddleReplacementPattern):
         rename_nodes([(mx_fft, mx_fft_name + '/to_be_removed'), (reshape_node, mx_fft_name)])
 
     def convert_ifft_to_dft(self, graph: Graph, mx_fft: Node):
+        # mx_fft_name = mx_fft.soft_get('name', mx_fft.id)
+        #
+        # mx_fft_input_shape = mx_fft.in_port(0).data.get_shape()
+        # assert mx_fft_input_shape is not None, 'Input shape of MXFFT node {} must not be None'.format(mx_fft_name)
+        # input_rank = len(mx_fft_input_shape)
+        #
+        # pads_begin = np.zeros(input_rank + 1, dtype=np.int64)
+        # pads_end = np.zeros(input_rank + 1, dtype=np.int64)
+        # pads_end[-1] = 1
+        #
+        # unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array([-1])},
+        #                                              {'name': mx_fft_name + '/Unsqueeze'})
+        # pad_node = create_op_with_const_inputs(graph, Pad, {1: pads_begin, 2: pads_end},
+        #                                        {'name': mx_fft_name + '/Pad', 'mode': 'constant'},
+        #                                        unsqueeze_node)
+        #
+        # if not mx_fft.soft_get('is_inverse', False):
+        #     dft_node = create_op_with_const_inputs(graph, DFT, {1: int64_array([-1])},
+        #                                            {'name': mx_fft_name + '/DFT', 'in_ports_count': 2},
+        #                                            pad_node)
+        #     new_shape = np.zeros(input_rank, dtype=np.int64)
+        #     new_shape[-1] = -1
+        #     reshape_node = create_op_with_const_inputs(graph, Reshape, {1: new_shape}, {}, dft_node)
+        #     mx_fft.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
+        #     mx_fft.out_port(0).get_connection().set_source(reshape_node.out_port(0))
+        #     rename_nodes([(mx_fft, mx_fft_name + '/to_be_removed'), (reshape_node, mx_fft_name)])
+        # else:
+        #     dft_node = create_op_with_const_inputs(graph, IDFT, {1: int64_array([-1])},
+        #                                            {'name': mx_fft_name + '/IDFT', 'in_ports_count': 2},
+        #                                            pad_node)
+        #     ss = create_op_with_const_inputs(graph, StridedSlice,
+        #                                      {1: pads_begin,
+        #                                       2: pads_end,
+        #                                       3: int64_array(np.ones(len(pads_begin), dtype=np.int64))
+        #                                       },
+        #                                      {'name': mx_fft_name + '/real_part',
+        #                                       'begin_mask': pads_end,
+        #                                       'end_mask': pads_end,
+        #                                       'new_axis_mask': np.zeros(input_rank + 1, dtype=np.int64),
+        #                                       'shrink_axis_mask': np.zeros(input_rank + 1, dtype=np.int64),
+        #                                       'ellipsis_mask': np.zeros(input_rank + 1, dtype=np.int64)
+        #                                       },
+        #                                      dft_node)
+        #     squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([-1])}, {}, ss)
+        #
+        #     mx_fft.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
+        #     mx_fft.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
+        #     rename_nodes([(mx_fft, mx_fft_name + '/to_be_removed'), (squeeze_node, mx_fft_name)])
         pass
