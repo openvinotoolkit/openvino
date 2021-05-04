@@ -112,9 +112,7 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
     virtual StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated Use InferRequest::QueryState instead
      * @brief Gets state control interface for given executable network.

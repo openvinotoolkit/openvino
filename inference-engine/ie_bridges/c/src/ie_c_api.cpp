@@ -949,7 +949,7 @@ IEStatusCode ie_network_get_input_shapes(ie_network *network, input_shapes_t *sh
 
     IEStatusCode status = IEStatusCode::OK;
     try {
-        IE::ICNNNetwork::InputShapes net_shapes =  network->object.getInputShapes();
+        auto net_shapes =  network->object.getInputShapes();
         size_t num = net_shapes.size();
 
         std::unique_ptr<input_shape[]> shape_ptrs(new input_shape[num]);
@@ -958,7 +958,7 @@ IEStatusCode ie_network_get_input_shapes(ie_network *network, input_shapes_t *sh
 
         shapes->shape_num = num;
 
-        IE::ICNNNetwork::InputShapes::iterator iter = net_shapes.begin();
+        auto iter = net_shapes.cbegin();
         for (size_t i = 0; i < num; ++i, ++iter) {
             IE::SizeVector net_dim = iter->second;
 
@@ -989,7 +989,7 @@ IEStatusCode ie_network_reshape(ie_network_t *network, const input_shapes_t shap
     }
 
     try {
-        IE::ICNNNetwork::InputShapes net_shapes;
+        decltype(network->object.getInputShapes()) net_shapes;
         for (size_t i = 0; i < shapes.shape_num; ++i) {
             IE::SizeVector net_dim;
             for (size_t j = 0; j < shapes.shapes[i].shape.ranks; ++j) {
