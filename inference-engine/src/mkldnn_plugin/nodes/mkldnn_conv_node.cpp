@@ -363,6 +363,10 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
     attr.set_post_ops(ops);
 }
 
+void MKLDNNConvolutionNode::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+}
+
 void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
