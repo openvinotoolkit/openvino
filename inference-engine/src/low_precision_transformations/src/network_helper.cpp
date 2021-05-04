@@ -1571,12 +1571,12 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
     if (is_type<opset1::Subtract>(node)) {
         const auto parent = node->get_input_node_shared_ptr(0);
         const auto intNode = is_type<opset1::Convert>(parent) ? parent : node;
-        const auto intType = intNode->get_input_element_type(0);
-        if (intType == element::u8 || intType == element::i8) {
-            min = DataPrecision::getMinValue(intType, 256) - 0.5f;
-            max = DataPrecision::getMaxValue(intType, 256) + 0.5f;
+        const auto type = intNode->get_input_element_type(0);
+        if (type == element::u8 || type == element::i8) {
+            min = DataPrecision::getMinValue(type, 256) - 0.5f;
+            max = DataPrecision::getMaxValue(type, 256) + 0.5f;
         } else {
-            return false;
+            return type == element::f32 || type == element::f16;
         }
         auto subtract1input = node->get_input_node_shared_ptr(1);
         if (is_type<opset1::Convert>(subtract1input)) {

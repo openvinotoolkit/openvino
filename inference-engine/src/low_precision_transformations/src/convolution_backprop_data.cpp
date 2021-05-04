@@ -48,21 +48,28 @@ bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> la
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolutionBackpropData = m.get_match_root();
 
-    if (!canBeTransformed(context, convolutionBackpropData)) {
-        std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolutionBackpropData->get_input_node_shared_ptr(1));
+    if (!canConvolutionBeTransformed(context, convolutionBackpropData)) {
+        auto weightsInput = convolutionBackpropData->get_input_node_shared_ptr(1);
+        std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(weightsInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
                          NetworkHelper::getDequantization(convolutionBackpropData, 1ul) :
                          NetworkHelper::getDequantization(reshapeFromWeights);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolutionBackpropData);
-            const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            if (reshapeFromWeights != nullptr) {
+                resultConstant = fold_reshape<opset1::Reshape>(
+                        resultConstant,
+                        reshapeFromWeights->input_value(1),
+                        false);
+            }
             if (as_type_ptr<opset1::Constant>(resultConstant)) {
-                replace_node(fqOnWeights, resultConstant);
+                replace_node(weightsInput, resultConstant);
             }
         } else {
             NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
         }
-        return false;
+        return true;
     }
 
     convolutionBackpropData = NetworkHelper::separateInStandaloneBranch(convolutionBackpropData);
@@ -212,47 +219,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     return true;
 }
-bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext &context,
-                                                 std::shared_ptr<Node> layer) const {
-    if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
-        return false;
-    }
 
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
-    if (!canSubtractBeHandled(layer, dequantization)) {
-        return false;
-    }
-
-    if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
-        return false;
-    }
-
-    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
-        return false;
-    }
-
-    std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->get_input_node_shared_ptr(1));
-    dequantization = reshapeFromWeights == nullptr ?
-                     NetworkHelper::getDequantization(layer, 1ul) :
-                     NetworkHelper::getDequantization(reshapeFromWeights);
-
-    if (dequantization.empty()) {
-        const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
-        const auto dataPrecision = getDataPrecisionOnWeights(layer);
-        if ((!supportAsymmetricQuantization) && dataPrecision.hasZeroPoint) {
-            return false;
-        }
-        if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
-            return false;
-        }
-    } else {
-        if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
-            return false;
-        }
-    }
-
-    return true;
-}
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph
