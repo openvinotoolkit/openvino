@@ -4,137 +4,188 @@
 
 import unittest
 
+from generator import generator, generate
+
 from extensions.front.mxnet.MXFFTToDFT import MXFFTToDFT
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
-    regular_op_with_empty_data
+from unit_tests.utils.graph import build_graph
 
 
-# fft_graph_node_attrs = {
-#     **regular_op_with_shaped_data('placeholder', [8, 40, 56, 4], {'type': 'Parameter', 'op': 'Parameter'}),
-#     **regular_op_with_shaped_data('fft', [8, 40, 56, 4], {'op': 'MXFFT', 'is_inverse': False}),
-#     **regular_op_with_shaped_data('abs', [8, 40, 56, 4], {'type': 'Abs', 'op': 'Abs'}),
-#     **result(),
-# }
-#
-# fft_graph_edges = [
-#     *connect('placeholder', 'fft'),
-#     *connect('fft', 'abs'),
-#     *connect('abs', 'output'),
-# ]
-#
-#
-# converted_fft_graph_node_attrs = {
-#     **regular_op_with_shaped_data('placeholder', [8, 40, 56, 4], {'type': 'Parameter', 'op': 'Parameter'}),
-#     **regular_op_with_empty_data('unsqueeze',
-#                                  {'type': 'Unsqueeze', 'op': 'Unsqueeze', 'need_shape_inference': True}),
-#     **valued_const_with_data('unsqueeze_axis', int64_array([-1])),
-#     **regular_op_with_empty_data('pad',
-#                                  {'type': 'Pad', 'op': 'Pad', 'need_shape_inference': True}),
-#     **valued_const_with_data('pads_begin', int64_array([0, 0, 0, 0, 0])),
-#     **valued_const_with_data('pads_end', int64_array([0, 0, 0, 0, 1])),
-#     **valued_const_with_data('dft_axes', int64_array([-1])),
-#     **regular_op_with_empty_data('dft', {'op': 'DFT', 'need_shape_inference': True}),
-#     **regular_op_with_shaped_data('reshape', [8, 40, 56, 4],
-#                                   {'type': 'Reshape', 'op': 'Reshape', 'need_shape_inference': True}),
-#     **valued_const_with_data('new_shape', int64_array([0, 0, 0, -1])),
-#     **regular_op_with_shaped_data('abs', [8, 40, 56, 4], {'type': 'Abs', 'op': 'Abs'}),
-#     **result(),
-# }
-#
-# converted_fft_graph_edges = [
-#     *connect('placeholder', '0:unsqueeze'),
-#     *connect('unsqueeze_axis', '1:unsqueeze'),
-#     *connect('unsqueeze', '0:pad'),
-#     *connect('pads_begin', '1:pad'),
-#     *connect('pads_end', '2:pad'),
-#     *connect('pad', '0:dft'),
-#     *connect('dft_axes', '1:dft'),
-#     *connect('dft', '0:reshape'),
-#     *connect('new_shape', '1:reshape'),
-#     *connect('reshape', 'abs'),
-#     *connect('abs', 'output'),
-# ]
-#
-#
-# ifft_graph_node_attrs = {
-#     **regular_op_with_shaped_data('placeholder', [8, 40, 56, 4], {'type': 'Parameter', 'op': 'Parameter'}),
-#     **regular_op_with_shaped_data('fft', [8, 40, 56, 4], {'op': 'MXFFT', 'is_inverse': True}),
-#     **regular_op_with_shaped_data('abs', [8, 40, 56, 4], {'type': 'Abs', 'op': 'Abs'}),
-#     **result(),
-# }
-#
-# ifft_graph_edges = [
-#     *connect('placeholder', 'fft'),
-#     *connect('fft', 'abs'),
-#     *connect('abs', 'output'),
-# ]
-#
-#
-# converted_ifft_graph_node_attrs = {
-#     **regular_op_with_shaped_data('placeholder', [8, 40, 56, 4], {'type': 'Parameter', 'op': 'Parameter'}),
-#     **regular_op_with_empty_data('unsqueeze',
-#                                  {'type': 'Unsqueeze', 'op': 'Unsqueeze', 'need_shape_inference': True}),
-#     **valued_const_with_data('unsqueeze_axis', int64_array([-1])),
-#     **regular_op_with_empty_data('pad',
-#                                  {'type': 'Pad', 'op': 'Pad', 'need_shape_inference': True}),
-#     **valued_const_with_data('pads_begin', int64_array([0, 0, 0, 0, 0])),
-#     **valued_const_with_data('pads_end', int64_array([0, 0, 0, 0, 1])),
-#     **valued_const_with_data('dft_axes', int64_array([-1])),
-#     **regular_op_with_empty_data('dft', {'op': 'IDFT', 'need_shape_inference': True}),
-#     **regular_op_with_empty_data('ss',
-#                                  {
-#                                      'op': 'StridedSlice', 'type': 'StridedSlice',
-#                                      'need_shape_inference': True,
-#                                      'begin_mask': int64_array([0, 0, 0, 0, 1]),
-#                                      'end_mask': int64_array([0, 0, 0, 0, 1]),
-#                                      'ellipsis_mask': int64_array([0, 0, 0, 0, 0]),
-#                                      'new_axis_mask': int64_array([0, 0, 0, 0, 0]),
-#                                      'shrink_axis_mask': int64_array([0, 0, 0, 0, 0]),
-#                                  }),
-#     **valued_const_with_data('ss_begin', int64_array([0, 0, 0, 0, 0])),
-#     **valued_const_with_data('ss_end', int64_array([0, 0, 0, 0, 1])),
-#     **valued_const_with_data('ss_strides', int64_array([1, 1, 1, 1, 1])),
-#     **regular_op_with_shaped_data('squeeze', [8, 40, 56, 4],
-#                                   {'type': 'Squeeze', 'op': 'Squeeze', 'need_shape_inference': True}),
-#     **valued_const_with_data('squeeze_axis', int64_array([-1])),
-#     **regular_op_with_shaped_data('abs', [8, 40, 56, 4], {'type': 'Abs', 'op': 'Abs'}),
-#     **result(),
-# }
-#
-# converted_ifft_graph_edges = [
-#     *connect('placeholder', '0:unsqueeze'),
-#     *connect('unsqueeze_axis', '1:unsqueeze'),
-#     *connect('unsqueeze', '0:pad'),
-#     *connect('pads_begin', '1:pad'),
-#     *connect('pads_end', '2:pad'),
-#     *connect('pad', '0:dft'),
-#     *connect('dft_axes', '1:dft'),
-#     *connect('dft', '0:ss'),
-#     *connect('ss_begin', '1:ss'),
-#     *connect('ss_end', '2:ss'),
-#     *connect('ss_strides', '3:ss'),
-#     *connect('ss', '0:squeeze'),
-#     *connect('squeeze_axis', '1:squeeze'),
-#     *connect('squeeze', 'abs'),
-#     *connect('abs', 'output'),
-# ]
+fft_graph_node_attrs = {
+    'placeholder': {'shape': int64_array([3, 100, 100]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'fft': {'kind': 'op', 'op': 'MXFFT', 'is_inverse': False},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
+}
+
+fft_graph_edges = [
+    ('placeholder', 'fft', {'in': 0}),
+    ('fft', 'abs'),
+    ('abs', 'output'),
+]
 
 
+ref_converted_fft_graph_node_attrs = {
+    'placeholder': {'shape': int64_array([3, 100, 100]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'rank': {'kind': 'op', 'op': 'Rank'},
+    'unsqueeze': {'type': 'Unsqueeze', 'kind': 'op', 'op': 'Unsqueeze'},
+    'unsqueeze_axis': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
+    },
+    'one': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(1)
+    },
+    'add': {'type': 'Add', 'kind': 'op', 'op': 'Add'},
+    'zero1': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
+    },
+    'broadcast1': {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'},
+    'one2': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(1)
+    },
+    'zero2': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
+    },
+    'scatter': {'type': 'ScatterUpdate', 'kind': 'op', 'op': 'ScatterUpdate'},
+    'pad': {'type': 'Pad', 'kind': 'op', 'op': 'Pad', 'mode': 'constant'},
+    'fft_axes': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
+    },
+    'fft': {'kind': 'op', 'op': 'DFT', 'type': 'DFT'},
+    'one3': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(1)
+    },
+    'sub': {'type': 'Subtract', 'kind': 'op', 'op': 'Sub'},
+    'zero3': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
+    },
+    'broadcast2': {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'},
+    'm1_2': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-1, 2])
+    },
+    'concat': {'type': 'Concat', 'kind': 'op', 'op': 'Concat', 'axis': 0},
+    'reshape': {'kind': 'op', 'op': 'Reshape', 'type': 'Reshape'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
+}
+
+ref_converted_fft_graph_edges = [
+    ('placeholder', 'rank', {'in': 0, 'out': 0}),
+    ('placeholder', 'unsqueeze', {'in': 0, 'out': 0}),
+    ('unsqueeze_axis', 'unsqueeze', {'in': 1, 'out': 0}),
+    ('rank', 'add', {'in': 0, 'out': 0}),
+    ('one', 'add', {'in': 1, 'out': 0}),
+    ('zero1', 'broadcast1', {'in': 0, 'out': 0}),
+    ('add', 'broadcast1', {'in': 1, 'out': 0}),
+    ('broadcast1', 'scatter', {'in': 0, 'out': 0}),
+    ('rank', 'scatter', {'in': 1, 'out': 0}),
+    ('one2', 'scatter', {'in': 2, 'out': 0}),
+    ('zero2', 'scatter', {'in': 3, 'out': 0}),
+    ('unsqueeze', 'pad', {'in': 0, 'out': 0}),
+    ('broadcast1', 'pad', {'in': 1, 'out': 0}),
+    ('scatter', 'pad', {'in': 2, 'out': 0}),
+    ('pad', 'fft', {'in': 0, 'out': 0}),
+    ('fft_axes', 'fft', {'in': 1, 'out': 0}),
+    ('rank', 'sub', {'in': 0, 'out': 0}),
+    ('one3', 'sub', {'in': 1, 'out': 0}),
+    ('zero3', 'broadcast2', {'in': 0, 'out': 0}),
+    ('sub', 'broadcast2', {'in': 1, 'out': 0}),
+    ('broadcast2', 'concat', {'in': 0, 'out': 0}),
+    ('m1_2', 'concat', {'in': 1, 'out': 0}),
+    ('fft', 'reshape', {'in': 0, 'out': 0}),
+    ('concat', 'reshape', {'in': 1, 'out': 0}),
+    ('reshape', 'abs'),
+    ('abs', 'output'),
+]
+
+
+ref_converted_ifft_graph_node_attrs = {
+    'placeholder': {'shape': int64_array([3, 100, 100]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'rank': {'kind': 'op', 'op': 'Rank'},
+    'subtracted_one': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(1)
+    },
+    'sub': {'type': 'Subtract', 'kind': 'op', 'op': 'Sub'},
+    'broadcasted_value': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
+    },
+    'broadcast': {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'},
+    'new_shape_const': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-1, 2])
+    },
+    'new_shape': {'type': 'Concat', 'kind': 'op', 'op': 'Concat', 'axis': 0},
+    'reshape': {'kind': 'op', 'op': 'Reshape', 'type': 'Reshape'},
+    'fft_axes': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
+    },
+    'fft': {'kind': 'op', 'op': 'IDFT', 'type': 'IDFT'},
+    'split_axes': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(-1)
+    },
+    'split': {'kind': 'op', 'op': 'Split', 'type': 'Split', 'num_splits': 2},
+    'squeeze_axes': {
+        'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
+    },
+    'squeeze': {'kind': 'op', 'op': 'Squeeze', 'type': 'Squeeze'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
+}
+
+ref_converted_ifft_graph_edges = [
+    ('placeholder', 'rank', {'out': 0}),
+    ('subtracted_one', 'sub', {'in': 1}),
+    ('rank', 'sub', {'in': 0}),
+    ('broadcasted_value', 'broadcast', {'in': 0}),
+    ('sub', 'broadcast', {'in': 1}),
+    ('broadcast', 'new_shape', {'in': 0}),
+    ('new_shape_const', 'new_shape', {'in': 1}),
+    ('placeholder', 'reshape', {'in': 0, 'out': 0}),
+    ('new_shape', 'reshape', {'in': 1}),
+    ('reshape', 'fft', {'in': 0}),
+    ('fft_axes', 'fft', {'in': 1}),
+    ('fft', 'split', {'in': 0}),
+    ('split_axes', 'split', {'in': 1}),
+    ('split', 'squeeze', {'in': 0, 'out': 0}),
+    ('squeeze_axes', 'squeeze', {'in': 1}),
+    ('squeeze', 'abs'),
+    ('abs', 'output'),
+]
+
+
+@generator
 class MXFFTToDFTTest(unittest.TestCase):
-    def test_fft_replacement(self):
-        # graph = build_graph(nodes_attrs=fft_graph_node_attrs, edges=fft_graph_edges)
-        # MXFFTToDFT().find_and_replace_pattern(graph)
-        # ref_graph = build_graph(nodes_attrs=converted_fft_graph_node_attrs, edges=converted_fft_graph_edges)
-        # (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        # self.assertTrue(flag, resp)
-        pass
+    @generate(*[int64_array([3, 100, 100]), int64_array([5, 60])])
+    def test_fft_replacement(self, input_shape):
+        graph = build_graph(nodes_attrs=fft_graph_node_attrs,
+                            edges=fft_graph_edges,
+                            update_attributes={
+                                'placeholder': {'shape': input_shape}
+                            })
+        graph.stage = 'front'
+        MXFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_converted_fft_graph_node_attrs,
+                                edges=ref_converted_fft_graph_edges,
+                                update_attributes={
+                                    'placeholder': {'shape': input_shape}
+                                })
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        self.assertTrue(flag, resp)
 
-    def test_ifft_replacement(self):
-        # graph = build_graph(nodes_attrs=ifft_graph_node_attrs, edges=ifft_graph_edges)
-        # MXFFTToDFT().find_and_replace_pattern(graph)
-        # ref_graph = build_graph(nodes_attrs=converted_ifft_graph_node_attrs, edges=converted_ifft_graph_edges)
+    @generate(*[int64_array([3, 100, 100])])
+    def test_ifft_replacement(self, input_shape):
+        graph = build_graph(nodes_attrs=fft_graph_node_attrs,
+                            edges=fft_graph_edges,
+                            update_attributes={
+                                'placeholder': {'shape': input_shape},
+                                'fft': {'is_inverse': True}
+                            })
+        graph.stage = 'front'
+        MXFFTToDFT().find_and_replace_pattern(graph)
+        ref_graph = build_graph(nodes_attrs=ref_converted_ifft_graph_node_attrs,
+                                edges=ref_converted_ifft_graph_edges,
+                                update_attributes={
+                                    'placeholder': {'shape': input_shape}
+                                })
         # (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         # self.assertTrue(flag, resp)
-        pass

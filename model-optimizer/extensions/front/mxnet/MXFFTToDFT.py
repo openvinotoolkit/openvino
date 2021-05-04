@@ -100,7 +100,7 @@ class MXFFTToDFT(MiddleReplacementPattern):
                                                       {'name': mx_fft_name + '/Reshape_broadcast'})
         sub_node.out_port(0).connect(broadcast_node2.in_port(1))
         concat_node = create_op_with_const_inputs(graph, Concat, {1: int64_array([-1, 2])},
-                                                  {'name': mx_fft_name + '/Reshape', 'axis': 0},
+                                                  {'name': mx_fft_name + '/New_shape', 'in_ports_count': 2, 'axis': 0},
                                                   broadcast_node2)
 
         reshape_node = Reshape(graph, {}).create_node([dft_node, concat_node])
@@ -111,17 +111,17 @@ class MXFFTToDFT(MiddleReplacementPattern):
     def convert_ifft_to_dft(self, graph: Graph, mx_fft: Node):
         mx_fft_name = mx_fft.soft_get('name', mx_fft.id)
 
-        rank_node = Rank(graph, {'name': mx_fft_name + '/Rank'}).create_node()
+        rank_node = Rank(graph, {'name': mx_fft_name + '/rank'}).create_node()
         sub_node = create_op_with_const_inputs(graph, Sub, {1: int64_array(1)}, {'name': mx_fft_name + '/Sub'})
         rank_node.out_port(0).connect(sub_node.in_port(0))
         broadcast_node0 = create_op_with_const_inputs(graph, Broadcast, {0: int64_array(0)},
-                                                      {'name': mx_fft_name + '/Reshape_broadcast'})
+                                                      {'name': mx_fft_name + '/broadcast'})
         sub_node.out_port(0).connect(broadcast_node0.in_port(1))
         concat_node = create_op_with_const_inputs(graph, Concat, {1: int64_array([-1, 2])},
-                                                  {'name': mx_fft_name + '/Reshape', 'axis': 0},
+                                                  {'name': mx_fft_name + '/new_shape', 'in_ports_count': 2, 'axis': 0},
                                                   broadcast_node0)
 
-        reshape_node = Reshape(graph, {'name': mx_fft_name + '/Reshape'}).create_node()
+        reshape_node = Reshape(graph, {'name': mx_fft_name + '/reshape'}).create_node()
         concat_node.out_port(0).connect(reshape_node.in_port(1))
 
         mx_fft_connection = mx_fft.in_port(0).get_connection()
@@ -129,11 +129,11 @@ class MXFFTToDFT(MiddleReplacementPattern):
         mx_fft_connection.get_source().connect(rank_node.in_port(0))
 
         dft_node = create_op_with_const_inputs(graph, IDFT, {1: int64_array([-1])},
-                                               {'name': mx_fft_name + '/DFT', 'in_ports_count': 2},
+                                               {'name': mx_fft_name + '/idft', 'in_ports_count': 2},
                                                reshape_node)
 
         split_node = create_op_with_const_inputs(graph, Split, {1: int64_array(-1)},
-                                                 {'name': mx_fft_name + '/Split', 'num_splits': 2},
+                                                 {'name': mx_fft_name + '/split', 'num_splits': 2},
                                                  dft_node)
         squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([-1])}, {}, split_node)
 
