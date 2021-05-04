@@ -76,14 +76,14 @@ def moc_pipeline(argv: argparse.Namespace):
             if oldPartShape.rank.is_static:
                 for i in range(oldPartShape.rank.get_length()):
                     # Assume batch size is always 1-st dimension in shape
-                    # Keep other dimentions unchanged
+                    # Keep other dimensions unchanged
                     newshape.append(Dimension(argv.batch) if i is 0 else oldPartShape.get_dimension(i))
                     oldshape_converted.append(oldPartShape.get_dimension(i))
 
-                validate_batch_in_shape(oldshape_converted, ' '.join(place.getNames()))
+                validate_batch_in_shape(oldshape_converted, joinedName)
             else:
-                # TODO: raise error from FAQ
-                raise Exception("Setting batch size for shapes with dynamic rank is not supported")
+                # In case of fully dynamic shape raise the same error as for invalid batch dimension
+                validate_batch_in_shape(oldshape_converted, joinedName)
 
             newPartShape = PartialShape(newshape)
             log.debug("Input: {}, Old shape: {}, New shape: {}"
