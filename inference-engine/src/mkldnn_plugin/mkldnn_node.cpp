@@ -114,6 +114,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Unsqueeze", Reshape },
         { "Softmax", Softmax },
         { "Reorder", Reorder },
+        { "BatchToSpace", BatchToSpace },
+        { "SpaceToBatch", SpaceToBatch },
         { "DepthToSpace", DepthToSpace },
         { "SpaceToDepth", SpaceToDepth },
         { "Roll", Roll },
@@ -158,6 +160,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "SimplerNMS", SimplerNMS },
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
+        { "PSROIPooling", PSROIPooling },
+        { "DeformablePSROIPooling", PSROIPooling },
 //        { "Flatten", Flatten },
         { "Pad", Pad },
         { "Transpose", Transpose },
@@ -193,7 +197,17 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceSum", Reduce},
         { "ReduceLogSum", Reduce},
         { "ReduceLogSumExp", Reduce},
-        { "ReduceSumSquare", Reduce}
+        { "ReduceSumSquare", Reduce},
+        { "Broadcast", Broadcast},
+        { "EmbeddingSegmentsSum", EmbeddingSegmentsSum},
+        { "EmbeddingBagPackedSum", EmbeddingBagPackedSum},
+        { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum},
+        { "Gather", Gather},
+        { "GatherElements", GatherElements},
+        { "GatherND", GatherND},
+        { "OneHot", OneHot},
+        { "RegionYolo", RegionYolo},
+        { "Select", Select}
 };
 
 Type TypeFromName(const std::string type) {

@@ -34,11 +34,11 @@ private:
                                 const InferenceEngine::Precision& weightsPrec);
 
     template <typename Prec>
-    void fillWeights(const std::shared_ptr<ngraph::Node>& op, const int* gate_map, const size_t wIdx, const size_t rIdx);
-    template <typename Prec>
-    void fillBiases(const std::shared_ptr<ngraph::Node>& op, const int* gate_map, const size_t bIdx);
+    void fillWeights(const int* gate_map, const size_t wIdx, const size_t rIdx);
+    template <InferenceEngine::Precision::ePrecision Prec>
+    void fillBiases(const int* gate_map);
 
-    void copyWeightsData(const std::shared_ptr<ngraph::Node>& op);
+    void copyWeightsData();
 
 private:
     InferenceEngine::Precision runtimePrecision;
@@ -81,9 +81,12 @@ private:
     MKLDNNMemoryDesc w_state_d;
     MKLDNNMemoryDesc w_bias_d;
 
-    // List of in/out reorders if required
-    std::vector<mkldnn::reorder> exec_before;
-    std::vector<mkldnn::reorder> exec_after;
+    std::vector<size_t > in_data_dims;
+    std::vector<size_t > out_data_dims;
+
+    size_t wIdx = 0;
+    size_t rIdx = 0;
+    size_t bIdx = 0;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
 };

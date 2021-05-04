@@ -61,7 +61,7 @@ protected:
 
         std::tie(inputShape, axis, depth, onValue, offValue, netPrecision, inPrc, outPrc, targetDevice, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = std::string("ref_any_") + inPrc.name();
 
         auto ngOutPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         auto depthConst = ngraph::builder::makeConstant<size_t>(ngraph::element::i32, {}, {depth});

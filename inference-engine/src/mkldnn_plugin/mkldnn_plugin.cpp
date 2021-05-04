@@ -151,6 +151,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::u4, ngraph::element::u8},
     };
 
+    // In case BF16 is not supported by the target CPU we explicitly convert it to FP32
+    if (!with_cpu_x86_avx512_core())
+        convert_precision_list.push_back({ngraph::element::bf16, ngraph::element::f32});
+
     for (auto &precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }

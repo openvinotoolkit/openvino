@@ -26,6 +26,7 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
 #include <ie_precision.hpp>
+#include <nodes/common/tensor_desc_creator.h>
 #include "cpu_types.h"
 
 namespace MKLDNNPlugin {
@@ -57,10 +58,13 @@ enum Type {
     SimplerNMS,
     ROIAlign,
     ROIPooling,
+    PSROIPooling,
+    BatchToSpace,
     DepthToSpace,
     Flatten,
     Pad,
     Transpose,
+    SpaceToBatch,
     SpaceToDepth,
     StridedSlice,
     Copy,
@@ -80,8 +84,18 @@ enum Type {
     ScatterNDUpdate,
     Interpolate,
     Reduce,
+    Broadcast,
+    EmbeddingSegmentsSum,
+    EmbeddingBagPackedSum,
+    EmbeddingBagOffsetsSum,
+    Gather,
+    GatherElements,
+    GatherND,
+    OneHot,
+    RegionYolo,
+    Select,
+    Roll,
     Reference,
-    Roll
 };
 
 Type TypeFromName(const std::string type);
@@ -130,8 +144,12 @@ static std::string NameFromType(Type type) {
             return "ROIAlign";
         case ROIPooling:
             return "ROIPooling";
+        case PSROIPooling:
+            return "PSROIPooling";
         case DepthToSpace:
             return "DepthToSpace";
+        case BatchToSpace:
+            return "BatchToSpace";
         case Flatten:
             return "Flatten";
         case Pad:
@@ -140,6 +158,8 @@ static std::string NameFromType(Type type) {
             return "Transpose";
         case SpaceToDepth:
             return "SpaceToDepth";
+        case SpaceToBatch:
+            return "SpaceToBatch";
         case Copy:
             return "Copy";
         case MemoryOutput:
@@ -176,6 +196,26 @@ static std::string NameFromType(Type type) {
             return "Interpolate";
         case Reduce:
             return "Reduce";
+        case Broadcast:
+            return "Broadcast";
+        case EmbeddingSegmentsSum:
+            return "EmbeddingSegmentsSum";
+        case EmbeddingBagPackedSum:
+            return "EmbeddingBagPackedSum";
+        case EmbeddingBagOffsetsSum:
+            return "EmbeddingBagPackedSum";
+        case Gather:
+            return "Gather";
+        case GatherElements:
+            return "GatherElements";
+        case GatherND:
+            return "GatherND";
+        case OneHot:
+            return "OneHot";
+        case RegionYolo:
+            return "RegionYolo";
+        case Select:
+            return "Select";
         case Roll:
             return "Roll";
         default:
@@ -236,6 +276,31 @@ private:
     InferenceEngine::LayerConfig config;
     impl_desc_type implementationType;
     std::vector<mkldnn::memory::format_tag> outputLayouts;
+};
+
+class DataConfigurator {
+public:
+    DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc, const InferenceEngine::SizeVector& shape,
+                     bool constant = false, int inplace = -1) :
+            tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), shape(shape), constant(constant), inplace(inplace) {}
+
+    DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+                     bool constant = false, int inplace = -1) :
+            tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), shape({}), constant(constant), inplace(inplace) {}
+
+    const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
+    const InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED;
+    const InferenceEngine::SizeVector shape;
+    const bool constant = false;
+    const int inplace = -1;
+private:
+    static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
+        auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
+        if (creators.find(tensorDescType) == creators.end()) {
+            IE_THROW() << "Cannot find tensor descriptor creator";
+        }
+        return creators.at(tensorDescType);
+    }
 };
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {
@@ -679,6 +744,49 @@ protected:
      * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
      */
     virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
+
+    void addSupportedPrimDesc(const std::vector<DataConfigurator>& inDataConfigurators,
+                              const std::vector<DataConfigurator>& outDataConfigurators,
+                              impl_desc_type implType,
+                              bool dynBatchSupport = false) {
+        auto fill_port = [] (const DataConfigurator& dataConfigurator, const InferenceEngine::SizeVector& dims,
+                             InferenceEngine::Precision prc, std::vector<InferenceEngine::DataConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by tensorDescCreator.
+            // This should be suitable for major of scenarios since almost all nodes add `ncsp` tensorDescCreator which supports any shape rank.
+            if (dims.size() < dataConfigurator.tensorDescCreator->getMinimalRank())
+                return false;
+
+            InferenceEngine::DataConfig dataConfig;
+            dataConfig.inPlace = dataConfigurator.inplace;
+            dataConfig.constant = dataConfigurator.constant;
+
+            dataConfig.desc = dataConfigurator.tensorDescCreator->createDesc(prc, dims);
+
+            port.push_back(dataConfig);
+
+            return true;
+        };
+
+        InferenceEngine::LayerConfig config;
+        for (size_t i = 0; i < inDataConfigurators.size(); i++) {
+            auto dims = inDataConfigurators[i].shape.empty() ? getParentEdgesAtPort(i)[0]->getDims().ToSizeVector() : inDataConfigurators[i].shape;
+            auto prc = inDataConfigurators[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i)
+                                                                                             : inDataConfigurators[i].prc;
+            if (!fill_port(inDataConfigurators[i], dims, prc, config.inConfs))
+                return;
+        }
+
+        for (size_t i = 0; i < outDataConfigurators.size(); i++) {
+            auto dims = outDataConfigurators[i].shape.empty() ? getChildEdgesAtPort(i)[0]->getDims().ToSizeVector() : outDataConfigurators[i].shape;
+            auto prc = outDataConfigurators[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i)
+                                                                                              : outDataConfigurators[i].prc;
+            if (!fill_port(outDataConfigurators[i], dims, prc, config.outConfs))
+                return;
+        }
+
+        config.dynBatchSupport = dynBatchSupport;
+        supportedPrimitiveDescriptors.push_back({config, implType});
+    }
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
