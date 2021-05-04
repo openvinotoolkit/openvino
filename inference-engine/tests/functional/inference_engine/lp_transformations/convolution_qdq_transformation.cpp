@@ -404,7 +404,83 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             ngraph::element::f32,
             {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
-    }
+    },
+    // incorrect zero point on activations [not transformed]
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    // incorrect zero point on weights [not transformed, weights folded]
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {},
+            { std::vector<float>{ -29.94f }, ngraph::element::f32},
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

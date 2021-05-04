@@ -188,6 +188,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
                 return false;
             }
         }
+
+        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
+            return false;
+        }
     }
 
     const auto dequantization2 = NetworkHelper::getDequantization(layer, 1);
