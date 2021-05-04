@@ -20,13 +20,13 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to an .xml or .onnx file with a trained model.')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an utterance file.')
-    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save ark scores.')
+    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save inference results.')
     args.add_argument('-r', '--reference', type=str,
-                      help='Optional. Read reference score .ark file and compare scores.')
+                      help='Optional. Read reference score file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
-                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-                      'is acceptable. The sample will look for a suitable plugin for device specified. '
-                      'Default value is CPU.')
+                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL, GNA_AUTO, '
+                      'GNA_HW, GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable. '
+                      'The sample will look for a suitable plugin for device specified. Default value is CPU.')
     args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16)')
@@ -90,7 +90,7 @@ def read_ark_file(file_name: str) -> dict:
 def write_ark_file(file_name: str, utterances: dict):
     """Write utterance matrices to a .ark file"""
     with open(file_name, 'wb') as file:
-        for key, matrix in utterances.items():
+        for key, matrix in sorted(utterances.items()):
             # write a matrix key
             file.write(key.encode())
             file.write(' '.encode())
@@ -155,21 +155,29 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
 
 
 def read_utterance_file(file_name: str) -> dict:
-    file_extension = file_name[-3:]
+    """Read utterance matrices from a file"""
+    file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':
         return read_ark_file(file_name)
     elif file_extension == 'npz':
         return dict(np.load(file_name))
+    else:
+        log.error(f'The file {file_name} cannot be read. The sample supports only .ark and .npz files.')
+        sys.exit(-3)
 
 
 def write_utterance_file(file_name: str, utterances: dict):
-    file_extension = file_name[-3:]
+    """Write utterance matrices to a file"""
+    file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':
         write_ark_file(file_name, utterances)
     elif file_extension == 'npz':
         np.savez(file_name, **utterances)
+    else:
+        log.error(f'The file {file_name} cannot be written. The sample supports only .ark and .npz files.')
+        sys.exit(-4)
 
 
 def main():
@@ -237,13 +245,13 @@ def main():
     results = {}
     infer_times = []
 
-    for key, matrix in utterances.items():
+    for key, matrix in sorted(utterances.items()):
         start_infer_time = default_timer()
         results[key] = infer_matrix(matrix, exec_net, input_blob, out_blob)
         infer_times.append(default_timer() - start_infer_time)
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
-    for i, key in enumerate(results):
+    for i, key in enumerate(sorted(results)):
         log.info(f'Utterance {i} ({key})')
         log.info(f'Frames in utterance: {results[key].shape[0]}')
         log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
