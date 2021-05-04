@@ -384,9 +384,7 @@ def pytest_runtest_makereport(item, call):
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
     data["raw_results"] = item._request.test_info["raw_results"].copy()
-    name, frequency = get_cpu_info()
-    data["cpu_info"] = {"cpu_name": name,
-                        "cpu_frequency": frequency}
+    data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 

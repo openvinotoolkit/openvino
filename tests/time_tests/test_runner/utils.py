@@ -157,8 +157,8 @@ def get_cpu_info():
     """
     Check OS version and returns name and frequency of cpu
 
-    :return: CPU name, CPU frequency
-    :rtype: str, str
+    :return: CPU name and frequency
+    :rtype: str
     """
     model = ''
     if os_type_is_linux():
@@ -172,6 +172,5 @@ def get_cpu_info():
         model = subprocess.check_output(command)
     else:
         raise UnsupportedOsError()
-    name = model.decode('utf-8').strip()
-    frequency = name.split('@')[1].strip()
-    return name, frequency
+    info = model.decode('utf-8').strip()
+    return info
