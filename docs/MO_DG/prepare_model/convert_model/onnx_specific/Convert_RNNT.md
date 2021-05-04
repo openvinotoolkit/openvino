@@ -1,17 +1,17 @@
-# Convert ONNX* RNNT Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
+# Convert ONNX\* RNN-T Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
 
 This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow 
-the steps below to export a PyTorch* model into ONNX* before converting it to IR:
+the steps below to export a PyTorch\* model into ONNX\* before converting it to IR:
 
-**Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository.  Make a shallow clone to pull only RNN-T 
-model without full repository. If you alreade have a full repository skip this and go to **Step 2**:
+**Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository. Make a shallow clone to pull only RNN-T 
+model without full repository. If you already have a full repository, skip this and go to **Step 2**:
 ```bash
 git clone -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
 cd rnnt_for_openvino
 git checkout HEAD speech_recognition/rnnt 
 ```
 
-**Step 2**. If you already have a full clone of MLCommons inference repository create a folder for 
+**Step 2**. If you already have a full clone of MLCommons inference repository, create a folder for 
 pretrained PyTorch model, where conversion into IR will take place. You will also need to specify the path to 
 your full clone at **Step 5**. Skip this step if you have a shallow clone.
 
@@ -28,7 +28,7 @@ wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.
 The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as 
 if you were following the steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt.
 
-**Step 4**. Install required python* packages:
+**Step 4**. Install required python\* packages:
 ```bash
 pip3 install torch toml
 ```
@@ -36,7 +36,7 @@ pip3 install torch toml
 **Step 5**. Export RNN-T model into ONNX with the script below. Copy the code below into a file named 
 `export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
-> **note**: If you already have a full clone of MLComons inferene repository, you need to
+> **NOTE**: If you already have a full clone of MLComons inferene repository, you need to
 > specify `mlcommons_inference_path` variable.
 
 ```python
