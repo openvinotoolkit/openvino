@@ -32,7 +32,6 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     np_inputs = []
     for i in range(num_inputs):
         input_i = np.random.random_integers(10, size=input_shapes[i]).astype(data_type)
-        print("input_i = ", input_i)
         np_inputs.append(input_i)
         ng_inputs.append(ng.parameter(input_i.shape, dtype=data_type))
 
