@@ -24,5 +24,9 @@ def ApplyPruningTransformation(IENetwork network):
     C.ApplyPruningTransformation(network.impl)
 
 
+def GenerateMappingFile(IENetwork network, string path, bool extract_names):
+    C.GenerateMappingFile(network.impl, path, extract_names)
+
+
 def CheckAPI():
     C.CheckAPI()

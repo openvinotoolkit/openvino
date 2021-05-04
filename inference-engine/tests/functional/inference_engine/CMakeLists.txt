@@ -17,6 +17,7 @@ set(LINK_LIBRARIES
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
+    inference_engine
 )
 
 set(DEPENDENCIES

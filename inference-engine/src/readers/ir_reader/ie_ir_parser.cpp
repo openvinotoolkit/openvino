@@ -19,6 +19,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph_ops/framework_node.hpp>
 #include <set>
 #include <sstream>
 #include <string>
@@ -167,6 +168,8 @@ public:
         adapter.set(value);
     }
 
+    void use_framework_node(bool flag) { m_use_framework_node = flag; }
+
 private:
     struct IoMap {
         using NodeIdToIoIndex =
@@ -219,6 +222,8 @@ private:
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;
+
+    bool m_use_framework_node{false};
 };
 
 XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node) {
@@ -520,6 +525,26 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
             a->set(buffer);
         }
+    } else if (auto a = ngraph::as_type<
+                        ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        const auto & type = XMLParseUtils::GetStrAttr(node, "type");
+        const auto & version = XMLParseUtils::GetStrAttr(node, "version");
+
+        ngraph::op::FrameworkNodeAttrs node_attrs;
+        node_attrs.set_opset_name(version);
+        node_attrs.set_type_name(type);
+
+        pugi::xml_node dn = node.child("data");
+
+        if (!dn.empty()) {
+            std::map<std::string, std::string> attrs;
+            for (const auto & data_attr : dn.attributes()) {
+                attrs[data_attr.name()] = data_attr.as_string();
+            }
+            node_attrs.set_attrs(attrs);
+        }
+
+        a->set(node_attrs);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name
                            << " parameter";
@@ -700,6 +725,13 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             port.dims.push_back(dim);
         }
 
+        ngraph::element::Type type(ngraph::element::Type_t::undefined);
+        // Input port hasn't precision
+        if (!input) {
+            const std::string& preStr = GetStrAttr(parentNode, "precision");
+            type = InferenceEngine::details::convertPrecision(preStr);
+        }
+        port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
             for (size_t i = 0; i < names.size(); i++) {
@@ -816,6 +848,18 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
     }
 
+    if (!ngraphNode && m_use_framework_node) {
+        ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
+        XmlDeserializer visitor(node, weights, opsets, variables);
+        ngraphNode->visit_attributes(visitor);
+
+        size_t index{0};
+        for (const auto & output_params : params.outputPorts) {
+            ngraphNode->set_output_type(index, output_params.precision, ngraph::Shape(output_params.dims));
+            ++index;
+        }
+    }
+
     if (!ngraphNode) {
         IE_THROW() << "Cannot create " << params.type << " layer " << params.name
                            << " id:" << params.layerId
@@ -874,6 +918,15 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets, variables);
+    bool use_framework_node{false};
+    for (const auto & ext : _exts) {
+        InferenceEngine::Version * version = new InferenceEngine::Version();
+        ext->GetVersion(const_cast<const Version *&>(version));
+        if (version->description && strcmp(version->description, "framework_node_ext") == 0) {
+            use_framework_node = true;
+        }
+    }
+    visitor.use_framework_node(use_framework_node);
     visitor.on_attribute("net", function);
 
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "ConstructCNNNetwork");

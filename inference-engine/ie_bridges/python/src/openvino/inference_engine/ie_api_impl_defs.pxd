@@ -220,3 +220,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()
+
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)
