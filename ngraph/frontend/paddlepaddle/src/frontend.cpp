@@ -70,29 +70,7 @@ NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
     return CREATORS_MAP.at(op->type())(NodeContext(DecoderPDPDProto(*op), named_inputs));
 }
 
-bool endsWith(const std::string &str, const std::string &suffix) {
-    if (str.length() >= suffix.length()) {
-        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-    }
-    return false;
-}
-
 } // namespace pdpd
-
-std::shared_ptr<Node> FrontEndPDPD::make_const_node(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
-                                                    const std::shared_ptr<InputModelPDPD>& model)
-{
-    const auto& var_desc = tensor_place->getDesc();
-    std::cout << "Reading tensor " << var_desc->name() << std::endl;
-    PDPD_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
-    const auto& tensor = var_desc->type().lod_tensor().tensor();
-    const auto& tensor_length = std::accumulate(
-        tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
-    Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
-    const auto& type = TYPE_MAP[tensor.data_type()];
-    auto tensor_data = model->readWeight(var_desc->name(), tensor_length * type.size());    
-    return Constant::create(type, shape, &tensor_data[0]);
-}
 
 std::shared_ptr<Function>
     FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model)
@@ -103,17 +81,6 @@ std::shared_ptr<Function>
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
     
-    for (const auto& name_var : model->getVarPlaces())
-    {
-        const auto& var = name_var.second->getDesc();
-        if (pdpd::endsWith(name_var.first, "feed") || pdpd::endsWith(name_var.first, "fetch"))
-            continue;
-        if (!var->persistable())
-            continue;
-        nodes_dict[name_var.first] = make_const_node(name_var.second, model);
-    }
-    std::cout << "Reading consts finished" << std::endl;
-
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     for (const auto& _inp_place: model->getInputs()) {
         const auto& inp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_inp_place);
@@ -176,9 +143,35 @@ std::shared_ptr<Function>
     return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
 }
 
-std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert(InputModel::Ptr model) const {
+InputModel::Ptr FrontEndPDPD::loadFromFile (const std::string& path) const {
+    return loadFromFiles({path});
+}
+
+InputModel::Ptr FrontEndPDPD::loadFromFiles (const std::vector<std::string>& paths) const {
+    if (paths.size() == 1) {
+        // The case when folder with __model__ and weight files is provided or .pdmodel file
+        return std::make_shared<InputModelPDPD>(paths[0]);
+    } else if (paths.size() == 2) {
+        // The case when .pdmodel and .pdparams files are provided
+        std::ifstream model_stream(paths[0], std::ios::in | std::ifstream::binary);
+        PDPD_ASSERT(model_stream && model_stream.is_open(), "Cannot open model file.");
+        std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
+        PDPD_ASSERT(weights_stream && weights_stream.is_open(), "Cannot open weights file.");
+        loadFromStreams({&model_stream, &weights_stream});
+    }
+}
+
+InputModel::Ptr FrontEndPDPD::loadFromStream (std::istream& model_stream) const {
+    return loadFromStreams({&model_stream});
+}
+
+InputModel::Ptr FrontEndPDPD::loadFromStreams (const std::vector<std::istream*>& streams) const {
+    return std::make_shared<InputModelPDPD>(streams);
+}
+
+std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) const {
     std::cerr << "[ INFO ] PFrontEndPDPD::convert invoked\n";
-    auto pdpd_model = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model);    
+    auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);    
     auto f = convert_model(pdpd_model);
     std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << "\n";
     return f;

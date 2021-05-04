@@ -20,7 +20,8 @@ using namespace paddle::framework::proto;
 class InputModelPDPD::InputModelPDPDImpl {
 public:
 
-    InputModelPDPDImpl (const std::string& _path, const InputModel& input_model);
+    InputModelPDPDImpl (const std::string& path, const InputModel& input_model);
+    InputModelPDPDImpl (const std::vector<std::istream*>& streams, const InputModel& input_model);
     std::vector<Place::Ptr> getInputs () const;
     std::vector<Place::Ptr> getOutputs () const;
     Place::Ptr getPlaceByTensorName (const std::string& tensorName) const;
@@ -38,43 +39,19 @@ public:
     std::map<pdpd::TensorName, Output<Node>> getTensorValues() const { return m_tensor_values; };
 
 private:
-    std::string m_path;
+    void loadPlaces();
+    void loadConsts(std::string folder_with_weights, std::istream* weight_stream);
+
     std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
-    // GCC 4.8 limitation: can't create 'm_weights_stream = std::ifstream(...)'
-    std::unique_ptr<std::ifstream> m_weights_stream;
-    bool m_weights_composed = false;
     const InputModel& m_input_model;
     std::vector<Place::Ptr> m_inputs;
     std::vector<Place::Ptr> m_outputs;
     std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
 };
 
-InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path, const InputModel& input_model)
-    : m_path(_path),
-      m_fw_ptr{std::make_shared<ProgramDesc>()},
-      m_input_model(input_model) {
-    std::string ext = ".pdmodel";            
-    std::string model_file(m_path);
-    if (m_path.length() >= ext.length() && (0 == m_path.compare(m_path.length() - ext.length(), ext.length(), ext)))
-    {
-        m_weights_composed = true;
-        auto weights_file = m_path.replace(m_path.size() - ext.size(), ext.size(), ".pdiparams");
-        m_weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
-        if (!m_weights_stream || !m_weights_stream->is_open()) {
-            std::cerr << "Cannot open file containing weights: " << weights_file << std::endl;
-        }
-    } else {
-        m_weights_composed = false;
-        model_file += "/__model__";
-    }
-
-    std::ifstream pb_stream(model_file, std::ios::binary);
-    std::cout << "Model Parsed: " << m_fw_ptr->ParseFromIstream(&pb_stream) << std::endl;
-
-    std::cout << "Blocks number: " << m_fw_ptr->blocks().size() << std::endl;
-
+void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
     const auto& blocks = m_fw_ptr->blocks();
 
@@ -137,26 +114,95 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
     }
 }
 
-std::vector<uint8_t> InputModelPDPD::InputModelPDPDImpl::readWeight(const std::string& name, int64_t len) {
-    std::vector<uint8_t> tensor_data(len);
+namespace pdpd {
 
-    std::unique_ptr<std::ifstream> is;
-    std::ifstream* stream_ptr;
-    if (m_weights_composed) {
-        stream_ptr = m_weights_stream.get();
-    } else {
-        is = std::unique_ptr<std::ifstream>(new std::ifstream(m_path + "/" + name, std::ios::in | std::ifstream::binary));
-        PDPD_ASSERT(is && is->is_open(), "Cannot open file for constant value.");
-        stream_ptr = is.get();
+bool endsWith(const std::string &str, const std::string &suffix) {
+    if (str.length() >= suffix.length()) {
+        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
     }
+    return false;
+}
+
+void read_tensor(std::istream& is, char* data, size_t len) {
     std::vector<char> header(16);
-    stream_ptr->read(&header[0], 16);
+    is.read(&header[0], 16);
     uint32_t dims_len = 0;
-    stream_ptr->read(reinterpret_cast<char*>(&dims_len), 4);
+    is.read(reinterpret_cast<char*>(&dims_len), 4);
     std::vector<char> dims_struct(dims_len);
-    stream_ptr->read(&dims_struct[0], dims_len);
-    stream_ptr->read(reinterpret_cast<char*>(&tensor_data[0]), len);
-    return tensor_data;
+    is.read(&dims_struct[0], dims_len);
+    is.read(data, len);
+}
+
+} // namespace pdpd
+
+void InputModelPDPD::InputModelPDPDImpl::loadConsts(std::string folder_with_weights, std::istream* weight_stream) {
+    for (const auto& item: m_var_places) {
+        const auto& var_desc = item.second->getDesc();
+        const auto& name = item.first;
+        if (pdpd::endsWith(name, "feed") || pdpd::endsWith(name, "fetch"))
+            continue;
+        if (!var_desc->persistable())
+            continue;
+
+        PDPD_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+        const auto& tensor = var_desc->type().lod_tensor().tensor();
+        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
+        const auto& type = TYPE_MAP[tensor.data_type()];
+        const auto& data_length = shape_size(shape) * type.size();
+        std::vector<uint8_t> tensor_data(data_length);   
+        
+        if (weight_stream) {
+            pdpd::read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+        } else if (!folder_with_weights.empty()) {
+            std::ifstream is(folder_with_weights + "/" + name, std::ios::in | std::ifstream::binary);
+            PDPD_ASSERT(is && is.is_open(), "Cannot open file for constant value.");
+            pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+        } else {
+            PDPD_THROW("Either folder with weights or stream must be provided.");
+        }
+
+        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        const_node->set_friendly_name(name);
+        m_tensor_values[name] = const_node;
+    }
+}
+
+InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& path, const InputModel& input_model)
+    : m_fw_ptr{std::make_shared<ProgramDesc>()},
+      m_input_model(input_model) {
+    std::string ext = ".pdmodel";            
+    std::string model_file(path);
+    std::unique_ptr<std::ifstream> weights_stream;
+    if (model_file.length() >= ext.length() && (0 == model_file.compare(model_file.length() - ext.length(), ext.length(), ext)))
+    {
+        std::string weights_file(path);
+        weights_file.replace(weights_file.size() - ext.size(), ext.size(), ".pdiparams");
+        weights_stream = std::unique_ptr<std::ifstream>(new std::ifstream(weights_file, std::ios::binary));
+        // if file isn't open it means model don't have constants or path is wrong
+        if (!weights_stream || !weights_stream->is_open()) {
+            std::cerr << "[WARNING:] Cannot open file containing weights: " << weights_file << std::endl;
+        }
+    } else {
+        model_file += "/__model__";
+    }
+
+    std::ifstream pb_stream(model_file, std::ios::binary);
+    PDPD_ASSERT(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+    
+    std::cout << "Loading places" << std::endl; 
+    loadPlaces();   
+    std::cout << "Loading consts" << std::endl; 
+    loadConsts(weights_stream ? "" : path, weights_stream.get());
+}
+
+InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::istream*>& streams, const InputModel& input_model)
+    : m_fw_ptr{std::make_shared<ProgramDesc>()},
+      m_input_model(input_model) {
+    PDPD_ASSERT(streams.size() == 2, "Two streams are needed to load a model: model and weights streams");
+    PDPD_ASSERT(m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
+
+    loadPlaces();
+    loadConsts("", streams[1]);
 }
 
 std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs () const {
@@ -229,11 +275,9 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue (Place::Ptr place, const
     m_tensor_values[name] = constant;
 }
 
-InputModelPDPD::InputModelPDPD (const std::string& _path) : _impl{std::make_shared<InputModelPDPDImpl>(_path, *this)} {}
+InputModelPDPD::InputModelPDPD (const std::string& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
 
-std::vector<uint8_t> InputModelPDPD::readWeight(const std::string& name, int64_t len) {
-    return _impl->readWeight(name, len);
-}
+InputModelPDPD::InputModelPDPD (const std::vector<std::istream*>& streams) : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this)} {}
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces() const {
     return _impl->getOpPlaces();

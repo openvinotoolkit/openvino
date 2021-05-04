@@ -19,7 +19,6 @@
 #include <frontend_manager/frontend_manager.hpp>
 
 #include "model.hpp"
-#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -27,18 +26,16 @@ namespace frontend {
 class NGRAPH_API FrontEndPDPD : public FrontEnd
 {
     static std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model);
-    static std::shared_ptr<Node> make_const_node(const std::shared_ptr<TensorPlacePDPD>& place,
-                                                 const std::shared_ptr<InputModelPDPD>& model);
 public:
 
     FrontEndPDPD ()
     {
     }
 
-    virtual InputModel::Ptr loadFromFile (const std::string& path) const override
-    {
-        return std::make_shared<InputModelPDPD>(path);
-    }
+    virtual InputModel::Ptr loadFromFile (const std::string& path) const override;
+    virtual InputModel::Ptr loadFromFiles (const std::vector<std::string>& paths) const override;
+    virtual InputModel::Ptr loadFromStream (std::istream& model_stream) const override;
+    virtual InputModel::Ptr loadFromStreams (const std::vector<std::istream*>& paths) const override;
 
     virtual std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
 };
