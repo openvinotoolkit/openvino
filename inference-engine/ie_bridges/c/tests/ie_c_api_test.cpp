@@ -93,9 +93,7 @@ size_t find_device(ie_available_devices_t avai_devices, const char *device_name)
 TEST(ie_c_api_version, apiVersion) {
     ie_version_t version = ie_c_api_version();
     auto ver = InferenceEngine::GetInferenceEngineVersion();
-    std::string ver_str = std::to_string(ver->apiVersion.major) + ".";
-    ver_str += std::to_string(ver->apiVersion.minor) + ".";
-    ver_str += ver->buildNumber;
+    std::string ver_str = ver->buildNumber;
 
     EXPECT_EQ(strcmp(version.api_version, ver_str.c_str()), 0);
     ie_version_free(&version);

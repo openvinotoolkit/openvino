@@ -456,10 +456,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 std::string InferenceEnginePython::get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
-    version_str += version->buildNumber;
-    return version_str;
+    return version->buildNumber;
 }
 
 InferenceEnginePython::IECore::IECore(const std::string& xmlConfigFile) {

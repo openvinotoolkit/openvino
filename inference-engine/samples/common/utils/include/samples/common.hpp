@@ -87,24 +87,6 @@ inline std::string fileExt(const std::string& filename) {
     return filename.substr(pos + 1);
 }
 
-static UNUSED std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
-    os << "\n\tAPI version ............ ";
-    if (nullptr == version) {
-        os << "UNKNOWN";
-    } else {
-        os << version->apiVersion.major << "." << version->apiVersion.minor;
-        if (nullptr != version->buildNumber) {
-            os << "\n\t"
-               << "Build .................. " << version->buildNumber;
-        }
-        if (nullptr != version->description) {
-            os << "\n\t"
-               << "Description ....... " << version->description;
-        }
-    }
-    return os;
-}
-
 inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version& version) {
     os << "\t" << version.description << " version ......... ";
     os << version.apiVersion.major << "." << version.apiVersion.minor;
@@ -122,57 +104,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, In
     }
 
     return os;
-}
-
-static UNUSED std::vector<std::vector<size_t>> blobToImageOutputArray(InferenceEngine::TBlob<float>::Ptr output, size_t* pWidth, size_t* pHeight,
-                                                                      size_t* pChannels) {
-    std::vector<std::vector<size_t>> outArray;
-    size_t W = 0, C = 0, H = 0;
-
-    auto outputDims = output->getTensorDesc().getDims();
-    if (outputDims.size() == 3) {
-        C = outputDims.at(0);
-        H = outputDims.at(1);
-        W = outputDims.at(2);
-    } else if (outputDims.size() == 4) {
-        C = outputDims.at(1);
-        H = outputDims.at(2);
-        W = outputDims.at(3);
-    } else if (outputDims.size() == 5) {
-        C = outputDims.at(1);
-        H = outputDims.at(3);
-        W = outputDims.at(4);
-    } else {
-        IE_THROW() << "Output blob has unsupported layout " << output->getTensorDesc().getLayout();
-    }
-
-    // Get classes
-    const float* outData = output->data();
-    for (unsigned h = 0; h < H; h++) {
-        std::vector<size_t> row;
-        for (unsigned w = 0; w < W; w++) {
-            float max_value = outData[h * W + w];
-            size_t index = 0;
-            for (size_t c = 1; c < C; c++) {
-                size_t dataIndex = c * H * W + h * W + w;
-                if (outData[dataIndex] > max_value) {
-                    index = c;
-                    max_value = outData[dataIndex];
-                }
-            }
-            row.push_back(index);
-        }
-        outArray.push_back(row);
-    }
-
-    if (pWidth != nullptr)
-        *pWidth = W;
-    if (pHeight != nullptr)
-        *pHeight = H;
-    if (pChannels != nullptr)
-        *pChannels = C;
-
-    return outArray;
 }
 
 /**
