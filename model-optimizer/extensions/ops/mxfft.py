@@ -26,6 +26,7 @@ class MXFFT(Op):
             'in_ports_count': 1,
             'infer': self.infer
         }
+        assert 'is_inverse' in attrs, 'Attribute is_inverse is not given for the operation MXFFT.'
         super().__init__(graph, mandatory_props, attrs)
 
     def infer(self, node: Node):
