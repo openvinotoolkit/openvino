@@ -29,6 +29,7 @@ public:
     void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
     void setDefaultShape (Place::Ptr place, const ngraph::Shape&);
     void setPartialShape (Place::Ptr place, const ngraph::PartialShape&);
+    ngraph::PartialShape getPartialShape (Place::Ptr place) const;
     void setElementType (Place::Ptr place, const ngraph::element::Type&);
     void setTensorValue (Place::Ptr place, const void* value);
     
@@ -215,6 +216,10 @@ void InputModelPDPD::InputModelPDPDImpl::setPartialShape (Place::Ptr place, cons
     pdpd::castToTensorPlace(place)->setPartialShape(p_shape);
 }
 
+ngraph::PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape (Place::Ptr place) const {
+    return pdpd::castToTensorPlace(place)->getPartialShape();
+}
+
 void InputModelPDPD::InputModelPDPDImpl::setElementType (Place::Ptr place, const ngraph::element::Type& type) {
     pdpd::castToTensorPlace(place)->setElementType(type);
 }
@@ -277,6 +282,10 @@ void InputModelPDPD::setDefaultShape (Place::Ptr place, const ngraph::Shape& sha
 
 void InputModelPDPD::setPartialShape (Place::Ptr place, const ngraph::PartialShape& p_shape) {
     return _impl->setPartialShape(place, p_shape);
+}
+
+ngraph::PartialShape InputModelPDPD::getPartialShape (Place::Ptr place) const {
+    return _impl->getPartialShape(place);
 }
 
 void InputModelPDPD::setElementType (Place::Ptr place, const ngraph::element::Type& type) {

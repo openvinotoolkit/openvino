@@ -48,6 +48,9 @@ void regclass_pyngraph_PartialShape(py::module m)
     shape.def("get_min_shape", &ngraph::PartialShape::get_min_shape);
     shape.def("get_shape", &ngraph::PartialShape::get_shape);
     shape.def("to_shape", &ngraph::PartialShape::to_shape);
+    shape.def("get_dimension", [](const ngraph::PartialShape& self, size_t index) -> ngraph::Dimension {
+        return self[index];
+    });
 
     shape.def(
         "__eq__",
