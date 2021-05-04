@@ -4,15 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/gather.hpp"
+#include "shared_test_classes/single_layer/roll.hpp"
 
 namespace LayerTestsDefinitions {
 
-TEST_P(GatherLayerTest, CompareWithRefs) {
-    Run();
-};
-
-TEST_P(Gather7LayerTest, CompareWithRefs) {
+TEST_P(RollLayerTest, CompareWithRefs) {
     Run();
 };
 
