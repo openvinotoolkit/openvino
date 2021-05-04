@@ -4,6 +4,7 @@
 
 #include "offline_transformations_api_impl.hpp"
 
+#include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -40,6 +41,12 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
 void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IENetwork network) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Pruning>();
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
     manager.run_passes(network.actual->getFunction());
 }
 
