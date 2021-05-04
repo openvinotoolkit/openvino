@@ -29,7 +29,6 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 
 2. Run test:
 ``` bash
-export PYTHONPATH=$PYTHONPATH:/openvino/tests/time_tests/
 ./scripts/run_timetest.py ../../bin/intel64/Release/timetest_infer -m model.xml -d CPU
 ```
 
