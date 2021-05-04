@@ -46,8 +46,8 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto weightsConvert = opsMap.at(weightsConvertWrapper).get_node_shared_ptr();
-        const auto quantizePrecision = weightsConvert->input(0).get_element_type();
-        const auto dequantizationPrecision = weightsConvert->output(0).get_element_type();
+        const auto quantizePrecision = weightsConvert->get_input_element_type(0);
+        const auto dequantizationPrecision = weightsConvert->get_output_element_type(0);
 
         // validation by Convert operation input precisions
         if (!constantPrecisions.empty()) {
@@ -72,7 +72,7 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
 
         if (resultSubtractConstant == nullptr) {
             const auto multiply = opsMap.at(multiplyWrapper).get_node_shared_ptr();
-            const auto newMultiply = std::make_shared<opset1::Multiply>(weightsConvert, multiply->get_input_node_shared_ptr(1));
+            const auto newMultiply = std::make_shared<opset1::Multiply>(weightsConvert, opsMap.at(multiplyConstantWrapper).get_node_shared_ptr());
             NetworkHelper::copyInfo(multiply, newMultiply);
             replace_node(multiply, newMultiply);
         } else {
@@ -84,8 +84,8 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             auto& rtInfo = resultConvert->get_rt_info();
             rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
 
+            const auto newSubtract = std::make_shared<opset1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
             const auto subtract = opsMap.at(subtractWrapper).get_node_shared_ptr();
-            const auto newSubtract = std::make_shared<opset1::Subtract>(subtract->get_input_node_shared_ptr(0), resultConvert);
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }

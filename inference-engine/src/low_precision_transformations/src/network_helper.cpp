@@ -432,20 +432,30 @@ bool NetworkHelper::isConvertable(const std::shared_ptr<Node>& node, const eleme
     const auto values = constant->cast_vector<float>();
     float min;
     float max;
-    if (targetType == element::i8) {
-        min = -128.f;
-        max = 127.f;
-    } else if (targetType == element::u8) {
-        min = 0.f;
-        max = 255.f;
-    } else if (targetType == element::i4) {
-        min = -8.f;
-        max = 7.f;
-    } else if (targetType == element::u4) {
-        min = 0.f;
-        max = 15.f;
-    } else {
-        return false;
+    switch (targetType) {
+        case element::i8: {
+            min = -128.f;
+            max = 127.f;
+            break;
+        }
+        case element::u8: {
+            min = 0.f;
+            max = 255.f;
+            break;
+        }
+        case element::i4: {
+            min = -8.f;
+            max = 7.f;
+            break;
+        }
+        case element::u4: {
+            min = 0.f;
+            max = 15.f;
+            break;
+        }
+        default: {
+            return false;
+        }
     }
 
     return std::all_of(values.begin(), values.end(), [&](const float value) { return (min <= value) && (value <= max); });

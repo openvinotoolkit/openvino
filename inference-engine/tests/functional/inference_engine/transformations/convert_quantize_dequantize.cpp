@@ -15,7 +15,6 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
