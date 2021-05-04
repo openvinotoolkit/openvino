@@ -38,8 +38,6 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
-disable_deprecated_warnings()
-
 add_library(ngraph_backend SHARED ${SRC})
 
 if(COMMAND ie_faster_build)
