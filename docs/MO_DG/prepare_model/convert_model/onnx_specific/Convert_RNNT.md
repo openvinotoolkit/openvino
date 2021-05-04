@@ -1,4 +1,4 @@
-# Convert ONNX* RNNT to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
+# Convert ONNX* RNNT Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
 
 This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow 
 the steps below to export a PyTorch* model into ONNX* before converting it to IR:
