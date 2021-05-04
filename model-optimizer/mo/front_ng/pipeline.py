@@ -5,16 +5,16 @@ import argparse
 
 import logging as log
 from mo.front_ng.extractor import fe_user_data_repack
-from ngraph.utils.types import get_element_type
 
 
 def moc_pipeline(argv: argparse.Namespace):
-    from ngraph import function_to_cnn # pylint: disable=no-name-in-module,import-error
-    from ngraph import PartialShape    # pylint: disable=no-name-in-module,import-error
+    from ngraph import function_to_cnn                # pylint: disable=no-name-in-module,import-error
+    from ngraph import PartialShape                   # pylint: disable=no-name-in-module,import-error
+    from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
     log.info('New MOC pipeline')
     fem = argv.feManager
-    log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
-    log.info('Initializing new FE for framework {}'.format(argv.framework))
+    log.info(f'fem.availableFrontEnds: {str(fem.availableFrontEnds())}')
+    log.info(f'Initializing new FE for framework {argv.framework}')
     fe = fem.loadByFramework(argv.framework)
     print(fe)
     inputModel = fe.loadFromFile(argv.input_model)
@@ -34,11 +34,11 @@ def moc_pipeline(argv: argparse.Namespace):
         return eq
 
     inputsEqual = True
-    if len(user_shapes) > 0:
+    if user_shapes:
         inputsEqual = compare_nodes(inputModel.getInputs(), user_shapes)
 
     outputsEqual = True
-    if len(outputs) > 0:
+    if outputs:
         outputsEqual = compare_nodes(inputModel.getOutputs(), outputs)
     print("Inputs are same: {}, outputs are same: {}".format(inputsEqual, outputsEqual))
 
@@ -61,14 +61,13 @@ def moc_pipeline(argv: argparse.Namespace):
         print("Outputs: {}".format(newOutputPlaces))
         inputModel.overrideAllOutputs(newOutputPlaces)
 
-    # TODO: handle element type
-    if len(user_shapes) > 0:
+    if user_shapes:
         for user_shape in user_shapes:
             if 'shape' in user_shape and user_shape['shape'] is not None:
                 inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
             if 'data_type' in user_shape and user_shape['data_type'] is not None:
                 data_type = get_element_type(user_shape['data_type'])
-                log.debug("Set data type: {}".format(data_type))
+                log.debug(f"Set data type: {data_type}")
                 inputModel.setElementType(user_shape['node'], data_type)
 
     nGraphModel = fe.convert(inputModel)
