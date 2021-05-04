@@ -5,7 +5,7 @@
 #include "mkldnn_async_infer_request.h"
 #include <memory>
 
-MKLDNNPlugin::MKLDNNAsyncInferRequest::MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr& inferRequest,
+MKLDNNPlugin::MKLDNNAsyncInferRequest::MKLDNNAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr& inferRequest,
                                                                const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
                                                                const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor) {

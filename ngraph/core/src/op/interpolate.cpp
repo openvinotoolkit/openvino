@@ -173,7 +173,7 @@ namespace
         }
         return static_cast<int64_t>(static_cast<float>(bound) * scale);
     }
-}
+} // namespace
 
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
@@ -417,7 +417,7 @@ namespace
 
         return result;
     }
-}
+} // namespace
 
 void op::v4::Interpolate::correct_pads()
 {

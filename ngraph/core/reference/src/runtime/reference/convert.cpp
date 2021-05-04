@@ -30,6 +30,7 @@ namespace ngraph
                     gen.vpmovzxbd(i32vec, u8vec);
                     gen.vcvtdq2ps(fvec, i32vec);
                     gen.vcvtps2ph(f16vec, fvec, 0);
+                    gen.vzeroupper();
                     gen.movdqu(gen.xword[dst], f16vec);
                 }
 
@@ -184,6 +185,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

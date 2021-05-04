@@ -4,16 +4,18 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <ie_iinfer_request.hpp>
-#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace InferenceEngine {
+#include <ie_parameter.hpp>
+#include <ie_remote_context.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 
+namespace InferenceEngine {
+class IInferRequestInternal;
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
@@ -52,7 +54,7 @@ public:
      *  Note: the returned request will have allocated input and output blobs (that can be changed later)
      * @return shared_ptr for the created request
      */
-    virtual IInferRequest::Ptr CreateInferRequest() = 0;
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequest() = 0;
 
     /**
      * @deprecated Use IExecutableNetworkInternal::Export(std::ostream& networkModel)

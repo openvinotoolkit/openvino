@@ -49,7 +49,7 @@ namespace ngraph
                 size_t m_normalized_batch_axis;
                 size_t m_normalized_seq_axis;
             };
-        }
+        } // namespace v0
         using v0::ReverseSequence;
-    }
-}
+    } // namespace op
+} // namespace ngraph

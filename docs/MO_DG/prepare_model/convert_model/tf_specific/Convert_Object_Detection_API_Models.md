@@ -106,7 +106,7 @@ Models with `keep_aspect_ratio_resizer` were trained to recognize object in real
 Inference Engine comes with a number of samples that use Object Detection API models including:
 
 * [Object Detection for SSD Sample](../../../../../inference-engine/samples/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
-* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_README) --- for Mask R-CNNs
+* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
 
 There are a number of important notes about feeding input images to the samples:
 
@@ -1047,4 +1047,4 @@ The Mask R-CNN models are cut at the end with the sub-graph replacer `ObjectDete
 
 ```SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd```
 
-One of these two nodes produces output mask tensors. The child nodes of these nodes are related to post-processing which is implemented in the [Mask R-CNN demo](@ref omz_demos_mask_rcnn_demo_README) and should be cut off.
+One of these two nodes produces output mask tensors. The child nodes of these nodes are related to post-processing which is implemented in the [Mask R-CNN demo](@ref omz_demos_mask_rcnn_demo_cpp) and should be cut off.

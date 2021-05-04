@@ -48,7 +48,7 @@ namespace
         }
         return rc;
     }
-}
+} // namespace
 
 // *** SOFTMAX OP SET V1 ***
 constexpr NodeTypeInfo op::v1::Softmax::type_info;

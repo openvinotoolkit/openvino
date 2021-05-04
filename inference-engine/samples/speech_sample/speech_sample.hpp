@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
+#include <iostream>
 #include <string>
 #include <vector>
-#include <gflags/gflags.h>
-#include <iostream>
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
@@ -19,17 +20,19 @@ static const char input_message[] = "Required. Paths to .ark files. Example of u
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, "
+static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+                                            "GNA_SW_FP32, "
                                             "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. "
+                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown "
+                                            "below. "
                                             "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] = "Required for CPU plugin custom layers." \
-"Absolute path to a shared library with the kernels implementations.";
+static const char custom_cpu_library_message[] = "Required for CPU plugin custom layers."
+                                                 "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
 static const char output_message[] = "Optional. Output file name to save ark scores.";
@@ -58,37 +61,38 @@ static const char quantization_bits_message[] = "Optional. Weight bits for quant
 
 /// @brief message for scale factor argument
 static const char scale_factor_message[] = "Optional. User-specified input scale factor for quantization (use with -q user). "
-                                           "If the network contains multiple inputs, provide scale factors by separating them with commas.";
+                                           "If the network contains multiple inputs, provide scale factors by separating them with "
+                                           "commas.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
 
 /// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async" \
-" inference requests on the GNA.";
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async"
+                                                " inference requests on the GNA.";
 
 /// @brief message for left context window argument
-static const char context_window_message_l[] = "Optional. Number of frames for left context windows (default is 0). " \
+static const char context_window_message_l[] = "Optional. Number of frames for left context windows (default is 0). "
                                                "Works only with context window networks."
                                                " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for right context window argument
-static const char context_window_message_r[] = "Optional. Number of frames for right context windows (default is 0). " \
+static const char context_window_message_r[] = "Optional. Number of frames for right context windows (default is 0). "
                                                "Works only with context window networks."
                                                " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for output layer names
-static const char output_layer_names_message[] = "Optional. Layer names for output blobs. " \
-                                          "The names are separated with \",\" " \
-                                          "Example: Output1:port,Output2:port ";
+static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
+                                                 "The names are separated with \",\" "
+                                                 "Example: Output1:port,Output2:port ";
 
 /// @brief message for inputs layer names
-static const char input_layer_names_message[] = "Optional. Layer names for input blobs. " \
-                                          "The names are separated with \",\" " \
-                                          "Example: Input1,Input2 ";
+static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
+                                                "The names are separated with \",\" "
+                                                "Example: Input1,Input2 ";
 
 /// @brief message for PWL max error percent
-static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function." \
+static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
                                                     "The value must be in <0, 100> range. The default value is 1.0.";
 
 /// \brief Define flag for showing help message <br>
@@ -191,4 +195,3 @@ static void showUsage() {
     std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
     std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
 }
-

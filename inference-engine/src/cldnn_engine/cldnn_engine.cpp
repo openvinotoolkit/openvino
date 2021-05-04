@@ -7,7 +7,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <iostream>
 #include <cmath>
 #include <tuple>
 #include <cctype>
@@ -22,6 +21,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <ie_algorithm.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>

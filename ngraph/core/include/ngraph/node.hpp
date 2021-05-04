@@ -670,7 +670,7 @@ namespace ngraph
         {
         }
     };
-}
+} // namespace ngraph
 #define NODE_VALIDATION_CHECK(node, ...)                                                           \
     NGRAPH_CHECK_HELPER(::ngraph::NodeValidationFailure, (node), __VA_ARGS__)
 

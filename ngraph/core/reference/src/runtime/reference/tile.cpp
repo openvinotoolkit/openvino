@@ -31,7 +31,7 @@ namespace
         pitch.push_back(1);
         return pitch;
     }
-}
+} // namespace
 
 void runtime::reference::tile(const char* arg,
                               char* out,
