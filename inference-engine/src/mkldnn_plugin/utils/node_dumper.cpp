@@ -149,7 +149,7 @@ bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node) const {
     if (dumpFilters.empty())
         return false;
 
-    if (dumpFilters.count(FILTER::BY_EXEC_ID)) {                              // filter by exec id env set
+    if (dumpFilters.count(FILTER::BY_EXEC_ID)) { // filter by exec id env set
         std::stringstream ss(dumpFilters.at(FILTER::BY_EXEC_ID));
         int id;
         bool matched = false;
