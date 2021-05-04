@@ -21,19 +21,18 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
-    void execute(mkldnn::stream strm) override;
-    void withMeanImage() {
-        isMeanImage = true;
-    }
-
-    const InferenceEngine::Blob::CPtr getConstBlob() const {
-        return constBlob;
-    }
+    void withMeanImage();
+    const InferenceEngine::Blob::CPtr getConstBlob() const;
+    MKLDNNMemoryPtr getMemoryPtr() const;
 
 private:
-    InferenceEngine::Precision precision;
+    void cloneBlobIfRequired(const MKLDNNDims& dims, const InferenceEngine::Precision& prec);
 
+private:
+    std::shared_ptr<ngraph::Node> origLayer;
+    InferenceEngine::Precision precision;
     InferenceEngine::Blob::Ptr constBlob = nullptr;
+    MKLDNNMemoryPtr memoryPtr;
     bool isMeanImage = false;
 };
 

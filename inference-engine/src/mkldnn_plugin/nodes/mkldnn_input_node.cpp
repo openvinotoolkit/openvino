@@ -3,7 +3,9 @@
 //
 
 #include "mkldnn_input_node.h"
+#include "common/cpu_memcpy.h"
 #include "mkldnn_extension_utils.h"
+
 #include <string>
 #include <tuple>
 #include <algorithm>
@@ -23,7 +25,7 @@ using namespace details;
 using namespace ngraph::op;
 
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+        : MKLDNNNode(op, eng, cache), origLayer(op) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::type_info,
             v0::Constant::type_info,
@@ -48,10 +50,65 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
 
         TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
 
-        auto blob = make_blob_with_precision(td, const_cast<void*>(constOp->get_data_ptr()));
-        blob->allocate();
+        constBlob = make_blob_with_precision(td, const_cast<void*>(constOp->get_data_ptr()));
 
-        constBlob = blob;
+        MKLDNNDims dims(op->get_shape().empty() ? ngraph::Shape(1, 1) : op->get_shape());
+
+        cloneBlobIfRequired(dims, dataPrecision);
+     }
+}
+
+void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const InferenceEngine::Precision& prec) {
+    MKLDNNMemoryDesc memDesc(dims, MKLDNNExtensionUtils::IEPrecisionToDataType(prec));
+
+    auto cloneBlob = [&, this] () {
+        MKLDNNMemory memory{ getEngine() };
+        memory.Create(memDesc, constBlob->buffer());
+
+        MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        ptr->Create(memDesc);
+        ptr->SetData(memory);
+
+        return ptr;
+    };
+
+    auto isBlobAligned = [&, this] () {
+        const void *ptr = constBlob->cbuffer().as<const void*>();
+        return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+    };
+
+    // The presence of subnormals is better to determined at IR read time.
+    auto hasSubnormals = [&, this] () {
+        if (prec == InferenceEngine::Precision::FP32) {
+            uint32_t const *u32data = constBlob->cbuffer().as<const uint32_t*>();
+            const size_t size = constBlob->byteSize() / prec.size();
+            for (size_t i = 0; i < size; ++i) {
+                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    auto blobKey = [this] () {
+        char ptr[32];
+        snprintf(ptr, sizeof ptr, "%p", constBlob->cbuffer().as<const void*>());
+        return getName()
+                + "_" + std::to_string(constBlob->byteSize())
+                + "_" + ptr;
+    };
+
+    const void *data = constBlob->buffer();
+    (void)data;
+
+    if (weightCache) {
+        memoryPtr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+    } else if (isBlobAligned() && !hasSubnormals()) {
+        memoryPtr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        memoryPtr->Create(memDesc, constBlob->buffer());
+    } else {
+        memoryPtr = cloneBlob();
     }
 }
 
@@ -66,6 +123,18 @@ MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const 
         inDims.emplace_back(dims);
         addOriginalInputPrecision(prc);
     }
+}
+
+void MKLDNNInputNode::withMeanImage() {
+    isMeanImage = true;
+}
+
+const InferenceEngine::Blob::CPtr MKLDNNInputNode::getConstBlob() const {
+    return constBlob;
+}
+
+MKLDNNMemoryPtr MKLDNNInputNode::getMemoryPtr() const {
+    return memoryPtr;
 }
 
 void MKLDNNInputNode::getSupportedDescriptors() {
@@ -145,82 +214,6 @@ void MKLDNNInputNode::createPrimitive() {
 
 bool MKLDNNInputNode::created() const {
     return getType() == Input || getType() == Output;
-}
-
-namespace {
-    bool isDefaultOrder(const SizeVector &order) {
-        return std::is_sorted(order.begin(), order.end(),
-                                [](size_t a, size_t b) { return a + 1 == b; });
-    }
-
-    std::tuple<bool, size_t> isDefaultStrides(const SizeVector &strides,
-                                              const SizeVector &dims) {
-        if (strides.size() != dims.size())
-            return std::make_tuple(false, 0);
-
-        size_t dim = 1;
-
-        for (size_t i = dims.size(); i-- > 0;) {
-            if (strides[i] != dim)
-                return std::make_tuple(false, 0);
-            dim *= dims[i];
-        }
-
-        return std::make_tuple(true, dim);
-    }
-
-    bool isCompatibleTensors(const TensorDesc &lhs, const TensorDesc &rhs,
-                             bool isNeedPrecValid = true) {
-        auto const &lhsBlockingDesc = lhs.getBlockingDesc();
-        auto const &rhsBlockingDesc = rhs.getBlockingDesc();
-
-        bool lhsDefaultStrides = false, rhsDefaultStrides = false;
-        size_t lhsSize = 0lu, rhsSize = 0lu;
-
-        std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
-        std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());
-        bool isCompatTensors = lhsSize == rhsSize
-                               && lhsDefaultStrides
-                               && rhsDefaultStrides
-                               && isDefaultOrder(lhsBlockingDesc.getOrder())
-                               && isDefaultOrder(rhsBlockingDesc.getOrder());
-
-        return (isNeedPrecValid ? lhs.getPrecision() == rhs.getPrecision() : true) && isCompatTensors;
-    }
-}   // namespace
-
-void MKLDNNInputNode::execute(mkldnn::stream strm) {
-    if (!constBlob)
-        return;
-    auto dstBlob = getChildEdgeAt(0)->getBlob();
-
-    if (isEmptyTensorDesc(dstBlob->getTensorDesc()) || isEmptyTensorDesc(constBlob->getTensorDesc()))
-        return;
-
-    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
-        || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() == Precision::BIN ||
-               dstBlob->getTensorDesc().getPrecision() == Precision::BIN) {
-        size_t dstSize = dstBlob->size() / 8;
-        if (constBlob->size() != dstSize) {
-            IE_THROW() << "Incorrect blob sizes for node " << getName();
-        }
-
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() != dstBlob->getTensorDesc().getPrecision() &&
-               isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc(), false)) {
-        cpu_convert(constBlob->cbuffer().as<const void *>(), dstBlob->buffer().as<void *>(),
-                    constBlob->getTensorDesc().getPrecision(), dstBlob->getTensorDesc().getPrecision(), dstBlob->size());
-    } else {
-        IE_THROW() << "Input node with name: '" << getName() << "' has incompatible tensors";
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);

@@ -367,10 +367,10 @@ bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const
 }
 
 void MKLDNNNode::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority());
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
 }
 
-void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority) {
+void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -383,6 +383,13 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
                 for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
                     auto parentEdge = getParentEdgeAt(j);
                     auto parentPtr = parentEdge->getParent();
+
+                    // We don't take into account constant edges since reorders on them will be executed on load network stage
+                    if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                        equalsLocalFormatCount++;
+                        continue;
+                    }
+
                     auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
 
                     if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
