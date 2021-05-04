@@ -9,11 +9,12 @@ from mo.middle.passes.infer import validate_batch_in_shape
 
 
 def moc_pipeline(argv: argparse.Namespace):
-    from ngraph import Dimension, PartialShape    # pylint: disable=no-name-in-module,import-error
+    from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
+    from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
     log.info('New MOC pipeline')
     fem = argv.feManager
-    log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
-    log.info('Initializing new FE for framework {}'.format(argv.framework))
+    log.info(f'fem.availableFrontEnds: {str(fem.availableFrontEnds())}')
+    log.info(f'Initializing new FE for framework {argv.framework}')
     fe = fem.loadByFramework(argv.framework)
     inputModel = fe.loadFromFile(argv.input_model)
 
@@ -32,42 +33,45 @@ def moc_pipeline(argv: argparse.Namespace):
         return eq
 
     inputsEqual = True
-    if len(user_shapes) > 0:
+    if user_shapes:
         inputsEqual = compare_nodes(inputModel.getInputs(), user_shapes)
 
     outputsEqual = True
-    if len(outputs) > 0:
+    if outputs:
         outputsEqual = compare_nodes(inputModel.getOutputs(), outputs)
-    log.debug("Inputs are same: {}, outputs are same: {}".format(inputsEqual, outputsEqual))
+    log.debug(f"Inputs are same: {inputsEqual}, outputs are same: {outputsEqual}")
 
     if not inputsEqual and not outputsEqual:
         # Use ExtractSubgraph
         newInputPlaces = [x['node'] for x in user_shapes]
         newOutputPlaces = [x['node'] for x in outputs]
         log.debug("Using extract subgraph")
-        log.debug("Inputs: {}".format(newInputPlaces))
-        log.debug("Outputs: {}".format(newOutputPlaces))
+        log.debug(f"Inputs: {newInputPlaces}")
+        log.debug(f"Outputs: {newOutputPlaces}")
         inputModel.extractSubgraph(newInputPlaces, newOutputPlaces)
     elif not inputsEqual:
         newInputPlaces = [x['node'] for x in user_shapes]
         log.debug("Using overrideAllInputs")
-        log.debug("Inputs: {}".format(newInputPlaces))
+        log.debug(f"Inputs: {newInputPlaces}")
         inputModel.overrideAllInputs(newInputPlaces)
     elif not outputsEqual:
         newOutputPlaces = [x['node'] for x in outputs]
         log.debug("Using overrideAllOutputs")
-        log.debug("Outputs: {}".format(newOutputPlaces))
+        log.debug(f"Outputs: {newOutputPlaces}")
         inputModel.overrideAllOutputs(newOutputPlaces)
 
-    # TODO: handle element type
-    if len(user_shapes) > 0:
+    if user_shapes:
         for user_shape in user_shapes:
             if 'shape' in user_shape and user_shape['shape'] is not None:
                 inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
+            if 'data_type' in user_shape and user_shape['data_type'] is not None:
+                data_type = get_element_type(user_shape['data_type'])
+                log.debug(f"Set data type: {data_type}")
+                inputModel.setElementType(user_shape['node'], data_type)
 
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
-        log.debug("Setting batch size to {}".format(argv.batch))
+        log.debug(f"Setting batch size to {argv.batch}")
         for place in inputModel.getInputs():
             oldPartShape = inputModel.getPartialShape(place)
             newshape = []
@@ -86,8 +90,7 @@ def moc_pipeline(argv: argparse.Namespace):
                 validate_batch_in_shape(oldshape_converted, joinedName)
 
             newPartShape = PartialShape(newshape)
-            log.debug("Input: {}, Old shape: {}, New shape: {}"
-                      .format(joinedName, oldshape_converted, newshape))
+            log.debug(f"Input: {joinedName}, Old shape: {oldshape_converted}, New shape: {newshape}")
             inputModel.setPartialShape(place, newPartShape)
 
     nGraphFunction = fe.convert(inputModel)
