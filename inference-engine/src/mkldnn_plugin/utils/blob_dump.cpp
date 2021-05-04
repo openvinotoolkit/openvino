@@ -143,7 +143,7 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
     return pln_blob;
 }
 
-void BlobDumper::dump(std::ostream &stream) {
+void BlobDumper::dump(std::ostream &stream) const {
     if (!_blob)
         IE_THROW() << "Dumper cannot dump empty Blob";
 
@@ -172,7 +172,7 @@ void BlobDumper::dump(std::ostream &stream) {
     }
 }
 
-void BlobDumper::dumpAsTxt(std::ostream &stream) {
+void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     if (!_blob)
         IE_THROW() << "Dumper cannot dump empty Blob";
 
@@ -289,7 +289,7 @@ BlobDumper BlobDumper::read(const std::string &file_path) {
     return res;
 }
 
-void BlobDumper::dump(const std::string &dump_path) {
+void BlobDumper::dump(const std::string &dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
@@ -299,7 +299,7 @@ void BlobDumper::dump(const std::string &dump_path) {
     dump_file.close();
 }
 
-void BlobDumper::dumpAsTxt(const std::string dump_path) {
+void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())

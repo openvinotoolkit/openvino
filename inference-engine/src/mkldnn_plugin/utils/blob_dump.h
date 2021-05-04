@@ -32,11 +32,11 @@ public:
     static BlobDumper read(const std::string &file_path);
     static BlobDumper read(std::istream &stream);
 
-    void dump(const std::string &file_path);
-    void dump(std::ostream &stream);
+    void dump(const std::string &file_path) const;
+    void dump(std::ostream &stream) const;
 
-    void dumpAsTxt(const std::string file_path);
-    void dumpAsTxt(std::ostream &stream);
+    void dumpAsTxt(const std::string &file_path) const;
+    void dumpAsTxt(std::ostream &stream) const;
 
     BlobDumper& withScales(InferenceEngine::Blob::Ptr scales);
     BlobDumper& withoutScales();

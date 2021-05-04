@@ -592,6 +592,7 @@ protected:
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
+    friend class NodeDumper;
 
     bool isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const;
     bool isInitConfig(const InferenceEngine::LayerConfig& config) const;
