@@ -51,10 +51,9 @@ public:
      * @brief Executes input pre-processing with a given pre-processing information.
      * @param outBlob pre-processed output blob to be used for inference.
      * @param info pre-processing info that specifies resize algorithm and color format.
-     * @param serial disable OpenMP threading if the value set to true.
      * @param batchSize batch size for pre-processing.
      */
-    virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
+    virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, int batchSize = -1) = 0;
 
     //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;

@@ -181,13 +181,13 @@ void IInferRequestInternal::SetCallback(Callback callback) {
     _callback = std::move(callback);
 }
 
-void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {
+void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs) {
     for (auto& input : preprocessedBlobs) {
         // If there is a pre-process entry for an input then it must be pre-processed
         // using preconfigured resize algorithm.
         auto it = _preProcData.find(input.first);
         if (it != _preProcData.end()) {
-            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, m_curBatch);
+            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), m_curBatch);
         }
     }
 }

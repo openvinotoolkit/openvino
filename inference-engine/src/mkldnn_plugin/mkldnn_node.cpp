@@ -143,6 +143,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
         { "Erf", Eltwise },
+        { "Roll", Roll },
 };
 
 Type TypeFromName(const std::string type) {

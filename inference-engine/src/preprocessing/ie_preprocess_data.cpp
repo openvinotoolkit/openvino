@@ -34,7 +34,7 @@ public:
 
     Blob::Ptr getRoiBlob() const override;
 
-    void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial, int batchSize = -1) override;
+    void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, int batchSize = -1) override;
 
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
@@ -53,8 +53,7 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
     return _userBlob;
 }
 
-void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial,
-        int batchSize) {
+void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, int batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Preprocessing");
 
     auto algorithm = info.getResizeAlgorithm();
@@ -70,7 +69,7 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
         _preproc.reset(new PreprocEngine);
     }
 
-    _preproc->preprocessWithGAPI(_userBlob, preprocessedBlob, algorithm, fmt, serial, batchSize);
+    _preproc->preprocessWithGAPI(_userBlob, preprocessedBlob, algorithm, fmt, batchSize);
 }
 
 void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {

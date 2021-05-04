@@ -178,7 +178,7 @@ protected:
      * @param inputs Inputs blobs to perform preprocessing on
      * @param serial Whether to use multiple threads to execute the step
      */
-    void execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial = false);
+    void execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs);
 
     /**
      * @brief Helper function to find input or output blob by name
