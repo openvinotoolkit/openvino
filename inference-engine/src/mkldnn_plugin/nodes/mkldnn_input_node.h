@@ -20,19 +20,17 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
-    void execute(mkldnn::stream strm) override;
-    void withMeanImage() {
-        isMeanImage = true;
-    }
+    void withMeanImage();
+    const InferenceEngine::Blob::CPtr getConstBlob() const;
+    MKLDNNMemoryPtr getMemoryPtr() const;
 
-    const InferenceEngine::Blob::CPtr getConstBlob() const {
-        return constBlob;
-    }
+private:
+    void cloneBlobIfRequired(const MKLDNNDims& dims, const InferenceEngine::Precision& prec);
 
 private:
     InferenceEngine::Precision precision;
-
     InferenceEngine::Blob::Ptr constBlob;
+    MKLDNNMemoryPtr memoryPtr;
     bool isMeanImage = false;
 };
 

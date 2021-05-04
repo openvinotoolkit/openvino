@@ -117,6 +117,13 @@ bool MKLDNNEdge::needReorder() {
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
 }
 
+void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
+    if (status != Status::NeedAllocation)
+        return;
+    memoryPtr = ptr;
+    status = Status::Allocated;
+}
+
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY) {
         inputDesc = getSpecifiedInputDesc({});
