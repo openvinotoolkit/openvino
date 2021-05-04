@@ -1401,54 +1401,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
 }
 
 void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
-    for (auto& type : getPrimitivesPriority()) {
-        int selectedPrimitive = -1;
-        int equalsFormatCount = -1;
-        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
-            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
-            if (type == supportedType) {
-                int equalsLocalFormatCount = 0;
-                if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
-                    continue;
-                for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
-                    auto parentEdge = getParentEdgeAt(j);
-                    auto parentPtr = parentEdge->getParent();
-                    // We don't take into account constant edges since reorders on them will be executed on load network stage
-                    if (j > 0 && parentPtr->isConstant()) {
-                        equalsLocalFormatCount++;
-                        continue;
-                    }
-
-                    auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
-
-                    if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
-                        int inNum = parentEdge->getInputNum();
-                        if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
-                            inNum = 0;
-                        }
-                        if (MKLDNNExtensionUtils::initTensorsAreEqual(
-                                getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc,
-                                parent_spd->getConfig().outConfs[inNum].desc)) {
-                            equalsLocalFormatCount++;
-                        }
-                    }
-                }
-                if (equalsLocalFormatCount > equalsFormatCount) {
-                    equalsFormatCount = equalsLocalFormatCount;
-                    selectedPrimitive = static_cast<int>(i);
-                }
-            }
-        }
-        if (selectedPrimitive >= 0) {
-            selectPrimitiveDescriptorByIndex(selectedPrimitive);
-            return;
-        }
-    }
-
-    if (getSupportedPrimitiveDescriptors().empty())
-        IE_THROW() << "Supported primitive descriptors list is empty for node: " << getName();
-    // fallback. If there are no primitives from priority list just select a first
-    selectPrimitiveDescriptorByIndex(0);
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
 void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
