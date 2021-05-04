@@ -69,7 +69,7 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddConvert_CPU) {
 
     BuildGraph(ngraph::element::bf16);
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Convert", 1);
+    CheckNodeOfTypeCount(executableNetwork, "Convert", with_cpu_x86_avx512_core() ? 1 : 0);
     CheckNodeOfTypeCount(executableNetwork, "Reorder", 0);
 }
 

@@ -565,18 +565,46 @@ bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     auto refStrides = refDesc.data.format_desc.blocking.strides;
 
     std::vector<size_t> actualOrder(desc.data.ndims);
-    std::iota(actualOrder.begin(), actualOrder.end(), 0);
-    std::sort(actualOrder.begin(), actualOrder.end(),
-              [&actualStrides] (size_t ind_l, size_t ind_r) {
-                  return actualStrides[ind_l] > actualStrides[ind_r];
-              });
+    {
+        const auto dims = desc.dims();
+        std::vector<size_t> total_block_per_dim(dims.size(), 1);
+        const auto &blk_desc = desc.data.format_desc.blocking;
+        for (int i = 0; i < blk_desc.inner_nblks; i++) {
+            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+        }
+        std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
+        for (size_t i = 0; i < outer_block_dims.size(); i++) {
+            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+        }
+
+        std::iota(actualOrder.begin(), actualOrder.end(), 0);
+        std::sort(actualOrder.begin(), actualOrder.end(),
+                  [&actualStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+                      return (actualStrides[ind_l] > actualStrides[ind_r]) ||
+                             (actualStrides[ind_l] == actualStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+                  });
+    }
 
     std::vector<size_t> refOrder(refDesc.data.ndims);
-    std::iota(refOrder.begin(), refOrder.end(), 0);
-    std::sort(refOrder.begin(), refOrder.end(),
-              [&refStrides] (size_t ind_l, size_t ind_r) {
-                  return refStrides[ind_l] > refStrides[ind_r];
-              });
+    {
+        const auto dims = refDesc.dims();
+        std::vector<size_t> total_block_per_dim(dims.size(), 1);
+        const auto &blk_desc = refDesc.data.format_desc.blocking;
+        for (int i = 0; i < blk_desc.inner_nblks; i++) {
+            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+        }
+        std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
+        for (size_t i = 0; i < outer_block_dims.size(); i++) {
+            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+        }
+
+        std::iota(refOrder.begin(), refOrder.end(), 0);
+        std::sort(refOrder.begin(), refOrder.end(),
+                  [&refStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+                      return (refStrides[ind_l] > refStrides[ind_r]) ||
+                             (refStrides[ind_l] == refStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+                  });
+    }
 
     if (actualOrder != refOrder) {
         return false;
