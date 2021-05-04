@@ -57,11 +57,12 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             }
         }
 
-        const auto subtractConstant = opsMap.at(subtractConstantWrapper).get_node_shared_ptr();
-        if (!NetworkHelper::isConvertable(subtractConstant, quantizePrecision)) {
+        const auto subtract = opsMap.at(subtractWrapper).get_node_shared_ptr();
+        if (!NetworkHelper::checkZeroPoint(subtract)) {
             return false;
         }
 
+        const auto subtractConstant = opsMap.at(subtractConstantWrapper).get_node_shared_ptr();
         auto resultSubtractConstant = NetworkHelper::round(subtractConstant, quantizePrecision);
         if (NetworkHelper::isScalarLike(resultSubtractConstant)) {
             resultSubtractConstant = NetworkHelper::toScalar(resultSubtractConstant);
@@ -85,7 +86,6 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
 
             const auto newSubtract = std::make_shared<opset1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
-            const auto subtract = opsMap.at(subtractWrapper).get_node_shared_ptr();
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }

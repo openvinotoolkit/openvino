@@ -425,42 +425,6 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
     return nullptr;
 }
 
-bool NetworkHelper::isConvertable(const std::shared_ptr<Node>& node, const element::Type targetType) {
-    const auto constant = as_type_ptr<opset1::Constant>(node);
-    assert(constant);
-
-    const auto values = constant->cast_vector<float>();
-    float min;
-    float max;
-    switch (targetType) {
-        case element::i8: {
-            min = -128.f;
-            max = 127.f;
-            break;
-        }
-        case element::u8: {
-            min = 0.f;
-            max = 255.f;
-            break;
-        }
-        case element::i4: {
-            min = -8.f;
-            max = 7.f;
-            break;
-        }
-        case element::u4: {
-            min = 0.f;
-            max = 15.f;
-            break;
-        }
-        default: {
-            return false;
-        }
-    }
-
-    return std::all_of(values.begin(), values.end(), [&](const float value) { return (min <= value) && (value <= max); });
-}
-
 std::shared_ptr<opset1::Constant> NetworkHelper::round(std::shared_ptr<Node> node, element::Type target_type) {
     const auto constant = as_type_ptr<opset1::Constant>(node);
     assert(constant);
