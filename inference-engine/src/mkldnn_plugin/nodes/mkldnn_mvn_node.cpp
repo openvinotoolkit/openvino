@@ -690,7 +690,6 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         epsMode_ = INSIDE_SQRT;
         acrossChannels_ = mvnOp->get_across_channels();
     }
-
     SizeVector inShape = getParentEdgeAt(0)->getDims().ToSizeVector();
     transformTo5DCase(inShape);
 }
