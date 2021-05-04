@@ -340,7 +340,7 @@ public:
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                     const std::string in_var, const Datatype in_type,
-                                    std::string& out_var, Datatype& out_type) const;
+                                    std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 
@@ -353,7 +353,7 @@ public:
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
-    std::string GetOutputVarName(std::string input_var_name) const;
+    std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
