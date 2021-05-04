@@ -20,9 +20,10 @@ the number of batch dimensions. `N` and `M` are numbers of dimensions of `data` 
 * *batch_dims*
   * **Description**: *batch_dims* (also denoted as `b`) is a leading number of dimensions of `data` tensor and `indices` 
   representing the batches, and *Gather* starts to gather from the `b` dimension. It requires the first `b` 
-  dimensions in `data` and `indices` tensors to be equal. If *batch_dims* is less than zero used normalized value 
+  dimensions in `data` and `indices` tensors to be equal. If `batch_dims` is less than zero, normalized value is used 
   `batch_dims = indices.rank + batch_dims`.
-  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank))` and `batch_dims <= axis`
+  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank))` and `batch_dims' <= axis'`.
+  Where `batch_dims'` and `axis'` stand for normalized `batch_dims` and `axis` values.
   * **Type**: *T_AXIS*
   * **Default value**: 0
   * **Required**: *no*
@@ -139,8 +140,9 @@ output_shape = (2, 3)
 **Required**.
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
-*axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. 
-Allowed values are from `[-len(data.shape), len(data.shape) - 1]` and `axis >= batch_dims`. 
+*axis* equal to 1 means that gathering is performed over the first dimension. Negative `axis` means reverse indexing and 
+  will be normalized to value `axis = data.rank + axis`. Allowed values are from `[-len(data.shape), len(data.shape) - 1]` 
+  and `axis' >= batch_dims'`. Where `axis'` and `batch_dims'` stand for normalized `batch_dims` and `axis` values.
 **Required**.
 
 **Outputs**
@@ -152,9 +154,9 @@ of the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.s
 
 * *T*: any supported type.
 
-* *T_IND*: `int32` or `int64`.
+* *T_IND*: any supported integer types.
 
-* *T_AXIS*: `int32` or `int64`.
+* *T_AXIS*: any supported integer types.
 
 **Example**
 
