@@ -52,6 +52,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     bool isFloatModel = true;
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         // Check if network is INT8 or Binary.
+        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
+        // BF16 + INT8 or BF16 + BIN.
         CNNNetworkIterator iter(network);
         while (iter != CNNNetworkIterator()) {
             if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
@@ -85,19 +87,12 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             }
         };
 
-        if (with_cpu_x86_avx512_core()) {
+        if (with_cpu_x86_avx512_core() && isFloatModel) {
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
             // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-
-            // BF16 + INT8 or BF16 + BIN models will be performed in mixed precision execution only if
-            // enforceBF16 flag was set manually
-            if (isFloatModel == false) {
-                if (cfg.manualEnforceBF16 == true)
-                    changePrecisionBF16(Precision::FP32, Precision::BF16);
-            } else if (cfg.enforceBF16 == true) {
+            if (cfg.enforceBF16 == true)
                 changePrecisionBF16(Precision::FP32, Precision::BF16);
-            }
         } else {
             changePrecisionBF16(Precision::BF16, Precision::FP32);
         }

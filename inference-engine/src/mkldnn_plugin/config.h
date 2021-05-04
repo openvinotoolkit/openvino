@@ -34,7 +34,6 @@ struct Config {
 #else
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
-    bool manualEnforceBF16 = false;
 #endif
 
     void readProperties(const std::map<std::string, std::string> &config);
