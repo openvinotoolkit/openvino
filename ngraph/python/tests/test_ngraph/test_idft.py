@@ -175,6 +175,6 @@ def test_idft_3d_signal_size():
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.ifftn(np.squeeze(input_data.view(dtype=np.complex64), axis=-1),
-                             s=[4, 5, 16], axes=[0, 1, 2])
+                              s=[4, 5, 16], axes=[0, 1, 2])
     expected_results = np_results.view(dtype=np.float32).reshape((4, 5, 16, 2))
     assert np.allclose(dft_results, expected_results, atol=0.000002)
