@@ -208,6 +208,6 @@ namespace ngraph
 
                 } // for (size_t b = 0; b < batchNum; b++)
             }     // CTCLoss
-        }         // reference
-    }             // runtime
-} // ngraph
+        }         // namespace reference
+    }             // namespace runtime
+} // namespace ngraph

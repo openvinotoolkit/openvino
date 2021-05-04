@@ -114,7 +114,7 @@ jobs:
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
       echo "2021.2" > $(INSTALL_DIR)/deployment_tools/inference_engine/version.txt
-      ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
+      CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
     workingDirectory: $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Build ONNX Runtime'
 

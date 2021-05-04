@@ -104,13 +104,15 @@ Options:
                                 estimations the number of streams should be set to 1.
     -nthreads "<integer>"       Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
-                                        'true'  - enable  bfloat16 regardless of platform support
-                                        'false' - disable bfloat16 regardless of platform support.
-    -pin "YES"/"NO"/"NUMA"      Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
+    -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
+                                Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
+					            enabling threads->cores pinning ("YES", which is already default for a conventional CPU),  
+			                    letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
+			                    threads->(NUMA)nodes ("NUMA") or 
+			      	            completely disable ("NO") CPU inference threads pinning.
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
     -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
-
 
   Statistics dumping options:
     -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
@@ -128,7 +130,7 @@ If a model has only image input(s), please provide a folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -200,4 +202,4 @@ Below are fragments of sample output for CPU and FPGA devices:
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)

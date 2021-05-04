@@ -8,7 +8,6 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;

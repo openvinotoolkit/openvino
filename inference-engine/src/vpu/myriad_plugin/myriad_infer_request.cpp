@@ -33,7 +33,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        const MyriadConfig& myriadConfig,
                                        const Logger::Ptr &log,
                                        const MyriadExecutorPtr &executor) :
-        InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
+        IInferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc) {

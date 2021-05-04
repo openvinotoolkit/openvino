@@ -10,7 +10,6 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35930
 
 
 @pytest.mark.parametrize(
@@ -267,7 +266,7 @@ def test_logsoftmax():
 
 def test_softplus():
     def softplus(x):
-        return np.log(np.exp(x) + 1)
+        return np.where(x < 20, np.log(np.exp(x) + 1), x)
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)
@@ -378,8 +377,9 @@ def test_cast_to_uint(val_type):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35930
 def test_cast_errors():
+    from onnx.onnx_cpp2py_export.checker import ValidationError
+
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
 
@@ -396,7 +396,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported data type representation
@@ -412,7 +412,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported input tensor data type:

@@ -54,9 +54,11 @@ enum Type {
     ROIAlign,
     ROIPooling,
     BatchNormalization,
+    DepthToSpace,
     Flatten,
     Pad,
     Permute,
+    SpaceToDepth,
     StridedSlice,
     Copy,
     MemoryOutput,
@@ -85,7 +87,8 @@ enum Type {
     ReduceOr,
     ReduceProd,
     ReduceSum,
-    ReduceSumSquare
+    ReduceSumSquare,
+    Roll
 };
 
 Type TypeFromName(const std::string type);
@@ -134,12 +137,16 @@ static std::string NameFromType(Type type) {
             return "ROIPooling";
         case BatchNormalization:
             return "BatchNormalization";
+        case DepthToSpace:
+            return "DepthToSpace";
         case Flatten:
             return "Flatten";
         case Pad:
             return "Pad";
         case Permute:
             return "Permute";
+        case SpaceToDepth:
+            return "SpaceToDepth";
         case StridedSlice:
             return "StridedSlice";
         case Copy:
@@ -200,6 +207,8 @@ static std::string NameFromType(Type type) {
             return "ReduceSum";
         case ReduceSumSquare:
             return "ReduceSumSquare";
+        case Roll:
+            return "Roll";
         default:
             return "Unknown";
     }
