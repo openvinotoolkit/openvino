@@ -176,6 +176,21 @@ static std::vector<float> generateScaleFactors(float startRange, float endRange,
 }
 
 /**
+ * @brief Calculates weights reducer using statistics from the destination quantization statistics.
+ * @param dst_quant destination quantization statistics
+ * @return Weights reducer
+ */
+static double calculateWeightsReducerFromDstStats(Quantization dst_quant) {
+    auto maxAbsVal = std::max(std::abs(dst_quant.GetMinValues().front()),
+        std::abs(dst_quant.GetMaxValues().front()));
+
+    auto maxIntVal = static_cast<int64_t>(maxAbsVal * dst_quant.GetScale() + 0.5f);
+    double weightsReducer = static_cast<double>(maxIntVal) / std::numeric_limits<int32_t>::max();
+    weightsReducer = std::max(1.0, weightsReducer);
+    return weightsReducer;
+}
+
+/**
  * @brief calculates output scale factor per layer
  * @tparam T
  */
@@ -362,7 +377,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 result = (quantizedParams->_dst_quant.GetLevels() - 1) / (2 * absMax);
             }
             //
-//            result = MAX_VAL_2B_FEAT / absMax;
+            //result = MAX_VAL_2B_FEAT / absMax;
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -1163,12 +1178,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 }
             }
 
-            auto maxAbsVal = std::max(std::abs(quant->_dst_quant.GetMinValues().front()),
-                std::abs(quant->_dst_quant.GetMaxValues().front()));
-
-            auto maxIntVal = static_cast<int64_t>(maxAbsVal * quant->_dst_quant.GetScale() + 0.5f);
-            auto weightsReducer = static_cast<double>(maxIntVal) / std::numeric_limits<int32_t>::max();
-            weightsReducer = std::max(1.0, weightsReducer);
+            auto weightsReducer = calculateWeightsReducerFromDstStats(quant->_dst_quant);
             if (!fp32eq(weightsReducer, 1.0f)) {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weightsReducer);
             }
@@ -1223,12 +1233,7 @@ public:
         // If the first input is const it's possible to reduce its scale factor to avoid overflow
         if (LayerInfo(in0).isConst() && quantData->_dst_quant.IsStatsSet()) {
             // Adjust weights scale factor if output values exceed int32 maximum value
-            auto maxAbsVal = std::max(std::abs(quantData->_dst_quant.GetMinValues().front()),
-                std::abs(quantData->_dst_quant.GetMaxValues().front()));
-
-            auto maxIntVal = static_cast<int64_t>(maxAbsVal * quantData->_dst_quant.GetScale() + 0.5f);
-            float weightsReducer = static_cast<double>(maxIntVal) / std::numeric_limits<int32_t>::max();
-            weightsReducer = std::max(1.0f, weightsReducer);
+           auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
             if (!fp32eq(weightsReducer, 1.0f)) {
                 quantParams0->_dst_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
                 quantData->_src_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);

@@ -369,6 +369,34 @@ namespace {
     }
 } // namespace
 
+void ReorderMaxPoolPass::run() {
+    // detecting following pattern
+    // conv->activation->maxpooling
+    // changing it to conv->maxpooling->activation
+    for (auto & l : *pLayers) {
+        auto pool = LayerInfo(l);
+        if (!pool.isMaxPooling()) continue;
+
+        // don't reorder if pooling is 2D for CNN2D
+        auto pooling = dynamic_cast<PoolingLayer*>(l.get());
+        // todo: return the check for stride after it'll be fixed in MO for Kaldi models
+        if (pooling == nullptr || (is2D(pooling->_kernel))) continue;
+
+        // checking prev layer type
+        auto actLayer = CNNNetPrevLayer(l);
+        auto activation = LayerInfo(actLayer);
+        if (!activation.isActivation() || actLayer->insData.size() > 1) continue;
+
+        // if activation came from convolution
+        auto convolution = LayerInfo(CNNNetPrevLayer(static_cast<InferenceEngine::CNNLayer*>(activation)));
+        if (!convolution.isConvolution()) continue;
+
+        gnalog() << "MaxPooling: " << pool << ", reordered with activation: " << activation << "\n";
+
+        CNNNetSwapLayers(activation, pool);
+    }
+}
+
 void SubstituteSoftSignPass::run() {
     //detecting following pattern
     // irv7 model:          irv10 model:
@@ -2156,17 +2184,16 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Connect all next layers after FQ to the layer that is before FQ
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
-            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-            if (insDatas.size() == 0) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                    << LAYER_NAME(nextLayers[i]) << " is not correct";
-            }
-
             if (isFQFuseAllowed) {
-                for (int next_out = 0; next_out < insDatas.size(); next_out++) {
-                    nextLayers[i]->insData[insDatas.front()] = prevData;
-                    getInputTo(prevLayer->outData[next_out])[nextLayers[i]->name] = nextLayers[i];
+                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+                if (insDatas.empty()) {
+                    THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                        << LAYER_NAME(nextLayers[i]) << " is not correct";
                 }
+                for (int insDataIdx : insDatas) {
+                    nextLayers[i]->insData[insDataIdx] = prevData;
+                }
+                getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
             }
 
             propagateStatistics(quantParamsPrevLayer, nextLayers[i]);

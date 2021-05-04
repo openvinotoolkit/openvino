@@ -1244,7 +1244,8 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto in_2b_total_size = in_2b_batch * in_2b_channels * in_2b_height * in_2b_width;
 
     if (in_2b_batch != in_4b_batch) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with different batch sizes are not supported";
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with different batch sizes " << in_2b_batch << " and "
+                                         << in_4b_batch << " are not supported";
     }
 
     if (in_4b_total_size != in_2b_total_size) {

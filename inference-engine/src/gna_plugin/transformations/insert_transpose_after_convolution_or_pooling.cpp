@@ -79,7 +79,7 @@ InsertTransposeAfterConvOrPool::InsertTransposeAfterConvOrPool() {
                                 << " min dimension size: " << min << " max dimension size: " << max;
         }
 
-        gnalog() << "InsertTransposeAfterConvOrPool: insert Transpose after " << conv_or_pool_node->get_friendly_name() << "\n";
+        gnalog() << "Insert Transpose after " << conv_or_pool_node->get_friendly_name() << "\n";
 
         auto consumers = conv_or_pool_node->output(0).get_target_inputs();
 

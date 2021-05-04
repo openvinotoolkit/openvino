@@ -22,12 +22,16 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
     auto ih = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto ol = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto oh = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto fq_or_act1 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize,
-            ngraph::op::util::UnaryElementwiseArithmetic>({conv, il, ih, ol, oh});
-    auto fq_or_act2 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize,
-            ngraph::op::util::UnaryElementwiseArithmetic>({add, il, ih, ol, oh});
-    auto fq = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq_or_act1, fq_or_act2});
-    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({fq});
+    auto fq1 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({conv, il, ih, ol, oh});
+    auto fq2 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({add, il, ih, ol, oh});
+    auto act1 = ngraph::pattern::wrap_type<ngraph::opset1::Relu, ngraph::opset1::Sigmoid,
+            ngraph::opset1::Tanh, ngraph::opset1::Abs, ngraph::opset1::Log, ngraph::opset1::Exp,
+            ngraph::opset1::Sign, ngraph::opset1::Clamp>({conv});
+    auto act2 = ngraph::pattern::wrap_type<ngraph::opset1::Relu, ngraph::opset1::Sigmoid,
+            ngraph::opset1::Tanh, ngraph::opset1::Abs, ngraph::opset1::Log, ngraph::opset1::Exp,
+            ngraph::opset1::Sign, ngraph::opset1::Clamp>({add});
+    auto act = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq1, fq2, act1, act2});
+    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({act});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -42,7 +46,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto act = pool_node->input_value(0).get_node_shared_ptr();
         IE_ASSERT(act != nullptr);
 
-        gnalog() << "ReorderActivationAndPooling: reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
+        gnalog() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
 
         auto node_before_act = act->input_value(0).get_node_shared_ptr();
         IE_ASSERT(node_before_act != nullptr);

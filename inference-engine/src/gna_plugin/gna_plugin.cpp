@@ -58,6 +58,7 @@
 
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
+#include "transformations/insert_transpose_before_matmul.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
 
@@ -668,6 +669,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<InsertTransposeBeforeMatmul>();
         manager.register_pass<SwapInputMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
@@ -733,6 +735,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 
+        passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 

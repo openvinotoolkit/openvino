@@ -113,6 +113,12 @@ DECL_PASS(EltwiseSplitOverChannels);
 DECL_PASS(InsertDiagonalLayer);
 
 /**
+ * @brief MaxPool can be reordered with activation, on GNA there is a strategy to have conv->maxpool->activation
+ * it means maxpool receives 4 bytes, and produces 4 bytes
+ */
+DECL_PASS(ReorderMaxPool);
+
+/**
  * @brief GNA doesn't support multiple activations fused with functional layer
  * currently for n activations for the layer X, it will be 1 PWL identity inserted, and n diagonal layers.
  * if one of activations is already identity, n-1 diagonal layers will be inserted

@@ -43,6 +43,18 @@ public:
         return result.str();
     }
 
+InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
+
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        for (size_t i = 0; i < blob->size(); i++) {
+            rawBlobDataPtr[i] = values[i];
+        }
+        return blob;
+    }
+
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
@@ -51,7 +63,8 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, { inputShape[1] });
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], {0.0625f});
+        std::vector<float> weights = CommonTestUtils::generate_float_numbers(inputShape[0][0] * inputShape[0][1], -0.2f, 0.2f);
+        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
 
         auto const_eltwise = ngraph::builder::makeConstant<float>(ngPrc,
                 {inputShape[0][0], inputShape[1][1]}, {1.0f});
@@ -85,7 +98,8 @@ const std::vector<std::map<std::string, std::string>> configs = {
 const std::vector<std::vector<std::vector<size_t>>> input_shapes = {
         {{1, 8}, {8, 1}},
         {{128, 8}, {8, 1}},
-        {{8, 8}, {8, 8}}
+        {{8, 8}, {8, 8}},
+        {{1, 16}, {16, 8}}
 };
 
 

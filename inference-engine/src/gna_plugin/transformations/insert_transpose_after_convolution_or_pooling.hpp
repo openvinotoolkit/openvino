@@ -13,8 +13,6 @@ namespace GNAPluginNS {
  *        and the reshaped data is used as an input to the next convolution:
  *  Convolution / Pooling [1, C, 1, W]
  *                |
- *               ...
- *                |
  *         Reshape [1, 1, 1, C*W]
  *                |
  *               ...

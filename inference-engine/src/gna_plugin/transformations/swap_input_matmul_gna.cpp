@@ -12,6 +12,9 @@
 #include <numeric>
 #include <transformations/swap_input_matmul_gna.hpp>
 
+#include "gna_plugin_log.hpp"
+
+using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 
@@ -56,22 +59,40 @@ SwapInputMatMul::SwapInputMatMul() {
             input_b_skip_fq = input_b_skip_fq->input_value(0).get_node_shared_ptr();
         }
 
-        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_a_skip_fq) &&
-            !std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_b_skip_fq)) {
-            if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
-                return false;
-            }
-            auto new_matmul = std::make_shared<ngraph::opset1::MatMul>(input_b, input_a, !matmul->get_transpose_b(), !matmul->get_transpose_a());
-            new_matmul->set_friendly_name(matmul->get_friendly_name() + "/swap_inputs");
-            new_ops.push_back(new_matmul);
-            auto traspose_output = create_transpose(new_matmul,  matmul->get_friendly_name());
-            new_ops.push_back(traspose_output);
-
-            ngraph::copy_runtime_info(matmul, new_ops);
-            ngraph::replace_node(matmul, traspose_output);
-            return true;
+        if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_a_skip_fq) ||
+            std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_b_skip_fq)) {
+            return false;
         }
-        return false;
+
+        if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
+            return false;
+        }
+
+        gnalog() << "Swap and transpose inputs for " << matmul->get_friendly_name() << "\n";
+        auto new_matmul = std::make_shared<ngraph::opset1::MatMul>(input_b, input_a, !matmul->get_transpose_b(), !matmul->get_transpose_a());
+        new_matmul->set_friendly_name(matmul->get_friendly_name() + "/swap_inputs");
+        new_ops.push_back(new_matmul);
+
+        if (!matmul->get_output_target_inputs(0).empty()) {
+            auto matmul_out = matmul->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(matmul_out) != nullptr) {
+                ngraph::copy_runtime_info(matmul, new_ops);
+                ngraph::replace_node(matmul, new_matmul);
+                auto consumers = matmul_out->output(0).get_target_inputs();
+                auto traspose_output = create_transpose(matmul_out,  matmul->get_friendly_name());
+                for (auto input : consumers) {
+                    input.replace_source_output(traspose_output);
+                }
+                return true;
+            }
+        }
+
+        auto traspose_output = create_transpose(new_matmul,  matmul->get_friendly_name());
+        new_ops.push_back(traspose_output);
+
+        ngraph::copy_runtime_info(matmul, new_ops);
+        ngraph::replace_node(matmul, traspose_output);
+        return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "SwapInputMatMul");

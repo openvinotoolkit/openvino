@@ -105,14 +105,6 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
         return nullptr;
     }
 
-    while (!LayerInfo(next).isFullyConnected() && !LayerInfo(next).isScaleShift() && !LayerInfo(next).isOutput()) {
-        next = getInputTo(next->outData.front()).begin()->second;
-        // If Transpose is between convolutions, it's not Kaldi case
-        if (LayerInfo(next).isConvolution()) {
-            return nullptr;
-        }
-    }
-
     return next;
 }
 
