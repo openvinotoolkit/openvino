@@ -6,7 +6,6 @@ import datetime
 import logging as log
 import os
 import platform
-import subprocess
 import sys
 import traceback
 from collections import OrderedDict
@@ -33,7 +32,7 @@ from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
-from mo.utils.versions_checker import check_requirements
+from mo.utils.versions_checker import check_requirements, check_python_version  # pylint: disable=no-name-in-module
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -147,8 +146,11 @@ def prepare_ir(argv: argparse.Namespace):
                     "bat" if sys.platform == "windows" else "sh"))
             # If the IE was not found, it will not print the MO version, so we have to print it manually
             print("{}: \t{}".format("Model Optimizer version", get_version()))
+            argv.ie_is_available = False
+        else:
+            argv.ie_is_available = True
     except Exception as e:
-        pass
+        argv.ie_is_available = False
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -270,16 +272,11 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if not argv.legacy_ir_generation and find_ie_version(silent=True):
-                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
-                                                               'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations,
-                                         "--input_model", orig_model_name,
-                                         "--framework", argv.framework], env=os.environ, timeout=10)
-                return_code = status.returncode
-                if return_code != 0 and not argv.silent:
-                    log.error("offline_transformations return code {}".format(return_code), extra={'is_warning': True})
+            if not argv.legacy_ir_generation and argv.ie_is_available:
+                from mo.back.offline_transformations import apply_offline_transformations
+                return_code = apply_offline_transformations(orig_model_name, argv.framework)
         except Exception as e:
+            return_code = "failed"
             log.error(e, extra={'is_warning': True})
 
         message = str(dict({
@@ -296,6 +293,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
         suffixes = [".xml", ".bin", ".mapping"]
         if return_code != 0:
+            # TODO: fail if user used --transform but ie is not available or legacy_ir_generation was specified
             log.error("Using fallback to produce IR.", extra={'is_warning': True})
             for suf in suffixes:
                 # remove existing files
@@ -400,3 +398,32 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
     telemetry.end_session()
     telemetry.force_shutdown(1.0)
     return 1
+
+
+def subprocess_main(framework=None):
+    ret_code = check_python_version()
+    if ret_code:
+        sys.exit(ret_code)
+
+    import os
+    import subprocess
+
+    from mo.utils.find_ie_version import find_ie_version
+    find_ie_version(silent=True)
+
+    mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
+
+    python_path_key = 'PYTHONPATH'
+    if python_path_key not in os.environ:
+        os.environ[python_path_key] = mo_root_path
+    else:
+        os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
+
+    path_to_main = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'main_{}.py'.format(framework) if framework else 'main.py')
+    status = subprocess.run([sys.executable, path_to_main, *sys.argv[1:]], env=os.environ)
+    sys.exit(status.returncode)
+
+
+if __name__ == "__main__":
+    from mo.utils.cli_parser import get_all_cli_parser
+    sys.exit(main(get_all_cli_parser(), None))

@@ -939,6 +939,11 @@ mo/graph/graph.py
 mo/graph/perm_inputs.py
 mo/graph/port.py
 mo/main.py
+mo/main_caffe.py
+mo/main_kaldi.py
+mo/main_mxnet.py
+mo/main_onnx.py
+mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py
 mo/middle/passes/conv.py
