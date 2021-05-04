@@ -7,6 +7,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "utils/bfloat16.hpp"
+#include "mkldnn_input_node.h"
 #include <mkldnn_extension_utils.h>
 
 #include <ngraph/node.hpp>
@@ -201,7 +202,22 @@ MKLDNNRNN::MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engi
             ngraph::op::v0::LSTMCell::type_info,
             ngraph::op::v4::LSTMCell::type_info);
 
-    runtimePrecision = getOriginalInputPrecisionAtPort(0);
+    if (one_of(op->get_type_info(),
+               ngraph::op::v0::RNNCell::type_info,
+               ngraph::op::v3::GRUCell::type_info)) {
+        wIdx = 2; rIdx = 3; bIdx = 4;
+    } else if (one_of(op->get_type_info(),
+                      ngraph::op::v5::RNNSequence::type_info,
+                      ngraph::op::v0::LSTMCell::type_info,
+                      ngraph::op::v4::LSTMCell::type_info,
+                      ngraph::op::v5::GRUSequence::type_info)) {
+        wIdx = 3; rIdx = 4; bIdx = 5;
+    } else if (one_of(op->get_type_info(),
+                      ngraph::op::v0::LSTMSequence::type_info,
+                      ngraph::op::v5::LSTMSequence::type_info)) {
+        wIdx = 4; rIdx = 5; bIdx = 6;
+    }
+
     if (is_cell)
         initCell(op);
     else
@@ -259,8 +275,13 @@ void MKLDNNRNN::initCell(const std::shared_ptr<ngraph::Node>& op) {
             || out_c_state_dims != S_shape)
             IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
     }
+}
 
+void MKLDNNRNN::fillCellDesc() {
+    runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+
+    SizeVector S_4D_shape {L, D, N, SC};
 
     // layer input plus states
     in_data_d.resize(S + 1);
@@ -284,18 +305,16 @@ void MKLDNNRNN::initCell(const std::shared_ptr<ngraph::Node>& op) {
     // Add 5th input
     w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
-    copyWeightsData(op);
-}
+    copyWeightsData();
 
-void MKLDNNRNN::fillCellDesc() {
     // Expected shapes
     MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
     std::vector<TensorDesc> in_candidate, out_candidate;
     in_candidate.reserve(6);
 
-    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::data_type::f32, memory::format_tag::nc});
-    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, dataType, memory::format_tag::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
+    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
 
     if (haveCellState(cell_type)) {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
@@ -327,8 +346,8 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
     if (!one_of(op->get_output_size(), 2, 3))
         IE_THROW() << "Incorrect number of output ports for layer " << getName();
 
-    auto in_data_dims = op->get_input_shape(0);
-    auto out_data_dims = op->get_output_shape(0);
+    in_data_dims = op->get_input_shape(0);
+    out_data_dims = op->get_output_shape(0);
 
     if (in_data_dims.size() != 3 || out_data_dims.size() != 4)
         IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
@@ -350,13 +369,16 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
 
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
-    MKLDNNDims S_4D_shape {L, D, N, SC};
-
     // layer input plus states
     in_data_d.resize(S + 1);
     out_data_d.resize(S + 1);
+}
 
+void MKLDNNRNN::fillSeqDesc() {
+    runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+
+    MKLDNNDims S_4D_shape {L, D, N, SC};
 
     // Try to create descriptor and corresponding configuration
     in_data_d[RNNInOutKind::Layer]  = {MKLDNNDims{in_data_dims},  dataType, memory::format_tag::tnc};
@@ -375,11 +397,7 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
 
     w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
-    copyWeightsData(op);
-}
-
-void MKLDNNRNN::fillSeqDesc() {
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    copyWeightsData();
 
     std::vector<TensorDesc> in_candidate;
 
@@ -419,7 +437,7 @@ bool MKLDNNRNN::verifyWeightsPrecision(const Precision &layerPrec, const Precisi
 }
 
 template <typename Prec>
-void MKLDNNRNN::fillWeights(const std::shared_ptr<ngraph::Node>& op, const int *gate_map, const size_t wIdx, const size_t rIdx) {
+void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
     const auto weightPrec = getOriginalInputPrecisionAtPort(wIdx);
     if (!verifyWeightsPrecision(runtimePrecision, weightPrec) && runtimePrecision != Precision::BF16 && weightPrec != Precision::FP32) {
         IE_THROW() << "Doesn't support combination of weights precision: " << weightPrec << " and runtime precision: " << runtimePrecision;
@@ -432,16 +450,21 @@ void MKLDNNRNN::fillWeights(const std::shared_ptr<ngraph::Node>& op, const int *
     w_state_mem->Create(w_state_d);
     internalBlobMemory.push_back(w_state_mem);
 
-    const size_t ie_w_vec_size = ngraph::shape_size(op->get_input_shape(wIdx));
-    const size_t ie_r_vec_size = ngraph::shape_size(op->get_input_shape(rIdx));
+    const size_t ie_w_vec_size = getParentEdgesAtPort(wIdx)[0]->getDims().size();
+    const size_t ie_r_vec_size = getParentEdgesAtPort(rIdx)[0]->getDims().size();
+
+    auto *wInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
+    auto wConstBlob = wInputNode->getConstBlob();
+
+    auto *rInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
+    auto rConstBlob = rInputNode->getConstBlob();
+
     std::vector<Prec> ie_w_vec(ie_w_vec_size), ie_r_vec(ie_r_vec_size);
-    const auto ie_w_node = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(wIdx));
-    const auto ie_r_node = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(rIdx));
 
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
-    cpu_convert(ie_w_node->get_data_ptr(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
-    cpu_convert(ie_r_node->get_data_ptr(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
+    cpu_convert(wConstBlob->cbuffer().as<int8_t *>(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
+    cpu_convert(rConstBlob->cbuffer().as<int8_t *>(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
 
     auto w_ptr = static_cast<Prec*>(w_data_mem->GetData());
     auto r_ptr = static_cast<Prec*>(w_state_mem->GetData());
@@ -466,8 +489,10 @@ void MKLDNNRNN::fillWeights(const std::shared_ptr<ngraph::Node>& op, const int *
     }
 }
 
-template <typename Prec>
-void MKLDNNRNN::fillBiases(const std::shared_ptr<ngraph::Node>& op, const int *gate_map, const size_t bIdx) {
+template <InferenceEngine::Precision::ePrecision Prec>
+void MKLDNNRNN::fillBiases(const int *gate_map) {
+    using dataType = typename PrecisionTrait<Prec>::value_type;
+
     if (!w_bias_d)
         return;
 
@@ -479,33 +504,22 @@ void MKLDNNRNN::fillBiases(const std::shared_ptr<ngraph::Node>& op, const int *g
     w_bias_mem->Create(w_bias_d);
     internalBlobMemory.push_back(w_bias_mem);
 
-    std::vector<Prec> ie_b_vec = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(bIdx))->cast_vector<Prec>();
-    auto b_ptr = static_cast<Prec*>(w_bias_mem->GetData());
+    auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
+    auto constBlob = constInputNode->getConstBlob();
+    auto srtPtr = constBlob->cbuffer().as<int8_t *>();
+
+    std::vector<dataType> ie_b_vec(constBlob->size());
+    cpu_convert(srtPtr, &ie_b_vec[0], constBlob->getTensorDesc().getPrecision(), Prec, constBlob->size());
+
+    auto b_ptr = static_cast<dataType*>(w_bias_mem->GetData());
     for (int g = 0; g < Gb; g++) {
-        Prec *l_b_ptr = b_ptr + gate_map[g] * SC;
-        const Prec *l_ie_b_ptr = &ie_b_vec[g * SC];
-        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(Prec));
+        dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
+        const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
+        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));
     }
 }
 
-void MKLDNNRNN::copyWeightsData(const std::shared_ptr<ngraph::Node>& op) {
-    size_t wIdx = 0, rIdx = 0, bIdx = 0;
-    if (one_of(op->get_type_info(),
-            ngraph::op::v0::RNNCell::type_info,
-            ngraph::op::v3::GRUCell::type_info)) {
-        wIdx = 2; rIdx = 3; bIdx = 4;
-    } else if (one_of(op->get_type_info(),
-            ngraph::op::v5::RNNSequence::type_info,
-            ngraph::op::v0::LSTMCell::type_info,
-            ngraph::op::v4::LSTMCell::type_info,
-            ngraph::op::v5::GRUSequence::type_info)) {
-        wIdx = 3; rIdx = 4; bIdx = 5;
-    } else if (one_of(op->get_type_info(),
-            ngraph::op::v0::LSTMSequence::type_info,
-            ngraph::op::v5::LSTMSequence::type_info)) {
-        wIdx = 4; rIdx = 5; bIdx = 6;
-    }
-
+void MKLDNNRNN::copyWeightsData() {
     /* Copy Weight data
      * IE format:
      *   W - [gates, out_state_size, in_data_size]
@@ -560,14 +574,14 @@ void MKLDNNRNN::copyWeightsData(const std::shared_ptr<ngraph::Node>& op) {
     }
 
     if (runtimePrecision == Precision::BF16)
-        fillWeights<bfloat16_t>(op, gate_map, wIdx, rIdx);
+        fillWeights<bfloat16_t>(gate_map, wIdx, rIdx);
     else if (runtimePrecision == Precision::FP32)
-        fillWeights<float>(op, gate_map, wIdx, rIdx);
+        fillWeights<float>(gate_map, wIdx, rIdx);
     else // TODO FP16 and INT8 support
         IE_THROW() << "Unsupported data type";
 
     if (runtimePrecision == Precision::BF16 || runtimePrecision == Precision::FP32)
-        fillBiases<float>(op, gate_map, bIdx);
+        fillBiases<Precision::FP32>(gate_map);
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,

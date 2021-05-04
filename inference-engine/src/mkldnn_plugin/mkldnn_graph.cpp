@@ -230,11 +230,6 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         for (size_t port = 0; port < op->get_input_size(); port++) {
             auto parentOp = op->get_input_node_shared_ptr(port);
-
-//            auto data = layer->insData[port].lock();
-//            auto parent_layer = getCreatorLayer(data).lock();
-//            if (!parent_layer) continue;  // no parent means that it is input data node (or memory/const layer)
-
             auto parentNode = op2node[parentOp];
 
             MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
@@ -268,6 +263,34 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphNodes.push_back(outNode);
     }
 
+    // We set all non const data paths precision to BF16 in case enforceBF16 flag is switched on.
+    if (config.enforceBF16) {
+        bool isQuantizedModel = false;
+        for (auto& node : graphNodes) {
+            if (node->getType() == FakeQuantize)
+                isQuantizedModel = true;
+        }
+
+        // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
+        // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
+        if (implication(isQuantizedModel, config.manualEnforceBF16)) {
+            for (auto &node : graphNodes) {
+                if (node->getType() != Input && node->getType() != Output) {
+                    for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                        auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                        if (!(parent->getType() == Input && parent->isConstant()) && node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                            node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+                    }
+
+                    for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                        if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                            node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+                    }
+                }
+            }
+        }
+    }
+
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
@@ -276,16 +299,18 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16)
+                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
         }
     }
+
     for (auto &output : outputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
         const auto parentEdges = output.second->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
-            const auto parent = parentEdges[i]->getChild();
-            parent->setOriginalInputPrecisionAtPort(parentEdges[i]->getOutputNum(), precToSet);
+            const auto parent = parentEdges[i]->getParent();
+            parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
         }
     }
 

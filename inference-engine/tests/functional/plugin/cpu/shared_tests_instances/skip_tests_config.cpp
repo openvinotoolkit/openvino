@@ -68,16 +68,19 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LSTMSequenceCPUTest.*)",
         R"(.*GRUSequenceCPUTest.*)",
         R"(.*RNNSequenceCPUTest.*)",
-        R"(.*smoke_Activation_Basic_Prelu.*)"
+        R"(.*smoke_Activation_Basic_Prelu.*)",
+
+        // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
+        R"(.*BF16NetworkRestore1.*)",
+        R"(.*MobileNet_ssd_with_branching.*)",
     };
 
-// TODO [NM]: Disabled until BF16 transformer is not migrated on CPU graph representation.
-//    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
        retVector.emplace_back(R"(.*BF16.*)");
        retVector.emplace_back(R"(.*bfloat16.*)");
-//    }
+    }
 
     return retVector;
 }
