@@ -78,6 +78,7 @@ void regclass_pyngraph_InputModel(py::module m)
     im.def("getOutputs", &ngraph::frontend::InputModel::getOutputs);
     im.def("overrideAllInputs", &ngraph::frontend::InputModel::overrideAllInputs);
     im.def("overrideAllOutputs", &ngraph::frontend::InputModel::overrideAllOutputs);
+    im.def("setElementType", &ngraph::frontend::InputModel::setElementType);
 }
 
 void regclass_pyngraph_FEC(py::module m)

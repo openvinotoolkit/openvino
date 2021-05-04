@@ -45,8 +45,8 @@ def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, 
     :param graph: graph to operate on
     :param input_user_shapes: data structure representing user input cutting request. It may be:
     # None value if user did not provide neither --input nor --input_shape keys
-    # list instance witch contains input layer names with or without ports if user provided only --input key
-    # dict instance witch contains input layer names with or without ports as keys and shapes as values if user
+    # list instance which contains input layer names with or without ports if user provided only --input key
+    # dict instance which contains input layer names with or without ports as keys and shapes as values if user
         provided both --input and --input_shape
     # np.ndarray if user provided only --input_shape key
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values

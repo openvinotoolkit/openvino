@@ -5,6 +5,7 @@ import argparse
 
 import logging as log
 from mo.front_ng.extractor import fe_user_data_repack
+from ngraph.utils.types import get_element_type
 
 
 def moc_pipeline(argv: argparse.Namespace):
@@ -65,6 +66,11 @@ def moc_pipeline(argv: argparse.Namespace):
         for user_shape in user_shapes:
             if 'shape' in user_shape and user_shape['shape'] is not None:
                 inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
+            if 'data_type' in user_shape and user_shape['data_type'] is not None:
+                data_type = get_element_type(user_shape['data_type'])
+                log.debug("Set data type: {}".format(data_type))
+                inputModel.setElementType(user_shape['node'], data_type)
+
     nGraphModel = fe.convert(inputModel)
     network = function_to_cnn(nGraphModel)
     return network
