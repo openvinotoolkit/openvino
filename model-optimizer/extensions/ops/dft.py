@@ -113,9 +113,6 @@ class DFT(FFTBase):
         mandatory_props.update(attrs)
         super().__init__(graph, mandatory_props)
 
-    def backend_attrs(self):
-        return []
-
 
 class IDFT(FFTBase):
     op = 'IDFT'
@@ -128,6 +125,3 @@ class IDFT(FFTBase):
         }
         mandatory_props.update(attrs)
         super().__init__(graph, mandatory_props)
-
-    def backend_attrs(self):
-        return []

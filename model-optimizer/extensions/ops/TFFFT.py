@@ -18,6 +18,7 @@ class TFFFT(Op):
     or into MO IDFT (otherwise).
     """
     op = 'TFFFT'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
