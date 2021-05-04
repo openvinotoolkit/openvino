@@ -210,6 +210,7 @@ extensions/front/mxnet/max_ext.py
 extensions/front/mxnet/multibox_detection_ext.py
 extensions/front/mxnet/mx_reshape_reverse.py
 extensions/front/mxnet/mx_reshape_to_reshape.py
+extensions/front/mxnet/MXFFTToDFT.py
 extensions/front/mxnet/MXRepeatReplacer.py
 extensions/front/mxnet/null_ext.py
 extensions/front/mxnet/pad_ext.py
@@ -597,7 +598,6 @@ extensions/middle/MakeKaldiConstReshapable.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
-extensions/middle/MXFFTToDFT.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
