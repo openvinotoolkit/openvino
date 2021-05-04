@@ -50,8 +50,8 @@ static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) 
             ngraph::op::v5::GRUSequence::type_info)) {
         auto gruCellOp = ngraph::as_type_ptr<const ngraph::op::v3::GRUCell>(op);
         auto gruSeqOp = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op);
-        if (gruCellOp && gruCellOp->get_linear_before_reset() ||
-                gruSeqOp && gruSeqOp->get_linear_before_reset())
+        if ((gruCellOp && gruCellOp->get_linear_before_reset()) ||
+                (gruSeqOp && gruSeqOp->get_linear_before_reset()))
             return mkldnn::algorithm::lbr_gru;
         else
             return mkldnn::algorithm::vanilla_gru;
@@ -127,8 +127,8 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
                 errorMessage = "Node expects 5 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(2)->get_type_info() != ngraph::op::v0::Constant::type_info &&
-                    op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info &&
+            if (op->get_input_node_ptr(2)->get_type_info() != ngraph::op::v0::Constant::type_info ||
+                    op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info ||
                     op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
@@ -142,8 +142,8 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
                 errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info &&
-                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info &&
+            if (op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info ||
+                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info ||
                     op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::type_info) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
@@ -155,8 +155,8 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
                 errorMessage = "Node expects 7 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info &&
-                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::type_info &&
+            if (op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info ||
+                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::type_info ||
                     op->get_input_node_ptr(6)->get_type_info() != ngraph::op::v0::Constant::type_info) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
@@ -260,19 +260,19 @@ void MKLDNNRNN::initCell(const std::shared_ptr<ngraph::Node>& op) {
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    SizeVector D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
+    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
-    if (in_data_dims != D_shape
-        || in_h_state_dims != S_shape
-        || out_h_state_dims != S_shape)
+    if (in_data_dims != D_shape.ToSizeVector()
+        || in_h_state_dims != S_shape.ToSizeVector()
+        || out_h_state_dims != S_shape.ToSizeVector())
         IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
 
     if (S == 2) {
         auto in_c_state_dims = op->get_input_shape(2);
         auto out_c_state_dims = op->get_output_shape(1);
 
-        if (in_c_state_dims != S_shape
-            || out_c_state_dims != S_shape)
+        if (in_c_state_dims != S_shape.ToSizeVector()
+            || out_c_state_dims != S_shape.ToSizeVector())
             IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
     }
 }
@@ -281,22 +281,22 @@ void MKLDNNRNN::fillCellDesc() {
     runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    SizeVector S_4D_shape {L, D, N, SC};
+    MKLDNNDims S_4D_shape {L, D, N, SC};
 
     // layer input plus states
     in_data_d.resize(S + 1);
     out_data_d.resize(S + 1);
 
     // Shapes and Attributes are correct. Can start internal stuff initialization.
-    in_data_d[RNNInOutKind::Layer]  = {{T, N, DC}, dataType, memory::format_tag::tnc};
-    out_data_d[RNNInOutKind::Layer] = {{T, N, SC}, dataType, memory::format_tag::tnc};
+    in_data_d[RNNInOutKind::Layer]  = {MKLDNNDims{T, N, DC}, dataType, memory::format_tag::tnc};
+    out_data_d[RNNInOutKind::Layer] = {MKLDNNDims{T, N, SC}, dataType, memory::format_tag::tnc};
 
-    in_data_d[RNNInOutKind::HiddenState]  = {MKLDNNDims{S_4D_shape}, dataType, memory::format_tag::ldnc};
-    out_data_d[RNNInOutKind::HiddenState] = {MKLDNNDims{S_4D_shape}, dataType, memory::format_tag::ldnc};
+    in_data_d[RNNInOutKind::HiddenState]  = {S_4D_shape, dataType, memory::format_tag::ldnc};
+    out_data_d[RNNInOutKind::HiddenState] = {S_4D_shape, dataType, memory::format_tag::ldnc};
 
     if (haveCellState(cell_type)) {
-        in_data_d[RNNInOutKind::CellState] =  {MKLDNNDims{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc};
-        out_data_d[RNNInOutKind::CellState] = {MKLDNNDims{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc};
+        in_data_d[RNNInOutKind::CellState] =  {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
+        out_data_d[RNNInOutKind::CellState] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
     }
 
     w_data_d   = {{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo};
@@ -353,13 +353,16 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
         IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
 
     N = op->get_input_shape(1)[0];
-    nativeOrder = N == in_data_dims[1];
+    nativeOrder = false;
+    const auto rtInfo = op->get_rt_info();
+
+    if (rtInfo.count("seqAxis")) {
+        nativeOrder = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rtInfo.at("seqAxis"))->get() == 0;
+    }
     out_data_dims.erase(out_data_dims.begin() + 1);
 
-    if (!nativeOrder) {
-        std::swap(in_data_dims[0], in_data_dims[1]);
-        std::swap(out_data_dims[0], out_data_dims[1]);
-    }
+    std::swap(in_data_dims[0], in_data_dims[1]);
+    std::swap(out_data_dims[0], out_data_dims[1]);
 
     G = gatesCount(cell_type);
     S = statesCount(cell_type);
@@ -402,7 +405,7 @@ void MKLDNNRNN::fillSeqDesc() {
     std::vector<TensorDesc> in_candidate;
 
     if (nativeOrder)
-        in_candidate.push_back(in_data_d[RNNInOutKind::Layer]);
+        in_candidate.push_back(MKLDNNMemoryDesc{inDims[RNNInOutKind::Layer], dataType, memory::format_tag::tnc});
     else
         in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, dataType, memory::format_tag::ntc});
 

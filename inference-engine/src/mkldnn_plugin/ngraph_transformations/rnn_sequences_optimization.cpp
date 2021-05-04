@@ -6,6 +6,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/variant.hpp>
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeGRUSequenceTransposes, "OptimizeGRUSequenceTransposes", 0);
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeLSTMSequenceTransposes, "OptimizeLSTMSequenceTransposes", 0);
@@ -62,10 +63,15 @@ namespace {
 
             auto newOutShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{4}, transposeAfter->get_output_shape(0));
             auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(sequenceOp->output(0), newOutShape, false);
+            reshape2->set_friendly_name(transposeAfter->get_friendly_name());
             ngraph::replace_node(transposeAfter, {reshape2->output(0)});
         } else {
             auto originShape = sequenceOp->get_output_shape(0);
-            auto seqOut = sequenceOp->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            const auto targetInputs = sequenceOp->get_output_target_inputs(0);
+            if (targetInputs.empty()) {
+                return false;
+            }
+            auto seqOut = targetInputs.begin()->get_node()->shared_from_this();
 
             auto tncShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {originShape[2], originShape[0], originShape[3]});
             auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(sequenceOp->output(0), tncShape, false);
@@ -79,6 +85,9 @@ namespace {
 
             ngraph::insert_new_node_between(sequenceOp, seqOut, reshape2);
         }
+
+        sequenceOp->get_rt_info()["seqAxis"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(seqAxis);
+
         return true;
     }
 } // namespace
