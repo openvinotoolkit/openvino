@@ -31,7 +31,7 @@ from jsonschema import validate, ValidationError
 
 from scripts.run_timetest import check_positive_int
 from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    DATABASE, DB_COLLECTIONS
+    get_cpu_info, DATABASE, DB_COLLECTIONS
 
 
 # -------------------- CLI options --------------------
@@ -384,6 +384,7 @@ def pytest_runtest_makereport(item, call):
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
     data["raw_results"] = item._request.test_info["raw_results"].copy()
+    data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 
