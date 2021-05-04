@@ -1,10 +1,10 @@
-# Convert ONNX* RNNT to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
+# Convert ONNX* RNNT to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
 
-This instruction covers conversion of RNN-t model from [MLCommons](https://github.com/mlcommons) repository. Before
-converting into IR PyTorch model need to be exported into ONNX. In order to that follow the steps below.
+This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow 
+the steps below to export a PyTorch* model into ONNX* before converting it to IR:
 
-**Step 1**. Clone RNN-t PyTorch implementation from MLCommons repository. In order to pull only RNN-t model 
-without full repository make a shallow clone. If you alreade have a full repository skip this and go to **Step 2**:
+**Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository.  Make a shallow clone to pull only RNN-T 
+model without full repository. If you alreade have a full repository skip this and go to **Step 2**:
 ```bash
 git clone -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
 cd rnnt_for_openvino
@@ -12,30 +12,31 @@ git checkout HEAD speech_recognition/rnnt
 ```
 
 **Step 2**. If you already have a full clone of MLCommons inference repository create a folder for 
-pre-trained PyTorch model and where conversion into IR will take place. Skip this step if you did a shallow clone.
-Also further you will need to specify path to your full clone:
+pretrained PyTorch model, where conversion into IR will take place. You will also need to specify the path to 
+your full clone at **Step 5**. Skip this step if you have a shallow clone.
+
 ```bash
 mkdir rnnt_for_openvino 
 cd rnnt_for_openvino
 ```
 
-**Step 3**. Download pre-trained weights for PyTorch implementation from https://zenodo.org/record/3662521#.YG21DugzZaQ:
-For UNIX* like systems you can use wget
+**Step 3**. Download pretrained weights for PyTorch implementation from https://zenodo.org/record/3662521#.YG21DugzZaQ.
+For UNIX*-like systems you can use wget:
 ```bash
 wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt
 ```
 The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as 
-if you have done steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt
+if you were following the steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt.
 
-**Step 4**. Install required python packages:
+**Step 4**. Install required python* packages:
 ```bash
 pip3 install torch toml
 ```
 
-**Step 5**. Export RNN-t model into ONNX with the script below. Copy it into a file with a name `export_rnnt_to_onnx.py` 
-and run in the current directory `rnnt_for_openvino`:
+**Step 5**. Export RNN-T model into ONNX with the script below. Copy the code below into a file named 
+`export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
-> **note**: If you already had a full clone of MLComons inferene repository then you need to
+> **note**: If you already have a full clone of MLComons inferene repository, you need to
 > specify `mlcommons_inference_path` variable.
 
 ```python
@@ -88,7 +89,8 @@ torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
 python3 export_rnnt_to_onnx.py
 ```
 
-After that files rnnt_encoder.onnx, rnnt_prediction.onnx, and rnnt_joint.onnx will be saved in the current directory. 
+After completing this step, the files rnnt_encoder.onnx, rnnt_prediction.onnx, and rnnt_joint.onnx will be saved in 
+the current directory. 
 
 **Step 6**. Run the conversion command:
 
@@ -97,6 +99,6 @@ python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input.
 python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "input.1[1 1],1[2 1 320],2[2 1 320]"
 python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
-Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 
-network reshape-ability, this means you can change input shapes manually to any value either during conversion or 
-during inference.
+Please note that hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves 
+network reshapeability; this means you can change input shapes manually to any value either during conversion or 
+inference.
