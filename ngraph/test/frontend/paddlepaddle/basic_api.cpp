@@ -18,6 +18,7 @@ static const std::vector<std::string> models {
         std::string("conv2d_relu/conv2d_relu.pdmodel"),
         std::string("2in_2out/2in_2out.pdmodel"),
         std::string("multi_tensor_split/multi_tensor_split.pdmodel"),
+        std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
 };
 
 INSTANTIATE_TEST_CASE_P(PDPDBasicTest, FrontEndBasicTest,

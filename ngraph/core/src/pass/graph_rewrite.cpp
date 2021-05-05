@@ -62,14 +62,14 @@ namespace ngraph
 {
     namespace pass
     {
-        namespace
+        namespace internal
         {
             PerfCounters& perf_counters_graph_rewrite()
             {
                 static PerfCounters counters;
                 return counters;
             }
-        } // namespace
+        } // namespace internal
     }     // namespace pass
 } // namespace ngraph
 
@@ -428,7 +428,8 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph,
+                       pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

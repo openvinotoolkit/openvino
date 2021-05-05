@@ -152,6 +152,11 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(setPartialShape);
         }
 
+        ngraph::PartialShape InputModel::getPartialShape (Place::Ptr place) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getPartialShape);
+        }
+
         void InputModel::setElementType (Place::Ptr place, const ngraph::element::Type&)
         {
             FRONT_END_NOT_IMPLEMENTED(setElementType);
