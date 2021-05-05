@@ -157,6 +157,29 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
+/* FrameworkNodeExtension is a temporary extension that is needed to enable FrameworkNode usage
+ * in IRReader for all unknown opsets and operations. To have a connection between Extension and
+ * IRReader we register extensions with specific version equal to "framework_node_ext" which
+ * triggers FrameworkNode usage
+ */
+class FrameworkNodeExtension : public InferenceEngine::IExtension {
+public:
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
+        static InferenceEngine::Version ExtensionDescription = {{1, 0}, "1.0", "framework_node_ext"};
+
+        versionInfo = &ExtensionDescription;
+    }
+
+    void Unload() noexcept override {}
+};
+
+InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string path_to_xml, std::string path_to_bin) {
+    InferenceEngine::Core core;
+    core.AddExtension(std::make_shared<FrameworkNodeExtension>());
+    auto net = core.ReadNetwork(path_to_xml, path_to_bin);
+    return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
+}
+
 InferenceEnginePython::IENetwork::IENetwork(const std::string& model, const std::string& weights) {
     InferenceEngine::Core reader;
     auto net = reader.ReadNetwork(model, weights);
@@ -433,10 +456,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 std::string InferenceEnginePython::get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
-    version_str += version->buildNumber;
-    return version_str;
+    return version->buildNumber;
 }
 
 InferenceEnginePython::IECore::IECore(const std::string& xmlConfigFile) {
