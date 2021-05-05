@@ -62,7 +62,6 @@ void MKLDNNReshapeNode::createPrimitive() {
 }
 
 bool MKLDNNReshapeNode::created() const {
-    return getType() == Reshape || getType() == Flatten;
+    return getType() == Reshape;
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
-REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Flatten);

@@ -119,53 +119,20 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "DepthToSpace", DepthToSpace },
         { "SpaceToDepth", SpaceToDepth },
         { "Roll", Roll },
-
-//        { "Unknown", Unknown },
-//        { "Input", Input },
-//        { "Reorder", Reorder },
-//        { "Convolution", Convolution },
-//        { "ReLU", Eltwise },
-//        { "GELU", Eltwise },
-//        { "ELU", Eltwise },
-//        { "Sigmoid", Eltwise },
-//        { "Logistic", Eltwise },
-//        { "TanH", Eltwise },
-//        { "ReLU6", Eltwise },
-//        { "Exp", Eltwise },
-//        { "Not", Eltwise },
-//        { "Activation", Eltwise },
-//        { "Clamp", Eltwise },
-//        { "Swish", Eltwise },
-//        { "HSwish", Eltwise },
-//        { "Mish", Eltwise },
-//        { "HSigmoid", Eltwise },
-//        { "Round", Eltwise },
-//        { "ScaleShift", Eltwise },
-//        { "PReLU", Eltwise },
         { "LRN", Lrn },
-//        { "Pooling", Pooling },
-//        { "Softmax", SoftMax },
-//        { "SoftMax", SoftMax },
         { "Split", Split },
         { "VariadicSplit", Split },
         { "Concat", Concatenation },
         { "ConvolutionBackpropData", Deconvolution },
         { "GroupConvolutionBackpropData", Deconvolution },
-//        { "Eltwise", Eltwise },
-//        { "Mod", Eltwise },
-//        { "Power", Eltwise },
         { "StridedSlice", StridedSlice },
-//        { "Reshape", Reshape },
         { "Tile", Tile },
-//        { "SimplerNMS", SimplerNMS },
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
         { "PSROIPooling", PSROIPooling },
         { "DeformablePSROIPooling", PSROIPooling },
-//        { "Flatten", Flatten },
         { "Pad", Pad },
         { "Transpose", Transpose },
-//        { "Copy", Copy },
         { "LSTMCell", RNNCell },
         { "GRUCell", RNNCell },
         { "RNNCell", RNNCell },
@@ -761,67 +728,6 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     selectedPD->getConfig() = rightConfig;
 }
 
-//InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool isGrouped) {
-//    auto checkSize = [](size_t dst_size, size_t src_size) {
-//        if (dst_size < src_size) {
-//            IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
-//        }
-//    };
-//    auto * wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(getCnnLayer().get());
-//    if (wLayer == nullptr)
-//        IE_THROW() << "Cannot get weightable layer for node " << getName() << ".";
-//
-//    InferenceEngine::Blob::Ptr blb = weights ? wLayer->_weights : wLayer->_biases;
-//
-//    if (blb == nullptr)
-//        IE_THROW() << "Cannot get internal blob layer for node " << getName() << ".";
-//
-//    auto intLayout = getWeightsLayoutByDims(dims, isGrouped);
-//
-//    InferenceEngine::TensorDesc desc(blb->getTensorDesc().getPrecision(), dims, intLayout);
-//
-//    auto fillInternalBlob = [&](char *data, size_t intBuffSize) {
-//        size_t offset = blb->byteSize();
-//        checkSize(intBuffSize, offset);
-//        cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
-//        data += blb->byteSize();
-//        for (const auto &merged : getMergeWith()) {
-//            wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(merged->getCnnLayer().get());
-//            if (wLayer == nullptr)
-//                IE_THROW() << "Cannot convert merged weightable layer for node "
-//                                   << getName() << ".";
-//            blb = weights ? wLayer->_weights : wLayer->_biases;
-//
-//            if (blb == nullptr)
-//                IE_THROW() << "Cannot get internal blob layer for node " << getName() << ".";
-//            offset += blb->byteSize();
-//            checkSize(intBuffSize, offset);
-//            cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
-//            data += blb->byteSize();
-//        }
-//    };
-//
-//    Blob::Ptr internalBlob;
-//    if (blb->getTensorDesc().getPrecision() == Precision::BIN) {
-//        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
-//    } else if (blb->getTensorDesc().getPrecision() == Precision::I8) {
-//        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
-//    } else if (blb->getTensorDesc().getPrecision() == Precision::I32) {
-//        internalBlob = InferenceEngine::make_shared_blob<int32_t>(desc);
-//    } else if (blb->getTensorDesc().getPrecision() == Precision::BF16) {
-//        internalBlob = InferenceEngine::make_shared_blob<int16_t>(desc);
-//    } else {
-//        internalBlob = InferenceEngine::make_shared_blob<float>(desc);
-//    }
-//    internalBlob->allocate();
-//    char *data = internalBlob->buffer();
-//    size_t intBuffSize = internalBlob->byteSize();
-//
-//    fillInternalBlob(data, intBuffSize);
-//
-//    return internalBlob;
-//}
-
 void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
@@ -940,7 +846,6 @@ void MKLDNNNode::addOriginalLayer(const std::string& layerName) {
 
 void MKLDNNNode::cleanup() {
     internalBlobs.clear();
-//    cnnLayer.reset();
 
     for (auto it : fusedWith) {
         it->cleanup();
@@ -1367,7 +1272,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto weightShape = getParentEdgeAt(i)->getDims().ToSizeVector();
-            // [NM] TODO: waiting documentation update, PRelu is not broadcastable
+            // [NM] TODO: PRelu is not broadcastable
             // WA: [1,32,46,46], [32] -> [1,32,46,46], [1, 32, 1, 1]
             if (getAlgorithm() == EltwisePrelu && weightShape.size() == 1 && weightShape.back() != 1) {
                 auto newWeightShape = std::vector<size_t>(dataShape.size(), 1);

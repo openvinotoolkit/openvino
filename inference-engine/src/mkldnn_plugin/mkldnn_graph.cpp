@@ -182,8 +182,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     auto orderedOps = func->get_ordered_ops();
 
-//  // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
-//    std::unordered_map<ngraph::Node, MKLDNNNodePtr> op2node;
+    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
     std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
     std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
@@ -351,9 +350,6 @@ void MKLDNNGraph::InitGraph() {
 
     CreatePrimitives();
 
-//    if (!config.dumpToDot.empty())
-//        dumpToDotFile(config.dumpToDot + "_init.dot");
-
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
@@ -486,7 +482,7 @@ void MKLDNNGraph::InitEdges() {
             // Check if there is a reorder that supports the type conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                     !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
-                //If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
+                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
                 const auto inDesc = edge->getInputDesc();
                 const auto outDesc = edge->getOutputDesc();
 
@@ -755,8 +751,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     for (auto &outputMap : outputNodesMap) {
         auto name = outputMap.first;
         auto node = outputMap.second;
-        // remove out_ from node name
-//        std::string name = node->getName().substr(4);
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
         if (out.find(name) == out.end()) {
             // TODO [NM]: Do we really need this path?
@@ -969,8 +963,6 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
     for (int i = 1; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
-
-//    if (!config.dumpToDot.empty()) dumpToDotFile(config.dumpToDot + "_perf.dot");
 }
 
 void MKLDNNGraph::setConfig(const Config &cfg) {

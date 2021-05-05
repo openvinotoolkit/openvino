@@ -78,6 +78,8 @@
 
 #include <ie_algorithm.hpp>
 
+#include <ngraph/pass/visualize_tree.hpp>
+
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
@@ -385,31 +387,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
-//    bool is_transformed = false;
-//    if (clonedNetwork.getFunction()) {
-        Transformation(clonedNetwork, conf);
-//        is_transformed = true;
-//    }
-//    IE_SUPPRESS_DEPRECATED_START
-//    auto icnnnet = static_cast<ICNNNetwork::Ptr>(clonedNetwork);
-//    IE_SUPPRESS_DEPRECATED_END
-//    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
-//    if (implNetwork) {
-//        OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
-//        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
-//        ConstTransformer transformator(implNetwork.get());
-//        transformator.fullTrim();
-//        if (!is_transformed) {
-//            InferenceEngine::CNNNetwork implNetworkWrapper(implNetwork);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
-//            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I16, Precision::I32);
-//        }
-//    }
+    Transformation(clonedNetwork, conf);
 
     return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }

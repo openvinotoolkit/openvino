@@ -88,8 +88,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     inputPrecision = getOriginalInputPrecisionAtPort(0);
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
-    // MKLDNN supports only equal precisions for input and output
-    if (one_of(inputPrecision, Precision::FP32, Precision::BF16)) {
+    // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
+    // so we explicitly set output precision as FP32
+    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16) {
+        if (getAlgorithm() == PoolingMax) {
+            // MKLDNN supports only equal precisions for input and output
+            outputPrecision = inputPrecision;
+        } else if (getAlgorithm() == PoolingAvg) {
+            outputPrecision = Precision::FP32;
+        }
+    }
+    if (inputPrecision == Precision::BF16) {
         outputPrecision = inputPrecision;
     }
 

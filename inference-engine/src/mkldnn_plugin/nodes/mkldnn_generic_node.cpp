@@ -14,8 +14,6 @@ using namespace MKLDNNPlugin;
 
 MKLDNNGenericNode::MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache), ngraphOp(op) {
-//    params = layer->params;
-//    blobs = layer->blobs;
 }
 
 void MKLDNNGenericNode::getSupportedDescriptors() {

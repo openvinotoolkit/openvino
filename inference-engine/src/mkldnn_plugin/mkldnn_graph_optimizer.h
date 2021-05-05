@@ -22,13 +22,10 @@ private:
     void FuseConvolutionAndBias(MKLDNNGraph &graph);
     void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
-    void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
-    void FuseBinaryConvolutionAndFakeQuantize(MKLDNNGraph &graph);
     void FusePoolingAndFakeQuantize(MKLDNNGraph &graph);
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
@@ -42,8 +39,6 @@ private:
     void FuseMulAddAndFakeQuantize(MKLDNNGraph &graph);
     void FuseClampAndFakeQuantize(MKLDNNGraph &graph);
     void MergeTransposeAndReorder(MKLDNNGraph &graph);
-
-    bool IsOneOf(Type type, std::vector<Type> types);
 
     void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
 };

@@ -255,7 +255,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
-        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();//blobs[name]->getTensorDesc();
+        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
         desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
 
         // WA: need to avoid exception thrown when we compare blocking desc in SetBlob

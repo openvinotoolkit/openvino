@@ -1074,7 +1074,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
-    if (getAlgorithm() == EltwiseMulAdd && (inputPrecisions[0] == Precision::U8 || inputPrecisions[0] == Precision::I8)) {
+    if ((getAlgorithm() == EltwiseMulAdd || getAlgorithm() == EltwisePowerStatic) &&
+            (inputPrecisions[0] == Precision::U8 || inputPrecisions[0] == Precision::I8)) {
         auto parentNode = getParentEdgesAtPort(0)[0]->getParent();
         if (getParentEdgesAtPort(0)[0]->getParent()->getAlgorithm() == PoolingAvg) {
             inputPrecisions[0] = Precision::FP32;

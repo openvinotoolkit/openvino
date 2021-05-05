@@ -543,10 +543,10 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
     if (canBeExecutedInInt8()) {
         isStridedBlobsSupported = false;
     }
-//    // TODO [NM]: fix strided blobs feature support for dynamic weights
-//    if (getOriginalInputsNumber() != 1) {
-//        isStridedBlobsSupported = false;
-//    }
+    // TODO [NM]: fix strided blobs feature support for dynamic weights
+    // if (getOriginalInputsNumber() != 1) {
+    //     isStridedBlobsSupported = false;
+    // }
 
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].desc}, {config.outConfs[0].desc});

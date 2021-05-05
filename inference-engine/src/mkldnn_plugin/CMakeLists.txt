@@ -76,15 +76,11 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/powerfile.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox_clustered.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorgridgenerator_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
@@ -92,19 +88,9 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/roifeatureextractor_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/shuffle_channels.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/simplernms.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_fill_empty_rows.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_segment_reduce.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_weighted_reduce.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_to_dense.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/bucketize.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/squeeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topkrois_onnx.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
@@ -169,13 +155,6 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 SSE42 ANY
-                    nodes/argmax_imp.cpp
-        API         nodes/argmax_imp.hpp
-        NAME        arg_max_execute
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
                     nodes/proposal_imp.cpp

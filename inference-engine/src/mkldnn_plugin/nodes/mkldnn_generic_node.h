@@ -39,9 +39,6 @@ protected:
     std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
 
     const std::shared_ptr<ngraph::Node> ngraphOp;
-
-//    std::map<std::string, std::string> params;
-//    std::map<std::string, InferenceEngine::Blob::Ptr> blobs;
 };
 
 }  // namespace MKLDNNPlugin

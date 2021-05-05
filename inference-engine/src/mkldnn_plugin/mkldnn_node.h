@@ -43,8 +43,6 @@ enum Type {
     Output,
     Convolution,
     Deconvolution,
-    Activation,
-    Depthwise,
     Lrn,
     Pooling,
     FullyConnected,
@@ -55,19 +53,16 @@ enum Type {
     MatMul,
     Reshape,
     Tile,
-    SimplerNMS,
     ROIAlign,
     ROIPooling,
     PSROIPooling,
     BatchToSpace,
     DepthToSpace,
-    Flatten,
     Pad,
     Transpose,
     SpaceToBatch,
     SpaceToDepth,
     StridedSlice,
-    Copy,
     MemoryOutput,
     MemoryInput,
     RNNCell,
@@ -114,8 +109,6 @@ static std::string NameFromType(Type type) {
             return "Convolution";
         case Deconvolution:
             return "Deconvolution";
-        case Activation:
-            return "Activation";
         case Lrn:
             return "Lrn";
         case Pooling:
@@ -130,16 +123,12 @@ static std::string NameFromType(Type type) {
             return "Split";
         case Concatenation:
             return "Concatenation";
-        case Depthwise:
-            return "Depthwise";
         case StridedSlice:
             return "StridedSlice";
         case Reshape:
             return "Reshape";
         case Tile:
             return "Tile";
-        case SimplerNMS:
-            return "SimplerNMS";
         case ROIAlign:
             return "ROIAlign";
         case ROIPooling:
@@ -150,8 +139,6 @@ static std::string NameFromType(Type type) {
             return "DepthToSpace";
         case BatchToSpace:
             return "BatchToSpace";
-        case Flatten:
-            return "Flatten";
         case Pad:
             return "Pad";
         case Transpose:
@@ -160,8 +147,6 @@ static std::string NameFromType(Type type) {
             return "SpaceToDepth";
         case SpaceToBatch:
             return "SpaceToBatch";
-        case Copy:
-            return "Copy";
         case MemoryOutput:
             return "MemoryOutput";
         case MemoryInput:
@@ -728,8 +713,6 @@ protected:
 
     virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
     int batchToProcess();
-
-//    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
