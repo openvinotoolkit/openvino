@@ -82,7 +82,7 @@ namespace
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
     ///        shape information which is required to create new inputs and outputs in the graph.
-    const ONNX_NAMESPACE::ValueInfoProto&
+    const ONNX_NAMESPACE::ValueInfoProto
         find_tensor_descriptor(const ONNX_NAMESPACE::GraphProto& graph,
                                const std::string& tensor_name)
     {
@@ -90,13 +90,19 @@ namespace
                                      std::end(graph.value_info()),
                                      name_equals<ONNX_NAMESPACE::ValueInfoProto>(tensor_name));
 
-        NGRAPH_CHECK(it != std::end(graph.value_info()),
-                     "Could not find a tensor descriptor for tensor '",
-                     tensor_name,
-                     "'. It's not possible to add a new input to the graph without the type and "
-                     "shape information of the intermediate tensor.");
-
-        return *it;
+        if (it != std::end(graph.value_info()))
+        {
+            return *it;
+        }
+        else
+        {
+            auto dynamic_value_info = ONNX_NAMESPACE::ValueInfoProto();
+            dynamic_value_info.set_name(tensor_name);
+            auto type = dynamic_value_info.mutable_type();
+            auto tensor_type = type->mutable_tensor_type();
+            tensor_type->set_elem_type(0);
+            return dynamic_value_info;
+        }
     }
 
     /// \brief Inserts a new input to the graph and removes an initializer that produced a tensor
