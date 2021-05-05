@@ -70,63 +70,63 @@ namespace ngraph
             /// \brief All associated names (synonyms) that identify this place in the graph in a framework specific way
             /// \return A vector of strings each representing a name that identifies this place in the graph.
             ///         Can be empty if there are no names associated with this place or name cannot be attached.
-            virtual std::vector<std::string> getNames() const;
+            virtual std::vector<std::string> get_names() const;
 
             /// \brief Returns references to all operation nodes that consume data from this place
             /// \note It can be called for any kind of graph place searching for the first consuming opertions.
             ///
             /// \param outputPortIndex If place is an operational node it specifies which output port should be considered
             /// \return A vector with all operation node references that consumes data from this place
-            virtual std::vector<Ptr> getConsumingOperations(int outputPortIndex = -1) const;
+            virtual std::vector<Ptr> get_consuming_operations(int outputPortIndex = -1) const;
 
             /// \brief Returns a tensor place that gets data from this place; applicable for operations, output ports and output edges
             ///
             /// \param outputPortIndex Output port index if the current place is an operation node and has multiple output ports
             /// \return A tensor place which hold the resulting value for this place
-            virtual Ptr getTargetTensor(int outputPortIndex = -1) const;
+            virtual Ptr get_target_tensor(int outputPortIndex = -1) const;
 
             /// \brief Returns a tensor place that supplies data for this place; applicable for operations, input ports and input edges
             ///
             /// \param inputPortIndex Input port index for operational nodes
             /// \return A tensor place which supplies data for this place
-            virtual Ptr getSourceTensor(int inputPortIndex = -1) const;
+            virtual Ptr get_source_tensor(int inputPortIndex = -1) const;
 
             /// \brief Get an operation node place that immediately produces data for this place
             ///
             /// \param inputPortIndex If a given place is itself an operation node, this specifies a port index
             /// \return An operation place that produces data for this place
-            virtual Ptr getProducingOperation(int inputPortIndex = -1) const;
+            virtual Ptr get_producing_operation(int inputPortIndex = -1) const;
 
             /// Returns a port that produces data for this place
-            virtual Ptr getProducingPort() const;
+            virtual Ptr get_producing_port() const;
 
             /// For operation node returns reference to an input port with specified index
-            virtual Ptr getInputPort(int inputPortIndex = -1) const;
+            virtual Ptr get_input_port(int inputPortIndex = -1) const;
 
             /// For operation node returns reference to an input port with specified name and index
-            virtual Ptr getInputPort(const std::string& inputName, int inputPortIndex = -1) const;
+            virtual Ptr get_input_port(const std::string& inputName, int inputPortIndex = -1) const;
 
             /// For operation node returns reference to an output port with specified index
-            virtual Ptr getOutputPort(int outputPortIndex = -1) const;
+            virtual Ptr get_output_port(int outputPortIndex = -1) const;
 
             /// For operation node returns reference to an output port with specified name and index
-            virtual Ptr getOutputPort(const std::string& outputName, int outputPortIndex = -1) const;
+            virtual Ptr get_output_port(const std::string& outputName, int outputPortIndex = -1) const;
 
             /// Returns all input ports that consume data flows through this place
-            virtual std::vector<Place::Ptr> getConsumingPorts() const;
+            virtual std::vector<Place::Ptr> get_consuming_ports() const;
 
             /// Returns true if this place is input for a model.
-            virtual bool isInput() const;
+            virtual bool is_input() const;
 
             /// Returns true if this place is output for a model.
-            virtual bool isOutput() const;
+            virtual bool is_output() const;
 
             /// Returns true if another place is the same as this place.
-            virtual bool isEqual(Ptr another) const;
+            virtual bool is_equal(Ptr another) const;
 
             /// \brief Returns true if another place points to the same data.
             /// \note The same data means all places on path: output port -> output edge -> tensor -> input edge -> input port.
-            virtual bool isEqualData(Ptr another) const;
+            virtual bool is_equal_data(Ptr another) const;
         };
 
 
@@ -142,7 +142,7 @@ namespace ngraph
 ///
 ///       Specific front-end implementation is supposed to have a lazy implementation for all methods, not doing
 ///       a complete load of a model without an explicit method call. For example, the list of all inputs
-///       are not pre-fetched by InputModel derived class instance creation, but only when getInputs method is called.
+///       are not pre-fetched by InputModel derived class instance creation, but only when get_inputs method is called.
 ///       But it is not an obligation, the most convenient way should be chosen depending on the framework model
 ///       representation.
 ///
@@ -165,7 +165,7 @@ namespace ngraph
             /// Usually framework models have a dedicated artifact to code model input, it can be a tensor without producer,
             /// that writes to it in ONNX, or a special operation like Placeholder in TensorFlow.
             /// \return A vector of input place references
-            virtual std::vector<Place::Ptr> getInputs() const;
+            virtual std::vector<Place::Ptr> get_inputs() const;
 
             /// \brief Returns all output for a model
             /// An output is a terminal place in a graph where data escapes the flow. It can be a tensor, port, operation;
@@ -174,91 +174,91 @@ namespace ngraph
             /// by a frontend itself, not a framework. For example, all output ports without consumers may be considered
             /// as outputs.
             /// \return A vector of output place references
-            virtual std::vector<Place::Ptr> getOutputs() const;
+            virtual std::vector<Place::Ptr> get_outputs() const;
 
             /// Returns a tensor place by a tensor name following framework conventions, or nullptr if a tensor with this name doesn't exist.
-            virtual Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
+            virtual Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
 
             /// Returns an operation place by a tensor name following framework conventions, or nullptr if an operation with this name doesn't exist.
-            virtual Place::Ptr getPlaceByOperationName(const std::string& operationName);
+            virtual Place::Ptr get_place_by_operation_name(const std::string& operationName);
 
             /// Returns an input port.
-            virtual Place::Ptr getPlaceByOperationAndInputPort(const std::string& operationName, int inputPortIndex);
+            virtual Place::Ptr get_place_by_operation_and_input_port(const std::string& operationName, int inputPortIndex);
 
             /// Returns an output port.
-            virtual Place::Ptr getPlaceByOperationAndOutputPort(const std::string& operationName, int outputPortIndex);
+            virtual Place::Ptr get_place_by_operation_and_output_port(const std::string& operationName, int outputPortIndex);
 
 
             ///// Naming and annotation  /////
 
-            virtual void setNameForTensor(Place::Ptr tensor, const std::string& newName);
+            virtual void set_name_for_tensor(Place::Ptr tensor, const std::string& newName);
 
-            virtual void addNameForTensor(Place::Ptr tensor, const std::string& newName);
+            virtual void add_name_for_tensor(Place::Ptr tensor, const std::string& newName);
 
-            virtual void setNameForOperation(Place::Ptr operation, const std::string& newName);
+            virtual void set_name_for_operation(Place::Ptr operation, const std::string& newName);
 
-            virtual void freeNameForTensor(const std::string& name);
+            virtual void free_name_for_tensor(const std::string& name);
 
-            virtual void freeNameForOperation(const std::string& name);
+            virtual void free_name_for_operation(const std::string& name);
 
-            virtual void setNameForDimension(Place::Ptr place, size_t shapeDimIndex, const std::string& dimName);
+            virtual void set_name_for_dimension(Place::Ptr place, size_t shapeDimIndex, const std::string& dimName);
 
 
             ///// Topology Editing  /////
 
             /// Cut immediately before this place and assign this place as new input; prune all nodes that don't contribute to any output.
-            virtual void cutAndAddNewInput(Place::Ptr place, const std::string& newNameOptional = "");
+            virtual void cut_and_add_new_input(Place::Ptr place, const std::string& newNameOptional = "");
 
             /// Cut immediately after this place and assign this place as new output; prune all nodes that don't contribute to any output.
-            virtual void cutAndAddNewOutput(Place::Ptr place, const std::string& newNameOptional = "");
+            virtual void cut_and_add_new_output(Place::Ptr place, const std::string& newNameOptional = "");
 
             /// \brief Assign this place as new output or add necessary nodes to represent a new output.
             ///
             /// \param place Anchor point to add an output
             /// \return new output place, may be the same as a given place
-            virtual Place::Ptr addOutput(Place::Ptr place);
+            virtual Place::Ptr add_output(Place::Ptr place);
 
             /// Removes any sinks directly attached to this place with all inbound data flow if it is not required by any other output.
-            virtual void removeOutput(Place::Ptr place);
+            virtual void remove_output(Place::Ptr place);
 
             /// Removes an input place and all data flow that depends on it.
             // TODO: remove it as something not practically useful in the API?
-            virtual void removeInput(Place::Ptr place);
+            virtual void remove_input(Place::Ptr place);
 
             /// Replaces all existing outputs with new ones removing all data flow that is not required for new outputs.
             ///
             /// \param outputs Vector with places that will become new outputs; may intersect existing outputs.
-            virtual void overrideAllOutputs(const std::vector<Place::Ptr>& outputs);
+            virtual void override_all_outputs(const std::vector<Place::Ptr>& outputs);
 
             /// \brief Modifies the graph to use new inputs instead of existing ones. New inputs should completely satisfy all existing outputs.
-            virtual void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
+            virtual void override_all_inputs(const std::vector<Place::Ptr>& inputs);
 
             /// Leaves only subgraph that are defined by new inputs and new outputs.
-            virtual void extractSubgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
+            virtual void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
 
             ///// Setting tensor properties  /////
 
             /// Sets shape that would be used by default for this place; place should be uniquely refer to some data.
             // TODO: define clearly which scenario requires it -- currently it should satisfy requirement to have statically defined shapes for tensors
-            virtual void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
+            virtual void set_default_shape(Place::Ptr place, const ngraph::Shape&);
 
             /// Defines all possible shape that may be used for this place; place should be uniquely refer to some data.
             /// This partial shape will be converted to corresponding shape of results ngraph nodes and will define shape inference
             /// when the model is converted to ngraph.
-            virtual void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
+            virtual void set_partial_shape(Place::Ptr place, const ngraph::PartialShape&);
 
             /// Returns current partial shape used for this place
-            virtual ngraph::PartialShape getPartialShape(Place::Ptr place) const;
+            virtual ngraph::PartialShape get_partial_shape(Place::Ptr place) const;
 
             /// Sets new element type for a place.
-            virtual void setElementType(Place::Ptr place, const ngraph::element::Type&);
+            virtual void set_element_type(Place::Ptr place, const ngraph::element::Type&);
 
             /// Freezes a tensor with statically defined value or replace existing value for already constant node or tensor.
-            virtual void setTensorValue(Place::Ptr place, const void *value);
+            virtual void set_tensor_value(Place::Ptr place, const void *value);
 
             /// Defines partial value (lower bound and upper bound) for a tensor place.
             // TODO: more details for minValue and maxValue format; who defines shape?
-            virtual void setTensorPartialValue(Place::Ptr place, const void *minValue, const void *maxValue);
+            virtual void set_tensor_partial_value(Place::Ptr place, const void *minValue, const void *maxValue);
 
             // TODO: Document "inputs/output assymetry" in more details
 
@@ -278,17 +278,17 @@ namespace ngraph
 
             virtual ~FrontEnd();
 
-            virtual InputModel::Ptr loadFromFile(const std::string& path) const;
+            virtual InputModel::Ptr load_from_file(const std::string& path) const;
 
-            virtual InputModel::Ptr loadFromFiles(const std::vector<std::string>& paths) const;
+            virtual InputModel::Ptr load_from_files(const std::vector<std::string>& paths) const;
 
-            virtual InputModel::Ptr loadFromMemory(const void *model) const;
+            virtual InputModel::Ptr load_from_memory(const void *model) const;
 
-            virtual InputModel::Ptr loadFromMemoryFragments(const std::vector<const void *>& modelParts) const;
+            virtual InputModel::Ptr load_from_memory_fragments(const std::vector<const void *>& modelParts) const;
 
-            virtual InputModel::Ptr loadFromStream(std::istream& path) const;
+            virtual InputModel::Ptr load_from_stream(std::istream& path) const;
 
-            virtual InputModel::Ptr loadFromStreams(const std::vector<std::istream *>& paths) const;
+            virtual InputModel::Ptr load_from_streams(const std::vector<std::istream *>& paths) const;
 
             // Extra ctors may be provided by FW-specialized data structure for graph representaion
 
@@ -296,13 +296,13 @@ namespace ngraph
             virtual std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const;
 
             /// Completely convert the remaining, not converted part of a function.
-            virtual std::shared_ptr<ngraph::Function>
-            convert(std::shared_ptr<ngraph::Function> partiallyConverted) const;
+            virtual std::shared_ptr<ngraph::Function> convert(
+                    std::shared_ptr<ngraph::Function> partiallyConverted) const;
 
             /// Convert only those parts of the model that can be converted leaving others as-is.
             /// Converted parts are not normalized by additional transformations; normalize function
             /// or another form of convert function should be called to finalize the conversion process.
-            virtual std::shared_ptr<ngraph::Function> convertPartially(InputModel::Ptr model) const;
+            virtual std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const;
 
             /// Convert operations with one-to-one mapping with decoding nodes.
             /// Each decoding node is an nGraph node representing a single FW operation node with all attributes
@@ -333,15 +333,15 @@ namespace ngraph
 
             ~FrontEndManager();
 
-            FrontEnd::Ptr loadByFramework(const std::string& framework,
-                                          FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
+            FrontEnd::Ptr load_by_framework(const std::string& framework,
+                                            FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
 
-            FrontEnd::Ptr loadByModel(const std::string& path,
-                                      FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
+            FrontEnd::Ptr load_by_model(const std::string& path,
+                                        FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
 
-            std::vector<std::string> availableFrontEnds() const;
+            std::vector<std::string> get_available_front_ends() const;
 
-            void registerFrontEnd(const std::string& name, FrontEndFactory creator);
+            void register_front_end(const std::string& name, FrontEndFactory creator);
 
         private:
             class Impl;

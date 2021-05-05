@@ -33,13 +33,14 @@ static int set_test_env(const char* name, const char* value)
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.registerFrontEnd("mock", [](FrontEndCapabilities fec) {
+    ASSERT_NO_THROW(fem.register_front_end("mock", [](FrontEndCapabilities fec)
+    {
         return std::make_shared<FrontEnd>();
     }));
-    auto frontends = fem.availableFrontEnds();
+    auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.loadByFramework("mock"));
+    ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)
@@ -50,7 +51,7 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd)
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
 
     FrontEndManager fem;
-    auto frontends = fem.availableFrontEnds();
+    auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
     set_test_env("OV_FRONTEND_PATH", "");
 }
@@ -58,20 +59,20 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 TEST(FrontEndManagerTest, testDefaultFrontEnd)
 {
     FrontEndManager fem;
-    ASSERT_ANY_THROW(fem.loadByModel(""));
+    ASSERT_ANY_THROW(fem.load_by_model(""));
 
     std::unique_ptr<FrontEnd> fePtr (new FrontEnd()); // to verify base destructor
     FrontEnd::Ptr fe = std::make_shared<FrontEnd>();
-    ASSERT_ANY_THROW(fe->loadFromFile(""));
-    ASSERT_ANY_THROW(fe->loadFromFiles({"", ""}));
-    ASSERT_ANY_THROW(fe->loadFromMemory(nullptr));
-    ASSERT_ANY_THROW(fe->loadFromMemoryFragments({nullptr, nullptr}));
+    ASSERT_ANY_THROW(fe->load_from_file(""));
+    ASSERT_ANY_THROW(fe->load_from_files({"", ""}));
+    ASSERT_ANY_THROW(fe->load_from_memory(nullptr));
+    ASSERT_ANY_THROW(fe->load_from_memory_fragments({nullptr, nullptr}));
     std::stringstream str;
-    ASSERT_ANY_THROW(fe->loadFromStream(str));
-    ASSERT_ANY_THROW(fe->loadFromStreams({&str, &str}));
+    ASSERT_ANY_THROW(fe->load_from_stream(str));
+    ASSERT_ANY_THROW(fe->load_from_streams({&str, &str}));
     ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
     ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
-    ASSERT_ANY_THROW(fe->convertPartially(nullptr));
+    ASSERT_ANY_THROW(fe->convert_partially(nullptr));
     ASSERT_ANY_THROW(fe->decode(nullptr));
     ASSERT_ANY_THROW(fe->normalize(nullptr));
 }
@@ -80,51 +81,51 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
 {
     std::unique_ptr<InputModel> imPtr (new InputModel()); // to verify base destructor
     InputModel::Ptr im = std::make_shared<InputModel>();
-    ASSERT_ANY_THROW(im->getInputs());
-    ASSERT_ANY_THROW(im->getOutputs());
-    ASSERT_ANY_THROW(im->overrideAllInputs({nullptr}));
-    ASSERT_ANY_THROW(im->overrideAllOutputs({nullptr}));
-    ASSERT_ANY_THROW(im->extractSubgraph({nullptr}, {nullptr}));
-    ASSERT_ANY_THROW(im->getPlaceByTensorName(""));
-    ASSERT_ANY_THROW(im->getPlaceByOperationName(""));
-    ASSERT_ANY_THROW(im->getPlaceByOperationAndInputPort("", 0));
-    ASSERT_ANY_THROW(im->getPlaceByOperationAndOutputPort("", 0));
-    ASSERT_ANY_THROW(im->setNameForTensor(nullptr, ""));
-    ASSERT_ANY_THROW(im->addNameForTensor(nullptr, ""));
-    ASSERT_ANY_THROW(im->setNameForOperation(nullptr, ""));
-    ASSERT_ANY_THROW(im->freeNameForTensor(""));
-    ASSERT_ANY_THROW(im->freeNameForOperation(""));
-    ASSERT_ANY_THROW(im->setNameForDimension(nullptr, 0, ""));
-    ASSERT_ANY_THROW(im->cutAndAddNewInput(nullptr, ""));
-    ASSERT_ANY_THROW(im->cutAndAddNewOutput(nullptr, ""));
-    ASSERT_ANY_THROW(im->addOutput(nullptr));
-    ASSERT_ANY_THROW(im->removeOutput(nullptr));
-    ASSERT_ANY_THROW(im->removeInput(nullptr));
-    ASSERT_ANY_THROW(im->setDefaultShape(nullptr, ngraph::Shape{}));
-    ASSERT_ANY_THROW(im->setPartialShape(nullptr, ngraph::Shape{}));
-    ASSERT_ANY_THROW(im->getPartialShape(nullptr));
-    ASSERT_ANY_THROW(im->setElementType(nullptr, ngraph::element::Type{}));
-    ASSERT_ANY_THROW(im->setTensorValue(nullptr, nullptr));
-    ASSERT_ANY_THROW(im->setTensorPartialValue(nullptr, nullptr, nullptr));
+    ASSERT_ANY_THROW(im->get_inputs());
+    ASSERT_ANY_THROW(im->get_outputs());
+    ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
+    ASSERT_ANY_THROW(im->override_all_outputs({nullptr}));
+    ASSERT_ANY_THROW(im->extract_subgraph({nullptr}, {nullptr}));
+    ASSERT_ANY_THROW(im->get_place_by_tensor_name(""));
+    ASSERT_ANY_THROW(im->get_place_by_operation_name(""));
+    ASSERT_ANY_THROW(im->get_place_by_operation_and_input_port("", 0));
+    ASSERT_ANY_THROW(im->get_place_by_operation_and_output_port("", 0));
+    ASSERT_ANY_THROW(im->set_name_for_tensor(nullptr, ""));
+    ASSERT_ANY_THROW(im->add_name_for_tensor(nullptr, ""));
+    ASSERT_ANY_THROW(im->set_name_for_operation(nullptr, ""));
+    ASSERT_ANY_THROW(im->free_name_for_tensor(""));
+    ASSERT_ANY_THROW(im->free_name_for_operation(""));
+    ASSERT_ANY_THROW(im->set_name_for_dimension(nullptr, 0, ""));
+    ASSERT_ANY_THROW(im->cut_and_add_new_input(nullptr, ""));
+    ASSERT_ANY_THROW(im->cut_and_add_new_output(nullptr, ""));
+    ASSERT_ANY_THROW(im->add_output(nullptr));
+    ASSERT_ANY_THROW(im->remove_output(nullptr));
+    ASSERT_ANY_THROW(im->remove_input(nullptr));
+    ASSERT_ANY_THROW(im->set_default_shape(nullptr, ngraph::Shape{}));
+    ASSERT_ANY_THROW(im->set_partial_shape(nullptr, ngraph::Shape{}));
+    ASSERT_ANY_THROW(im->get_partial_shape(nullptr));
+    ASSERT_ANY_THROW(im->set_element_type(nullptr, ngraph::element::Type{}));
+    ASSERT_ANY_THROW(im->set_tensor_value(nullptr, nullptr));
+    ASSERT_ANY_THROW(im->set_tensor_partial_value(nullptr, nullptr, nullptr));
 }
 
 TEST(FrontEndManagerTest, testDefaultPlace)
 {
     std::unique_ptr<Place> placePtr (new Place()); // to verify base destructor
     Place::Ptr place = std::make_shared<Place>();
-    ASSERT_ANY_THROW(place->getNames());
-    ASSERT_ANY_THROW(place->getConsumingOperations());
-    ASSERT_ANY_THROW(place->getTargetTensor());
-    ASSERT_ANY_THROW(place->getSourceTensor());
-    ASSERT_ANY_THROW(place->getProducingOperation());
-    ASSERT_ANY_THROW(place->getProducingPort());
-    ASSERT_ANY_THROW(place->getInputPort());
-    ASSERT_ANY_THROW(place->getInputPort(""));
-    ASSERT_ANY_THROW(place->getOutputPort());
-    ASSERT_ANY_THROW(place->getOutputPort(""));
-    ASSERT_ANY_THROW(place->getConsumingPorts());
-    ASSERT_ANY_THROW(place->isInput());
-    ASSERT_ANY_THROW(place->isOutput());
-    ASSERT_ANY_THROW(place->isEqual(nullptr));
-    ASSERT_ANY_THROW(place->isEqualData(nullptr));
+    ASSERT_ANY_THROW(place->get_names());
+    ASSERT_ANY_THROW(place->get_consuming_operations());
+    ASSERT_ANY_THROW(place->get_target_tensor());
+    ASSERT_ANY_THROW(place->get_source_tensor());
+    ASSERT_ANY_THROW(place->get_producing_operation());
+    ASSERT_ANY_THROW(place->get_producing_port());
+    ASSERT_ANY_THROW(place->get_input_port());
+    ASSERT_ANY_THROW(place->get_input_port(""));
+    ASSERT_ANY_THROW(place->get_output_port());
+    ASSERT_ANY_THROW(place->get_output_port(""));
+    ASSERT_ANY_THROW(place->get_consuming_ports());
+    ASSERT_ANY_THROW(place->is_input());
+    ASSERT_ANY_THROW(place->is_output());
+    ASSERT_ANY_THROW(place->is_equal(nullptr));
+    ASSERT_ANY_THROW(place->is_equal_data(nullptr));
 }

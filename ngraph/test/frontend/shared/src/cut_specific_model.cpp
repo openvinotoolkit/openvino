@@ -43,10 +43,10 @@ void FrontEndCutModelTest::doLoadFromFile()
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_param.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 
@@ -55,7 +55,7 @@ std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInpu
     std::vector<Place::Ptr> newInputs;
     for (const auto& name : m_param.m_newInputs)
     {
-        newInputs.push_back(m_inputModel->getPlaceByTensorName(name));
+        newInputs.push_back(m_inputModel->get_place_by_tensor_name(name));
     }
     return newInputs;
 }
@@ -65,7 +65,7 @@ std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutp
     std::vector<Place::Ptr> newOutputs;
     for (const auto& name : m_param.m_newOutputs)
     {
-        newOutputs.push_back(m_inputModel->getPlaceByTensorName(name));
+        newOutputs.push_back(m_inputModel->get_place_by_tensor_name(name));
     }
     return newOutputs;
 }
@@ -77,13 +77,13 @@ TEST_P(FrontEndCutModelTest, testOverrideInputs)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
-    ASSERT_NO_THROW(m_inputModel->getInputs());
-    EXPECT_EQ(m_param.m_newInputs.size(), m_inputModel->getInputs().size());
-    for (auto newInput : m_inputModel->getInputs())
+    ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->get_inputs());
+    EXPECT_EQ(m_param.m_newInputs.size(), m_inputModel->get_inputs().size());
+    for (auto newInput : m_inputModel->get_inputs())
     {
         std::vector<std::string> names;
-        ASSERT_NO_THROW(names = newInput->getNames());
+        ASSERT_NO_THROW(names = newInput->get_names());
         bool found = false;
         for (const auto& name: m_param.m_newInputs)
         {
@@ -102,13 +102,13 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllOutputs(newPlaces));
-    ASSERT_NO_THROW(m_inputModel->getOutputs());
-    EXPECT_EQ(m_param.m_newOutputs.size(), m_inputModel->getOutputs().size());
-    for (auto newOutput : m_inputModel->getOutputs())
+    ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->get_outputs());
+    EXPECT_EQ(m_param.m_newOutputs.size(), m_inputModel->get_outputs().size());
+    for (auto newOutput : m_inputModel->get_outputs())
     {
         std::vector<std::string> names;
-        ASSERT_NO_THROW(names = newOutput->getNames());
+        ASSERT_NO_THROW(names = newOutput->get_names());
         bool found = false;
         for (const auto& name: m_param.m_newOutputs)
         {
@@ -162,7 +162,7 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
@@ -194,7 +194,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllOutputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
@@ -227,7 +227,7 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph)
     std::vector<Place::Ptr> newInputs, newOutputs;
     ASSERT_NO_THROW(newInputs = constructNewInputs());
     ASSERT_NO_THROW(newOutputs = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->extractSubgraph(newInputs, newOutputs));
+    ASSERT_NO_THROW(m_inputModel->extract_subgraph(newInputs, newOutputs));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
@@ -258,8 +258,8 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue)
 {
     ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_param.m_tensorValueName));
-    ASSERT_NO_THROW(m_inputModel->setTensorValue(place, &m_param.m_tensorValue[0]));
+    ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_param.m_tensorValueName));
+    ASSERT_NO_THROW(m_inputModel->set_tensor_value(place, &m_param.m_tensorValue[0]));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));

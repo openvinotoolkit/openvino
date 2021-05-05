@@ -39,10 +39,10 @@ void FrontEndPartialShapeTest::doLoadFromFile()
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_baseParam.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_baseParam.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_partShape.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_partShape.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 
@@ -73,9 +73,9 @@ TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
 {
     ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->getPlaceByTensorName(m_partShape.m_tensorName));
+    ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_partShape.m_tensorName));
     ASSERT_NE(place, nullptr);
-    ASSERT_NO_THROW(m_inputModel->setPartialShape(place, PartialShape{m_partShape.m_newPartialShape}));
+    ASSERT_NO_THROW(m_inputModel->set_partial_shape(place, PartialShape{m_partShape.m_newPartialShape}));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
