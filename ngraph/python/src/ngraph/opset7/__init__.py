@@ -37,6 +37,7 @@ from ngraph.opset1.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
 from ngraph.opset1.ops import detection_output
+from ngraph.opset7.ops import dft
 from ngraph.opset1.ops import divide
 from ngraph.opset7.ops import einsum
 from ngraph.opset1.ops import elu
@@ -65,6 +66,7 @@ from ngraph.opset5.ops import gru_sequence
 from ngraph.opset1.ops import hard_sigmoid
 from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
+from ngraph.opset7.ops import idft
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
