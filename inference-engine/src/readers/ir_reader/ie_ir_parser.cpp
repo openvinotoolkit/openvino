@@ -920,10 +920,11 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     XmlDeserializer visitor(root, weights, opsets, variables);
     bool use_framework_node{false};
     for (const auto & ext : _exts) {
-        InferenceEngine::Version * version = new InferenceEngine::Version();
-        ext->GetVersion(const_cast<const Version *&>(version));
+        const InferenceEngine::Version * version;
+        ext->GetVersion(version);
         if (version->description && strcmp(version->description, "framework_node_ext") == 0) {
             use_framework_node = true;
+            break;
         }
     }
     visitor.use_framework_node(use_framework_node);
