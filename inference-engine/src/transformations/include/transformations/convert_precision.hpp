@@ -20,7 +20,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPrecision;
+class NGRAPH_API ConvertPrecision;
 
 }  // namespace pass
 }  // namespace ngraph
