@@ -15,4 +15,6 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void ApplyPruningTransformation(IENetwork network)
 
+    cdef void GenerateMappingFile(IENetwork network, string path, bool extract_names)
+
     cdef void CheckAPI()

@@ -316,6 +316,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
             REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);

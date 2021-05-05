@@ -843,7 +843,7 @@ MKLDNNEltwiseNode::initializers = {
             opType = BoundedRelu;
             algorithm = mkldnn::algorithm::eltwise_bounded_relu;
         }},
-        {"soft_relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+        {"softplus", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = 0.0f;
             beta = 0.0f;
             opType = SoftRelu;
@@ -983,7 +983,8 @@ void MKLDNNEltwiseNode::init() {
                comparator(layerType, "hswish") ||
                comparator(layerType, "mish") ||
                comparator(layerType, "hsigmoid") ||
-               comparator(layerType, "round")) {
+               comparator(layerType, "round") ||
+               comparator(layerType, "softplus")) {
         initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
     } else if (comparator(layerType, "erf")) {
         eltwiseOp = Erf;
