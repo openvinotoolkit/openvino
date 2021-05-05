@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
             mode = layer->GetParamAsString("mode", "average");
             if (mode != "bilinear_deformable")
                 if (layer->insData.size() !=  2 || layer->outData.size() != 1)
-                    THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                    IE_THROW() << "Incorrect number of input/output edges!";
             // LayerSetUp
             outputDim = static_cast<size_t>(layer->GetParamAsInt("output_dim"));
             groupSize = static_cast<size_t>(layer->GetParamAsInt("group_size"));
@@ -89,7 +89,7 @@ public:
                                   DataConfigurator(ConfLayout::PLN, Precision::FP32),
                                   DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -124,9 +124,9 @@ public:
         auto inBlkDims = srcDesc.getBlockingDesc().getBlockDims();
         auto outBlkDims = dstDesc.getBlockingDesc().getBlockDims();
         if (inBlkDims.size() != expectedInBlockDimsSize)
-            THROW_IE_EXCEPTION << "Unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected " << expectedInBlockDimsSize << ")";
+            IE_THROW() << "Unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected " << expectedInBlockDimsSize << ")";
         if (outBlkDims.size() != expectedOutBlockDimsSize)
-            THROW_IE_EXCEPTION << "Unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected " << expectedOutBlockDimsSize << ")";
+            IE_THROW() << "Unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected " << expectedOutBlockDimsSize << ")";
 
         inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
         outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);

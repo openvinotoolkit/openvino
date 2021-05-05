@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -113,6 +101,61 @@ NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_pad)
     test_case.add_expected_output<float>(out_shape, result);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_ceil_stride_pad)
+{
+    Shape in_shape{1, 1, 1, 5};
+    Shape out_shape{1, 1, 1, 3};
+    const Strides& strides{1, 2};
+    const Shape& pads_begin{1, 1};
+    const Shape& pads_end{1, 1};
+    const Shape& kernel{3, 3};
+    const bool exclude_pad = true;
+    const op::RoundingType rounding_type = op::RoundingType::CEIL;
+    const op::PadType pad_type = op::PadType::EXPLICIT;
+
+    auto A = make_shared<op::Parameter>(element::f32, in_shape);
+    auto avgPool = make_shared<op::v1::AvgPool>(
+        A, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_type, pad_type);
+    auto f = make_shared<Function>(avgPool, ParameterVector{A});
+
+
+    std::vector<float> a{1, 2, 3, 4, 5};
+    std::vector<float> result{1.5, 3, 4.5};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(out_shape, result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_ceil_stride_pad_include_padding)
+{
+    Shape in_shape{1, 1, 1, 5};
+    Shape out_shape{1, 1, 1, 3};
+    const Strides& strides{1, 2};
+    const Shape& pads_begin{1, 1};
+    const Shape& pads_end{1, 1};
+    const Shape& kernel{3, 3};
+    const bool exclude_pad = false;
+    const op::RoundingType rounding_type = op::RoundingType::CEIL;
+    const op::PadType pad_type = op::PadType::EXPLICIT;
+
+    auto A = make_shared<op::Parameter>(element::f32, in_shape);
+    auto avgPool = make_shared<op::v1::AvgPool>(
+        A, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_type, pad_type);
+    auto f = make_shared<Function>(avgPool, ParameterVector{A});
+
+
+    std::vector<float> a{2.5, 2, 12, 4, 5};
+    std::vector<float> result{0.5, 2, 1};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(out_shape, result);
+    test_case.run();
+}
+
 
 NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_same_upper)
 {

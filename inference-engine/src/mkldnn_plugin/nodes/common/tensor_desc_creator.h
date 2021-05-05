@@ -1,10 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_layouts.h>
+#include <functional>
 
 namespace MKLDNNPlugin {
 

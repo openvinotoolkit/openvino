@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterNDUpdateParamsTuple> &obj) {
-    sliceSelcetInShape shapeDescript;
+    sliceSelectInShape shapeDescript;
     std::vector<size_t> inShape;
     std::vector<size_t> indicesShape;
     std::vector<size_t> indicesValue;
@@ -28,9 +28,9 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
     return result.str();
 }
 
-std::vector<sliceSelcetInShape> ScatterNDUpdateLayerTest::combineShapes(
+std::vector<sliceSelectInShape> ScatterNDUpdateLayerTest::combineShapes(
     const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>>& inputShapes) {
-    std::vector<sliceSelcetInShape> resVec;
+    std::vector<sliceSelectInShape> resVec;
     for (auto& inputShape : inputShapes) {
         for (auto& item : inputShape.second) {
             auto indiceShape = item.first;
@@ -50,7 +50,7 @@ std::vector<sliceSelcetInShape> ScatterNDUpdateLayerTest::combineShapes(
 }
 
 void ScatterNDUpdateLayerTest::SetUp() {
-    sliceSelcetInShape shapeDescript;
+    sliceSelectInShape shapeDescript;
     InferenceEngine::SizeVector inShape;
     InferenceEngine::SizeVector indicesShape;
     InferenceEngine::SizeVector indicesValue;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include "base_matcher.hpp"
 #include "regression_reference.hpp"
 #include <precision_utils.h>
-#include <ie_iexecutable_network.hpp>
 #include "label_probability.hpp"
 
 namespace Regression { namespace Matchers {

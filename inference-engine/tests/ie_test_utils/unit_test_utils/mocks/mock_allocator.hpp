@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 
 class MockAllocator : public InferenceEngine::IAllocator {
 public:
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD2(lock, noexcept, void*(void*, InferenceEngine::LockOp));
     MOCK_QUALIFIED_METHOD1(unlock, noexcept, void(void *));
     MOCK_QUALIFIED_METHOD1(alloc, noexcept, void*(size_t));

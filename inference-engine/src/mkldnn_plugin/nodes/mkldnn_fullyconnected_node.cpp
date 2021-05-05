@@ -71,6 +71,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
+        //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
         if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
                 inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
@@ -78,26 +79,36 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
     }
 
+    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
+        && outputDataType == memory::data_type::bf16) {
+        outputDataType = memory::data_type::f32;
+    }
+
+    if (inputDataType == memory::data_type::bf16
+        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+        outputDataType = memory::data_type::bf16;
+    }
+
     auto * fcLayer = dynamic_cast<FullyConnectedLayer*>(getCnnLayer().get());
     if (fcLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert fully connected layer.";
+        IE_THROW() << "Cannot convert fully connected layer.";
     if (fcLayer->_weights == nullptr && baseInputsNumber == 1) {
-        THROW_IE_EXCEPTION << "Weights are empty for layer: " << fcLayer->name
+        IE_THROW() << "Weights are empty for layer: " << fcLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
                            << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 
     if (getParentEdges().size() != baseInputsNumber)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     MKLDNNDims inDims = getParentEdgeAt(0)->getDims();
     MKLDNNDims outDims = getChildEdgeAt(0)->getDims();
 
     if (!one_of(inDims.ndims(), 2, 3, 4, 5)) {
-        THROW_IE_EXCEPTION << "Unsupported source format for FC layer. Expected 5, 4, 3 or 2, got: "
+        IE_THROW() << "Unsupported source format for FC layer. Expected 5, 4, 3 or 2, got: "
                            << inDims.ndims() << " dims.";
     }
 

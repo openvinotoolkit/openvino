@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,12 +25,12 @@ void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op
     if (inputPrimitives.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (!index_node) {
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(index_node, val))
-             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
@@ -116,12 +116,12 @@ void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::
     if (inputPrimitives.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(4));
         if (!index_node) {
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(index_node, val))
-             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"

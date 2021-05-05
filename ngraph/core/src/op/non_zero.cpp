@@ -1,22 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include "ngraph/op/non_zero.hpp"
+#include <numeric>
+
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
+#include "ngraph/op/non_zero.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/non_zero.hpp"
@@ -61,7 +51,7 @@ void op::v3::NonZero::validate_and_infer_types()
     const auto input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral() || input_et.is_real(),
+                          input_et.is_integral_number() || input_et.is_real(),
                           "NonZero input data type needs to be a numeric type. Got: ",
                           input_et);
     NODE_VALIDATION_CHECK(this,
@@ -75,7 +65,13 @@ void op::v3::NonZero::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+        const Dimension dim = input_shape.is_static()
+                                  ? std::accumulate(begin(input_shape),
+                                                    end(input_shape),
+                                                    Dimension(0, 1),
+                                                    std::multiplies<Dimension>())
+                                  : Dimension();
+        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
     set_input_is_relevant_to_shape(0);
@@ -133,7 +129,7 @@ namespace nonzero
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                                   \
         rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                  \
     }                                                                                              \
     break
@@ -151,25 +147,30 @@ namespace nonzero
 
         return rc;
     }
-
+#undef TYPE_OUT_CASE
     bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output)
     {
         bool rc = true;
 
         switch (input->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i8, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i64, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, u8, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, u32, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, u64, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, bf16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, f16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, f32, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, f64, input, output);
         default: rc = false; break;
         }
         return rc;
     }
-}
+} // namespace nonzero
 
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const

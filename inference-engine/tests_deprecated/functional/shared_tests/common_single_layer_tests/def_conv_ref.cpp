@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ void Convolution_parseParams(InferenceEngine::CNNLayer* layer);
 void DeformableConvolution_parseParams(InferenceEngine::CNNLayer* layer) {
     auto deformable_conv_layer = dynamic_cast<InferenceEngine::DeformableConvolutionLayer*>(layer);
     if (!deformable_conv_layer) {
-        THROW_IE_EXCEPTION << "Layer is not instance of DeformableConvolutionLayer class";
+        IE_THROW() << "Layer is not instance of DeformableConvolutionLayer class";
     }
     deformable_conv_layer->_deformable_group = deformable_conv_layer->GetParamAsUInt("deformable_group", 1u);
     Convolution_parseParams(layer);
@@ -32,7 +32,7 @@ void ref_def_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
                          const CommonTestUtils::def_conv_common_params& prm) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW &&
         srcs[0]->getTensorDesc().getLayout() != Layout::NCDHW)
-        THROW_IE_EXCEPTION << "Reference FP32 deformable convolution supports NCHW and NCDHW layouts only";
+        IE_THROW() << "Reference FP32 deformable convolution supports NCHW and NCDHW layouts only";
     size_t KW = prm.kernel[X_AXIS];
     size_t KH = prm.kernel[Y_AXIS];
     size_t KD = prm.kernel.size() > Z_AXIS ? prm.kernel[Z_AXIS] : 1lu;
@@ -163,7 +163,7 @@ void ref_def_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
                          const CommonTestUtils::def_conv_common_params& prm) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW &&
         srcs[0]->getTensorDesc().getLayout() != Layout::NCDHW)
-        THROW_IE_EXCEPTION << "Reference FP16 deformable convolution supports NCHW and NCDHW layouts only";
+        IE_THROW() << "Reference FP16 deformable convolution supports NCHW and NCDHW layouts only";
     size_t KW = prm.kernel[X_AXIS];
     size_t KH = prm.kernel[Y_AXIS];
     size_t KD = prm.kernel.size() > Z_AXIS ? prm.kernel[Z_AXIS] : 1lu;

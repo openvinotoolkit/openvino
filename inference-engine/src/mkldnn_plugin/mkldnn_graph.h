@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng) {}
+    MKLDNNGraph() = default;
 
     Status GetStatus() {
         return status;
@@ -42,7 +42,7 @@ public:
 
     void setConfig(const Config &cfg);
     void setProperty(const std::map<std::string, std::string> &properties);
-    Config getProperty();
+    Config getProperty() const;
 
     void getInputBlobs(InferenceEngine::BlobMap &in_map);
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);
@@ -172,7 +172,7 @@ protected:
         graphEdges.clear();
         _meanImages.clear();
     }
-    Status status;
+    Status status { NotReady };
     Config config;
 
     // For dumping purposes. -1 - no counting, all other positive
@@ -191,7 +191,7 @@ protected:
     std::map<std::string, MeanImage> _meanImages;
     std::string _name;
 
-    mkldnn::engine eng;
+    static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
@@ -206,9 +206,6 @@ protected:
     void ExecuteConstantNodesOnly();
     void SetOriginalLayerNames();
 
-    void do_before(const std::string &dir, const MKLDNNNodePtr &node);
-    void do_after(const std::string &dir, const MKLDNNNodePtr &node);
-
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
@@ -216,6 +213,8 @@ protected:
 
 private:
     void dumpToDotFile(std::string file) const;
+    void printGraphInfo() const;
+
     struct ParsedLayer {
         MKLDNNNodePtr parent;
         InferenceEngine::CNNLayerPtr cnnLayer;

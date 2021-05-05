@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 from copy import deepcopy
 
@@ -100,10 +88,8 @@ class Port:
         if self.node.graph.stage == 'front':
             return None
         else:
-            if self.type == 'in':
-                return self.node.in_node(self.idx, control_flow=self.control_flow).shape
-            else:
-                return self.node.out_node(self.idx, control_flow=self.control_flow).shape
+            node_caller = self.node.in_node if self.type == 'in' else self.node.out_node
+            return node_caller(self.idx, control_flow=self.control_flow).shape
 
     def _set_shape(self, shape):
         if self.node.graph.stage == 'front':
@@ -114,7 +100,8 @@ class Port:
                 self.node.in_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
             else:
                 data_node = self.node.out_node(self.idx, control_flow=self.control_flow)
-                assert data_node.value is None or np.array_equal(data_node.shape, int64_array(shape))
+                assert data_node.value is None or \
+                       np.array_equal(data_node.soft_get('force_shape', data_node.shape),  int64_array(shape))
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
 
     def _get_value(self):
@@ -135,24 +122,21 @@ class Port:
         if self.node.graph.stage == 'front':
             raise Error("set_value is not applicable for graph front phase")
         else:
-            if self.type == 'in':
-                data_node = self.node.in_node(self.idx, control_flow=self.control_flow)
-                const_node = data_node.in_node(control_flow=self.control_flow)
+            data_node_caller = self.node.in_node if self.type == 'in' else self.node.out_node
+            data_node = data_node_caller(self.idx, control_flow=self.control_flow)
+            const_node = data_node.in_node(control_flow=self.control_flow) if self.type == 'in' else self.node
 
-                # Set value to data node
-                data_node.value = value
-                data_node.shape = int64_array(value.shape)
+            force_shape = data_node.soft_get('force_shape', const_node.soft_get('force_shape', None))
+            shape = int64_array(value.shape if force_shape is None else force_shape)
 
-                # Set value to constant producer
-                if const_node.soft_get('type') == 'Const':
-                    const_node.value = value
-                    const_node.shape = int64_array(value.shape)
-            else:
-                self.node.out_node(self.idx, control_flow=self.control_flow).value = value
-                self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(value.shape)
-                if self.node.soft_get('type') == 'Const':
-                    self.node.value = value
-                    self.node.shape = int64_array(value.shape)
+            # Set value to data node
+            data_node.value = value
+            data_node.shape = shape
+
+            # Set value to constant producer
+            if const_node.soft_get('type') == 'Const':
+                const_node.value = value
+                const_node.shape = shape
 
     def _get_attr(self, item: str):
         if self.node.graph.stage == 'front':
@@ -285,8 +269,8 @@ class Port:
                 if attrs['fw_tensor_debug_info'] is None:
                     return tensor_names_list
                 for attr in attrs['fw_tensor_debug_info']:
-                    if attr is not None and len(attr) >= 3:
-                        tensor_name = attr[2]
+                    if attr is not None and len(attr) >= 2:
+                        tensor_name = attr[1]
                         if tensor_name is not None and len(tensor_name) > 0:
                             tensor_names_list.append(tensor_name.replace(',', '\\,'))
             return tensor_names_list
@@ -310,9 +294,7 @@ class Port:
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
                 fw_names += get_tensor_names_list(out_node.attrs())
-        if len(fw_names) > 0:
-            return ','.join(fw_names)
-        return None
+        return fw_names
 
     def disconnect(self):
         if self.type == 'out':
@@ -322,7 +304,12 @@ class Port:
                     self.node.graph.remove_edge(self.node.id, port.node.id)
             else:
                 for port in consumer_ports:
-                    self.node.graph.remove_edge(port.node.in_node(port.idx).id, port.node.id)
+                    src_node = port.node.in_node(port.idx).id
+                    dst_node = port.node.id
+                    for key, val in self.node.graph.get_edge_data(src_node, dst_node).items():
+                        if val['in'] == port.idx:
+                            self.node.graph.remove_edge(src_node, dst_node, key=key)
+                            break
         else:
             source_port = self.get_source()
             if source_port is None:

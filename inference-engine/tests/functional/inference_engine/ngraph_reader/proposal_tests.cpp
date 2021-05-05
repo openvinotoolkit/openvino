@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
-#include <generic_ie.hpp>
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadProposalNetwork) {

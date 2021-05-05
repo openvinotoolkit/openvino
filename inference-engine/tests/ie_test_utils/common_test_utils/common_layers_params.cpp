@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,7 +153,7 @@ InferenceEngine::Blob::Ptr getWeightsBlob(size_t sizeInBytes, const std::string 
             weights = InferenceEngine::make_shared_blob<dataType>(
                     {InferenceEngine::Precision::FP16, {sizeInBytes / sizeof(dataType)}, InferenceEngine::C});
         } else {
-            THROW_IE_EXCEPTION << "Precision " << precision << " is not covered by getWeightsBlob()";
+            IE_THROW() << "Precision " << precision << " is not covered by getWeightsBlob()";
         }
     }
 
@@ -218,7 +218,7 @@ std::ostream& operator<<(std::ostream & os, OpType type) {
             os << "VECTOR";
             break;
         default:
-            THROW_IE_EXCEPTION << "NOT_SUPPORTED_OP_TYPE";
+            IE_THROW() << "NOT_SUPPORTED_OP_TYPE";
     }
     return os;
 }

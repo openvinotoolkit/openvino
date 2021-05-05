@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,25 +16,22 @@
 #include "file_utils.h"
 #include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_exception_conversion.hpp"
 #include "ie_plugin_ptr.hpp"
+#include "cpp/exception2status.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wreturn-type"
 #endif
 
-#define CALL_STATEMENT(...)                                                                        \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
-    try {                                                                                          \
-        __VA_ARGS__;                                                                               \
-    } catch (const InferenceEngine::details::InferenceEngineException& iex) {                      \
-        InferenceEngine::details::extract_exception(iex.hasStatus() ?                              \
-            iex.getStatus() : GENERAL_ERROR, iex.what());                                          \
-    } catch (const std::exception& ex) {                                                           \
-        InferenceEngine::details::extract_exception(GENERAL_ERROR, ex.what());                     \
-    } catch (...) {                                                                                \
-        InferenceEngine::details::extract_exception(UNEXPECTED, "");                               \
+#define PLUGIN_CALL_STATEMENT(...)                                                                \
+    if (!actual) IE_THROW() << "Wrapper used in the PLUGIN_CALL_STATEMENT was not initialized.";  \
+    try {                                                                                         \
+        __VA_ARGS__;                                                                              \
+    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                      \
+        IE_THROW() << ex.what();                                                                  \
+    } catch (...) {                                                                               \
+        IE_THROW(Unexpected);                                                                     \
     }
 
 namespace InferenceEngine {
@@ -52,84 +49,83 @@ public:
 
     explicit InferencePlugin(const InferenceEnginePluginPtr& pointer): actual(pointer) {
         if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+            IE_THROW() << "InferencePlugin wrapper was not initialized.";
         }
     }
 
     explicit InferencePlugin(const FileUtils::FilePath & libraryLocation) :
         actual(libraryLocation) {
         if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+            IE_THROW() << "InferencePlugin wrapper was not initialized.";
         }
     }
 
     void SetName(const std::string & deviceName) {
-        CALL_STATEMENT(actual->SetName(deviceName));
+        PLUGIN_CALL_STATEMENT(actual->SetName(deviceName));
     }
 
     void SetCore(ICore* core) {
-        CALL_STATEMENT(actual->SetCore(core));
+        PLUGIN_CALL_STATEMENT(actual->SetCore(core));
     }
 
     const Version GetVersion() const {
-        CALL_STATEMENT(return actual->GetVersion());
-    }
-
-    ExecutableNetwork LoadNetwork(CNNNetwork network, const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config), actual));
+        PLUGIN_CALL_STATEMENT(return actual->GetVersion());
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
-        CALL_STATEMENT(actual->AddExtension(extension));
+        PLUGIN_CALL_STATEMENT(actual->AddExtension(extension));
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(actual->SetConfig(config));
+        PLUGIN_CALL_STATEMENT(actual->SetConfig(config));
     }
 
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
-                                    const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config), actual));
+    }
+
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;
-        CALL_STATEMENT(res = actual->QueryNetwork(network, config));
-        if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+        PLUGIN_CALL_STATEMENT(res = actual->QueryNetwork(network, config));
+        if (res.rc != OK) IE_THROW() << res.resp.msg;
         return res;
     }
 
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::map<std::string, std::string>& config) {
+        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
+    }
+
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const std::map<std::string, std::string> &config) {
-        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, config), actual));
-    }
-
-    Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        CALL_STATEMENT(return actual->GetMetric(name, options));
-    }
-
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
-                                  RemoteContext::Ptr context) {
-        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
-    }
-
-    RemoteContext::Ptr CreateContext(const ParamMap& params) {
-        CALL_STATEMENT(return actual->CreateContext(params));
-    }
-
-    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
-        CALL_STATEMENT(return actual->GetDefaultContext(params));
+                                    const std::map<std::string, std::string>& config) {
+        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, config), actual));
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, context, config), actual));
+        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, context, config), actual));
+    }
+
+    Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+        PLUGIN_CALL_STATEMENT(return actual->GetMetric(name, options));
+    }
+
+    RemoteContext::Ptr CreateContext(const ParamMap& params) {
+        PLUGIN_CALL_STATEMENT(return actual->CreateContext(params));
+    }
+
+    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
+        PLUGIN_CALL_STATEMENT(return actual->GetDefaultContext(params));
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        CALL_STATEMENT(return actual->GetConfig(name, options));
+        PLUGIN_CALL_STATEMENT(return actual->GetConfig(name, options));
     }
 
     /**
@@ -149,7 +145,7 @@ public:
 };
 }  // namespace InferenceEngine
 
-#undef CALL_STATEMENT
+#undef PLUGIN_CALL_STATEMENT
 
 #if defined __GNUC__
 # pragma GCC diagnostic pop

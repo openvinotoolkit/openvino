@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,7 +139,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
     // group convolution, tensor quantization, with zero point
@@ -189,7 +189,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
     // group convolution, per-channel quantization with different values, without zero point
@@ -230,7 +230,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                         // 0.0008 = 0.08 (on data) * 0.01 (on weights)
                         0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
                     },
-                    ngraph::element::f32, {24, 1, 1}
+                    ngraph::element::f32, {1, 24, 1, 1}
                 }
             },
         }
@@ -264,7 +264,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {24, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {1, 24, 1, 1}}
             },
         }
     },
@@ -315,7 +315,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}}
         }
     },
     // depth-wise convolution, per-tensor quantization, with zero point
@@ -340,7 +340,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
         }
     },
     // depth-wise convolution, tensor quantization, with zero point
@@ -365,7 +365,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
         }
     },
     // depth-wise convolution, per-channel quantization with different values, without zero point
@@ -403,7 +403,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                         0.0004f, 0.0004f,  // 0.0004 = 0.04 (on data) * 0.01 (on weights)
                         0.0008f, 0.0008f   // 0.0008 = 0.08 (on data) * 0.01 (on weights)
                     },
-                    ngraph::element::f32, {6, 1, 1}
+                    ngraph::element::f32, {1, 6, 1, 1}
                 }
             },
         }
@@ -437,7 +437,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {6, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {1, 6, 1, 1}}
             },
         }
     },
@@ -488,7 +488,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
         }
     },
     // without dequantization operations
@@ -555,7 +555,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                         // 0.0008 = 0.08 (on data) * 0.01 (on weights)
                         0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
                     },
-                    ngraph::element::f32, {24, 1, 1}
+                    ngraph::element::f32, {1, 24, 1, 1}
                 }
             },
         }
@@ -611,7 +611,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                         // 0.0008 = 0.08 (on data) * 0.01 (on weights)
                         0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
                     },
-                    ngraph::element::f32, {24, 1, 1}
+                    ngraph::element::f32, {1, 24, 1, 1}
                 }
             },
         }

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -151,17 +139,17 @@ namespace ngraph
                                 else if (mode == BILINEAR)
                                 {
                                     c_in = 0;
-                                    for (size_t sby = 0; sby < spatial_bins_y; sby++)
+                                    for (int sby = 0; sby < spatial_bins_y; sby++)
                                     {
-                                        for (size_t sbx = 0; sbx < spatial_bins_x; sbx++)
+                                        for (int sbx = 0; sbx < spatial_bins_x; sbx++)
                                         {
                                             float bin_start_w = start_w + sbx * bin_width;
                                             float bin_start_h = start_h + sby * bin_height;
 
-                                            const T* input_offset = input +
-                                                                    (batch_id * channels_in +
-                                                                     c_in * channels_out + c_out) *
-                                                                        height * width;
+                                            const T* input_offset =
+                                                input + (batch_id * channels_in +
+                                                         c_in * channels_out + c_out) *
+                                                            height * width;
                                             float point_x =
                                                 pooling_width > 1
                                                     ? (pw * width_scale + bin_start_w * (width - 1))
@@ -188,9 +176,8 @@ namespace ngraph
                                                 T bottom_right =
                                                     input_offset[bottom * width + right];
 
-                                                T top_interp =
-                                                    top_left +
-                                                    (top_right - top_left) * (point_x - left);
+                                                T top_interp = top_left + (top_right - top_left) *
+                                                                              (point_x - left);
                                                 T bottom_interp =
                                                     bottom_left +
                                                     (bottom_right - bottom_left) * (point_x - left);
@@ -208,6 +195,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

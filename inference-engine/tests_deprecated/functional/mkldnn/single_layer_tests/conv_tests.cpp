@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -239,7 +239,7 @@ protected:
             CNNNetwork network = getNetwork(weights, p);
             infer(network, p, src, dst);
             compare(*dst, *dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -300,7 +300,7 @@ protected:
             dst_ref->allocate();
             calculateRef(weights, p, src, dst_ref);
             compare(*dst, *dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

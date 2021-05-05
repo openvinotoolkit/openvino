@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,11 @@
 #include "transformations/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
+#include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
@@ -83,7 +85,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
     }
 
@@ -104,7 +106,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                                            : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
                 auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
                 if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    THROW_IE_EXCEPTION << "Node " << nodeWithAffinityName <<
+                    IE_THROW() << "Node " << nodeWithAffinityName <<
                                         " was not assigned on any pointed device.";
                 }
                 queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
@@ -121,13 +123,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             affinities[node.get()] = itAffinity->second;
             devices.emplace(itAffinity->second);
         } else if (allEmpty) {
-            THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not able to be assigned on any pointed device.\n" <<
                 "It happened because these layers are not supported in plugins by default.\n" <<
                 "You need to implement custom layers to support them.";
         } else {
-            THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not assigned to any device.\n" <<
                 "It might happen if you assigned layers manually and missed some layers or\n" <<
@@ -368,7 +370,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     OutputsDataMap externalOutputsData = network.getOutputsInfo();
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
-    std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         networks[id]._device = subgraph._affinity;
@@ -386,11 +387,15 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 itClonedInput->second->setLayout(externalInput.second->getLayout());
             }
         }
-        isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
-                                            std::end(subgraph._parameters),
-                                            [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
-                                                return contains(graphInputNodes, p.get());
-                                            });
+        // update output info
+        auto clonedOutputs = networks[id]._clonedNetwork.getOutputsInfo();
+        for (auto&& externalOutput : externalOutputsData) {
+            auto itClonedOutput = clonedOutputs.find(externalOutput.first);
+            if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
+                itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
+                itClonedOutput->second->setLayout(externalOutput.second->getLayout());
+            }
+        }
         ++id;
     }
     if (dumpDotFile) {
@@ -415,6 +420,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
+        metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
             network._device, metaDevices[network._device]);
     }
@@ -431,7 +437,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading HETERO plugin xml header";
+        IE_THROW(NetworkNotRead) << "Error reading HETERO plugin xml header";
     }
 
     using namespace XMLParseUtils;
@@ -478,9 +484,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         InferenceEngine::ExecutableNetwork executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        try {
+        if (ImportExportSupported(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } else {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -606,12 +612,12 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : networks) {
-        try {
+        if (ImportExportSupported(subnetwork._device)) {
             subnetwork._network.Export(heteroModel);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } else {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
-                THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
+                IE_THROW() << "Hetero plugin supports only ngraph function representation";
             }
 
             // Note: custom ngraph extensions are not supported
@@ -634,7 +640,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 }
 
-InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         InputsDataMap networkInputs,
         OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
@@ -651,7 +657,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
                                                 _blobNameMap);
 }
 
-IInferRequest::Ptr HeteroExecutableNetwork::CreateInferRequest() {
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 
@@ -681,7 +687,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 
     return result;
@@ -792,6 +798,16 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
+}
+
+bool HeteroExecutableNetwork::ImportExportSupported(const std::string& deviceName) const {
+    std::vector<std::string> supportedMetricKeys = _heteroPlugin->GetCore()->GetMetric(
+            deviceName, METRIC_KEY(SUPPORTED_METRICS));
+    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    bool supported = (it != supportedMetricKeys.end()) &&
+                     _heteroPlugin->GetCore()->GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    return supported;
 }

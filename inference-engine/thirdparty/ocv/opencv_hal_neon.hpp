@@ -46,6 +46,7 @@
 #define OPENCV_HAL_INTRIN_NEON_HPP
 
 #include <algorithm>
+#include <cassert>
 
 
 namespace cv
@@ -2323,7 +2324,333 @@ inline v_uint16x8 v_mulhi(const v_uint16x8& a, uint16_t b) {
     return result;
 }
 
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b)
+{
+    // Multiply
+    int32x4_t mul_lo = vmull_s16(vget_low_s16(a.val),
+                                 vget_low_s16(b.val));
+    int32x4_t mul_hi = vmull_s16(vget_high_s16(a.val),
+                                 vget_high_s16(b.val));
 
+    // Rounding narrowing shift right
+    // narrow = (int16_t)((mul + 16384) >> 15);
+    int16x4_t narrow_lo = vrshrn_n_s32(mul_lo, 15);
+    int16x4_t narrow_hi = vrshrn_n_s32(mul_hi, 15);
+
+    // Join together
+    return v_int16x8(vcombine_s16(narrow_lo, narrow_hi));
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const short b)
+{
+    return v_mulhrs(a, v_setall_s16(b));
+}
+
+CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[],
+                                       const short* index, const int chanNum,
+                                       const int c, const int shift)
+{
+    int32x4_t result = {};
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0)) + c)]), result, 0);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 1)) + c)]), result, 1);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0) + 1) + c)]), result, 2);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 1) + 1) + c)]), result, 3);
+
+    vec.val = vreinterpretq_u8_s32(result);
+}
+
+template<int chanNum>
+CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uchar src[], const int channel)
+{
+    uint8x16_t result = {};
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + channel), result, 0);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + chanNum + channel), result, 1);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 2 * chanNum + channel), result, 2);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 3 * chanNum + channel), result, 3);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 4 * chanNum + channel), result, 4);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 5 * chanNum + channel), result, 5);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 6 * chanNum + channel), result, 6);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 7 * chanNum + channel), result, 7);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 8 * chanNum + channel), result, 8);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 9 * chanNum + channel), result, 9);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 10 * chanNum + channel), result, 10);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 11 * chanNum + channel), result, 11);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 12 * chanNum + channel), result, 12);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 13 * chanNum + channel), result, 13);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 14 * chanNum + channel), result, 14);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 15 * chanNum + channel), result, 15);
+
+    vec.val = result;
+}
+
+namespace {
+template<int chanNum>
+CV_ALWAYS_INLINE void v_gather_channel(v_int16x8& vec, const uchar src[], const short* index, const int channel, const int pos)
+{
+    int16x8_t result = {};
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*index + pos) + channel]), result, 0);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 1) + pos) + channel]), result, 1);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 2) + pos) + channel]), result, 2);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 3) + pos) + channel]), result, 3);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 4) + pos) + channel]), result, 4);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 5) + pos) + channel]), result, 5);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 6) + pos) + channel]), result, 6);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 7) + pos) + channel]), result, 7);
+
+    vec.val = result;
+}
+}  // namespace
+
+CV_ALWAYS_INLINE v_uint8x16 v_gather_pairs(const uchar src[], const short* mapsx)
+{
+    int16x8_t result = {};
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 0)]), result, 0);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 1)]), result, 1);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 2)]), result, 2);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 3)]), result, 3);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 4)]), result, 4);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 5)]), result, 5);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 6)]), result, 6);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 7)]), result, 7);
+    return v_uint8x16(vreinterpretq_u8_s16(result));
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_gather_lines(const uchar src[], const short* mapsx)
+{
+    int32x4_t result = {};
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&src[4 * (*(mapsx + 0))]), result, 0);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&src[4 * (*(mapsx + 1))]), result, 1);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&src[4 * (*(mapsx + 0) + 1)]), result, 2);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&src[4 * (*(mapsx + 1) + 1)]), result, 3);
+
+    return v_uint8x16(vreinterpretq_u8_s32(result));
+}
+
+CV_ALWAYS_INLINE void v_gather_pairs(const float src[], const int mapsx[], const int x,
+                                     v_float32x4& low, v_float32x4& high)
+{
+#if defined(__aarch64__)
+    float64x2_t l = {};
+    l = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x]]), l, 0);
+    l = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 1]]), l, 1);
+    low.val = vreinterpretq_f32_f64(l);
+
+    float64x2_t h = {};
+    h = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 2]]), h, 0);
+    h = vsetq_lane_f64(*reinterpret_cast<const double*>(&src[mapsx[x + 3]]), h, 1);
+    high.val = vreinterpretq_f32_f64(h);
+#else
+    float32x4_t l = {};
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x]]), l, 0);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x] + 1]), l, 1);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 1]]), l, 2);
+    l = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 1] + 1]), l, 3);
+    low.val = l;
+
+    float32x4_t h = {};
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 2]]), h, 0);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 2] + 1]), h, 1);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 3]]), h, 2);
+    h = vsetq_lane_f32(*reinterpret_cast<const float*>(&src[mapsx[x + 3] + 1]), h, 3);
+    high.val = h;
+#endif
+
+    return;
+}
+
+CV_ALWAYS_INLINE v_float32x4 v_fma(const v_float32x4& a, float b, const v_float32x4& c) {
+    return v_fma(a, v_setall_f32(b), c);
+}
+
+template<int imm>
+CV_ALWAYS_INLINE v_uint8x16 v_blend(const v_uint8x16& a, const v_uint8x16& b)
+{
+    const uint16_t _mask[8] = { ((imm) & (1 << 0)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 1)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 2)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 3)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 4)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 5)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 6)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 7)) ? 0xFFFF : 0x0000 };
+    uint16x8_t _mask_vec = vld1q_u16(_mask);
+    uint16x8_t _a = vreinterpretq_u16_u8(a.val);
+    uint16x8_t _b = vreinterpretq_u16_u8(b.val);
+    return v_uint8x16(vreinterpretq_u8_u16(vbslq_u16(_mask_vec, _b, _a)));
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mask)
+{
+
+    uint8x16_t tbl = a.val;   // input a
+    uint8x16_t idx = mask.val;  // input mask
+    uint8x16_t idx_masked =
+               vandq_u8(idx, vdupq_n_u8(0x8F));  // avoid using meaningless bits
+#if defined(__aarch64__)
+    return v_uint8x16(vqtbl1q_u8(tbl, idx_masked));
+#elif defined(__GNUC__)
+    uint8x16_t ret;
+    // %e and %f represent the even and odd D registers
+    // respectively.
+    __asm__ __volatile__(
+        "vtbl.8  %e[ret], {%e[tbl], %f[tbl]}, %e[idx]\n"
+        "vtbl.8  %f[ret], {%e[tbl], %f[tbl]}, %f[idx]\n"
+        : [ret] "=&w"(ret)
+        : [tbl] "w"(tbl), [idx] "w"(idx_masked));
+
+    return v_uint8x16(ret);
+#else
+    uint8x8x2_t a_split = { vget_low_u8(tbl), vget_high_u8(tbl) };
+
+    return v_uint8x16(vcombine_u8(
+                                vtbl2_u8(a_split, vget_low_u8(idx_masked)),
+                                vtbl2_u8(a_split, vget_high_u8(idx_masked))));
+
+#endif
+}
+
+CV_ALWAYS_INLINE void v_deinterleave(const v_float32x4& low, const v_float32x4& high,
+                                     v_float32x4& even, v_float32x4& odd) {
+    float32x4x2_t p1 = vzipq_f32(low.val, high.val);
+    float32x4_t tmp0 = p1.val[0];
+    float32x4_t tmp1 = p1.val[1];
+
+    float32x4x2_t p2 = vzipq_f32(tmp0, tmp1);
+    even.val = p2.val[0];
+    odd.val = p2.val[1];
+    return;
+}
+
+CV_ALWAYS_INLINE void v_deinterleave(const v_uint8x16& i0, const v_uint8x16& i1,
+                                     const v_uint8x16& i2, const v_uint8x16& i3,
+                                     v_uint8x16& res0, v_uint8x16& res1,
+                                     v_uint8x16& res2, v_uint8x16& res3)
+{
+    uint8x16x2_t p1 = vzipq_u8(i0.val, i2.val);
+    uint8x16x2_t p2 = vzipq_u8(i1.val, i3.val);
+
+    uint8x16_t v0 = p1.val[0];
+    uint8x16_t v1 = p1.val[1];
+    uint8x16_t v2 = p2.val[0];
+    uint8x16_t v3 = p2.val[1];
+
+    uint8x16x2_t p3 = vzipq_u8(v0, v2);
+    uint8x16x2_t p4 = vzipq_u8(v1, v3);
+
+    uint8x16_t u0 = p3.val[0];
+    uint8x16_t u2 = p3.val[1];
+    uint8x16_t u1 = p4.val[0];
+    uint8x16_t u3 = p4.val[1];
+
+    uint8x16x2_t p5 = vzipq_u8(u0, u1);
+    uint8x16x2_t p6 = vzipq_u8(u2, u3);
+
+    v0 = p5.val[0];
+    v2 = p5.val[1];
+    v1 = p6.val[0];
+    v3 = p6.val[1];
+
+    uint8x16x2_t p7 = vzipq_u8(v0, v1);
+    uint8x16x2_t p8 = vzipq_u8(v2, v3);
+
+    res0.val = p7.val[0];
+    res1.val = p7.val[1];
+    res2.val = p8.val[0];
+    res3.val = p8.val[1];
+}
+
+CV_ALWAYS_INLINE void v_deinterleave_expand(const v_uint8x16& src,
+                                            v_int16x8& even, v_int16x8& odd)
+{
+    constexpr int nlanes = static_cast<int>(v_uint8x16::nlanes);
+    uchar mask_e[nlanes] = { 0, -1, 2, -1, 4, -1, 6, -1,
+                            8, -1, 10, -1, 12, -1, 14, -1 };
+
+    uchar mask_o[nlanes] = { 1, -1, 3, -1, 5, -1, 7, -1,
+                            9, -1, 11, -1, 13, -1, 15, -1 };
+
+    uint8x16_t mask_even = vld1q_u8(mask_e);
+    uint8x16_t mask_odd = vld1q_u8(mask_o);
+
+    v_uint8x16 res1 = v_shuffle(src, v_uint8x16(mask_even));
+    v_uint8x16 res2 = v_shuffle(src, v_uint8x16(mask_odd));
+    even.val = vreinterpretq_s16_u8(res1.val);
+    odd.val = vreinterpretq_s16_u8(res2.val);
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_interleave_low(const v_int16x8& a, const v_int16x8& b)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    int16x8_t v = p.val[0];
+    return v_int16x8(v);
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_interleave_high(const v_int16x8& a, const v_int16x8& b)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    int16x8_t v = p.val[1];
+    return v_int16x8(v);
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_interleave_low(const v_uint8x16& a, const v_uint8x16& b)
+{
+    uint8x16x2_t p = vzipq_u8(a.val, b.val);
+    uint8x16_t v = p.val[0];
+    return v_uint8x16(v);
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_interleave_high(const v_uint8x16& a, const v_uint8x16& b)
+{
+    uint8x16x2_t p = vzipq_u8(a.val, b.val);
+    uint8x16_t v = p.val[1];
+    return v_uint8x16(v);
+}
+
+CV_ALWAYS_INLINE void v_interleave(const v_int16x8& a, const v_int16x8& b,
+                                   v_int16x8& v1, v_int16x8& v2)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
+}
+
+CV_ALWAYS_INLINE void v_interleave(const v_int32x4& a, const v_int32x4& b,
+                                   v_int32x4& v1, v_int32x4& v2)
+{
+    int32x4x2_t p = vzipq_s32(a.val, b.val);
+    v1.val = p.val[0];
+    v2.val = p.val[1];
+    return;
+}
+
+template<int shift>
+CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(const v_uint8x16& a)
+{
+    assert((shift > 0) && (shift <= 15));
+    uint8x16_t ret = vextq_u8(vdupq_n_u8(0), a.val, shift /*16 - (imm)*/);
+    return v_uint8x16(ret);
+}
+
+template<int shift>
+CV_ALWAYS_INLINE v_uint8x16 v_shift_right(const v_uint8x16& a)
+{
+    assert((shift > 0) && (shift <= 15));
+    uint8x16_t ret = vextq_u8(a.val, vdupq_n_u8(0), shift);
+    return v_uint8x16(ret);
+}
+
+template<int shift>
+CV_ALWAYS_INLINE v_uint8x16 v_shift_left(const v_uint8x16& a)
+{
+    return v_slli_si128<16 - shift>(a);
+}
+
+template<int indx>
+CV_ALWAYS_INLINE v_uint8x16 v_insert(v_uint8x16& a, int64_t b)
+{
+    return v_uint8x16(vreinterpretq_u8_s64(vsetq_lane_s64(b, vreinterpretq_s64_u8(a.val), indx)));
+}
 
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
 

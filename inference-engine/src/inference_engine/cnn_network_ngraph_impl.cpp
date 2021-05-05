@@ -29,10 +29,11 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
-#include "generic_ie.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -44,7 +45,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
                                                       bool constFolding) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "copyFunction");
 
-    ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto specialized_function = ngraph::clone_function(*func);
 
     if (constFolding) {
@@ -80,7 +80,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
     for (const auto& dim : dims) {
         if (!dim)
-            THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
+            IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
@@ -119,7 +119,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
 
         // map original names to OpenVINO name
-        _opNames[outName] = outName;
         for (const auto& name : layer->get_output_tensor(0).get_names()) {
             _tensorNames[name] = outName;
         }
@@ -145,14 +144,13 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     const ICNNNetwork& iNetwork = network;
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
-        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
+        IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
 
-    _opNames = net->_opNames;
     _tensorNames = net->_tensorNames;
 
     for (const auto& outputInfo : outputs) {
@@ -215,6 +213,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
         for (const auto & layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
             if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
+                // Check that output port exists
+                if (layer->outputs().size() <= outputIndex) {
+                    return DescriptionBuffer(OUT_OF_BOUNDS, resp)
+                    << "port index " << outputIndex << " exceeds the number of layer outputs " << layer->outputs().size();
+                }
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
@@ -254,12 +257,6 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & ou
     for (const auto& name : output.get_tensor().get_names()) {
         _tensorNames[name] = dataName;
     }
-    for (const auto consumerInput : output.get_target_inputs()) {
-        const auto &consumerLayer = consumerInput.get_node()->shared_from_this();
-        if (std::dynamic_pointer_cast<ngraph::op::Result>(consumerLayer)) {
-            _opNames[consumerLayer->get_friendly_name()] = dataName;
-        }
-    }
 }
 
 size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
@@ -268,6 +265,10 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
     auto params = _ngraph_function->get_parameters();
+    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+        return lhs->get_friendly_name() < rhs->get_friendly_name();
+    });
+
     for (const auto& param : params) {
         if (param->get_partial_shape().rank().is_dynamic())
             continue;
@@ -286,8 +287,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    // Disable reshape for generic nodes
-    ::ngraph::op::GenericIE::DisableReshape noReshape(_ngraph_function);
     reshape({});
 }
 
@@ -359,6 +358,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+                manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
@@ -414,7 +414,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
             const auto &outName = parameter->get_friendly_name();
             if (opName.find(outName) != opName.end()) {
-                THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
+                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
             }
             opName.insert(outName);
             createDataForResult(parameter, outName, _data[outName]);
@@ -436,7 +436,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
@@ -450,13 +450,6 @@ StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const 
     if (_tensorNames.find(orig_name) == _tensorNames.end())
         return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
     ov_name = _tensorNames.at(orig_name);
-    return OK;
-}
-
-StatusCode CNNNetworkNGraphImpl::getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-    if (_opNames.find(orig_name) == _opNames.end())
-        return DescriptionBuffer(NOT_FOUND, resp) << "Framework operation with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
-    ov_name = _opNames.at(orig_name);
     return OK;
 }
 

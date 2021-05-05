@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -40,15 +28,18 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
 
     variant_wrapper.def(py::init<const VT&>());
 
-    variant_wrapper.def("__eq__",
-                        [](const ngraph::VariantWrapper<VT>& a,
-                           const ngraph::VariantWrapper<VT>& b) { return a.get() == b.get(); },
-                        py::is_operator());
-    variant_wrapper.def("__eq__",
-                        [](const ngraph::VariantWrapper<std::string>& a, const std::string& b) {
-                            return a.get() == b;
-                        },
-                        py::is_operator());
+    variant_wrapper.def(
+        "__eq__",
+        [](const ngraph::VariantWrapper<VT>& a, const ngraph::VariantWrapper<VT>& b) {
+            return a.get() == b.get();
+        },
+        py::is_operator());
+    variant_wrapper.def(
+        "__eq__",
+        [](const ngraph::VariantWrapper<std::string>& a, const std::string& b) {
+            return a.get() == b;
+        },
+        py::is_operator());
     variant_wrapper.def(
         "__eq__",
         [](const ngraph::VariantWrapper<int64_t>& a, const int64_t& b) { return a.get() == b; },

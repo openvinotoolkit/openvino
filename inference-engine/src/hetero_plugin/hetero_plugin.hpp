@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,13 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
+    std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin

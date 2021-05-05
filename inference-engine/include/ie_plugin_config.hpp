@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,6 +144,16 @@ DECLARE_METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS, unsigned int);
 DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
 
 /**
+ * @brief Metric which defines the device architecture.
+ */
+DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
+
+/**
+ * @brief Metric which defines support of import/export functionality by plugin
+ */
+DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
+
+/**
  * @brief Metric to get a name of network. String value is "NETWORK_NAME".
  */
 DECLARE_EXEC_NETWORK_METRIC_KEY(NETWORK_NAME, std::string);
@@ -195,15 +205,21 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
- * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ *
+ * the following options are implemented only for the TBB as a threading option
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
+ *      on the Windows and MacOS* this option behaves as YES
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
+ *      on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
 DECLARE_CONFIG_VALUE(NUMA);
+DECLARE_CONFIG_VALUE(HYBRID_AWARE);
 
 /**
  * @brief Optimize CPU execution to maximize throughput.
@@ -363,16 +379,23 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
-* @brief This key defines the directory which will be used to store any data cached by plugins.
-*
-* This key supports unicode symbols in path
-* The underlying cache structure is not defined and might differ between OpenVINO releases
-* Cached data might be platform/device specific and might be invalid after OpenVINO version change
-* If this key is not specified or value is empty string, then caching is disabled.
-* The key might enable caching for all plugin or some specific ones, e.g.:
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}) - enables cache for all plugins that might want to use it
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}) - enables cache only for GPU plugin
-*/
+ * @brief This key defines the directory which will be used to store any data cached by plugins.
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ * If this key is not specified or value is empty string, then caching is disabled.
+ * The key might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, "GPU"); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}); // enables models cache
+ * @endcode
+ */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams

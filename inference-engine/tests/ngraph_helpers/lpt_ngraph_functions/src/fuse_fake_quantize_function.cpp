@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
             fqOnDataCopy.outputHighValues = {255.f};
             fqOnDataCopy.outputPrecision = ngraph::element::u8;
             lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-            lastNode = makeDequantization(lastNode, {{element::f32}, {}, {0.01f}});
+            lastNode = makeDequantization(lastNode, { {element::f32}, {}, {{0.01f}, precisionFqOnData} });
 
         } else {
             throw std::runtime_error("Unknown parameter on output intervals!");

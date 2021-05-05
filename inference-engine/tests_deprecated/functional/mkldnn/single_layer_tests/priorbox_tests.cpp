@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,7 +191,7 @@ protected:
             for (int d = 0; d < p.out.h * p.out.w; ++d) {
                 EXPECT_NEAR(dst_ptr[d], 0.1, eps);
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -353,7 +353,7 @@ protected:
                 EXPECT_NEAR(dst_ptr[d], 0.1, 1e-6);
             }
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

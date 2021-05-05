@@ -1,6 +1,7 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "low_precision/eltwise_base_transformation.hpp"
 
 #include <algorithm>
@@ -70,12 +71,14 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
     }
 
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
         return false;
     }
 
     if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
         return false;
     }
 

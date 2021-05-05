@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -260,8 +259,6 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {}
-
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
         if (opsets.empty()) {
@@ -427,8 +424,6 @@ public:
 
     void Unload() noexcept override {};
 
-    void Release() noexcept override {}
-
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
         if (opsets.empty()) {
@@ -442,7 +437,7 @@ public:
 
 TEST_F(NGraphReshapeTests, LoadBadNewExtension) {
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.AddExtension(std::make_shared<BadExtension>()), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(ie.AddExtension(std::make_shared<BadExtension>()), InferenceEngine::Exception);
 }
 
 TEST_F(NGraphReshapeTests, TestInterpParameters) {

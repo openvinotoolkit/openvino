@@ -1,25 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
-#include <iostream>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -50,7 +36,7 @@ namespace reshapeop
         using T = typename element_type_traits<ET>::value_type;
         T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
         size_t output_rank = shape_pattern->get_shape()[0];
-        for (int i = 0; i < output_rank; i++)
+        for (size_t i = 0; i < output_rank; i++)
         {
             output_shape.push_back(shape_pattern_ptr[i]);
         }
@@ -69,7 +55,7 @@ namespace reshapeop
             return;
         }
         Dimension output_product(1);
-        for (size_t i = 0; i < reshape_pattern.size(); ++i)
+        for (int64_t i = 0; i < static_cast<int64_t>(reshape_pattern.size()); ++i)
         {
             if (i == minus_one_idx) // resolving everything except -1
                 continue;
@@ -104,9 +90,10 @@ namespace reshapeop
         }
         Dimension input_product(1);
         if (input_pshape.rank().is_static())
-            for (size_t i = 0; i < input_pshape.rank().get_length(); ++i)
+            for (int64_t i = 0; i < input_pshape.rank().get_length(); ++i)
             {
-                if (i < reshape_pattern.size() && reshape_pattern[i].get_min_length() == 0 &&
+                if (i < static_cast<int64_t>(reshape_pattern.size()) &&
+                    reshape_pattern[i].get_min_length() == 0 &&
                     reshape_pattern[i].get_max_length() == 0)
                     continue;
                 input_product *= input_pshape[i];
@@ -200,7 +187,7 @@ namespace reshapeop
                                   reshape_node->get_input_shape(0));
         }
     }
-}
+} // namespace reshapeop
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 
@@ -284,7 +271,7 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                                             \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(compute_reshape_out_shape, _, a));                              \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));                              \
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break;
@@ -337,6 +324,8 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import collections
 import logging as log
@@ -156,7 +143,7 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
 
 def add_fake_background_loc(graph: Graph, input_node: Node):
-    """
+    r"""
     DetectionOutput layer expects that box coordinates contains coordinates of boxes for the "background" class also,
     but in the TensorFlow\* Object Detection API the tensor contains information about real object classes only.
     The function copies a slice of the output data of the node 'input_node' and then concats it to the beginning of the

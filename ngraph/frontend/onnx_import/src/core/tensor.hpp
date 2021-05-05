@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -23,6 +11,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_common/utils.hpp"
+#include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ngraph
@@ -105,8 +95,8 @@ namespace ngraph
                     {
                     }
                 };
-            }
-        }
+            } // namespace tensor
+        }     // namespace error
 
         namespace detail
         {
@@ -129,42 +119,15 @@ namespace ngraph
 #endif
                         }
 
-                        /// Returns the size if bytes of an ONNX data type.
-                        inline size_t __get_onnx_data_size(int data_type)
-                        {
-                            switch (data_type)
-                            {
-                            case ONNX_NAMESPACE::TensorProto_DataType_FLOAT: return sizeof(float);
-                            case ONNX_NAMESPACE::TensorProto_DataType_UINT8: return sizeof(uint8_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_INT8: return sizeof(int8_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_UINT16:
-                                return sizeof(uint16_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_INT16: return sizeof(int16_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_INT32: return sizeof(int32_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_INT64: return sizeof(int64_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_BOOL: return sizeof(char);
-                            case ONNX_NAMESPACE::TensorProto_DataType_FLOAT16: return 2;
-                            case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE: return sizeof(double);
-                            case ONNX_NAMESPACE::TensorProto_DataType_UINT32:
-                                return sizeof(uint32_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
-                                return sizeof(uint64_t);
-                            case ONNX_NAMESPACE::TensorProto_DataType_COMPLEX64:
-                                return 2 * sizeof(float);
-                            case ONNX_NAMESPACE::TensorProto_DataType_COMPLEX128:
-                                return 2 * sizeof(double);
-
-                            default: NGRAPH_UNREACHABLE("Unsupported data type");
-                            }
-                        }
-
                         template <typename T>
                         inline std::vector<T> __get_raw_data(const std::string& raw_data,
                                                              int onnx_data_type)
                         {
                             auto it = reinterpret_cast<const T*>(raw_data.data());
                             return std::vector<T>(
-                                it, it + (raw_data.size() / __get_onnx_data_size(onnx_data_type)));
+                                it,
+                                it + (raw_data.size() /
+                                      onnx_common::get_onnx_data_size(onnx_data_type)));
                         }
 
                         template <typename T>
@@ -190,8 +153,8 @@ namespace ngraph
                                 return false;
                             }
                         }
-                    }
-                }
+                    } // namespace detail
+                }     // namespace
 
                 template <typename T>
                 inline std::vector<T> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
@@ -456,8 +419,8 @@ namespace ngraph
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
-            }
-        }
+            } // namespace tensor
+        }     // namespace detail
 
         class Tensor
         {
@@ -623,5 +586,5 @@ namespace ngraph
         {
             return (outs << "<Tensor: " << tensor.get_name() << ">");
         }
-    }
-}
+    } // namespace onnx_import
+} // namespace ngraph

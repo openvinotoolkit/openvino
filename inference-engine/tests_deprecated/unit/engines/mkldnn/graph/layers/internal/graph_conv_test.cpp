@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -332,7 +332,7 @@ protected:
             dst_ref.allocate();
             ref_conv(*srcPtr, (const float *)weights->buffer(), weights->size() / sizeof(float), dst_ref, p);
             compare(*output, dst_ref, 0.0002f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -433,8 +433,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-            auto implNet = dynamic_cast<details::CNNNetworkImpl *>(&((ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ResponseDesc resp;
             StatusCode sts  = implNet->setBatchSizeReshape(dims[0], &resp);
             ASSERT_EQ((int)StatusCode::OK, sts) << resp.msg;
@@ -481,7 +481,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, dims[0], dims[0], checkConvolution, MKLDNNGraphTestClass::CheckDynBatchType::Child);
             graph.checkDynBatch(srcs, outputBlobs, 1, dims[0], checkConvolution, MKLDNNGraphTestClass::CheckDynBatchType::Child);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

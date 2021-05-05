@@ -1,22 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <ngraph/ops.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -30,13 +17,10 @@
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -132,7 +116,7 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
     PartialShape output_shape = PartialShape::dynamic(data_shape_merged.rank());
     if (output_shape.rank().is_static())
     {
-        for (size_t i = 0; i < output_shape.rank().get_length(); i++)
+        for (int64_t i = 0; i < output_shape.rank().get_length(); i++)
         {
             NODE_VALIDATION_CHECK(node,
                                   data_dilation[i] > 0,
@@ -240,6 +224,115 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
     return output_shape;
 }
 
+PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
+    const Node* node,
+    const PartialShape& data_batch_pshape,
+    const PartialShape& filters_pshape,
+    const op::PadType auto_pad,
+    Strides& strides,
+    Strides& dilations,
+    CoordinateDiff& pads_begin,
+    CoordinateDiff& pads_end)
+{
+    Rank result_ps_rank;
+    NODE_VALIDATION_CHECK(
+        node,
+        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
+        "Data batch and filters inputs must have same rank. Got: ",
+        data_batch_pshape,
+        " and ",
+        filters_pshape);
+
+    PartialShape result_shape = PartialShape::dynamic();
+    if (result_ps_rank.is_static())
+    {
+        const size_t num_spatial_dims = result_ps_rank.get_length() - 2;
+        if (strides.size() == 0)
+        {
+            strides = Strides(num_spatial_dims, 1);
+        }
+
+        if (dilations.size() == 0)
+        {
+            dilations = Strides(num_spatial_dims, 1);
+        }
+
+        if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID)
+        {
+            pads_begin = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        if (pads_end.size() == 0 || auto_pad == op::PadType::VALID)
+        {
+            pads_end = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        NODE_VALIDATION_CHECK(node,
+                              strides.size() == num_spatial_dims,
+                              "Strides should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(node,
+                              dilations.size() == num_spatial_dims,
+                              "Dilations should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(node,
+                              pads_begin.size() == num_spatial_dims &&
+                                  pads_end.size() == num_spatial_dims,
+                              "Pads should be defined for all and only spatial features.");
+
+        result_shape = PartialShape::dynamic(result_ps_rank);
+        if (data_batch_pshape.rank().is_static())
+        {
+            result_shape[0] = data_batch_pshape[0]; // batch size
+        }
+        if (filters_pshape.rank().is_static())
+        {
+            result_shape[1] = filters_pshape[0]; // filter channel size
+        }
+        if (auto_pad == op::PadType::SAME_UPPER || auto_pad == op::PadType::SAME_LOWER)
+        {
+            bool auto_padding_applied = false;
+            if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2)
+            {
+                pads_begin.clear();
+                pads_end.clear();
+
+                const PartialShape filter_spatial_shape = [filters_pshape]() {
+                    vector<Dimension> filter_dims{filters_pshape};
+                    filter_dims.erase(filter_dims.begin(),
+                                      filter_dims.begin() + 2); // Remove {C_OUT, C_IN}
+                    return PartialShape{filter_dims};
+                }();
+
+                if (filter_spatial_shape.is_static())
+                {
+                    auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
+                                                                  filter_spatial_shape.to_shape(),
+                                                                  strides,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  pads_end,
+                                                                  pads_begin);
+                }
+            }
+            if (!auto_padding_applied)
+            {
+                return result_shape;
+            }
+        }
+        result_shape =
+            infer_convolution_forward(node,
+                                      data_batch_pshape,
+                                      Strides(num_spatial_dims, 1), // dummy data dilations
+                                      pads_begin,
+                                      pads_end,
+                                      filters_pshape,
+                                      strides,
+                                      dilations);
+    }
+    return result_shape;
+}
+
 //
 // Infers the output batch shape and element type for convolution fprop.
 //
@@ -318,7 +411,7 @@ PartialShape ngraph::infer_convolution_forward(const Node* node,
     // Note: spatial_rank is definitely static at this point.
     //
 
-    for (size_t i = 0; i < spatial_rank.get_length(); i++)
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++)
     {
         if (data_batch_shape.rank().is_static())
         {
@@ -370,7 +463,7 @@ PartialShape ngraph::infer_convolution_forward(const Node* node,
     batch_output_shape[0] = batch_size;
     batch_output_shape[1] = filter_output_channel_count;
 
-    for (size_t i = 0; i < spatial_rank.get_length(); i++)
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++)
     {
         batch_output_shape[i + 2] = data_output_shape[i];
     }
@@ -392,8 +485,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              data_batch_shape.rank().get_length() >= 3 &&
-                                  data_batch_shape.rank().get_length() <= 5,
+                              (data_batch_shape.rank().get_length() >= 3 &&
+                               data_batch_shape.rank().get_length() <= 5),
                           "Data batch must have rank of at least 4 or 5 (one batch axis, ",
                           "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
@@ -431,7 +524,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
         batch_size = data_batch_shape[0];
         channel_count = data_batch_shape[1];
 
-        for (size_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
+        for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
         {
             data_spatial_shape[i] = data_batch_shape[i + 2];
         }
@@ -464,7 +557,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
     data_batch_output_shape[0] = batch_size;
     data_batch_output_shape[1] = channel_count;
 
-    for (size_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
+    for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++)
     {
         data_batch_output_shape[i + 2] = data_output_spatial_shape[i];
     }
@@ -715,7 +808,7 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 
     std::vector<Dimension> dim;
 
-    size_t input_shape_idx = 0;
+    int64_t input_shape_idx = 0;
     for (size_t axis = 0; axis < begin.size(); ++axis)
     {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
@@ -1013,7 +1106,7 @@ namespace
             {
                 for (auto elt : op->cast_vector<int64_t>())
                 {
-                    if (max_val < elt)
+                    if (max_val < static_cast<uint64_t>(elt))
                     {
                         max_val = elt;
                     }
@@ -1097,7 +1190,7 @@ namespace
     {
         const auto& inputPS = node->get_input_partial_shape(0);
         std::vector<uint64_t> shapeDims;
-        for (size_t i = 0; i < inputPS.rank().get_length(); i++)
+        for (int64_t i = 0; i < inputPS.rank().get_length(); i++)
         {
             if (inputPS[i].is_static())
             {
@@ -1132,7 +1225,8 @@ namespace
         }
 
         const auto& indicesVec = indices->cast_vector<int64_t>();
-        if (indicesVec.size() != 1 || indicesVec[0] >= inputs[0].m_slices.size())
+        if (indicesVec.size() != 1 ||
+            indicesVec[0] >= static_cast<int64_t>(inputs[0].m_slices.size()))
         {
             return {MaxValue()};
         }
@@ -1141,7 +1235,7 @@ namespace
     }
 
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
-}
+} // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 {
@@ -1227,6 +1321,47 @@ bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
     return status;
 }
 
+void propagate_rt_info(Node* node, const Output<Node>& final_port)
+{
+    auto node_outputs = node->outputs();
+    bool same_outputs =
+        std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
+            return output.get_tensor().has_and_set_bound();
+        });
+    if (same_outputs && op::is_constant(node)) // constant should not propagate it's rt_info
+    {
+        std::unordered_set<Node*> stop_nodes;
+        for (const auto& in : final_port.get_target_inputs())
+            stop_nodes.insert(in.get_node());
+
+        auto curr_node = node->shared_from_this();
+        for (const auto& output : node_outputs)
+        {
+            if (output == final_port)
+                continue;
+            for (auto& in : output.get_target_inputs())
+            {
+                if (stop_nodes.count(in.get_node()))
+                    continue;
+                auto consumer = in.get_node()->shared_from_this();
+                // FIXME: Here we have a WA in order to save some original fields
+                // if we have conflicts because Variant merge doesn't work.
+                // We can restore original fields because we don't change the operation
+                auto orig_rt_info = consumer->get_rt_info();
+
+                copy_runtime_info({curr_node, consumer}, consumer);
+
+                auto& rt_info = consumer->get_rt_info();
+                for (const auto& it : orig_rt_info)
+                {
+                    if (rt_info.find(it.first) == rt_info.end())
+                        rt_info[it.first] = it.second;
+                }
+            }
+        }
+    }
+}
+
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
 {
     // bound is already set in the tensor
@@ -1264,6 +1399,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
+                propagate_rt_info(node, output);
             }
             else
             {
@@ -1412,7 +1548,7 @@ HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Co
 
 HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
 {
-    auto result = std::make_shared<HostTensor>(element::boolean, lhs->get_shape());
+    auto result = std::make_shared<HostTensor>();
     op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
                       std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
                       ngraph::op::AutoBroadcastSpec::NUMPY)
@@ -1574,4 +1710,13 @@ shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& so
     if (const auto& c = as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
+}
+
+bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size)
+{
+    if (tensor_vector.size() != size)
+        return false;
+    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
+        return t != nullptr;
+    });
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ public:
             block_dims = layer->GetParamAsInts("block_dims");
             order = layer->GetParamAsInts("order");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -60,7 +60,7 @@ public:
 
         // Fill tensor parameters into config
         auto fill_port = [&] (std::vector<DataConfig>& port, const DataPtr& data) {
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -308,7 +308,7 @@ protected:
             ref_permute(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -324,7 +324,7 @@ TEST_P(permute_s8, TestsPermute) {}
         ::testing::Values(Layout::NCHW, Layout::NHWC), \
         ::testing::Values(Layout::NCHW, Layout::NHWC), \
         ::testing::Values(prec), \
-        ::testing::Values(1 + (prec == Precision::I8)), \
+        ::testing::Values(2), \
         ::testing::Values(SizeVector({2, 3, 4, 5})), \
         ::testing::Values(SizeVector({0, 1, 2, 3}), SizeVector({0, 2, 3, 1}), \
                           SizeVector({0, 2, 1, 3}), SizeVector({0, 1, 3, 2}), \
@@ -339,7 +339,7 @@ TEST_P(permute_s8, TestsPermute) {}
         ::testing::Values(Layout::NCDHW, Layout::NDHWC), \
         ::testing::Values(Layout::NCDHW, Layout::NDHWC), \
         ::testing::Values(prec), \
-        ::testing::Values(1 + (prec == Precision::I8)), \
+        ::testing::Values(2), \
         ::testing::Values(SizeVector({2, 3, 4, 5, 6})), \
         ::testing::Values(SizeVector({0, 1, 2, 3, 4}), SizeVector({0, 4, 2, 1, 3}), \
                           SizeVector({0, 2, 4, 3, 1}), SizeVector({0, 3, 2, 4, 1}), \
@@ -358,69 +358,69 @@ TEST_P(permute_s8, TestsPermute) {}
 #define case_planar_5(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 1, {2, 8, 30, 3, 4, 5}, {0, 1, 4, 2, 5, 3}, {}, {}, {}, {})
 #define case_planar_6(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 1, {2, 8, 3, 30, 4, 5}, {0, 3, 4, 1, 5, 2}, {}, {}, {}, {})
 
-#define case_blocked_0(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 2, 3}, \
+#define case_blocked_0(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 2, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1})
-#define case_blocked_1(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 3, 1}, \
+#define case_blocked_1(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 3, 1}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {2, 2, 20, 32, 8}, {0, 1, 2, 3, 1})
-#define case_blocked_2(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 1, 3}, \
+#define case_blocked_2(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 1, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {2, 2, 32, 20, 8}, {0, 1, 2, 3, 1})
-#define case_blocked_3(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 3, 2}, \
+#define case_blocked_3(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 3, 2}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {2, 4, 20, 10, 8}, {0, 1, 2, 3, 1})
-#define case_blocked_4(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5}, {1, 0, 2, 3}, \
+#define case_blocked_4(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3, {10, 24, 4, 5}, {1, 0, 2, 3}, \
 {10, 3, 4, 5, 8}, {0, 1, 2, 3, 1}, {24, 2, 4, 5, 8}, {0, 1, 2, 3, 1})
-#define case_blocked_5(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 5, 10, 20}, {0, 1, 2, 3, 4}, \
+#define case_blocked_5(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 5, 10, 20}, {0, 1, 2, 3, 4}, \
 {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1}, {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1})
-#define case_blocked_6(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 5, 10, 20}, {0, 4, 2, 1, 3}, \
+#define case_blocked_6(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 5, 10, 20}, {0, 4, 2, 1, 3}, \
 {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1}, {2, 3, 5, 32, 10, 8}, {0, 1, 2, 3, 4, 1})
-#define case_blocked_7(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 5, 10, 20}, {0, 2, 4, 3, 1}, \
+#define case_blocked_7(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 5, 10, 20}, {0, 2, 4, 3, 1}, \
 {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1}, {2, 1, 20, 10, 32, 8}, {0, 1, 2, 3, 4, 1})
-#define case_blocked_8(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 5, 10, 20}, {0, 3, 2, 4, 1}, \
+#define case_blocked_8(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 5, 10, 20}, {0, 3, 2, 4, 1}, \
 {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1}, {2, 2, 5, 20, 32, 8}, {0, 1, 2, 3, 4, 1})
-#define case_blocked_9(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 5, 10, 20}, {0, 3, 1, 4, 2}, \
+#define case_blocked_9(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 4, {2, 32, 5, 10, 20}, {0, 3, 1, 4, 2}, \
 {2, 4, 5, 10, 20, 8}, {0, 1, 2, 3, 4, 1}, {2, 2, 32, 20, 5, 8}, {0, 1, 2, 3, 4, 1})
-#define case_blocked_10(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5, 6}, {1, 0, 2, 3, 4}, \
+#define case_blocked_10(prec) test_params_t(Layout::BLOCKED, Layout::BLOCKED, prec, 3, {10, 24, 4, 5, 6}, {1, 0, 2, 3, 4}, \
 {10, 3, 4, 5, 6, 8}, {0, 1, 2, 3, 4, 1}, {24, 2, 4, 5, 6, 8}, {0, 1, 2, 3, 4, 1})
 
-#define case_planar_to_blocked_0(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 2, 3}, \
+#define case_planar_to_blocked_0(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 2, 3}, \
 {}, {}, {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_1(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 3, 1}, \
+#define case_planar_to_blocked_1(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 3, 1}, \
 {}, {}, {2, 2, 20, 32, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_2(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 1, 3}, \
+#define case_planar_to_blocked_2(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 1, 3}, \
 {}, {}, {2, 2, 32, 20, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_3(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 3, 2}, \
+#define case_planar_to_blocked_3(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 3, 2}, \
 {}, {}, {2, 4, 20, 10, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_4(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5}, {1, 0, 2, 3}, \
+#define case_planar_to_blocked_4(prec) test_params_t(Layout::NCHW, Layout::BLOCKED, prec, 3, {10, 24, 4, 5}, {1, 0, 2, 3}, \
 {}, {}, {24, 2, 4, 5, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_5(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 2, 3}, \
+#define case_planar_to_blocked_5(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 2, 3}, \
 {}, {}, {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_6(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 3, 1}, \
+#define case_planar_to_blocked_6(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 3, 1}, \
 {}, {}, {2, 2, 20, 32, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_7(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 1, 3}, \
+#define case_planar_to_blocked_7(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 2, 1, 3}, \
 {}, {}, {2, 2, 32, 20, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_8(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 3, 2}, \
+#define case_planar_to_blocked_8(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 4, {2, 32, 10, 20}, {0, 1, 3, 2}, \
 {}, {}, {2, 4, 20, 10, 8}, {0, 1, 2, 3, 1})
-#define case_planar_to_blocked_9(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5}, {1, 0, 2, 3}, \
+#define case_planar_to_blocked_9(prec) test_params_t(Layout::NHWC, Layout::BLOCKED, prec, 3, {10, 24, 4, 5}, {1, 0, 2, 3}, \
 {}, {}, {24, 2, 4, 5, 8}, {0, 1, 2, 3, 1})
 
-#define case_blocked_to_planar_0(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 2, 3}, \
+#define case_blocked_to_planar_0(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 4, {2, 32, 10, 20}, {0, 1, 2, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_1(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 3, 1}, \
+#define case_blocked_to_planar_1(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 4, {2, 32, 10, 20}, {0, 2, 3, 1}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_2(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 1, 3}, \
+#define case_blocked_to_planar_2(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 4, {2, 32, 10, 20}, {0, 2, 1, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_3(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 3, 2}, \
+#define case_blocked_to_planar_3(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 4, {2, 32, 10, 20}, {0, 1, 3, 2}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_4(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5}, {1, 0, 2, 3}, \
+#define case_blocked_to_planar_4(prec) test_params_t(Layout::BLOCKED, Layout::NCHW, prec, 3, {10, 24, 4, 5}, {1, 0, 2, 3}, \
 {10, 3, 4, 5, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_5(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 2, 3}, \
+#define case_blocked_to_planar_5(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 4, {2, 32, 10, 20}, {0, 1, 2, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_6(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 3, 1}, \
+#define case_blocked_to_planar_6(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 4, {2, 32, 10, 20}, {0, 2, 3, 1}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_7(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 2, 1, 3}, \
+#define case_blocked_to_planar_7(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 4, {2, 32, 10, 20}, {0, 2, 1, 3}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_8(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 3 + (prec == Precision::I8), {2, 32, 10, 20}, {0, 1, 3, 2}, \
+#define case_blocked_to_planar_8(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 4, {2, 32, 10, 20}, {0, 1, 3, 2}, \
 {2, 4, 10, 20, 8}, {0, 1, 2, 3, 1}, {}, {})
-#define case_blocked_to_planar_9(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 2 + (prec == Precision::I8), {10, 24, 4, 5}, {1, 0, 2, 3}, \
+#define case_blocked_to_planar_9(prec) test_params_t(Layout::BLOCKED, Layout::NHWC, prec, 3, {10, 24, 4, 5}, {1, 0, 2, 3}, \
 {10, 3, 4, 5, 8}, {0, 1, 2, 3, 1}, {}, {})
 
 test_params_t test_cases_fp32[] = {
@@ -554,8 +554,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
@@ -598,7 +598,7 @@ protected:
             };
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkPermute);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkPermute);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -607,29 +607,29 @@ protected:
 TEST_P(MKLDNNGraphDynBatchPermuteTests, TestsDynBatchPermute) {}
 
 test_params_t test_cases_dyn_batch[] = {
-        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 1, 2, 3}, {}, {}, {}, {}),
-        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 2, 3, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 2, 1, 3}, {}, {}, {}, {}),
-        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 1, {2, 3, 4}, {0, 1, 2}, {}, {}, {}, {}),
-        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 1, {2, 3, 4}, {0, 2, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NC, Layout::NC, Precision::FP32, 1, {2, 3}, {0, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 6}, {0, 1, 2, 3, 4}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 6}, {0, 4, 2, 1, 3}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 6}, {0, 2, 4, 3, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 6}, {0, 3, 2, 4, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 2, {2, 3, 4, 5}, {0, 1, 2, 3}, {}, {}, {}, {}),
+        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 2, {2, 3, 4, 5}, {0, 2, 3, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 2, {2, 3, 4, 5}, {0, 2, 1, 3}, {}, {}, {}, {}),
+        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 2, {2, 3, 4}, {0, 1, 2}, {}, {}, {}, {}),
+        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 2, {2, 3, 4}, {0, 2, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NC, Layout::NC, Precision::FP32, 2, {2, 3}, {0, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 6}, {0, 1, 2, 3, 4}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 6}, {0, 4, 2, 1, 3}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 6}, {0, 2, 4, 3, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 6}, {0, 3, 2, 4, 1}, {}, {}, {}, {}),
         // FIXME: Plugin inserts reorder from blocked to goidhw format here
         // test_params_t(Layout::BLOCKED, Layout::BLOCKED, Precision::FP32, 1, {2, 8, 2, 2, 4, 5}, {0, 1, 4, 2, 5, 3}, {}, {}, {}, {}),
         // test_params_t(Layout::BLOCKED, Layout::BLOCKED, Precision::FP32, 1, {2, 8, 3, 3, 4, 5}, {0, 1, 4, 2, 5, 3}, {}, {}, {}, {}),
-        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 1, {2, 12, 9}, {0, 2, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::CHW, Layout::CHW, Precision::FP32, 2, {2, 12, 9}, {0, 2, 1}, {}, {}, {}, {}),
         // test_params_t(Layout::BLOCKED, Layout::BLOCKED, Precision::FP32, 1, {2, 8, 3, 3, 4, 5}, {0, 3, 4, 1, 5, 2}, {}, {}, {}, {}),
-        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 1, 3, 2}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 7}, {0, 3, 1, 4, 2}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 7}, {0, 2, 1, 3, 4}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 7}, {0, 2, 4, 3, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {2, 3, 4, 5, 7}, {0, 4, 2, 3, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 1, {2, 3, 4, 5}, {0, 3, 1, 2}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {3, 4, 7, 8, 4}, {0, 2, 3, 4, 1}, {}, {}, {}, {}),
-        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 1, {3, 4, 7, 8, 4}, {0, 4, 1, 2, 3}, {}, {}, {}, {}),
+        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 2, {2, 3, 4, 5}, {0, 1, 3, 2}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 7}, {0, 3, 1, 4, 2}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 7}, {0, 2, 1, 3, 4}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 7}, {0, 2, 4, 3, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {2, 3, 4, 5, 7}, {0, 4, 2, 3, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCHW, Layout::NCHW, Precision::FP32, 2, {2, 3, 4, 5}, {0, 3, 1, 2}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {3, 4, 7, 8, 4}, {0, 2, 3, 4, 1}, {}, {}, {}, {}),
+        test_params_t(Layout::NCDHW, Layout::NCDHW, Precision::FP32, 2, {3, 4, 7, 8, 4}, {0, 4, 1, 2, 3}, {}, {}, {}, {}),
 };
 
 INSTANTIATE_TEST_CASE_P(TestsDynBatchPermute, MKLDNNGraphDynBatchPermuteTests, ::testing::ValuesIn(test_cases_dyn_batch));

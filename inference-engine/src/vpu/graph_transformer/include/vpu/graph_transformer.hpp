@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include <utility>
 
 #include <ie_icore.hpp>
-#include <ie_icnn_network.hpp>
 #include <caseless.hpp>
 
 #include <vpu/utils/enums.hpp>
@@ -112,6 +111,7 @@ struct CompilationConfig final {
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;
+    bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;
 
     //

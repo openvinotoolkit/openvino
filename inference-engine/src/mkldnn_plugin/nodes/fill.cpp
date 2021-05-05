@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,18 +19,18 @@ public:
     explicit FillImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             SizeVector fill_dims = layer->insData[FILL_DIMS].lock()->getTensorDesc().getDims();
             if (fill_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Fill dimensions vector should be 1 dimension";
+                IE_THROW() << layer->name << " Fill dimensions vector should be 1 dimension";
 
             SizeVector value_dims = layer->insData[FILL_VALUE].lock()->getTensorDesc().getDims();
             if (value_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Value scalar should have 1 dimension";
+                IE_THROW() << layer->name << " Value scalar should have 1 dimension";
 
             if (!(layer->insData[FILL_VALUE].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
                   layer->outData[0]->getTensorDesc().getPrecision() == Precision::I32) &&
@@ -42,7 +42,7 @@ public:
                 addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN) },
                                 { DataConfigurator(ConfLayout::PLN) });
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,12 @@ void MKLDNNTileNode::getSupportedDescriptors() {
     auto * tileLayer = dynamic_cast<TileLayer*>(getCnnLayer().get());
 
     if (tileLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert tile layer.";
+        IE_THROW() << "Cannot convert tile layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     axis = tileLayer->axis;
     tiles = tileLayer->tiles;
@@ -36,13 +36,12 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
+    if (precision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
+        precision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
+        precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
+        IE_THROW() << "Layer Tile has unsupported input precision: " << precision;
+    }
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto& inDims = getParentEdgeAt(0)->getDims();
     memory::format_tag fmt = MKLDNNMemory::GetPlainFormat(inDims);
@@ -56,7 +55,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
+    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), inputDataType, fmt);
     supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
 }
 
@@ -64,20 +63,20 @@ void MKLDNNTileNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
-    const float *src_ptr = reinterpret_cast<const float*>(srcMemory.GetPtr());
-    float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetPtr());
+    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
@@ -106,9 +105,10 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_outer_dim /= 16;
     }
 
+    m_inner_dim *= srcMemory.GetDesc().GetElementSize();
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
-            cpu_memcpy(dst_ptr, src_ptr, m_inner_dim* sizeof(float));
+            cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);
             dst_ptr += m_inner_dim;
         }
         src_ptr += m_inner_dim;

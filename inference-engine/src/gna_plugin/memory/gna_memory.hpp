@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ class GNAMemory : public GNAMemRequestsQueue {
     size_t _rw_section_size = 0;
     size_t _ro_section_size = 0;
     Allocator _allocator;
-    std::shared_ptr<uint8_t> heap;
+    std::shared_ptr<uint8_t> heap = nullptr;
     size_t _page_alignment = 1;
 
     class GNAMemRequestsReadOnlyQueue : public GNAMemRequestsQueue {

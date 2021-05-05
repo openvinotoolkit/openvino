@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_b_fs_zyx_fsv16_imad.h"
 #include "kernel_selector_utils.h"
@@ -65,7 +55,6 @@ namespace kernel_selector {
 
 Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
 Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
-
     size_t max_block_width = getOutBlock_X(params.output.X().v, params.stride.x, params.filterSize.x, params.dilation.x);
     size_t max_in_block_width = (max_block_width - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
 
@@ -454,7 +443,8 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetD
 
     dispatchData.gws[0] = CeilDiv(output.X().v, block_params.output_block_width);
     dispatchData.gws[1] = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
-    dispatchData.gws[2] = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
+    dispatchData.gws[2] = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) *
+                          params.groups * simd * block_params.feature_slm_split;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -490,13 +480,11 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, cons
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
             return false;
     } else {

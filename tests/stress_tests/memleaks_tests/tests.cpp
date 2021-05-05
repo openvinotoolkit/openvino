@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,14 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
         fillBlobs(infer_request, inputsInfo, batchSize);
 
         return test_reinfer_request_inference(infer_request, output_info, test_params.model, test_params.device, test_params.numiters);
+    };
+    test_runner(test_params.numthreads, test);
+}
+
+TEST_P(MemLeaksTestSuite, infer_request_inference) {
+    auto test_params = GetParam();
+    auto test = [&] {
+        return test_infer_request_inference(test_params.model, test_params.device, test_params.numiters);
     };
     test_runner(test_params.numthreads, test);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,13 +80,5 @@ using printer_callback =
  */
 INFERENCE_ENGINE_API_CPP(void)
 saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
-
-/**
-  @brief Return root data objects, i.e. objects came from input or const layers
-  @param network - network to process
-  @return set of root data objects,
-  */
-INFERENCE_ENGINE_API_CPP(std::unordered_set<DataPtr>)
-getRootDataObjects(const InferenceEngine::CNNNetwork& network);
 
 }  // namespace InferenceEngine

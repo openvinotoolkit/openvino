@@ -13,6 +13,7 @@
 #include <vector>
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
@@ -23,6 +24,7 @@
 #include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -103,9 +105,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const InferenceEngine::CNNNetwork &network,
         const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
@@ -128,22 +130,23 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
-    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
+    void Export(std::ostream &networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(const std::string &modelFileName,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const InferenceEngine::RemoteContext::Ptr& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel);
 
     /**
      * utility to provide input and output blobs externally to be used by InferenceEngine request API clients
@@ -230,12 +233,16 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
 
     /**
-     * @brief Converts a model from NCHW to NHWC. It fills inputs and outputs transposition info and
-     *        changes weights order for affine, eltwise and scaleshift layers. Information for transposition
-     *        is found from convolution/pooling input or output dimensions.
+     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
+     *        Information for transposition is found from convolution/pooling input or output dimensions.
      * @param layers model sorted layers
      */
-    void ConvertModelLayoutFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers);
+    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
+#ifdef PLOT
+    void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
+        InferenceEngine::ordered_properties& printed_properties,
+        InferenceEngine::ordered_properties& node_properties);
+#endif
 };
 
 }  // namespace GNAPluginNS

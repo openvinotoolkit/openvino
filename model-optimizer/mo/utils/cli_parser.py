@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import argparse
 import ast
 import logging as log
@@ -337,6 +325,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
+    common_group.add_argument('--legacy_ir_generation',
+                              help='Use legacy IR serialization engine',
+                              action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -440,12 +431,12 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'extensions', 'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',

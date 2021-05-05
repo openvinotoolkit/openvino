@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ void PriorBoxContent::fillTempBuf(void* tempBuf) const {
             _aspect_ratios.push_back(aspect_ratio);
             if (_flip) {
                 if (isFloatEqual(aspect_ratio, 0.f)) {
-                    THROW_IE_EXCEPTION << "[VPU] PriorBox has 0.0 aspect ratio param in flip mode, "
+                    IE_THROW() << "[VPU] PriorBox has 0.0 aspect ratio param in flip mode, "
                                        << " possible division by zero";
                 }
                 _aspect_ratios.push_back(1.0f / aspect_ratio);
@@ -131,7 +131,7 @@ void PriorBoxContent::fillTempBuf(void* tempBuf) const {
     float box_height = 0.0f;
 
     if (_outDesc.dim(Dim::W) != dim || _outDesc.dim(Dim::H) != 2) {
-        THROW_IE_EXCEPTION << "[VPU] PriorBox output have invalid dimension, exptected " << dim << "x2"
+        IE_THROW() << "[VPU] PriorBox output have invalid dimension, exptected " << dim << "x2"
                            << ", got " << _outDesc.dim(Dim::W) << "x" << _outDesc.dim(Dim::H)
                            << ", layer name is: " << _layer->name;
     }
@@ -335,7 +335,7 @@ void PriorBoxClusteredContent::fillTempBuf(void* tempBuf) const {
 
     auto expetected_output_dimx = layer_height * layer_width * num_priors_ * 4;
     if (_outDesc.dim(Dim::W) != expetected_output_dimx || _outDesc.dim(Dim::H) != 2) {
-        THROW_IE_EXCEPTION << "PriorBoxClustered output has invalid dimension, exptected " << expetected_output_dimx << "x2"
+        IE_THROW() << "PriorBoxClustered output has invalid dimension, exptected " << expetected_output_dimx << "x2"
                            << ", got " << _outDesc.dim(Dim::W) << "x" << _outDesc.dim(Dim::H) << ", layer name is: " << _layer->name;
     }
 

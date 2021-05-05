@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,6 +75,9 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         const auto& matchedGatherAxis = patternMap.at(gatherAxis);
 
         const auto axisConst = ngraph::get_constant_from_source(matchedGatherAxis);
+        if (!axisConst) {
+            continue;
+        }
         const auto axisVec = axisConst->cast_vector<int64_t>();
         VPU_THROW_UNLESS(axisVec.size() == 1, "Error while merging Gather and GatherElements: expected to get one value from axis input, but got: {}",
                          axisVec.size());

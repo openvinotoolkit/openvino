@@ -1,31 +1,22 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import datetime
 import logging as log
 import os
+import platform
+import subprocess
 import sys
 import traceback
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 
 import telemetry.telemetry as tm
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -35,12 +26,13 @@ from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mo
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
+from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
-from mo.utils.version import get_version
+from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements
 
 
@@ -83,14 +75,13 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
             if isinstance(desc, list):
                 lines.append('\t{}: \t{}'.format(desc[0], desc[1](getattr(argv, op, 'NONE'))))
             else:
-                if op is 'k':
+                if op == 'k':
                     default_path = os.path.join(os.path.dirname(sys.argv[0]),
                                                 'extensions/front/caffe/CustomLayersMapping.xml')
                     if getattr(argv, op, 'NONE') == default_path:
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    lines.append('Model Optimizer version: \t{}'.format(get_version()))
     print('\n'.join(lines), flush=True)
 
 
@@ -146,6 +137,18 @@ def prepare_ir(argv: argparse.Namespace):
 
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+
+    # This try-except is additional reinsurance that the IE
+    # dependency search does not break the MO pipeline
+    try:
+        if not find_ie_version(silent=argv.silent) and not argv.silent:
+            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "bat" if sys.platform == "windows" else "sh"))
+            # If the IE was not found, it will not print the MO version, so we have to print it manually
+            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    except Exception as e:
+        pass
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -244,19 +247,80 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
+    mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
+    input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
                     output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                    meta_info=get_meta_info(argv))
+                    mean_data=mean_data,
+                    input_names=input_names,
+                    meta_info=get_meta_info(argv),
+                    use_temporary_path=True)
+
+    # This graph cleanup is required to avoid double memory consumption
+    graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+
+        return_code = "not executed"
+        # This try-except is additional reinsurance that the IE
+        # dependency search does not break the MO pipeline
+        try:
+            if not argv.legacy_ir_generation and find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations,
+                                         "--input_model", orig_model_name,
+                                         "--framework", argv.framework], env=os.environ, timeout=10)
+                return_code = status.returncode
+                if return_code != 0 and not argv.silent:
+                    log.error("offline_transformations return code {}".format(return_code), extra={'is_warning': True})
+        except Exception as e:
+            log.error(e, extra={'is_warning': True})
+
+        message = str(dict({
+            "platform": platform.system(),
+            "mo_version": get_simplified_mo_version(),
+            "ie_version": get_simplified_ie_version(env=os.environ),
+            "python_version": sys.version,
+            "return_code": return_code
+        }))
+        t = tm.Telemetry()
+        t.send_event('mo', 'offline_transformations_status', message)
+
+        # if IR wasn't produced by offline_transformations step we need to fallback to IR
+        # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
+        suffixes = [".xml", ".bin", ".mapping"]
+        if return_code != 0:
+            log.error("Using fallback to produce IR.", extra={'is_warning': True})
+            for suf in suffixes:
+                # remove existing files
+                path_to_file = orig_model_name + suf
+                if os.path.exists(path_to_file):
+                    os.remove(path_to_file)
+
+                # rename tmp IR to original name
+                os.rename(orig_model_name + "_tmp" + suf, orig_model_name + suf)
+        else:
+            for suf in suffixes:
+                # remove existing files
+                path_to_file = orig_model_name + "_tmp" + suf
+                if os.path.exists(path_to_file):
+                    os.remove(path_to_file)
+
+            # add meta information to IR
+            append_ir_info(file=orig_model_name,
+                           meta_info=get_meta_info(argv),
+                           mean_data=mean_data,
+                           input_names=input_names)
+
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 
@@ -287,9 +351,9 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
-    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session()
-    telemetry.send_event('mo', 'version', get_version())
+    telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user

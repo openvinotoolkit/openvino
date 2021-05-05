@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,18 +36,13 @@ public:
 
     void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial, int batchSize = -1) override;
 
-    void Release() noexcept override;
-
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
 
-StatusCode CreatePreProcessData(IPreProcessData *& data, ResponseDesc * /*resp*/) noexcept {
-    data = new PreProcessData();
-    return StatusCode::OK;
-}
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
-void PreProcessData::Release() noexcept {
-    delete this;
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data) {
+    data = std::make_shared<PreProcessData>();
 }
 
 void PreProcessData::setRoiBlob(const Blob::Ptr &blob) {
@@ -66,7 +61,7 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
     auto fmt = info.getColorFormat();
 
     if (_userBlob == nullptr || preprocessedBlob == nullptr) {
-        THROW_IE_EXCEPTION << "Input pre-processing is called with null " << (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob");
+        IE_THROW() << "Input pre-processing is called with null " << (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob");
     }
 
     batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _userBlob);

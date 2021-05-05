@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-#include "details/ie_exception.hpp"
 #include <legacy/ie_layers.h>
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"
@@ -35,14 +34,14 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
     auto * conLayer = dynamic_cast<ConcatLayer*>(getCnnLayer().get());
 
     if (conLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert concat layer.";
+        IE_THROW() << "Cannot convert concat layer.";
 
     axis = conLayer->_axis;
 
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
     auto& firstParentDims = getParentEdgeAt(0)->getDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         auto& dims = getParentEdgeAt(i)->getDims();
@@ -56,7 +55,7 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.ndims() == 0) {
-            THROW_IE_EXCEPTION << "Incorrect input dimensions for concat node " << getName();
+            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
         }
     }
 }
@@ -391,7 +390,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         const auto &parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
+            IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = parent_config.outConfs[outputIndex].desc;
         if (port_desc.getLayout() == Layout::ANY)
             continue;
@@ -408,7 +407,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         const auto &config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= config.inConfs.size())
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
+            IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = config.inConfs[inputIndex].desc;
         if (port_desc.getLayout() == Layout::ANY)
             continue;
@@ -472,9 +471,9 @@ void MKLDNNConcatNode::createPrimitive() {
 
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     std::vector<memory::desc> srcs_d;
 
@@ -482,7 +481,7 @@ void MKLDNNConcatNode::createPrimitive() {
         auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            THROW_IE_EXCEPTION << "Source memory from " << parent->getName() << " didn't allocate for node "
+            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
                                << getName() << ".";
         }
 
@@ -518,7 +517,7 @@ size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
 void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     if (!isOptimized()) {
         auto config = selected_pd->getConfig();

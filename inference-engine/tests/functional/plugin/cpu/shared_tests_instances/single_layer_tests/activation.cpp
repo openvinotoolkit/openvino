@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,10 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {SoftPlus,              {}},
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
-        {RoundHalfAwayFromZero, {}}
+        {RoundHalfAwayFromZero, {}},
+        {Erf,                   {}},
+        {GeluErf,               {}},
+        {GeluTanh,              {}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -68,6 +71,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 50}, {{1}, {50}}},
         {{1, 128}, {{1}, {128}}},
+        {{20, 128}, {{20}, {128}, {20, 128}}},
+        {{1, 20, 128}, {{1}, {20}, {128}, {20, 128}}},
+        {{1, 20, 128, 128}, {{1}, {20}, {128}, {128, 128}, {20, 128, 128}}},
+        {{1, 20, 20, 128, 128}, {{1}, {20}, {128}, {128, 128}, {20, 128, 128}, {20, 20, 128, 128}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -97,5 +104,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases,
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

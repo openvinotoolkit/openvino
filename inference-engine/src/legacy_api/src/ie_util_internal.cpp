@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +148,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 }
 
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IELegacy_LT, "cloneNetwork");
 
     if (network.getFunction()) {
         return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
@@ -567,22 +567,6 @@ void saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& ou
         }
     }
     out << "}" << std::endl;
-}
-
-std::unordered_set<DataPtr> getRootDataObjects(const CNNNetwork& network) {
-    std::unordered_set<DataPtr> ret;
-    details::CNNNetworkIterator i(network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-
-        // TODO: Data without creatorLayer
-        if (CaselessEq<string>()(layer->type, "input") || CaselessEq<string>()(layer->type, "const") ||
-            CaselessEq<string>()(layer->type, "memory")) {
-            ret.insert(layer->outData.begin(), layer->outData.end());
-        }
-        i++;
-    }
-    return ret;
 }
 
 }  // namespace InferenceEngine

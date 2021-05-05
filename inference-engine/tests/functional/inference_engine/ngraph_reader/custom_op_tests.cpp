@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,8 +54,6 @@ class CustomAddConstExtension : public InferenceEngine::IExtension {
         }
 
         void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
-
-        void Release() noexcept override { delete this; }
 
         void Unload() noexcept override {}
 

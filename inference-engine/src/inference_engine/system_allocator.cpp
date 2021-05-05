@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 namespace InferenceEngine {
 
-IAllocator* CreateDefaultAllocator() noexcept {
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<IAllocator>) CreateDefaultAllocator() noexcept {
     try {
-        return new SystemMemoryAllocator();
+        return std::make_shared<SystemMemoryAllocator>();
     } catch (...) {
         return nullptr;
     }

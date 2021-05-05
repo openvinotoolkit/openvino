@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,8 +137,9 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
             ASSERT_GE(layer.second, 0);
         }
     } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
-                InferenceEngine::NotImplemented);
+        InferenceEngine::ExecutableNetwork network;
+        ASSERT_NO_THROW(network = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_THROW(network.GetExecGraphInfo(), InferenceEngine::NotImplemented);
     }
 }
 

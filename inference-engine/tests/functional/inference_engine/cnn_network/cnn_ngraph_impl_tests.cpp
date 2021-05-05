@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
 #include <legacy/net_pass.h>
-#include <generic_ie.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -307,6 +306,43 @@ TEST(CNNNGraphImplTests, TestAddOutput) {
     cnnNet.addOutput(testLayerName);
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
+    auto outputs = cnnNet.getOutputsInfo();
+    ASSERT_EQ(2, outputs.size());
+    ASSERT_TRUE(outputs.find("relu2") != outputs.end());
+    ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
+}
+
+TEST(CNNNGraphImplTests, TestAddOutputWithPort) {
+    const std::string testLayerName = "testReLU";
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name(testLayerName);
+        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
+        relu2->set_friendly_name("relu2");
+        auto result = std::make_shared<ngraph::op::Result>(relu2);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(4, cnnNet.layerCount());
+
+    cnnNet.addOutput(testLayerName, 0);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(5, cnnNet.layerCount());
+
+    EXPECT_THROW(cnnNet.addOutput(testLayerName, 1), OutOfBounds);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(5, cnnNet.layerCount());
+
     auto outputs = cnnNet.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
@@ -1438,8 +1474,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 
@@ -1630,8 +1664,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ public:
         const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant);
 
     bool empty() const;
-    bool multiplyHasZero() const;
+    bool multiplyHasZeroOrDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
 

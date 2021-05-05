@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,12 +46,12 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
 
     auto * poolingLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
     if (poolingLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert pooling layer.";
+        IE_THROW() << "Cannot convert pooling layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     type = poolingLayer->_type;
     exclude_pad = poolingLayer->_exclude_pad;
@@ -93,7 +93,7 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
     if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
-        THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
+        IE_THROW() << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
     for (int i = 0; i < effective_pad_end.size(); i++) {
         int krn = kernel[i];
@@ -104,6 +104,9 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         effective_pad_end[i] = (dst - calc_dst) * stride[i];
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
+        //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
+        if (outputDataType == memory::data_type::bf16)
+            outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
@@ -176,7 +179,7 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
         alg = algorithm::pooling_max;
     } else {
         // TODO: Handle rest of the possible: STOCH, ROI, SPACIAL_PYRAMID
-        THROW_IE_EXCEPTION << "Unsupported pooling type";
+        IE_THROW() << "Unsupported pooling type";
     }
 
     auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
@@ -287,7 +290,7 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
-                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
+                    IE_THROW() << "Cannot get the original layer configuration!";
                 }
                 rightConfig = cfg;
             }
@@ -310,13 +313,13 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
             if (selectedConfig.inConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.inConfs[i].desc, config.inConfs[i].desc))
-                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
             if (selectedConfig.outConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.outConfs[i].desc, config.outConfs[i].desc))
-                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;
     }
@@ -334,7 +337,7 @@ void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeight
             continue;
         }
 
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

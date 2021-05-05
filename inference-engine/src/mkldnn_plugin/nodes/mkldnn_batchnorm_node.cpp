@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,18 +32,18 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         return;
     auto * bnLayer = dynamic_cast<BatchNormalizationLayer*>(getCnnLayer().get());
     if (bnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert batch normalization layer.";
+        IE_THROW() << "Cannot convert batch normalization layer.";
     if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
-        THROW_IE_EXCEPTION << "Weights/biases are empty for layer: " << bnLayer->name
+        IE_THROW() << "Weights/biases are empty for layer: " << bnLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
                            << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     eps = bnLayer->epsilon;
 
@@ -51,7 +51,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
 
     if (variancesSize != meansSize && variancesSize != 1)
-        THROW_IE_EXCEPTION << "Incorrect weights and biases sizes!";
+        IE_THROW() << "Incorrect weights and biases sizes!";
 
     internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
     internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
@@ -59,12 +59,12 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
     if (fusedWith.size() > 1)
-        THROW_IE_EXCEPTION << "BatchNorm fusion is possible with only one layer!";
+        IE_THROW() << "BatchNorm fusion is possible with only one layer!";
 
     for (const auto &node : fusedWith) {
         auto * scshLayer = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
         if (scshLayer == nullptr)
-            THROW_IE_EXCEPTION << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
+            IE_THROW() << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
 
         size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
         SizeVector mkldnn_weights = {2, C};
@@ -73,11 +73,11 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         internalBlob->allocate();
         float * data = internalBlob->buffer();
         if (data == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get memory!";
+            IE_THROW() << "Cannot get memory!";
 
         InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
         if (blb == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get weights blob for node " << getName() << ".";
+            IE_THROW() << "Cannot get weights blob for node " << getName() << ".";
 
         size_t weightsByteSize = blb->byteSize();
         cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
@@ -88,7 +88,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
             memset(data, 0, weightsByteSize);
         } else {
             if (weightsByteSize != blb->byteSize())
-                THROW_IE_EXCEPTION << "ScaleShift has incorrect weights!";
+                IE_THROW() << "ScaleShift has incorrect weights!";
             cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         }
         internalBlobs.push_back(internalBlob);
@@ -188,14 +188,14 @@ void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceE
 void MKLDNNBatchNormalizationNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 || (!isUninitTensorDesc(config.inConfs[0].desc) &&
             !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-        THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
+        IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;

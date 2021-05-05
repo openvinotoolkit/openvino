@@ -16,7 +16,8 @@
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
-#include "common/jit_load_store_emitters.h"
+#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -200,7 +201,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
         this->postamble();
 
-        load_emitter->emit_table();
+        load_emitter->emit_data();
     }
 
 private:
@@ -241,7 +242,7 @@ private:
 
     inline void worker_full_size() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step),
                             {}, {load_pool_gpr_idxs});
 
@@ -263,7 +264,7 @@ private:
 
     inline void worker_tail_blk() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num),
                             {}, {load_pool_gpr_idxs});
 
@@ -307,7 +308,7 @@ private:
 
     inline void worker_tail_planar() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"),
                             {}, {load_pool_gpr_idxs});
 
@@ -478,9 +479,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         this->postamble();
 
-        load_emitter->emit_table();
+        load_emitter->emit_data();
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_table();
+            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -510,8 +511,8 @@ private:
     Xbyak::Reg64 reg_load_table = r15;
     Xbyak::Reg64 reg_load_store_mask = rcx;
 
-    Vmm vmm_val = Vmm(0);
-    Vmm vmm_mean = Vmm(1);
+    Vmm vmm_val = Vmm(1);
+    Vmm vmm_mean = Vmm(0);
     Vmm vmm_variance_inv = Vmm(2);
     Vmm vmm_zero = Vmm(3);
 
@@ -531,7 +532,7 @@ private:
 
     inline void worker_mvn(bool is_tail) {
         int elt_num = is_tail ? tail_num : step;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
             std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
             {}, {load_pool_gpr_idxs});
 
@@ -541,7 +542,7 @@ private:
 
         apply_post_ops(jcp_.dst_prc, jcp_.planar_layout);
 
-        store_emitter->emit({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+        store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
             std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num),
             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
@@ -615,17 +616,17 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
 
     auto cnnLayer = getCnnLayer();
     if (cnnLayer == nullptr)
-        THROW_IE_EXCEPTION << errPrefix << "does not have CNN layer.";
+        IE_THROW() << errPrefix << "does not have CNN layer.";
 
     if (getParentEdges().size() > 2)
-        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of input edges.";
+        IE_THROW() << errPrefix << "has incorrect number of input edges.";
 
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of output edges.";
+        IE_THROW() << errPrefix << "has incorrect number of output edges.";
 
     const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
     if (numOfDims < 1 || numOfDims > 5)
-        THROW_IE_EXCEPTION << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
+        IE_THROW() << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
 
     across_channels = false;
     if (getParentEdges().size() == 1) {
@@ -758,7 +759,7 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
         case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
         case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
         case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
-        default : { THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
+        default : { IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
     }
     return shapes;
 }
@@ -767,11 +768,11 @@ void MKLDNNMVNNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
@@ -839,7 +840,7 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
             eltwiseNode->appendPostOps(ops);
             continue;
         }
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
     attr.set_post_ops(ops);
 }
@@ -854,7 +855,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     auto dim = getParentEdgeAt(0)->getDesc().getDims();
     if (mayiuse(cpu::x64::sse41)) {
         if (!mvn_mean_kernel || (normalize_variance && !mvn_variance_kernel) || !mvn_kernel) {
-            THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't create kernel to execute on sse41 above platform.";
+            IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't create kernel to execute on sse41 above platform.";
         }
         Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
         if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {
@@ -941,7 +942,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.src_stride = src_stride_size;
                     arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);  // work amount for vector part
-                    arg.oc_off = static_cast<size_t>(c * sizeof(float));
+                    arg.oc_off = sizeof(float) * c;
                     (*mvn_kernel)(&arg);
                 });
             } else {
@@ -955,7 +956,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.src_stride = src_stride_size;
                     arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
-                    arg.oc_off = static_cast<size_t>(c * sizeof(float));
+                    arg.oc_off = sizeof(float) * c;
                     (*mvn_kernel)(&arg);
                 });
             }
@@ -1350,8 +1351,11 @@ bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Nod
     const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
     if (mvn != nullptr && node->get_input_size() == 2) {
         if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
-            auto axesVal = axesNode->cast_vector<int>();
             auto& mvnShape = mvn->get_output_shape(0);
+            auto axesVal = axesNode->cast_vector<int>();
+            for (int& axe : axesVal)
+                axe = axe < 0 ? axe + mvnShape.size() : axe;
+            std::sort(axesVal.begin(), axesVal.end());
             if (mvnShape.size() == 1) {
                 if (axesVal.size() == 1 && axesVal[0] == 0)
                     return true;

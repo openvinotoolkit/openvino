@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "eltwise_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -443,9 +433,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
@@ -597,7 +587,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     DispatchData dispatchData = SetDefault(newParams);
 

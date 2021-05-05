@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-# Copyright (C) 2021 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Test inference with conditional compiled binaries.
 """
 
-from proc_utils import cmd_exec  # pylint: disable=import-error
+from tests_utils import run_infer
 
 
-def test_infer(model, benchmark_app):
+def test_infer(test_id, model, artifacts):
     """ Test inference with conditional compiled binaries
     """
-    returncode, _ = cmd_exec(
-        [str(benchmark_app), "-d=CPU", f"-m={model}", "-niter=1", "-nireq=1"]
-    )
-    assert returncode == 0, f"Command exited with non-zero status {returncode}"
+    install_prefix = artifacts / test_id / "install_pkg"
+    out = artifacts / test_id
+    returncode, output = run_infer(model, f"{out}_cc.npz", install_prefix)
+    assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"

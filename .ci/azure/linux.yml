@@ -79,6 +79,9 @@ jobs:
 
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
+      # For opencv-python: setuptools and upgrade
+      sudo apt-get install python3-setuptools
+      python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
@@ -156,10 +159,6 @@ jobs:
 
   - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: false
-
-  - script: $(BIN_DIR)/MklDnnBehaviorTests --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
-    displayName: 'MklDnnBehaviorTests'
     continueOnError: false
 
   - script: |

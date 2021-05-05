@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,14 +76,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Sigmoid,     {{}}},
         {Tanh,        {{}}},
         {Relu,        {{}}},
-        {Gelu,        {{}}},
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {Mish,        {{}}},
-        {PReLu, {{-0.01f}}}
+        {PReLu, {{-0.01f}}},
+        {GeluErf,     {{}}},
+        {GeluTanh,    {{}}}
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <cassert>
 
-#include <details/ie_exception.hpp>
 
 #include <vpu/utils/io.hpp>
 
@@ -14,14 +13,16 @@
 #include <memory>
 #include <utility>
 
+#include <ie_common.h>
+
 namespace vpu {
 
 // TODO: replace with VPU_THROW_FORMAT/VPU_THROW_UNLESS/VPU_INTERNAL_CHECK and remove
-#define VPU_THROW_EXCEPTION THROW_IE_EXCEPTION
+#define VPU_THROW_EXCEPTION IE_THROW()
 
 namespace details {
 
-using VPUException = InferenceEngine::details::InferenceEngineException;
+using VPUException = InferenceEngine::Exception;
 
 class UnsupportedLayerException : public VPUException {
 public:
@@ -30,7 +31,8 @@ public:
 
 template <class Exception, typename... Args>
 void throwFormat(const char* fileName, int lineNumber, const char* messageFormat, Args&&... args) {
-    throw Exception(fileName, lineNumber, formatString(messageFormat, std::forward<Args>(args)...));
+    IE_THROW(GeneralError) << '\n' << fileName  << ':' << lineNumber << ' '
+                      << formatString(messageFormat, std::forward<Args>(args)...);
 }
 
 }  // namespace details

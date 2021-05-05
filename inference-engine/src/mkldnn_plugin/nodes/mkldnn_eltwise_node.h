@@ -60,7 +60,8 @@ enum EltwiseOpType {
     Mish,
     Hswish,
     Hsigmoid,
-    Round
+    Round,
+    Erf
 };
 
 struct jit_eltwise_params {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@ public:
     MOCK_QUALIFIED_METHOD2(GetUserData, noexcept, StatusCode(void**, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(SetUserData, noexcept, StatusCode(void*, ResponseDesc*));
     MOCK_QUALIFIED_METHOD1(SetCompletionCallback, noexcept, StatusCode(IInferRequest::CompletionCallback));
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(Infer, noexcept, StatusCode(ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(GetPerformanceCounts, const noexcept,
                            StatusCode(std::map<std::string, InferenceEngineProfileInfo> &perfMap, ResponseDesc*));

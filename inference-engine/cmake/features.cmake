@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -93,6 +93,8 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 
 ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
 
+ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
+
 #
 # Process featues
 #
@@ -124,10 +126,6 @@ if (ENABLE_GNA)
         message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
         set(GNA_LIBRARY_VERSION GNA1)
     endif()
-endif()
-
-if (ENABLE_SPEECH_DEMO)
-    add_definitions(-DENABLE_SPEECH_DEMO)
 endif()
 
 print_enabled_features()

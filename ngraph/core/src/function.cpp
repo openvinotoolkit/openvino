@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <list>
@@ -36,11 +24,11 @@ atomic<size_t> Function::m_next_instance_id(0);
 Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(results)
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(results)
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -48,11 +36,11 @@ Function::Function(const ResultVector& results,
 Function::Function(const OutputVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(results))
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(as_result_vector(results))
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -60,11 +48,11 @@ Function::Function(const OutputVector& results,
 Function::Function(const NodeVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(as_output_vector(results)))
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(as_result_vector(as_output_vector(results)))
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -80,12 +68,12 @@ Function::Function(const ResultVector& results,
                    const SinkVector& sinks,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(results)
-    , m_sinks(sinks)
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(results)
+    , m_sinks(sinks)
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -100,8 +88,8 @@ Function::Function(const OutputVector& results,
 
 void Function::check_all_parameters_registered() const
 {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
-                       "Function::check_all_parameters_registered");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
+
     std::stringstream unregistered_parameters;
     for (auto& node : get_ordered_ops())
     {
@@ -116,8 +104,7 @@ void Function::check_all_parameters_registered() const
 
 void Function::validate_nodes_and_infer_types() const
 {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
-                       "Function::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
 
     struct Counter
     {
@@ -443,9 +430,9 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
 
 void Function::add_parameters(const ParameterVector& params)
 {
-    for (int i = 0; i < params.size(); i++)
+    for (size_t i = 0; i < params.size(); i++)
     {
-        for (int j = 0; j < m_parameters.size(); j++)
+        for (size_t j = 0; j < m_parameters.size(); j++)
         {
             NGRAPH_CHECK(params[i] != m_parameters[j],
                          "add_parameters(): Tried to add parameter (index in array ",

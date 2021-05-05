@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
+
 """
 This script runs timetest executable several times and aggregate
 collected statistics.
@@ -10,14 +11,18 @@ collected statistics.
 # pylint: disable=redefined-outer-name
 
 import statistics
-from pathlib import Path
 import tempfile
 import subprocess
 import logging
 import argparse
 import sys
-from pprint import pprint
+import os
 import yaml
+
+from pathlib import Path
+from pprint import pprint
+
+from test_runner.utils import filter_timetest_result
 
 
 def run_cmd(args: list, log=None, verbose=True):
@@ -75,26 +80,32 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        with tempfile.NamedTemporaryFile() as tf:
-            retcode, msg = run_cmd(cmd_common + ["-s", str(tf.name)], log=log)
-            if retcode != 0:
-                log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
-                          "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
-                return retcode, {}
+        tmp_stats_path = tempfile.NamedTemporaryFile().name
+        retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        if retcode != 0:
+            log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
+                      "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
+            return retcode, {}
 
-            # Read raw statistics
-            raw_data = yaml.safe_load(tf)
-            log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
+        # Read raw statistics
+        with open(tmp_stats_path, "r") as file:
+            raw_data = yaml.safe_load(file)
+
+        os.unlink(tmp_stats_path)
+        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
                      for step_name, duration in raw_data.items())
 
+    # Remove outliers
+    filtered_stats = filter_timetest_result(stats)
+
     # Aggregate results
-    aggregated_stats = aggregate_stats(stats)
+    aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats
+    return 0, aggregated_stats, stats
 
 
 def check_positive_int(val):
@@ -124,7 +135,7 @@ def cli_parser():
                         type=str,
                         help='target device to infer on')
     parser.add_argument('-niter',
-                        default=3,
+                        default=10,
                         type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
@@ -143,7 +154,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file
