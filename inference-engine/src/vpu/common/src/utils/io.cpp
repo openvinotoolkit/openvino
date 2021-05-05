@@ -4,7 +4,7 @@
 
 #include <vpu/utils/io.hpp>
 
-#include <iostream>
+#include <ostream>
 
 namespace vpu {
 

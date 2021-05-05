@@ -68,6 +68,7 @@ else()
             ext_protobuf
             GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
             GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+            GIT_SHALLOW TRUE
         )
 
         FetchContent_GetProperties(ext_protobuf)
