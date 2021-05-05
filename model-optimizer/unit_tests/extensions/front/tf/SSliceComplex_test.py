@@ -125,7 +125,7 @@ non_transformed_graph_edges = [
 ]
 
 
-class SSliceComplexRollReplacementTest(unittest.TestCase):
+class SSliceComplexTest(unittest.TestCase):
     def test_replacement(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges)
         graph.stage = 'front'
