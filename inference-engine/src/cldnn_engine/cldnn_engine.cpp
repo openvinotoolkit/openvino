@@ -383,7 +383,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     .setSupportAsymmetricQuantization(false)
                     .setSupport3DTensorOnActivations(false))
                 .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
-                   .setDeconvolutionSpecificChannelsRatio(true))
+                    .setSupportAsymmetricQuantization(false)
+                    .setDeconvolutionSpecificChannelsRatio(true))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
