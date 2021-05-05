@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.front.no_op_eraser import NoOpEraser
-from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Node, Graph
@@ -18,7 +17,7 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
     replacement_id = 'TFYOLO'
 
     def run_after(self):
-        return [NoOpEraser, StandaloneConstEraser]
+        return [NoOpEraser]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
         op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
