@@ -103,7 +103,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
