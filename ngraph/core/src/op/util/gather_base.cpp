@@ -177,23 +177,23 @@ namespace gather
     bool evaluate(const HostTensorPtr& arg0,
                   const HostTensorPtr& arg1,
                   const HostTensorPtr& out,
-                  size_t axis,
-                  size_t batch_dims)
+                  int64_t axis,
+                  int64_t batch_dims)
     {
         using T = typename element_type_traits<ET>::value_type;
         Shape params_shape = arg0->get_shape();
         Shape indices_shape = arg1->get_shape();
         Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
-        uint64_t i = 0;
+        int64_t i = 0;
         for (; i < axis; i++)
         {
             out_shape[i] = params_shape[i];
         }
-        for (uint64_t j = batch_dims; j < indices_shape.size(); i++, j++)
+        for (int64_t j = batch_dims; j < static_cast<int64_t>(indices_shape.size()); i++, j++)
         {
             out_shape[i] = indices_shape[j];
         }
-        for (uint64_t j = axis + 1; j < params_shape.size(); i++, j++)
+        for (int64_t j = axis + 1; j < static_cast<int64_t>(params_shape.size()); i++, j++)
         {
             out_shape[i] = params_shape[j];
         }
@@ -233,8 +233,8 @@ namespace gather
     bool evaluate_gather(const HostTensorPtr& arg0,
                          const HostTensorPtr& arg1,
                          const HostTensorPtr& out,
-                         size_t axis,
-                         size_t batch_dims = 0)
+                         int64_t axis,
+                         int64_t batch_dims = 0)
     {
         bool rc = true;
 
