@@ -70,7 +70,7 @@ The following options are available:
    ```
 *	`[--output_dir]` — (Optional) Path to the output directory. By default, it set to your home directory.
 
-*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it set to `openvino_deployment_package`.
+*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
 
 *	`[--user_data]` — (Optional) Path to a directory with user data (IRs, models, datasets, etc.) required for inference. By default, it's set to `None`, which means that the user data are already present on the target host machine.
 

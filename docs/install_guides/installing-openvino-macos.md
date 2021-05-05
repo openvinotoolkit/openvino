@@ -24,7 +24,7 @@ The following components are installed by default:
 | Component                                                                                           | Description                                                                                                                                                                                                                                                  |
 | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe*, TensorFlow*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications                                                                                                               |
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                      |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
@@ -60,13 +60,13 @@ The development and target platforms have the same requirements, but you can sel
 **Software Requirements**
 
 * CMake 3.10 or higher
-   * [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
+	+ [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
 	+ Add `/Applications/CMake.app/Contents/bin` to path (for default install) 
 * Python 3.6 - 3.7
-   * [Install](https://www.python.org/downloads/mac-osx/) (choose 3.6.x or 3.7.x, not latest)
-   * Add to path
+	+ [Install](https://www.python.org/downloads/mac-osx/) (choose 3.6.x or 3.7.x, not latest)
+	+ Add to path
 * Apple Xcode\* Command Line Tools
-   * In the terminal, run `xcode-select --install` from any directory
+	+ In the terminal, run `xcode-select --install` from any directory
 * (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
 
 **Operating Systems**
