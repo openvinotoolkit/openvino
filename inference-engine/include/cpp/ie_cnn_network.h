@@ -190,18 +190,12 @@ public:
 
     /**
      * @brief Method maps framework tensor name to OpenVINO name
-     *
      * @param orig_name Framework tensor name
-     *
      * @return OpenVINO name
      */
-    std::string getOVNameForTensor(const std::string& orig_name) const {
-        std::string ov_name;
-        CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
-        return ov_name;
-    }
+    std::string getOVNameForTensor(const std::string& orig_name) const;
 
-protected:
+private:
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Network extra interface, might be nullptr
@@ -213,11 +207,6 @@ protected:
      */
     ICNNNetwork* actual = nullptr;
     IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @brief A pointer to output data
-     */
-    DataPtr output;
 };
 
 }  // namespace InferenceEngine

@@ -563,6 +563,37 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
 }
 
 template <typename From, typename To>
+void constant_convert_test(element::Type type_from, element::Type type_to, const std::vector<From>& value, const std::vector<To>& expected) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::string expected_friendly_name;
+    size_t size = value.size() * sizeof(From) * 8 / type_from.bitwidth();
+    {
+        auto c = std::make_shared<opset4::Constant>(type_from, Shape{size}, value.data());
+        expected_friendly_name = c->get_friendly_name();
+        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(type_from, type_to);
+        manager.run_passes(f);
+    }
+    auto ops = f->get_ordered_ops();
+    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    ASSERT_NE(c, nullptr);
+    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
+    std::vector<To> actual;
+    try {
+        actual = c->cast_vector<To>();
+    } catch(...) {
+        size_t dst_size = (type_to.bitwidth() * size + 7) / 8;
+        actual.assign(c->get_data_ptr<uint8_t>(), c->get_data_ptr<uint8_t>() + dst_size);
+    }
+    ASSERT_TRUE(actual.size() >= expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_EQ(expected[i], actual[i]);
+    }
+}
+
+template <typename From, typename To>
 void constant_convert_test(element::Type_t type_from, element::Type_t type_to, From value, To expected) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     std::string expected_friendly_name;
@@ -632,150 +663,113 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::i8, 171, 10);
+    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, std::vector<uint8_t>{171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::u8, 171, 10);
+    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8_2) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::i8, 96, 6);
+    constant_convert_test<uint8_t, int8_t>(element::u4, element::i8, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8_96) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::u8, 96, 6);
+    constant_convert_test<uint8_t, uint8_t>(element::u4, element::u8, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 96, 6);
+    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 96, 6);
+    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 250);
+    constant_convert_test<uint8_t, uint8_t>(element::i4, element::u8, {171}, {250, 251});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -6);
+    constant_convert_test<uint8_t, int8_t>(element::i4, element::i8, {171}, {-6, -5});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI32) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::i32, 171, 10);
+    constant_convert_test<uint8_t, int32_t>(element::u4, element::i32, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU32) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::u32, 171, 10);
+    constant_convert_test<uint8_t, uint32_t>(element::u4, element::u32, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 96, 6);
+    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 96, 6);
+    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 171, -6);
+    constant_convert_test<uint8_t, uint32_t>(element::i4, element::u32, {171}, {4294967290, 4294967291});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -6);
+    constant_convert_test<uint8_t, int32_t>(element::i4, element::i32, {171}, {-6, -5});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI16) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::i16, 171, 10);
+    constant_convert_test<uint8_t, int16_t>(element::u4, element::i16, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU16) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::u16, 171, 10);
+    constant_convert_test<uint8_t, uint16_t>(element::u4, element::u16, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 96, 6);
+    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 96, 6);
+    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 171, 65530);
+    constant_convert_test<uint8_t, uint16_t>(element::i4, element::u16, {171}, {65530, 65531});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 171, -6);
+    constant_convert_test<uint8_t, int16_t>(element::i4, element::i16, {171}, {-6, -5});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI64) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::i64, 171, 10);
+    constant_convert_test<uint8_t, int64_t>(element::u4, element::i64, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU64) {
-    constant_convert_test(element::Type_t::u4, element::Type_t::u64, 171, 10);
+    constant_convert_test<uint8_t, int64_t>(element::u4, element::u64, {171}, {10, 11});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 96, 6);
+    constant_convert_test<uint8_t, uint64_t>(element::i4, element::u64, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 96, 6);
+    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {96}, {6, 0});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 171, -6);
+    constant_convert_test<uint8_t, uint64_t>(element::i4, element::u64, {171}, {18446744073709551610u, 18446744073709551611u});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 171, -6);
+    constant_convert_test<uint8_t, int64_t>(element::i4, element::i64, {171}, {-6, -5});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
-    uint8_t value = 171;
-    std::string expected_friendly_name;
-    {
-        auto c = std::make_shared<opset4::Constant>(element::Type_t::u1, Shape{2}, &value);
-        expected_friendly_name = c->get_friendly_name();
-        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
-
-        pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(element::Type_t::u1, element::Type_t::u8);
-        manager.run_passes(f);
-    }
-    auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
-    ASSERT_NE(c, nullptr);
-    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
-
-    auto* actual = reinterpret_cast<const uint8_t*>(c->get_data_ptr());
-    ASSERT_EQ(1, actual[0]);
-    ASSERT_EQ(0, actual[1]);
+    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u8, {171}, {1, 0, 1, 0, 1, 0, 1, 1});
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
-    uint8_t value = 171;
-    std::string expected_friendly_name;
-    {
-        auto c = std::make_shared<opset4::Constant>(element::Type_t::u1, Shape{2}, &value);
-        expected_friendly_name = c->get_friendly_name();
-        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
-
-        pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(element::Type_t::u1, element::Type_t::u4);
-        manager.run_passes(f);
-    }
-    auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
-    ASSERT_NE(c, nullptr);
-    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
-
-    auto actual = reinterpret_cast<const uint8_t*>(c->get_data_ptr())[0];
-    ASSERT_EQ(16, actual);
+    constant_convert_test<uint8_t, uint8_t>(element::u1, element::u4, std::vector<uint8_t>{171}, {1, 0, 1, 0, 1, 0, 1, 1});
 }

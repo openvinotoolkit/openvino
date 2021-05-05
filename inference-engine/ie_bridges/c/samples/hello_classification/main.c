@@ -3,7 +3,7 @@
 //
 
 #include <c_api/ie_c_api.h>
-#include <opencv_c_wraper.h>
+#include <opencv_c_wrapper.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
