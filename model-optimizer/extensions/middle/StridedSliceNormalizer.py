@@ -17,7 +17,7 @@ from mo.utils.error import Error
 
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
-    """
+    r"""
     StridedSlice is not normal if it cannot be permuted by ApplyPermutations. This normalizer
     inserts blank colons ':' in slice expression so that it can be correctly permuted
     from NHWC to NCHW layout. It changes masks and inserts blank begin, end and strides values.

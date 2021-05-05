@@ -29,7 +29,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-InferenceEngine::InferRequestInternal::Ptr
+InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
@@ -44,16 +44,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     _cfg{cfg},
     _name{network.getName()},
     _numaNodesWeights(numaNodesWeights) {
-    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
 
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNetwork(network);
 
+    bool isFloatModel = true;
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         // Check if network is INT8 or Binary.
-        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-        // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
         CNNNetworkIterator iter(network);
         while (iter != CNNNetworkIterator()) {
             if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
@@ -87,18 +85,25 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             }
         };
 
-        if (with_cpu_x86_avx512_core() && isFloatModel) {
+        if (with_cpu_x86_avx512_core()) {
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
             // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
+
+            // BF16 + INT8 or BF16 + BIN models will be performed in mixed precision execution only if
+            // enforceBF16 flag was set manually
+            if (isFloatModel == false) {
+                if (cfg.manualEnforceBF16 == true)
+                    changePrecisionBF16(Precision::FP32, Precision::BF16);
+            } else if (cfg.enforceBF16 == true) {
                 changePrecisionBF16(Precision::FP32, Precision::BF16);
+            }
         } else {
             changePrecisionBF16(Precision::BF16, Precision::FP32);
         }
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "createConstInputs");
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, const std::vector<size_t>& shape, const std::string& name) {
         LayerParams attrs = {layer->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
@@ -229,7 +234,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
@@ -323,7 +328,7 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
     }
 }
 
-InferenceEngine::IInferRequest::Ptr MKLDNNExecNetwork::CreateInferRequest() {
+InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 
@@ -421,7 +426,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
             type != Split &&
             type != Concatenation &&
             type != Eltwise &&
-            type != Crop &&
             type != BatchNormalization &&
             type != Copy) {
             check_result = false;

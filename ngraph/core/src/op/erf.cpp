@@ -62,7 +62,7 @@ namespace erfop
         }
         return rc;
     }
-}
+} // namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

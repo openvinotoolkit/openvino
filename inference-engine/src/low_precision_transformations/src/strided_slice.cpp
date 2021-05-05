@@ -23,7 +23,7 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     //}
 
     const auto stridedSliceShape = strSlice->get_input_shape(0);
-    const auto constantShape = constant->get_shape();
+    auto constantShape = constant->get_shape();
     if (stridedSliceShape.size() != constantShape.size()) {
         ngraph::Shape newConstantShape;
         if (ngraph::shape_size(constantShape) == 1) {
@@ -37,6 +37,7 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
                 newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
             }
         }
+        constantShape = newConstantShape;
 
         const auto newConstant = fold<ngraph::opset1::Broadcast>(
             constant,
@@ -45,13 +46,24 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     }
 
     const auto stridedSlice = as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
+
+    auto beginMask = stridedSlice->get_begin_mask();
+    auto endMask = stridedSlice->get_end_mask();
+    for (size_t i = 0; i < constantShape.size(); ++i) {
+        // don't slice constant if current dimension is 1
+        if (constantShape[i] == 1ul) {
+            beginMask[i] = 1ul;
+            endMask[i] = 1ul;
+        }
+    }
+
     const auto result = fold<ngraph::opset1::StridedSlice>(
         constant,
         stridedSlice->get_input_node_shared_ptr(1),
         stridedSlice->get_input_node_shared_ptr(2),
         stridedSlice->get_input_node_shared_ptr(3),
-        stridedSlice->get_begin_mask(),
-        stridedSlice->get_end_mask(),
+        beginMask,
+        endMask,
         stridedSlice->get_new_axis_mask(),
         stridedSlice->get_shrink_axis_mask(),
         stridedSlice->get_ellipsis_mask());

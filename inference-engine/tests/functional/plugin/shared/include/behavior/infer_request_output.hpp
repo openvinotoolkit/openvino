@@ -15,7 +15,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include <ie_core.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -131,11 +130,9 @@ TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
-    InferenceEngine::StatusCode sts;
     ASSERT_NO_THROW(req.Infer());
     ASSERT_NO_THROW(req.StartAsync());
-    sts = req.Wait(500);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+    ASSERT_NO_THROW(req.Wait());
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
 }
 }  // namespace BehaviorTestsDefinitions

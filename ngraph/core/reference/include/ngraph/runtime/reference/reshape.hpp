@@ -24,5 +24,5 @@ namespace ngraph
                          const Shape& out_shape,
                          size_t elem_size);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

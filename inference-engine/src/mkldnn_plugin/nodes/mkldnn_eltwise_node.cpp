@@ -781,7 +781,13 @@ MKLDNNEltwiseNode::initializers = {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Gelu;
-            algorithm = mkldnn::algorithm::eltwise_gelu;
+            std::string approximationMode = activationLayer->GetParamAsString("approximation_mode", "erf");
+            if (approximationMode == "erf")
+                algorithm = mkldnn::algorithm::eltwise_gelu_erf;
+            else if (approximationMode == "tanh")
+                algorithm = mkldnn::algorithm::eltwise_gelu_tanh;
+            else
+                IE_THROW() << "Gelu layer with name " << activationLayer->name << " doesn't support approximation mode " << approximationMode;
         }},
         {"elu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
@@ -837,7 +843,7 @@ MKLDNNEltwiseNode::initializers = {
             opType = BoundedRelu;
             algorithm = mkldnn::algorithm::eltwise_bounded_relu;
         }},
-        {"soft_relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+        {"softplus", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = 0.0f;
             beta = 0.0f;
             opType = SoftRelu;
@@ -977,7 +983,8 @@ void MKLDNNEltwiseNode::init() {
                comparator(layerType, "hswish") ||
                comparator(layerType, "mish") ||
                comparator(layerType, "hsigmoid") ||
-               comparator(layerType, "round")) {
+               comparator(layerType, "round") ||
+               comparator(layerType, "softplus")) {
         initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
     } else if (comparator(layerType, "erf")) {
         eltwiseOp = Erf;
@@ -1743,7 +1750,8 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_soft_relu:
         case mkldnn::algorithm::eltwise_logistic:
         case mkldnn::algorithm::eltwise_exp:
-        case mkldnn::algorithm::eltwise_gelu:
+        case mkldnn::algorithm::eltwise_gelu_erf:
+        case mkldnn::algorithm::eltwise_gelu_tanh:
         case mkldnn::algorithm::eltwise_clip:
         case mkldnn::algorithm::eltwise_swish:
         case mkldnn::algorithm::eltwise_hswish:

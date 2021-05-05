@@ -34,11 +34,11 @@ ngraph_to_numpy_types_map = [
     (NgraphType.u16, np.uint16),
     (NgraphType.u32, np.uint32),
     (NgraphType.u64, np.uint64),
+    (NgraphType.bf16, np.uint16),
 ]
 
 ngraph_to_numpy_types_str_map = [
     ("boolean", np.bool),
-    # ('bf16', ???),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),

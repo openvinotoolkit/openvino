@@ -115,7 +115,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             int size = input->get_size_in_bytes() / (input->get_element_type().bitwidth() / 8);
             std::vector<int64_t> data(size);
             input->read(data.data(), input->get_size_in_bytes());
-            for (int i = 0; i < input->get_element_count(); i++)
+            for (size_t i = 0; i < input->get_element_count(); i++)
             {
                 merged_input_shapes.emplace_back(data[i]);
             }
@@ -123,7 +123,7 @@ bool runtime::dynamic::DynamicExecutable::call(
         else
         {
             // Caching on all remaining shapes
-            for (int i = 0; i < input->get_shape().size(); i++)
+            for (size_t i = 0; i < input->get_shape().size(); i++)
             {
                 merged_input_shapes.emplace_back(input->get_shape()[i]);
             }
@@ -313,6 +313,8 @@ size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "asked for size in bytes of a dynamic tensor with no allocated storage");
+    // TODO expand size calculation for type with bitwidth less than 8 like:
+    // m_wrapped_tensor->get_size_in_bytes()
     return get_element_count() * get_element_type().size();
 }
 

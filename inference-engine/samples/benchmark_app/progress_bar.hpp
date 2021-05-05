@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-
 #include <samples/console_progress.hpp>
 
 /// @brief Responsible for progress bar handling within the benchmark_app

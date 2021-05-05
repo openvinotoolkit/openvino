@@ -16,7 +16,6 @@
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
-#include <nodes/mkldnn_crop_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
 #include <nodes/mkldnn_gemm_node.h>
@@ -39,6 +38,9 @@
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
+#include <nodes/mkldnn_depth_to_space_node.h>
+#include <nodes/mkldnn_space_to_depth_node.h>
+#include <nodes/mkldnn_strided_slice_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -78,6 +80,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
+        { "SoftPlus", Eltwise },
         { "Norm", Lrn },
         { "LRN", Lrn },
         { "Pooling", Pooling },
@@ -93,16 +96,18 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Eltwise", Eltwise },
         { "Mod", Eltwise },
         { "Power", Eltwise },
-        { "Crop", Crop },
         { "Reshape", Reshape },
         { "Tile", Tile },
         { "SimplerNMS", SimplerNMS },
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
+        { "DepthToSpace", DepthToSpace },
         { "Flatten", Flatten },
         { "Pad", Pad },
         { "Permute", Permute },
+        { "SpaceToDepth", SpaceToDepth },
+        { "StridedSlice", StridedSlice },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
         { "GRUCell", RNNCell },
@@ -138,6 +143,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
         { "Erf", Eltwise },
+        { "Roll", Roll },
 };
 
 Type TypeFromName(const std::string type) {

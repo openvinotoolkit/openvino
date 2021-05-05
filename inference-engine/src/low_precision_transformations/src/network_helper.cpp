@@ -19,6 +19,7 @@
 #include <ngraph/rt_info.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -28,6 +29,17 @@ namespace low_precision {
 bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
     for (auto another : types) {
         if (type.is_castable(another)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : childrens) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
             return true;
         }
     }
@@ -85,6 +97,35 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
         }
     }
     return true;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
+    const std::shared_ptr<opset1::Constant>& foldingConstant,
+    const std::shared_ptr<Node>& operation,
+    const size_t outIdx) {
+    OutputVector inputs = operation->input_values();
+    OutputVector outputs(operation->get_output_size());
+
+    if (shape_size(foldingConstant->get_shape()) == 1ul) {
+        return toScalar(foldingConstant);
+    } else {
+        inputs[0] = foldingConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        if (std::dynamic_pointer_cast<op::TypeRelaxedBase>(op)) {
+            setOutDataPrecisionForTypeRelaxed(op, inputs[0].get_element_type());
+        }
+
+        // constant folding of constant
+        op->constant_fold(outputs, inputs);
+
+        const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
+        if (result == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+        }
+
+        return result;
+    }
 }
 
 size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights) {
@@ -1498,6 +1539,62 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     }
 
     return NetworkHelper::toScalar(constant);
+}
+
+bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision) {
+    if (!node) {
+        return true;
+    }
+
+    float min, max;
+    if (is_type<opset1::Subtract>(node)) {
+        const auto parent = node->get_input_node_shared_ptr(0);
+        const auto intNode = is_type<opset1::Convert>(parent) ? parent : node;
+        const auto intType = intNode->get_input_element_type(0);
+        if (intType == element::u8 || intType == element::i8) {
+            min = DataPrecision::getMinValue(intType, 256) - 0.5f;
+            max = DataPrecision::getMaxValue(intType, 256) + 0.5f;
+        } else {
+            return false;
+        }
+        auto subtract1input = node->get_input_node_shared_ptr(1);
+        if (is_type<opset1::Convert>(subtract1input)) {
+            return true;
+        }
+        auto subtractConst = as_type_ptr<opset1::Constant>(subtract1input);
+        if (!subtractConst) {
+            subtractConst = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)->get_input_node_shared_ptr(0));
+            if (subtractConst == nullptr) {
+                return false;
+            }
+        }
+        const auto subtractValues = subtractConst->cast_vector<float>();
+        if (std::any_of(subtractValues.begin(), subtractValues.end(), [min, max] (const float& val) {
+                return (val < min) || (val > max); })) {
+            return false;
+        }
+    } else if (is_type<opset1::FakeQuantize>(node)) {
+        if (!dataPrecision.hasZeroPoint) {
+            return true;
+        }
+        min = dataPrecision.min - 0.5f;
+        max = dataPrecision.max + 0.5f;
+        const auto quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(node));
+        for (size_t i = 0; i < quantizationDetails.outputIntervalsCount; ++i) {
+            float shift;
+            if (quantizationDetails.outputHighValues[i] != quantizationDetails.outputLowValues[i]) {
+                shift = (dataPrecision.min * quantizationDetails.outputHighValues[i] -
+                         dataPrecision.max * quantizationDetails.outputLowValues[i]) /
+                        (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
+            } else {
+                shift = 0.f;
+            }
+            if (shift < min || shift > max) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 }  // namespace low_precision

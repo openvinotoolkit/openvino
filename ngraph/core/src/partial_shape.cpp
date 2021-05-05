@@ -206,7 +206,7 @@ bool PartialShape::compatible(const PartialShape& s) const
     // are elementwise compatible everywhere.
     else
     {
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             if (!m_dimensions[i].compatible(s.m_dimensions[i]))
             {
@@ -234,7 +234,7 @@ bool PartialShape::same_scheme(const PartialShape& s) const
 
         bool success = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             success &= (*this)[i].same_scheme(s[i]);
         }
@@ -257,7 +257,7 @@ bool PartialShape::relaxes(const PartialShape& s) const
     {
         bool all_relax = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             all_relax &= ((*this)[i].relaxes(s[i]));
         }
@@ -280,7 +280,7 @@ bool PartialShape::refines(const PartialShape& s) const
     {
         bool all_refine = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             all_refine &= ((*this)[i].refines(s[i]));
         }
@@ -308,7 +308,7 @@ bool PartialShape::merge_rank(Rank r)
     }
     else
     {
-        return (m_dimensions.size() == r.get_length());
+        return (static_cast<int64_t>(m_dimensions.size()) == r.get_length());
     }
 }
 
@@ -349,7 +349,7 @@ bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src)
     {
         // Ranks are both static, and they match.
         bool success = true;
-        for (size_t i = 0; i < dst.rank().get_length(); i++)
+        for (int64_t i = 0; i < dst.rank().get_length(); i++)
         {
             success &= Dimension::merge(dst[i], dst[i], src[i]);
         }
@@ -379,7 +379,7 @@ bool PartialShape::broadcast_merge_into(PartialShape& dst,
             auto new_rank = std::max(dst_rank, src_rank);
             std::vector<Dimension> dims(new_rank);
             bool success = true;
-            for (size_t i = 0; i < new_rank; i++)
+            for (int64_t i = 0; i < new_rank; i++)
             {
                 auto dsti =
                     i < (new_rank - dst_rank) ? Dimension(1) : dst[i - (new_rank - dst_rank)];
@@ -482,7 +482,7 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get(
         }
         else
         {
-            for (size_t i = 0; i < m_ref.rank().get_length(); ++i)
+            for (int64_t i = 0; i < m_ref.rank().get_length(); ++i)
             {
                 const auto& elt = static_cast<const PartialShape&>(m_ref)[i];
                 m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());

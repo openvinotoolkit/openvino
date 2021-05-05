@@ -114,7 +114,8 @@ public:
         const DequantizationOperations::Convert& convert2,
         const DequantizationOperations& dequantization2,
         const ngraph::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter);
+        const DequantizationOperations& dequantizationAfter,
+        const std::int64_t& axis);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
 
 from defusedxml.minidom import parseString
 
@@ -247,7 +247,7 @@ def serialize_node_attributes(
         unsupported):
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
     # model-optimizer/extensions/back/TopKNormalizer.py
-    if isinstance(node, Node) and node.soft_get('result' == 'Result') and node.has_and_set('remove_from_xml'):
+    if isinstance(node, Node) and node.soft_get('type') == 'Result' and node.has_and_set('keep_output_port'):
         return
     try:
         for s in schema:
@@ -438,3 +438,28 @@ def port_renumber(graph: Graph):
         for v, d in node.get_sorted_outputs():
             d['out'] = base
             base += 1
+
+
+def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] = None, input_names: list = None):
+    path_to_xml = file + ".xml"
+    path_to_bin = file + ".bin"
+
+    et = ElementTree()
+    et.parse(path_to_xml)
+    net = et.getroot()
+
+    if mean_data:
+        mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
+        create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
+
+    add_meta_data(net, meta_info)
+
+    for elem in et.iter():
+        if elem.text:
+            elem.text = elem.text.strip()
+        if elem.tail:
+            elem.tail = elem.tail.strip()
+
+    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
+    with open(path_to_xml, 'wb') as file:
+        file.write(bytes(pretty_xml_as_string, "UTF-8"))

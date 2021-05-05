@@ -11,10 +11,8 @@
 
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
-#include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
 
 #include <blob_factory.hpp>
@@ -25,6 +23,8 @@
 #include <string>
 
 namespace InferenceEngine {
+
+class IExecutableNetworkInternal;
 
 /**
  * @brief      Copies preprocess info
@@ -152,8 +152,8 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
-                                          const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
@@ -163,9 +163,9 @@ public:
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
-                                          const std::map<std::string, std::string>& config,
-                                          RemoteContext::Ptr context) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config,
+                                                                    RemoteContext::Ptr context) = 0;
     /**
      * @brief Registers extension within plugin
      * @param extension - pointer to already loaded extension
@@ -215,8 +215,8 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetwork(const std::string& modelFileName,
-                                            const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
@@ -225,8 +225,8 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                            const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
@@ -237,9 +237,9 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                            const RemoteContext::Ptr& context,
-                                            const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const RemoteContext::Ptr& context,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Sets pointer to ICore interface

@@ -13,7 +13,7 @@ from mo.ops.unsqueeze import Unsqueeze
 
 
 class NonConstBeginStridedSliceReplacement(FrontReplacementSubgraph):
-    """
+    r"""
     The transformation handles StridedSlice operation with dynamic begin and end values
     when slicing performs along just one dimension with a dynamic index.
     For example, StridedSlice with begin=(0,idx,0), end=(0,idx+1,0),

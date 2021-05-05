@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
@@ -42,7 +41,26 @@ from ngraph.utils.types import (
 
 _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 
+
 # -------------------------------------------- ops ------------------------------------------------
+
+
+@nameable_op
+def einsum(
+        inputs: List[Node],
+        equation: str
+) -> Node:
+    """Return a node which performs Einsum operation.
+
+    @param inputs: The list of input nodes
+    @param equation: Einsum equation
+    @return: The new node performing Einsum operation on the inputs
+    """
+    attributes = {
+        "equation": equation
+    }
+
+    return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
 
 
 @nameable_op
@@ -65,3 +83,21 @@ def gelu(
     }
 
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
+
+
+@nameable_op
+def roll(
+        data: NodeInput,
+        shift: NodeInput,
+        axes: NodeInput,
+) -> Node:
+    """Return a node which performs Roll operation.
+
+    @param data: The node with data tensor.
+    @param shift: The node with the tensor with numbers of places by which elements are shifted.
+    @param axes: The node with the tensor with axes along which elements are shifted.
+    @return The new node performing a Roll operation on the input tensor.
+    """
+    inputs = as_nodes(data, shift, axes)
+
+    return _get_node_factory_opset7().create("Roll", inputs)

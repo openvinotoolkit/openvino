@@ -193,10 +193,10 @@ REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
 //REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
+REGISTER_FACTORY(v5, GatherND);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
-// REGISTER_FACTORY(v5, GatherND);
 // REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);

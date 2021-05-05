@@ -27,8 +27,10 @@
 #include "op/cast.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
+#include "op/constant_fill.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
 // #include "op/conv_integer.hpp"
@@ -170,7 +172,7 @@ namespace ngraph
                 }
                 return std::end(map);
             }
-        }
+        } // namespace detail
 
         void OperatorsBridge::_register_operator(const std::string& name,
                                                  std::int64_t version,
@@ -314,6 +316,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
             REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -325,8 +328,10 @@ namespace ngraph
             REGISTER_OPERATOR("Conv", 1, conv);
             // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
             REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
+            REGISTER_OPERATOR("Compress", 1, compress);
             REGISTER_OPERATOR("Cos", 1, cos);
             REGISTER_OPERATOR("Cosh", 1, cosh);
+            REGISTER_OPERATOR("ConstantFill", 1, constant_fill);
             REGISTER_OPERATOR("CumSum", 1, cum_sum);
             REGISTER_OPERATOR("DepthToSpace", 1, depth_to_space);
             REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);

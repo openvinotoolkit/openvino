@@ -337,7 +337,7 @@ operation for the CPU plugin. The code of  the library is described in the [Exte
 In order to build the extension run the following:<br>
 ```bash
 mkdir build && cd build
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make --jobs=$(nproc)
 ```
@@ -368,7 +368,7 @@ python3 mri_reconstruction_demo.py \
 - [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
-- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
+- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 ## Converting Models:

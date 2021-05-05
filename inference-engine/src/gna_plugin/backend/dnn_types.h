@@ -36,7 +36,7 @@ enum DnnActivationType : uint8_t {
 
 struct FakeQuantizeParams {
     int8_t set;
-    int32_t levels;
+    size_t levels;
     // if input is per-channel quantization - input pointers contains per-channel ranges
     int8_t  inputPerChannel;
     float* input_low;
@@ -197,7 +197,6 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
-#if GNA_LIB_VER == 2
 enum OvGnaType {
     OvGnaTypeInt8 = 1,
     OvGnaTypeInt16 = 2,
@@ -205,6 +204,7 @@ enum OvGnaType {
     OvGnaTypePwl = 8,
 };
 
+#if GNA_LIB_VER == 2
 enum OvGnaMode {
     OvGnaModeDefault = 0,
     OvGnaModeDisabled = -1

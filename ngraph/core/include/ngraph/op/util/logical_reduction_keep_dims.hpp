@@ -39,6 +39,6 @@ namespace ngraph
             private:
                 bool m_keep_dims = false;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

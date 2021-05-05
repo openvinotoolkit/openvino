@@ -42,7 +42,7 @@ namespace ngraph
                         return default_opset::Constant::create(element::f32, Shape{}, {0});
                     }
                 }
-            }
+            } // namespace
             namespace set_1
             {
                 OutputVector dequantize_linear(const Node& node)
@@ -68,7 +68,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::Multiply>(
                         std::make_shared<default_opset::Subtract>(converted_x, zero_point), scale)};
                 }
-            }
+            } // namespace set_1
 
             namespace set_13
             {
@@ -130,7 +130,7 @@ namespace ngraph
                     {
                         std::vector<int64_t> target_dims;
 
-                        for (size_t i = 0; i < axis; ++i)
+                        for (int64_t i = 0; i < axis; ++i)
                         {
                             target_dims.push_back(1);
                         }
@@ -145,7 +145,7 @@ namespace ngraph
                             target_dims.push_back(0);
                         }
 
-                        for (size_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
+                        for (int64_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
                         {
                             target_dims.push_back(1);
                         }
@@ -155,7 +155,7 @@ namespace ngraph
 
                         return std::make_shared<default_opset::Reshape>(input, target_shape, true);
                     }
-                }
+                } // namespace
 
                 OutputVector dequantize_linear(const Node& node)
                 {
@@ -191,7 +191,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::Multiply>(
                         std::make_shared<default_opset::Subtract>(converted_x, zero_point), scale)};
                 }
-            }
-        }
-    }
-}
+            } // namespace set_13
+        }     // namespace op
+    }         // namespace onnx_import
+} // namespace ngraph

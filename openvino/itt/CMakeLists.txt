@@ -14,6 +14,16 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::pp)
 
 if(TARGET ittnotify)
     target_link_libraries(${TARGET_NAME} PUBLIC ittnotify)
+    if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
+        target_compile_definitions(${TARGET_NAME} PUBLIC
+            ENABLE_PROFILING_ALL
+            ENABLE_PROFILING_FIRST_INFERENCE)
+    elseif(ENABLE_PROFILING_FILTER STREQUAL "FIRST_INFERENCE")
+        target_compile_definitions(${TARGET_NAME} PUBLIC
+            ENABLE_PROFILING_FIRST_INFERENCE)
+    else()
+        message(FATAL_ERROR "The ${ENABLE_PROFILING_FILTER} profiling filter isn't supported")
+    endif()
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

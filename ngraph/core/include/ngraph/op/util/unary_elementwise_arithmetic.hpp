@@ -52,6 +52,6 @@ namespace ngraph
             private:
                 void validate_and_infer_elementwise_arithmetic();
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

@@ -147,7 +147,11 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            auto finalByteSize = data->totalByteSize() * _modelBatchSize;
+            auto finalByteSize = data->totalByteSize();
+            if (_modelBatchSize > 1) {
+                finalByteSize *= _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
+            }
 
             data->setIOInfo(Location::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
             _inputMemOffset = alignVal(_inputMemOffset, DATA_ALIGNMENT) + finalByteSize;
@@ -168,11 +172,10 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            int finalByteSize = 0;
-            if (data->attrs().getOrDefault<bool>("unbatched", false)) {
-                finalByteSize = data->totalByteSize();
-            } else {
+            auto finalByteSize = data->totalByteSize();
+            if (!data->attrs().getOrDefault<bool>("unbatched", false)) {
                 finalByteSize = data->totalByteSize() * _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
             }
 
             data->setIOInfo(Location::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));

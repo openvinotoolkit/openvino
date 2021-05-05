@@ -125,37 +125,7 @@ namespace ngraph
                         }
                     }
                 }
-            }
-
-            void validate_convolution_parameters(const Shape& in_shape,
-                                                 const Shape& f_shape,
-                                                 const Strides& strides,
-                                                 const Strides& dilations,
-                                                 const CoordinateDiff& pads_begin,
-                                                 const CoordinateDiff& pads_end)
-            {
-                // this implementation supports 1D, 2D and 3D convolutions
-                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
-                             "Unsupported input rank: ",
-                             in_shape);
-
-                NGRAPH_CHECK(in_shape.size() == f_shape.size(),
-                             "Incompatible input ranks: ",
-                             in_shape.size(),
-                             " and ",
-                             f_shape.size());
-
-                const auto spatial_dims = in_shape.size() - 2;
-                NGRAPH_CHECK(strides.size() == spatial_dims,
-                             "Strides not definied for all and only spatial dimensions");
-
-                NGRAPH_CHECK(dilations.size() == spatial_dims,
-                             "Dilations not defined for all and only spatial dimensions");
-
-                NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
-                                 (pads_begin.size() == spatial_dims),
-                             "Pads not defined for all and only spatial dimensions");
-            }
+            } // namespace details
 
             template <typename T_IN, typename T_F>
             void binary_convolution(const T_IN* in,
@@ -171,7 +141,7 @@ namespace ngraph
                                     const float pad_value)
             {
                 validate_convolution_parameters(
-                    in_shape, f_shape, strides, dilations, pads_begin, pads_end);
+                    in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later

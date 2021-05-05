@@ -49,7 +49,7 @@ struct Config {
     std::string GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;
 
-    // precision of GNA hardware model
+    // default precision of GNA hardware model (see QuantI16 quantizer struct)
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     std::string dumpXNNPath;
