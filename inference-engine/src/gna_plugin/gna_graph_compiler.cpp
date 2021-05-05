@@ -1182,6 +1182,11 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     // the names of variables are left for clarity although not always reflecting the real precision/size
     auto inputs2Bytes = layer->insData[0].lock();
     auto inputs4Bytes = layer->insData[1].lock();
+    auto nonFunctional = [](CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonFunctional();
+    };
+    auto inputFunc2Bytes = CNNNetPrevLayerSkipCertain(layer, 0, nonFunctional)->outData[0];
+    auto inputFunc4Bytes = CNNNetPrevLayerSkipCertain(layer, 1, nonFunctional)->outData[0];
 
     int biasesLayerIdx = 1;
 
@@ -1191,16 +1196,17 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         case InferenceEngine::EltwiseLayer::Sub:
         {
             if (gnaFlags->input_low_precision == false) {
-                if (inputs4Bytes->getPrecision().size() != 4) {
+                if (inputFunc4Bytes->getPrecision().size() != 4) {
+                    std::swap(inputFunc4Bytes, inputFunc2Bytes);
                     std::swap(inputs4Bytes, inputs2Bytes);
                     biasesLayerIdx = 0;
                 }
-                GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
-                GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 4);
+                GNA_LAYER_ASSERT(layer, inputFunc2Bytes->getPrecision().size() == 2);
+                GNA_LAYER_ASSERT(layer, inputFunc4Bytes->getPrecision().size() == 4);
             } else {
                 // for low precision both inputs should be 1 bytes in size
-                GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 1);
-                GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 1);
+                GNA_LAYER_ASSERT(layer, inputFunc2Bytes->getPrecision().size() == 1);
+                GNA_LAYER_ASSERT(layer, inputFunc4Bytes->getPrecision().size() == 1);
             }
             break;
         }
@@ -1208,12 +1214,12 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         {
             if (gnaFlags->input_low_precision == false) {
                 // for mul both inputs should be 2 bytes precision
-                GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
-                GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 2);
+                GNA_LAYER_ASSERT(layer, inputFunc2Bytes->getPrecision().size() == 2);
+                GNA_LAYER_ASSERT(layer, inputFunc4Bytes->getPrecision().size() == 2);
             } else {
                 // for mul both inputs should be 1 byte precision
-                GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 1);
-                GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 1);
+                GNA_LAYER_ASSERT(layer, inputFunc2Bytes->getPrecision().size() == 1);
+                GNA_LAYER_ASSERT(layer, inputFunc4Bytes->getPrecision().size() == 1);
             }
 
             break;

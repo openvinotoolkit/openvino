@@ -13,9 +13,9 @@
 #include <transformations/swap_input_matmul_gna.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(pass::SwapInputMatMul, "SwapInputMatMul", 0);
+NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 
-pass::SwapInputMatMul::SwapInputMatMul() {
+SwapInputMatMul::SwapInputMatMul() {
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(
             ngraph::pattern::has_static_shape()), ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
                                                                      ngraph::pattern::has_static_shape());
@@ -45,10 +45,19 @@ pass::SwapInputMatMul::SwapInputMatMul() {
 
         ngraph::NodeVector new_ops;
 
-        if ((std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_a.get_node_shared_ptr())  ||
-             std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_a.get_node_shared_ptr())) &&
-            !(std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_b.get_node_shared_ptr())  ||
-              std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_b.get_node_shared_ptr()))) {
+        // Skip FakeQuantize layers
+        std::shared_ptr<ngraph::Node> input_a_skip_fq = input_a.get_node_shared_ptr();
+        if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_a_skip_fq)) {
+            input_a_skip_fq = input_a_skip_fq->input_value(0).get_node_shared_ptr();
+        }
+
+        std::shared_ptr<ngraph::Node> input_b_skip_fq = input_b.get_node_shared_ptr();
+        if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_b_skip_fq)) {
+            input_b_skip_fq = input_b_skip_fq->input_value(0).get_node_shared_ptr();
+        }
+
+        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_a_skip_fq) &&
+            !std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_b_skip_fq)) {
             if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
                 return false;
             }

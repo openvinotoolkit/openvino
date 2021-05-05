@@ -717,22 +717,30 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
                     // iterating thru previous layers of eltwise
                     for (uint8_t i = 0; i < 2; ++i) {
                         InferenceEngine::CNNLayerPtr in = InferenceEngine::CNNNetPrevLayer(eltwiseLayer, i);
-                        // trick to get opposite index (for 0 -> 1 for 1 -> 0) by inversing i.
+                        bool has8BOr16BOut = LayerInfo(in).has8BOr16BOutput();
                         auto quantParams =
+                                InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(eltwiseLayer, i));
+                        // trick to get opposite index (for 0 -> 1 for 1 -> 0) by inversing i.
+                        auto quantParamsOpposite =
                                 InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(eltwiseLayer, !i));
 
                         for (; InferenceEngine::CNNNetHasPrevLayer(in.get()); in = CNNNetPrevLayer(in)) {
                             auto info = LayerInfo(in);
-                            // we skipping only split layers so far, also need to work on memory layers
-                            // this case for input from port 0
-                            if (info.isSplit() || info.isSlice()) {
+                            if (info.isSplit() || info.isSlice() || info.isConcat() || info.isNonFunctional()) {
                                 continue;
                             } else if (info.has8BOr16BOutput() && info.isActivation()) {
-                                auto newOutputScale = quantParams->_dst_quant.GetScale() / maxValue;
+                                auto quantDataForActivation = InferenceEngine::getInjectedData<QuantizedLayerParams>(*in);
+                                float newOutputScale;
+                                if (has8BOr16BOut) {
+                                    newOutputScale = quantParamsOpposite->_dst_quant.GetScale() / maxValue;
+                                } else {
+                                    newOutputScale = quantDataForActivation->_dst_quant.GetScale() *
+                                                     quantParamsOpposite->_dst_quant.GetScale() * maxValue /
+                                                     quantParams->_dst_quant.GetScale();
+                                }
                                 if (newOutputScale > static_cast<float>(std::numeric_limits<int16_t>::max()) / 2) {
                                     break;
                                 }
-                                auto quantDataForActivation = InferenceEngine::getInjectedData<QuantizedLayerParams>(*in);
                                 gnawarn() << "[WARNING] saturated weights for " << eltwiseLayer->name
                                          << ". Layer new output scale: " << in->name << ", output_scale=" << newOutputScale
                                          << ", was " << quantDataForActivation->_dst_quant.GetScale() <<"\n" << std::flush;
@@ -762,7 +770,7 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
                             // if we are here it means that we are in the port 1
                             if (info.isFullyConnected() || info.isConvolution()) {
                                 auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*in);
-                                auto newOutputScale = quantParams->_dst_quant.GetScale() * maxValue;
+                                auto newOutputScale = quantParamsOpposite->_dst_quant.GetScale() * maxValue;
                                 auto newWeightScale = newOutputScale / quantDataForInputLayer->_src_quant.GetScale();
                                 quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
                                 quantDataForInputLayer->_weights_quant.SetScale(newWeightScale);
@@ -1043,8 +1051,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         quant->_src_quant = quantDataForInputLayer->_dst_quant;
         if (quant->_weights_quant.IsStatsSet() && !quant->_weights_quant.IsScaleSet()) {
             auto getScale = [&quant](size_t i) {
-                return (quant->_weights_quant.GetLevels() - 1) /
-                    (quant->_weights_quant.GetMaxValues(false)[i] - quant->_weights_quant.GetMinValues(false)[i]);
+                auto valuesDiff = quant->_weights_quant.GetMaxValues(false)[i] - quant->_weights_quant.GetMinValues(false)[i];
+                return valuesDiff == 0 ? 1.0f : (quant->_weights_quant.GetLevels() - 1) / valuesDiff;
             };
 
             float min_channel_scale = getScale(0);
@@ -1211,6 +1219,27 @@ public:
         }
         quantData->_dst_quant.SetScale(
                 quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
+
+        // If the first input is const it's possible to reduce its scale factor to avoid overflow
+        if (LayerInfo(in0).isConst() && quantData->_dst_quant.IsStatsSet()) {
+            // Adjust weights scale factor if output values exceed int32 maximum value
+            auto maxAbsVal = std::max(std::abs(quantData->_dst_quant.GetMinValues().front()),
+                std::abs(quantData->_dst_quant.GetMaxValues().front()));
+
+            auto maxIntVal = static_cast<int64_t>(maxAbsVal * quantData->_dst_quant.GetScale() + 0.5f);
+            float weightsReducer = static_cast<double>(maxIntVal) / std::numeric_limits<int32_t>::max();
+            weightsReducer = std::max(1.0f, weightsReducer);
+            if (!fp32eq(weightsReducer, 1.0f)) {
+                quantParams0->_dst_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
+                quantData->_src_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
+            }
+            if (fp32eq(quantData->_src_quant.GetScale(), 0.0f) || std::isinf(quantData->_src_quant.GetScale())) {
+                quantParams0->_dst_quant.SetScale(1.0f);
+                quantData->_src_quant.SetScale(1.0f);
+            }
+
+            quantData->_dst_quant.SetScale(quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale());
+        }
         return true;
     }
 };
