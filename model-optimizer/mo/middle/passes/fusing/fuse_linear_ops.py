@@ -110,12 +110,12 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         w_const = weights_port.get_source()
 
         r"""
-        In this transformation we take Mul or Div node (node) that goes after fuse_node and
-        insert it before the fuse_node (w_mul) with the corrected const value (mul_const). 
-        So the input data of fuse_node becomes different. For this reason we need to use 
-        set_destination from previous operation to w_mul which guaranties that data node 
-        will be reused on previous_op -> w_mul connection and its attributes won't be copied 
-        to w_mul -> fuse_node connection.   
+        In this transformation we remove Mul or Div node (node) that goes after fuse_node and
+        create new Mul node (w_mul), connect it with the corrected const value (mul_const) and
+        insert w_mul before the fuse_node. So the input data of fuse_node becomes different. 
+        For this reason we need to use set_destination from previous operation to w_mul which 
+        guaranties that data node will be reused on previous_op -> w_mul connection and its 
+        attributes won't be copied to w_mul -> fuse_node connection.   
         
         BEFORE                        AFTER
 
