@@ -36,7 +36,7 @@ pip3 install torch toml
 **Step 5**. Export RNN-T model into ONNX with the script below. Copy the code below into a file named 
 `export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
-> **NOTE**: If you already have a full clone of MLComons inference repository, you need to
+> **NOTE**: If you already have a full clone of MLCommons inference repository, you need to
 > specify `mlcommons_inference_path` variable.
 
 ```python
