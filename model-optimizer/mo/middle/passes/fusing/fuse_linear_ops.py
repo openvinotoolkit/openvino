@@ -115,7 +115,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         insert w_mul before the fuse_node. So the input data of fuse_node becomes different. 
         For this reason we need to use set_destination from previous operation to w_mul which 
         guaranties that data node will be reused on previous_op -> w_mul connection and its 
-        attributes won't be copied to w_mul -> fuse_node connection.   
+        attributes won't be copied to the data node of w_mul -> fuse_node connection.   
         
         BEFORE                        AFTER
 
