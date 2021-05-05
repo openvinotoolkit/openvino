@@ -108,8 +108,29 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
                                 'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
         w_const = weights_port.get_source()
-        weights_port.get_connection().set_source(w_mul.out_port(0))
-        w_const.connect(w_mul.in_port(tensor_port.idx))
+
+        r"""
+        In this transformation we take Mul or Div node (node) that goes after fuse_node and
+        insert it before the fuse_node (w_mul) with the corrected const value (mul_const). 
+        So the input data of fuse_node becomes different. For this reason we need to use 
+        set_destination from previous operation to w_mul which guaranties that data node 
+        will be reused on previous_op -> w_mul connection and its attributes won't be copied 
+        to w_mul -> fuse_node connection.   
+        
+        BEFORE                        AFTER
+
+                                 previous_op      mul_const
+                                         \     /
+            previous_op                   w_mul
+               |                            |
+             fuse_node   const          fuse_node     
+                 \     /                    |       
+                  node                   next_op      
+                   |                              
+                 next_op                      
+        """
+        weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
+        w_mul.out_port(0).connect(weights_port)
 
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
