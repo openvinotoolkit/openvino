@@ -4,7 +4,7 @@
 
 **Category**: *Arithmetic function*
 
-**Short description**: Tanh element-wise activation function.
+**Short description**: *Tanh* performs element-wise hyperbolic tangent (tanh) operation with given tensor.
 
 **Detailed description**
 
