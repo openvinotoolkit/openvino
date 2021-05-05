@@ -52,26 +52,26 @@ void op::util::GatherBase::validate_and_infer_types()
             axis_pshape);
     }
 
-    int64_t batch_dims = get_batch_dims(); // will not be converted to positive if axis is not set
+    int64_t batch_dims = get_batch_dims(); // will not be normalized if indices rank is dynamic
     if (is_axis_set())
     {
         int64_t axis = get_axis();
+
+        // batch_dims, axis both can e positive by default or if data_rank & indices_rank are
+        // static and batch_dims, axis are successfully normalized to positive.
+        // If at least one of them is negative we cannot check their consistency
         NODE_VALIDATION_CHECK(this,
-                              batch_dims <= axis,
+                              batch_dims >= 0 && axis >= 0 && batch_dims <= axis,
                               "The batch_dims <= axis. But instead got: batch_dims = ",
                               batch_dims,
                               ", axis = ",
                               axis);
-
-        if (data_rank.is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  axis >= 0 && axis < data_rank.get_length(),
-                                  "The axis must be >= 0 and < data_rank. But instead got axis = ",
-                                  axis,
-                                  " data_rank = ",
-                                  data_rank.get_length());
-        }
+        NODE_VALIDATION_CHECK(this,
+                              axis >= 0 && axis < data_rank.get_max_length(),
+                              "The axis must be >= 0 and < data_rank. But instead got axis = ",
+                              axis,
+                              " data_rank = ",
+                              data_rank.get_interval());
     }
 
     if (indices_rank.is_static() && batch_dims >= 0)
@@ -87,62 +87,51 @@ void op::util::GatherBase::validate_and_infer_types()
 
     if (data_rank.is_static() && indices_rank.is_static())
     {
-        if (batch_dims >= 0)
+        auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+        PartialShape output_pshape = PartialShape::dynamic(out_rank);
+
+        // implementation of out_shape formula
+        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+        // data.shape[axis + 1:]
+        int i = 0;
+        for (; i < batch_dims; i++)
         {
-            auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-            PartialShape output_pshape = PartialShape::dynamic(out_rank);
+            NODE_VALIDATION_CHECK(this,
+                                  data_pshape[i].compatible(indices_pshape[i]),
+                                  "Shapes ",
+                                  data_pshape,
+                                  " and ",
+                                  indices_pshape,
+                                  " are not consistent. data and indices must have equal or "
+                                  "intersecting sizes until batch_dims");
 
-            // implementation of out_shape formula
-            // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
-            // data.shape[axis + 1:]
-            int i = 0;
-            for (; i < batch_dims; i++)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      data_pshape[i].compatible(indices_pshape[i]),
-                                      "Shapes ",
-                                      data_pshape,
-                                      " and ",
-                                      indices_pshape,
-                                      " are not consistent. data and indices must have equal or "
-                                      "intersecting sizes until batch_dims");
-
-                output_pshape[i] = data_pshape[i] & indices_pshape[i];
-            }
-
-            if (is_axis_set())
-            {
-                int64_t axis = get_axis();
-                for (; i < axis; i++)
-                {
-                    output_pshape[i] = data_pshape[i];
-                }
-                for (; i < axis + indices_rank.get_length() - batch_dims; i++)
-                {
-                    output_pshape[i] = indices_pshape[batch_dims - axis + i];
-                }
-                for (; i < out_rank; i++)
-                {
-                    output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
-                }
-            }
-
-            set_output_type(0, data_type, output_pshape);
+            output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
-        else if (batch_dims < 0)
+
+        if (is_axis_set())
         {
-            // batch_dims < 0 could be only if axis is not set
-            // as soon as axis value will arrive negative batch_dims should be resolved
-            // batch_dims value will be within [0, data_rank] && [0, indices_rank]
-            int64_t max_rank = data_rank.get_length() + indices_rank.get_length() - 1;
-            int64_t min_rank = max_rank - max(data_rank.get_length(), indices_rank.get_length());
-
-            set_output_type(0, data_type, PartialShape::dynamic(Dimension(min_rank, max_rank)));
+            int64_t axis = get_axis();
+            for (; i < axis; i++)
+            {
+                output_pshape[i] = data_pshape[i];
+            }
+            for (; i < axis + indices_rank.get_length() - batch_dims; i++)
+            {
+                output_pshape[i] = indices_pshape[batch_dims - axis + i];
+            }
+            for (; i < out_rank; i++)
+            {
+                output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+            }
         }
+        set_output_type(0, data_type, output_pshape);
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        Rank out_rank = data_rank + indices_rank - 1 - batch_dims;
+        if (batch_dims < 0)
+            out_rank = out_rank - indices_rank.get_max_length();
+        set_output_type(0, data_type, PartialShape::dynamic(out_rank));
     }
 }
 
@@ -166,8 +155,9 @@ int64_t op::util::GatherBase::get_axis() const
 
 int64_t op::util::GatherBase::get_batch_dims() const
 {
-    if (m_batch_dims < 0 && is_axis_set())
-        return get_axis() + m_batch_dims;
+    Rank indices_rank = get_input_partial_shape(0).rank();
+    if (m_batch_dims < 0 && indices_rank.is_static())
+        return indices_rank.get_length() + m_batch_dims;
     else
         return m_batch_dims;
 }
