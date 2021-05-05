@@ -157,8 +157,9 @@ InputModel::Ptr FrontEndPDPD::loadFromFiles (const std::vector<std::string>& pat
         PDPD_ASSERT(model_stream && model_stream.is_open(), "Cannot open model file.");
         std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
         PDPD_ASSERT(weights_stream && weights_stream.is_open(), "Cannot open weights file.");
-        loadFromStreams({&model_stream, &weights_stream});
+        return loadFromStreams({&model_stream, &weights_stream});
     }
+    PDPD_THROW("Model can be loaded either from 1 or 2 files");
 }
 
 InputModel::Ptr FrontEndPDPD::loadFromStream (std::istream& model_stream) const {

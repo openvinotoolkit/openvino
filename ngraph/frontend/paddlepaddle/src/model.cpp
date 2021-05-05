@@ -198,11 +198,16 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& path, 
 InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::istream*>& streams, const InputModel& input_model)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model) {
-    PDPD_ASSERT(streams.size() == 2, "Two streams are needed to load a model: model and weights streams");
+    if (streams.size() == 1) {
+        std::cerr << "[WARNING:] Stream for weights not provided." << std::endl;
+    } else {
+        PDPD_ASSERT(streams.size() == 2, "Two streams are needed to load a model: model and weights streams");
+    }
     PDPD_ASSERT(m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
 
     loadPlaces();
-    loadConsts("", streams[1]);
+    if (streams.size() > 1)
+        loadConsts("", streams[1]);
 }
 
 std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs () const {
