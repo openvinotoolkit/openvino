@@ -145,7 +145,7 @@ def get_module_version_list_from_file(file_name, env_setup):
     req_dict = list()
     with open(file_name) as f:
         for line in f:
-            # Handle comments
+            # handle comments
             line = line.split('#')[0]
 
             req_dict = parse_and_filter_versions_list(line, req_dict, env_setup)
