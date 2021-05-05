@@ -5,18 +5,17 @@ import argparse
 
 import logging as log
 from mo.front_ng.extractor import fe_user_data_repack
+from mo.middle.passes.infer import validate_batch_in_shape
 
 
 def moc_pipeline(argv: argparse.Namespace):
-    from ngraph import function_to_cnn                # pylint: disable=no-name-in-module,import-error
-    from ngraph import PartialShape                   # pylint: disable=no-name-in-module,import-error
+    from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
     from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
     log.info('New MOC pipeline')
     fem = argv.feManager
     log.info(f'fem.availableFrontEnds: {str(fem.availableFrontEnds())}')
     log.info(f'Initializing new FE for framework {argv.framework}')
     fe = fem.loadByFramework(argv.framework)
-    print(fe)
     inputModel = fe.loadFromFile(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
@@ -40,25 +39,25 @@ def moc_pipeline(argv: argparse.Namespace):
     outputsEqual = True
     if outputs:
         outputsEqual = compare_nodes(inputModel.getOutputs(), outputs)
-    print("Inputs are same: {}, outputs are same: {}".format(inputsEqual, outputsEqual))
+    log.debug(f"Inputs are same: {inputsEqual}, outputs are same: {outputsEqual}")
 
     if not inputsEqual and not outputsEqual:
         # Use ExtractSubgraph
         newInputPlaces = [x['node'] for x in user_shapes]
         newOutputPlaces = [x['node'] for x in outputs]
-        print("Using extract subgraph")
-        print("Inputs: {}".format(newInputPlaces))
-        print("Outputs: {}".format(newOutputPlaces))
+        log.debug("Using extract subgraph")
+        log.debug(f"Inputs: {newInputPlaces}")
+        log.debug(f"Outputs: {newOutputPlaces}")
         inputModel.extractSubgraph(newInputPlaces, newOutputPlaces)
     elif not inputsEqual:
         newInputPlaces = [x['node'] for x in user_shapes]
-        print("Using overrideAllInputs")
-        print("Inputs: {}".format(newInputPlaces))
+        log.debug("Using overrideAllInputs")
+        log.debug(f"Inputs: {newInputPlaces}")
         inputModel.overrideAllInputs(newInputPlaces)
     elif not outputsEqual:
         newOutputPlaces = [x['node'] for x in outputs]
-        print("Using overrideAllOutputs")
-        print("Outputs: {}".format(newOutputPlaces))
+        log.debug("Using overrideAllOutputs")
+        log.debug(f"Outputs: {newOutputPlaces}")
         inputModel.overrideAllOutputs(newOutputPlaces)
 
     if user_shapes:
@@ -70,6 +69,29 @@ def moc_pipeline(argv: argparse.Namespace):
                 log.debug(f"Set data type: {data_type}")
                 inputModel.setElementType(user_shape['node'], data_type)
 
-    nGraphModel = fe.convert(inputModel)
-    network = function_to_cnn(nGraphModel)
-    return network
+    # Set batch size
+    if argv.batch is not None and argv.batch > 0:
+        log.debug(f"Setting batch size to {argv.batch}")
+        for place in inputModel.getInputs():
+            oldPartShape = inputModel.getPartialShape(place)
+            newshape = []
+            oldshape_converted = []
+            joinedName = ' '.join(place.getNames())
+            if oldPartShape.rank.is_static:
+                for i in range(oldPartShape.rank.get_length()):
+                    # Assume batch size is always 1-st dimension in shape
+                    # Keep other dimensions unchanged
+                    newshape.append(Dimension(argv.batch) if i is 0 else oldPartShape.get_dimension(i))
+                    oldshape_converted.append(oldPartShape.get_dimension(i))
+
+                validate_batch_in_shape(oldshape_converted, joinedName)
+            else:
+                # In case of fully dynamic shape raise the same error as for invalid batch dimension
+                validate_batch_in_shape(oldshape_converted, joinedName)
+
+            newPartShape = PartialShape(newshape)
+            log.debug(f"Input: {joinedName}, Old shape: {oldshape_converted}, New shape: {newshape}")
+            inputModel.setPartialShape(place, newPartShape)
+
+    nGraphFunction = fe.convert(inputModel)
+    return nGraphFunction
