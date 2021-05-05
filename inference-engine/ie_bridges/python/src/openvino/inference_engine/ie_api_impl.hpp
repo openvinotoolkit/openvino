@@ -94,7 +94,9 @@ struct InferRequestWrap {
     int index;
     using cy_callback = void (*)(void*, int);
 
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::IInferRequest::Ptr request_ptr;
+    IE_SUPPRESS_DEPRECATED_END
     Time::time_point start_time;
     double exec_time;
     cy_callback user_callback;
@@ -182,4 +184,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 
 std::string get_version();
+
+InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
+
 };  // namespace InferenceEnginePython

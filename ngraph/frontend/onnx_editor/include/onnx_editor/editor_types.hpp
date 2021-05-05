@@ -129,5 +129,5 @@ namespace ngraph
             const std::string m_node_name = "";
             const std::string m_output_name = "";
         };
-    }
-}
+    } // namespace onnx_editor
+} // namespace ngraph
