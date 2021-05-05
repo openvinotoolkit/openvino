@@ -11,6 +11,7 @@ from itertools import zip_longest
 
 import numpy as np
 
+from mo.back.offline_transformations import get_available_transformations
 from mo.front.extractor import split_node_in_port
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils import import_extensions
@@ -1150,14 +1151,11 @@ def detect_value_type(value: str):
     return values[0] if len(values) == 1 else values
 
 
-def parse_transform(transform: str) -> list:
+def parse_transform(transform: str, ie_is_available: bool) -> list:
     transforms = []
 
     if len(transform) == 0:
         return transforms
-
-    # TODO: when Inference Engine Python API will be mandatory we need to get list of available transformations
-    #       from offline_transformations module
 
     all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
 
@@ -1192,6 +1190,20 @@ def parse_transform(transform: str) -> list:
                 args_dict[m.group(1)] = detect_value_type(m.group(2))
 
         transforms.append((name, args_dict))
+
+    if not ie_is_available and len(transforms) != 0:
+        raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
+            ','.join([name for name, _ in transforms])))
+
+    available_transforms = get_available_transformations()
+
+    missing_transformations = []
+    for name, _ in transforms:
+        if name not in available_transforms.keys():
+            missing_transformations.append(name)
+
+    if len(missing_transformations) != 0:
+        raise Error('Following transformations {} are not available.'.format(','.join(missing_transformations)))
 
     return transforms
 

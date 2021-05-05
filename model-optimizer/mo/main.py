@@ -152,7 +152,10 @@ def prepare_ir(argv: argparse.Namespace):
     except Exception as e:
         argv.ie_is_available = False
 
-    argv.transform = parse_transform(argv.transform)
+    argv.transform = parse_transform(argv.transform, argv.ie_is_available)
+
+    if argv.legacy_ir_generation and len(argv.transform) != 0:
+        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -295,7 +298,9 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
         suffixes = [".xml", ".bin", ".mapping"]
         if return_code != 0:
-            # TODO: fail if user used --transform but ie is not available or legacy_ir_generation was specified
+            if len(argv.transform) != 0:
+                raise Error("Failed to apply transformations: {}".format(",".join([name for name, _ in argv.transform])))
+
             log.error("Using fallback to produce IR.", extra={'is_warning': True})
             for suf in suffixes:
                 # remove existing files
