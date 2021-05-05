@@ -155,7 +155,14 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
             decoded_bbox[2] = prior_bboxes[2] + input_prior_box[NUM_OF_PRIOR_COMPONENTS + 2] * bbox_xmax * prior_width;
             decoded_bbox[3] = prior_bboxes[3] + input_prior_box[NUM_OF_PRIOR_COMPONENTS + 3] * bbox_ymax * prior_height;
         }
-    } 
+    }
+    if (CLIP_BEFORE_NMS)
+    {
+        decoded_bbox[0] = max(0.0f, min(1.0f, decoded_bbox[0]));
+        decoded_bbox[1] = max(0.0f, min(1.0f, decoded_bbox[1]));
+        decoded_bbox[2] = max(0.0f, min(1.0f, decoded_bbox[2]));
+        decoded_bbox[3] = max(0.0f, min(1.0f, decoded_bbox[3]));
+    }
 }
 
 UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)

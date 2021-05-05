@@ -45,6 +45,9 @@ struct detection_output_params : public base_params {
         bool prior_is_normalized;
         bool share_location;
         bool variance_encoded_in_target;
+        bool decrease_label_id;
+        bool clip_before_nms;
+        bool clip_after_nms;
         float nms_threshold;
         float eta;
         float confidence_threshold;
@@ -80,5 +83,6 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const detection_output_params& params) const;
+    void SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const;
 };
 }  // namespace kernel_selector

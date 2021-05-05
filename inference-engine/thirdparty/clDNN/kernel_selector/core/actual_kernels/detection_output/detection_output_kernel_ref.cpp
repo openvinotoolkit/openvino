@@ -58,6 +58,9 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
         MakeJitConstant("CONFIDENCE_THRESHOLD", detectOutParams.confidence_threshold),
         MakeJitConstant("IMAGE_WIDTH", detectOutParams.input_width),
         MakeJitConstant("IMAGE_HEIGH", detectOutParams.input_heigh),
+        MakeJitConstant("DECREASE_LABEL_ID", detectOutParams.decrease_label_id),
+        MakeJitConstant("CLIP_BEFORE_NMS", detectOutParams.clip_before_nms),
+        MakeJitConstant("CLIP_AFTER_NMS", detectOutParams.clip_after_nms),
         MakeJitConstant("ELEMENTS_PER_THREAD", detectOutParams.elements_per_thread),
         MakeJitConstant("PRIOR_COORD_OFFSET", detectOutParams.prior_coordinates_offset),
         MakeJitConstant("PRIOR_INFO_SIZE", detectOutParams.prior_info_size),
@@ -67,54 +70,92 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     return jit;
 }
 
-DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params) {
+DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params, int idx) {
     DetectionOutputKernelRef::DispatchData dispatchData;
 
-    // // Number of all work items is set to total number of bounding boxes -
-    // // one bounding box is procerssed by one work item
-    // size_t num_classes = (params.detectOutParams.share_location) ? 1 : params.detectOutParams.num_classes;
-
-    // // Size of input0 (input location), if shared loaction it is equal to size of one class,
-    // // else it has size of all items for all classes
-    // size_t bboxesNum = params.inputs[0].LogicalSize() / PRIOR_BOX_SIZE / num_classes;
-    // // Work group size is set to number of bounding boxes per image for sorting purpose
-    // // (access to one table with sorted values)
-    // size_t work_group_size = bboxesNum / params.inputs[0].Batch().v;
-
-    // if (work_group_size > 256) {
-    //     work_group_size = work_group_size / ((work_group_size / 256) + 1) + 1;
-    // }
-
-    // bboxesNum = work_group_size * params.inputs[0].Batch().v;
-
-    // dispatchData.gws[0] = Align(bboxesNum, work_group_size);
-    // dispatchData.gws[1] = 1;
-    // dispatchData.gws[2] = 1;
-
-    // dispatchData.lws[0] = work_group_size;
-    // dispatchData.lws[1] = 1;
-    // dispatchData.lws[2] = 1;
     dispatchData.gws = { 1, 1, 1};
     dispatchData.lws = { 1, 1, 1};
 
     return dispatchData;
 }
 
+void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
+    if (idx == 0) {
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    } else if (idx == 1) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    } else if (idx == 2) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    } else if (idx == 3) {
+        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    }
+}
+
 KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DETECTION_OUTPUT && options.GetType() == KernelType::DETECTION_OUTPUT);
 
-    KernelData kd = KernelData::Default<detection_output_params>(params);
+    constexpr size_t kKernelsNum = 4;
+    KernelData kd = KernelData::Default<detection_output_params>(params, kKernelsNum);
     const detection_output_params& detectOutParams = static_cast<const detection_output_params&>(params);
-    DispatchData dispatchData = SetDefault(detectOutParams);
 
-    auto cldnnJit = GetJitConstants(detectOutParams);
-    auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, options);
-    auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+    constexpr size_t prior_box_size = 4;
+    auto num_of_images = detectOutParams.inputs[0].Batch().v;
+    auto loc_feature_num = detectOutParams.inputs[0].Feature().v;
+    auto num_classes = detectOutParams.detectOutParams.num_classes;
+    auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
+    auto num_prior_boxes = (loc_feature_num / (num_of_images * num_loc_classes * prior_box_size));
 
-    auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entryPoint);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    constexpr size_t buffer_bytes = 16; // bboxes[xmin, ymin, xmax, ymax], scores[batchId, classId, boxId, score]
+    size_t buffer_stride = num_prior_boxes * buffer_bytes;
+    size_t buffer1_size = num_of_images * num_loc_classes * buffer_stride;
+    size_t buffer2_size = num_of_images * num_classes * buffer_stride;
+    size_t buffer3_size = num_of_images * num_classes * buffer_stride;
+    size_t buffer4_size = num_of_images * num_classes * 4;
+    // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
+    //         buffer_stride, buffer1_size, buffer2_size, buffer4_size);
+
+    kd.internalBufferSizes.push_back(buffer1_size);
+    kd.internalBufferSizes.push_back(buffer2_size);
+    kd.internalBufferSizes.push_back(buffer3_size);
+    kd.internalBufferSizes.push_back(buffer4_size);
+    kd.internalBufferDataType = Datatype::F32;
+
+    for (size_t i = 0; i < kKernelsNum; i++) {
+        DispatchData dispatchData = SetDefault(detectOutParams, i);
+        auto cldnnJit = GetJitConstants(detectOutParams);
+        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, options);
+        cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
+        if (i == 0) {
+            cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER", "true"));
+        } else if (i == 1) {
+            cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+        } else if (i == 2) {
+            cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+        } else {
+            cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
+        }
+
+        auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+        auto& kernel = kd.kernels[i];
+        KernelBase::CheckDispatchData(kernelName, dispatchData);
+        kernel.workGroups.global = dispatchData.gws;
+        kernel.workGroups.local  = dispatchData.lws;
+        kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
+        SetKernelArguments(detectOutParams, kernel, i);
+    }
 
     return {kd};
 }

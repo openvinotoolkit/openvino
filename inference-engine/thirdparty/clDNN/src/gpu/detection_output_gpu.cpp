@@ -48,6 +48,9 @@ private:
         detectOutParams.prior_is_normalized = primitive->prior_is_normalized;
         detectOutParams.input_width = primitive->input_width;
         detectOutParams.input_heigh = primitive->input_height;
+        detectOutParams.decrease_label_id = primitive->decrease_label_id;
+        detectOutParams.clip_before_nms = primitive->clip_before_nms;
+        detectOutParams.clip_after_nms = primitive->clip_after_nms;
         detectOutParams.conf_size_x = arg.confidence().get_output_layout().get_buffer_size().spatial[0];
         detectOutParams.conf_size_y = arg.confidence().get_output_layout().get_buffer_size().spatial[1];
         detectOutParams.conf_padding_x = arg.confidence().get_output_layout().data_padding.lower_size().spatial[0];
