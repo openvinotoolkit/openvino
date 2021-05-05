@@ -48,9 +48,6 @@ xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
-xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
-                                      "Pad. Cannot parse parameter pads_end  from IR for layer B. "
-                                      "Value -1,0 cannot be casted to int.")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
