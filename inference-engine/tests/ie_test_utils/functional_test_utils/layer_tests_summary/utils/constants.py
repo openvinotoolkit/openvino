@@ -18,6 +18,7 @@ VERIFIED_OP_REFERENCES = [
     'Concat-1',
     'ConvertLike-1',
     'Convolution-1',
+    'Constant-1',
     'DeformableConvolution-1',
     'DetectionOutput-1',
     'Divide-1',
