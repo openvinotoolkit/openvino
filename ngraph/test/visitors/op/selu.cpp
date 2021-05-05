@@ -17,9 +17,9 @@ using ngraph::test::NodeBuilder;
 TEST(attributes, selu_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::Selu>();
-    const auto data_input = make_shared<Parameter>(element::f32, Shape{1, 2, 3});
-    const auto alpha = make_shared<Parameter>(element::i32, Shape{1});
-    const auto lambda = make_shared<Parameter>(element::i32, Shape{1});
+    const auto data_input = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto lambda = make_shared<op::Parameter>(element::f32, Shape{1});
 
     const auto op = make_shared<opset1::Selu>(data_input, alpha, lambda);
 
