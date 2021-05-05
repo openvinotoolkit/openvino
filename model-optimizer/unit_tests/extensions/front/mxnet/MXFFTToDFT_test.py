@@ -155,7 +155,7 @@ ref_converted_ifft_graph_edges = [
 
 @generator
 class MXFFTToDFTTest(unittest.TestCase):
-    @generate(*[int64_array([3, 100, 100]), int64_array([5, 60])])
+    @generate(*[int64_array([3, 100, 100, 8]), int64_array([5, 60])])
     def test_fft_replacement(self, input_shape):
         graph = build_graph(nodes_attrs=fft_graph_node_attrs,
                             edges=fft_graph_edges,
@@ -172,7 +172,7 @@ class MXFFTToDFTTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
 
-    @generate(*[int64_array([3, 100, 100])])
+    @generate(*[int64_array([3, 100, 100, 8]), int64_array([5, 60])])
     def test_ifft_replacement(self, input_shape):
         graph = build_graph(nodes_attrs=fft_graph_node_attrs,
                             edges=fft_graph_edges,
@@ -187,5 +187,5 @@ class MXFFTToDFTTest(unittest.TestCase):
                                 update_attributes={
                                     'placeholder': {'shape': input_shape}
                                 })
-        # (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        # self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        self.assertTrue(flag, resp)
