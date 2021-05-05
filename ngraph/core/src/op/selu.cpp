@@ -25,15 +25,15 @@ void op::v0::Selu::validate_and_infer_types()
     auto lambda_et = get_input_element_type(2);
 
     // set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-    NODE_VALIDATION_CHECK(
-        this,
-        data_et.is_real() && alpha_et.is_real() && lambda_et.is_real(),
-        "The data type for input, alpha and lambda is expected to be a floating point type. Got data: ",
-        data_et,
-        ", alpha: ",
-        alpha_et,
-        ", lambda: ",
-        lambda_et);
+    NODE_VALIDATION_CHECK(this,
+                          data_et.is_real() && alpha_et.is_real() && lambda_et.is_real(),
+                          "The data type for input, alpha and lambda is expected to be a floating "
+                          "point type. Got data: ",
+                          data_et,
+                          ", alpha: ",
+                          alpha_et,
+                          ", lambda: ",
+                          lambda_et);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -44,7 +44,7 @@ void op::v0::Selu::validate_and_infer_types()
         alpha_et,
         ", lambda: ",
         lambda_et);
-    
+
     set_output_type(0, data_et, get_input_partial_shape(0));
 }
 
