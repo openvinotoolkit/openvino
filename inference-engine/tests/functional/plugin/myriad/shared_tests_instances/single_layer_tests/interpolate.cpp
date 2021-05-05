@@ -16,38 +16,40 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-const std::vector<std::vector<size_t>> inShapes = {
-        {1, 8, 38, 38},
-        {1, 8, 36, 36},
-        {1, 8, 35, 35},
-        {1, 8, 6, 6},
+typedef std::map<std::string, std::string> Config;
 
-        {1, 8, 3, 3},
-        {1, 8, 4, 4},
-        {1, 8, 16, 16},
-        {1, 8, 31, 31},
-        {1, 8, 26, 26},
+const std::vector<std::vector<size_t>> inShapes = {
+        {3, 8, 38, 38},
+        {3, 8, 36, 36},
+        {3, 8, 35, 35},
+        {3, 8, 6, 6},
+
+        {3, 8, 3, 3},
+        {3, 8, 4, 4},
+        {3, 8, 16, 16},
+        {3, 8, 31, 31},
+        {3, 8, 26, 26},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 8, 38 * 2, 38 * 2},
-        {1, 8, 70, 70},  // * 1.94
-        {1, 8, 46, 46},  // * 1.3
-        {1, 8, 9, 9},
+        {3, 8, 38 * 2, 38 * 2},
+        {3, 8, 70, 70},  // * 1.94
+        {3, 8, 46, 46},  // * 1.3
+        {3, 8, 9, 9},
 
-        {1, 8, 6, 6},
-        {1, 8, 3, 3},
-        {1, 8, 36, 36},
-        {1, 8, 72, 72},
-        {1, 8, 30, 30},
+        {3, 8, 6, 6},
+        {3, 8, 3, 3},
+        {3, 8, 36, 36},
+        {3, 8, 72, 72},
+        {3, 8, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> inShapes2x = {
-        {1, 19, 37, 37},
+        {5, 19, 37, 37},
 };
 
 const std::vector<std::vector<size_t>> targetShapes2x = {
-        {1, 19, 37 * 2, 37 * 2},
+        {5, 19, 37 * 2, 37 * 2},
 };
 
 
@@ -179,7 +181,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_2x, InterpolateLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes2x),
         ::testing::ValuesIn(targetShapes2x),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTest, ::testing::Combine(
@@ -191,7 +194,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTest, ::
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTest, ::testing::Combine(
@@ -203,7 +207,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTes
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, InterpolateLayerTest, ::testing::Combine(
@@ -215,7 +220,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, InterpolateLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     InterpolateLayerTest::getTestCaseName);
 
 } // namespace
