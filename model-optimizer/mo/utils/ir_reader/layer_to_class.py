@@ -302,9 +302,9 @@ def restore_tensor_names(op: Node):
                 op.out_node(out_port)['fw_tensor_debug_info'] = []
                 for out_tensor_name in out_tensor_names:
                     out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
-                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_tensor_name))
             else:
-                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_tensor_names)]
 
 
 def copy_graph_with_ops(graph: Graph) -> Graph:

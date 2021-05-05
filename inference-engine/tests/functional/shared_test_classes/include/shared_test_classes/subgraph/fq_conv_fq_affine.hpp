@@ -30,6 +30,7 @@ typedef std::tuple<
 typedef std::tuple<
         FqSpecificParams,
         ConvParams,
+        bool,                              // Permute after convolution
         InferenceEngine::Precision,        // Net precision
         InferenceEngine::SizeVector,       // Input shapes
         LayerTestsUtils::TargetDevice,     // Device name

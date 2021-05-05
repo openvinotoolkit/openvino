@@ -98,12 +98,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_avx512_core())
+                if (with_cpu_x86_avx512_core()) {
                     enforceBF16 = true;
-                else
+                    manualEnforceBF16 = true;
+                } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
+                }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
+                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";

@@ -8,7 +8,6 @@
 #include <map>
 #include <vector>
 #include <set>
-#include <iostream>
 #include <algorithm>
 #include <sstream>
 #include <chrono>
@@ -204,9 +203,7 @@ void parameter2IEparam(const IE::Parameter param, ie_param_t *ie_param) {
 
 ie_version_t ie_c_api_version(void) {
     auto version = IE::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
-    version_str += version->buildNumber;
+    std::string version_str = version->buildNumber;
 
     ie_version_t version_res;
     std::unique_ptr<char[]> ver(new char[version_str.length() + 1]);
