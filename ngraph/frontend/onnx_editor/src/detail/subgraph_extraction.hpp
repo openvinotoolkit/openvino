@@ -76,14 +76,14 @@ namespace ngraph
         private:
             ONNX_NAMESPACE::GraphProto& m_onnx_graph;
 
-            // Graph traversal helper: node index -> node inputs (one-to-many)
-            std::unordered_multimap<int, std::string> m_node_inputs;
+            // Graph traversal helper: a vector of nodes which have vector of inputs
+            std::vector<std::vector<std::string>> m_node_inputs;
             // Number of consumers of all tensors in the graph
             std::map<std::string, int> m_tensor_consumers;
 
             /// \brief Replaces the old input edge with a new one in the helper struct.
             ///        This is used by the output contributors discovery.
-            void replace_input_edge(const InputEdge& old_edge, const InputEdge& new_edge);
+            void replace_input_edge(const InputEdge& old_edge, const std::string& new_edge_name);
 
             /// \brief Returns a list of edges of each outputs of the graph "m_onnx_graph"
             std::vector<OutputEdge> all_output_edges() const;
