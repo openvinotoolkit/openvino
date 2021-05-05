@@ -53,6 +53,7 @@ from ngraph.opset7 import deformable_psroi_pooling
 from ngraph.opset7 import depth_to_space
 from ngraph.opset7 import detection_output
 from ngraph.opset7 import divide
+from ngraph.opset7 import einsum
 from ngraph.opset7 import elu
 from ngraph.opset7 import embedding_bag_offsets_sum
 from ngraph.opset7 import embedding_bag_packed_sum

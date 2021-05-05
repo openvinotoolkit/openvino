@@ -80,5 +80,6 @@ VERIFIED_OP_REFERENCES = [
     'Swish-4',
     'Tile-1',
     'TopK-1',
-    'TopK-3'
+    'TopK-3',
+    'Transpose-1'
 ]
