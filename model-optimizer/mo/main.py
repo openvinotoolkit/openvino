@@ -21,7 +21,7 @@ from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
-from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
+from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, parse_transform, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
@@ -152,6 +152,8 @@ def prepare_ir(argv: argparse.Namespace):
     except Exception as e:
         argv.ie_is_available = False
 
+    argv.transform = parse_transform(argv.transform)
+
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
         raise Error('check_requirements exit with return code {}'.format(ret_code))
@@ -274,7 +276,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         try:
             if not argv.legacy_ir_generation and argv.ie_is_available:
                 from mo.back.offline_transformations import apply_offline_transformations
-                return_code = apply_offline_transformations(orig_model_name, argv.framework)
+                return_code = apply_offline_transformations(orig_model_name, argv.framework, argv.transform)
         except Exception as e:
             return_code = "failed"
             log.error(e, extra={'is_warning': True})

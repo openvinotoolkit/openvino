@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-def apply_offline_transformations(input_model: str, framework: str):
+def apply_offline_transformations(input_model: str, framework: str, transforms: list):
     # This variable is only needed by GenerateMappingFile transformation
     # to produce correct mapping
     extract_names = True if framework in ['tf', 'mxnet', 'kaldi'] else False
@@ -17,6 +17,11 @@ def apply_offline_transformations(input_model: str, framework: str):
     CheckAPI()
 
     net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+
+    for transform in transforms:
+        # TODO: apply transformations from transforms list
+        pass
+
     net.serialize(input_model + ".xml", input_model + ".bin")
     path_to_mapping = input_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
