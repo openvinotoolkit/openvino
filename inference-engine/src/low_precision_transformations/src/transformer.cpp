@@ -433,23 +433,6 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     network->validate_nodes_and_infer_types();
 }
 
-std::vector<element::Type> LowPrecisionTransformer::precisionIntersection(
-    const std::vector<element::Type>& v1,
-    const std::vector<element::Type>& v2) const noexcept {
-    std::vector<element::Type> v3;
-
-    auto v1Copy = v1;
-    auto v2Copy = v2;
-
-    std::sort(v1Copy.begin(), v1Copy.end());
-    std::sort(v2Copy.begin(), v2Copy.end());
-
-    std::set_intersection(v1Copy.begin(), v1Copy.end(),
-        v2Copy.begin(), v2Copy.end(),
-        std::back_inserter(v3));
-    return v3;
-}
-
 std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(op);
     const std::vector<LayerTransformationPtr> transformation = transformations.find(operantionType);
@@ -459,7 +442,7 @@ std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(c
     std::vector<element::Type> precisions = transformation[0]->getPrecisionsOnActivations();
 
     for (const auto& transform : transformation) {
-        precisions = precisionIntersection(precisions, transform->getPrecisionsOnActivations());
+        precisions = NetworkHelper::precisionIntersection(precisions, transform->getPrecisionsOnActivations());
     }
     return precisions;
 }

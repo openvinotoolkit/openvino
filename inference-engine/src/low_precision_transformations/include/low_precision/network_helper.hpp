@@ -192,6 +192,10 @@ public:
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
+    static std::vector<element::Type> precisionIntersection(
+            const std::vector<element::Type>& v1,
+            const std::vector<element::Type>& v2) noexcept;
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,

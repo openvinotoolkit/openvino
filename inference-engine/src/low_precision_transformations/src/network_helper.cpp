@@ -1618,6 +1618,23 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
     return true;
 }
 
+std::vector<element::Type> NetworkHelper::precisionIntersection(
+        const std::vector<element::Type>& v1,
+        const std::vector<element::Type>& v2) noexcept {
+    std::vector<element::Type> v3;
+
+    auto v1Copy = v1;
+    auto v2Copy = v2;
+
+    std::sort(v1Copy.begin(), v1Copy.end());
+    std::sort(v2Copy.begin(), v2Copy.end());
+
+    std::set_intersection(v1Copy.begin(), v1Copy.end(),
+                          v2Copy.begin(), v2Copy.end(),
+                          std::back_inserter(v3));
+    return v3;
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

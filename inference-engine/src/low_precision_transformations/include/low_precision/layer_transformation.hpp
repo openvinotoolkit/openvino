@@ -45,6 +45,13 @@ class TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
+    explicit DataPrecision(const element::Type& precision) {
+        this->precision = precision;
+        min = getMinValue(precision, 256);
+        max = getMaxValue(precision, 256);
+        hasZeroPoint = false;
+    }
+
     DataPrecision(const element::Type precision, const float min, const float max, const bool hasZeroPoint) :
             precision(precision),
             min(min),
@@ -121,29 +128,6 @@ public:
 
     static element::Type getPrecision(const size_t /* quantizationLevels */, const bool signedInterval) {
         return signedInterval ? element::i8 : element::u8;
-    }
-
-    static float getMin(const size_t quantizationLevels, const bool signedInterval) {
-        if (quantizationLevels == 255) {
-            return signedInterval  ? -127.0f : 0.0f;
-        } else if (quantizationLevels == 256) {
-            return signedInterval ? -128.0f : 0.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            return signedInterval ? -128.0f : 0.0f;
-        }
-    }
-
-    static float getMax(const size_t quantizationLevels, const bool signedInterval) {
-        if ((quantizationLevels == 255) || (quantizationLevels == 256)) {
-            return signedInterval ? 127.0f : 255.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            // return quantizationLevels - 1.0;
-            return signedInterval ? 127.0f : 255.0f;
-        }
     }
 };
 
