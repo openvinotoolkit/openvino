@@ -11,17 +11,16 @@ from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
+from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
 from mo.ops.pad import Pad
 from mo.ops.reshape import Reshape
 from mo.ops.squeeze import Squeeze
-from mo.ops.strided_slice import StridedSlice
 from mo.ops.unsqueeze import Unsqueeze
 
 
-class MXFFTToDFT(MiddleReplacementPattern):
+class MXFFTToDFT(FrontReplacementSubgraph):
     """
     This transformation converts the operation MXFFT into OpenVINO DFT (if the attribute 'is_inverse' is False),
     or into OpenVINO IDFT (otherwise).

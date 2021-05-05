@@ -107,47 +107,47 @@ ref_converted_ifft_graph_node_attrs = {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(1)
     },
     'sub': {'type': 'Subtract', 'kind': 'op', 'op': 'Sub'},
+    'broadcast': {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'},
     'broadcasted_value': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(0)
     },
-    'broadcast': {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'},
+    'new_shape': {'type': 'Concat', 'kind': 'op', 'op': 'Concat', 'axis': 0},
     'new_shape_const': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([2]), 'value': int64_array([-1, 2])
     },
-    'new_shape': {'type': 'Concat', 'kind': 'op', 'op': 'Concat', 'axis': 0},
     'reshape': {'kind': 'op', 'op': 'Reshape', 'type': 'Reshape'},
+    'fft': {'kind': 'op', 'op': 'IDFT', 'type': 'IDFT'},
     'fft_axes': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
     },
-    'fft': {'kind': 'op', 'op': 'IDFT', 'type': 'IDFT'},
+    'split': {'kind': 'op', 'op': 'Split', 'type': 'Split', 'num_splits': 2},
     'split_axes': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([]), 'value': int64_array(-1)
     },
-    'split': {'kind': 'op', 'op': 'Split', 'type': 'Split', 'num_splits': 2},
+    'squeeze': {'kind': 'op', 'op': 'Squeeze', 'type': 'Squeeze'},
     'squeeze_axes': {
         'type': 'Const', 'kind': 'op', 'op': 'Const', 'shape': int64_array([1]), 'value': int64_array([-1])
     },
-    'squeeze': {'kind': 'op', 'op': 'Squeeze', 'type': 'Squeeze'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
     'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
 }
 
 ref_converted_ifft_graph_edges = [
     ('placeholder', 'rank', {'out': 0}),
-    ('subtracted_one', 'sub', {'in': 1}),
-    ('rank', 'sub', {'in': 0}),
-    ('broadcasted_value', 'broadcast', {'in': 0}),
-    ('sub', 'broadcast', {'in': 1}),
-    ('broadcast', 'new_shape', {'in': 0}),
-    ('new_shape_const', 'new_shape', {'in': 1}),
-    ('placeholder', 'reshape', {'in': 0, 'out': 0}),
-    ('new_shape', 'reshape', {'in': 1}),
-    ('reshape', 'fft', {'in': 0}),
-    ('fft_axes', 'fft', {'in': 1}),
-    ('fft', 'split', {'in': 0}),
-    ('split_axes', 'split', {'in': 1}),
-    ('split', 'squeeze', {'in': 0, 'out': 0}),
-    ('squeeze_axes', 'squeeze', {'in': 1}),
+    ('placeholder', 'reshape', {'out': 0}),
+    ('rank', 'sub'),
+    ('subtracted_one', 'sub'),
+    ('broadcasted_value', 'broadcast'),
+    ('sub', 'broadcast'),
+    ('broadcast', 'new_shape'),
+    ('new_shape_const', 'new_shape'),
+    ('new_shape', 'reshape'),
+    ('reshape', 'fft'),
+    ('fft_axes', 'fft'),
+    ('fft', 'split'),
+    ('split_axes', 'split'),
+    ('split', 'squeeze', {'out': 0}),
+    ('squeeze_axes', 'squeeze'),
     ('squeeze', 'abs'),
     ('abs', 'output'),
 ]
