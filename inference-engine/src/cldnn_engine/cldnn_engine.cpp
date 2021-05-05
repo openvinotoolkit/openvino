@@ -70,6 +70,7 @@
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
+#include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
@@ -381,6 +382,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
                     .setSupportAsymmetricQuantization(false)
                     .setSupport3DTensorOnActivations(false))
+                .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
+                   .setDeconvolutionSpecificChannelsRatio(true))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 

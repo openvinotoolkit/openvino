@@ -82,7 +82,8 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
 };
 
 const std::vector<ngraph::Shape> inputShapes = {
-        { 1, 8, 16, 16 }
+        { 1, 8, 16, 16 },
+        { 1, 32, 16, 16 }
 };
 
 const std::vector<ngraph::Shape> outputShapes = {

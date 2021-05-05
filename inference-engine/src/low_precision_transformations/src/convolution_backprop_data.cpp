@@ -48,7 +48,7 @@ bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> la
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolutionBackpropData = m.get_match_root();
 
-    if (!canConvolutionBeTransformed(context, convolutionBackpropData)) {
+    if (!canBeTransformed(context, convolutionBackpropData)) {
         auto weightsInput = convolutionBackpropData->get_input_node_shared_ptr(1);
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(weightsInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -218,6 +218,18 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     }
 
     return true;
+}
+
+bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (deconvolutionSpecificChannelsRatio) {
+        size_t inputChannels = op->get_input_shape(0)[1];
+        size_t outputChannels = op->get_output_shape(0)[1];
+        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
+            return false;
+        }
+    }
+
+    return canConvolutionBeTransformed(context, op);
 }
 
 } // namespace low_precision
