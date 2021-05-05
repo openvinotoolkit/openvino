@@ -62,9 +62,8 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     if len(splited_requirement) > 1:
         env_req = splited_requirement[1]
         if any([x in splited_requirement[1] for x in [' and ', ' or ']]):
-            log.error("{} version checker doesn't support environment marker combination "
-                      "and it will be ignored".format(splited_requirement[1]),
-                      extra={'is_warning': True})
+            log.error("The version checker doesn't support environment marker combination and it will be ignored: {}"
+                      "".format(splited_requirement[1]), extra={'is_warning': True})
             return version_list
         splited_env_req = re.split(r"==|>=|<=|>|<|~=|!=", env_req)
         splited_env_req = [l.strip(',') for l in splited_env_req]
@@ -146,12 +145,9 @@ def get_module_version_list_from_file(file_name, env_setup):
     req_dict = list()
     with open(file_name) as f:
         for line in f:
-            if '#' in line:
-                # Handle comments
-                pos = line.find('#')
-                line = line[:pos]
-                if line == '':
-                    continue
+            # Handle comments
+            line = line.split('#')[0]
+
             req_dict = parse_and_filter_versions_list(line, req_dict, env_setup)
     return req_dict
 

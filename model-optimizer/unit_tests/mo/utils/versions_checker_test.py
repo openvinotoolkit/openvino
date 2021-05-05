@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
@@ -88,37 +87,43 @@ class TestingVersionsChecker(unittest.TestCase):
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
-    def test_append_version_list_sys_neg(self):
+    def test_append_version_list_sys_neg_1(self):
         v1 = "mxnet>=1.7.0 ; sys_platform != 'win32'"
         req_list = list()
-        parse_and_filter_versions_list(v1, req_list, {'sys_platform': sys.platform})
-        ref_list = [('mxnet', '>=', '1.7.0')] if sys.platform != 'win32' else []
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'darwin'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
+        for i, v in enumerate(req_list):
+            self.assertEqual(v, ref_list[i])
+
+    def test_append_version_list_sys_neg_2(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform != 'win32'"
+        req_list = list()
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'win32'})
+        ref_list = []
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
     def test_append_version_list_sys(self):
         v1 = "mxnet>=1.7.0 ; sys_platform == 'linux'"
         req_list = list()
-        platform = sys.platform
-        parse_and_filter_versions_list(v1, req_list, {'sys_platform': platform})
-        ref_list = [('mxnet', '>=', '1.7.0')] if platform == 'linux' else []
+
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'linux'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
     def test_append_version_list_sys_python_ver_1(self):
         v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' or python_version >= \"3.8\""
         req_list = list()
-        platform = sys.platform
-        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.8.1', 'sys_platform': platform})
-        ref_list = [] if platform == 'linux' else []
+        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.8.1', 'sys_platform': 'linux'})
+        ref_list = []
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
 
     def test_append_version_list_sys_python_ver_2(self):
         v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' and python_version >= \"3.8\""
         req_list = list()
-        platform = sys.platform
-        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.7.1', 'sys_platform': platform})
+        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.7.1', 'sys_platform': 'linux'})
         ref_list = []
         for i, v in enumerate(req_list):
             self.assertEqual(v, ref_list[i])
