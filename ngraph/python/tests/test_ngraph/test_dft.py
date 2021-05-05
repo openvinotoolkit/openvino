@@ -5,6 +5,7 @@ from tests.runtime import get_runtime
 
 
 def build_fft_input_data():
+    np.random.seed(202104)
     return np.random.uniform(0, 1, (2, 10, 10, 2)).astype(np.float32)
 
 
