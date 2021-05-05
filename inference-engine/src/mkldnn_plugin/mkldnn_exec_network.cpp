@@ -49,8 +49,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
     bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
-    OV_ITT_TASK_SKIP(taskChain);
-
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(_network)) {
