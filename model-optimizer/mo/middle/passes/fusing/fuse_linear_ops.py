@@ -131,6 +131,11 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         """
         weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
         w_mul.out_port(0).connect(weights_port)
+        in_edge = w_mul.in_edge(tensor_port.idx)
+        if 'permutation' in in_edge:
+            fuse_node.in_edge(weights_port.idx)['permutation'] = in_edge['permutation']
+        if 'input_permutation' in in_edge:
+            fuse_node.in_edge(weights_port.idx)['input_permutation'] = in_edge['input_permutation']
 
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
