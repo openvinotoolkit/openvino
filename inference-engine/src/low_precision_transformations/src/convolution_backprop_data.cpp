@@ -42,6 +42,13 @@ void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass
 }
 
 bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+    if (deconvolutionSpecificChannelsRatio) {
+        size_t inputChannels = layer->get_input_shape(0)[1];
+        size_t outputChannels = layer->get_output_shape(0)[1];
+        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
+            return false;
+        }
+    }
     return WeightableLayerTransformation::isQuantized(layer, false);
 }
 
