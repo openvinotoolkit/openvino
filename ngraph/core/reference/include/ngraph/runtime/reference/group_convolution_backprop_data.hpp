@@ -147,8 +147,7 @@ namespace ngraph
                                                  const Strides& strides,
                                                  const Strides& dilation,
                                                  const CoordinateDiff& pads_begin,
-                                                 const CoordinateDiff& pads_end,
-                                                 const CoordinateDiff& output_padding)
+                                                 const CoordinateDiff& pads_end)
 
             {
                 const size_t group_count = filter_shape[filter_group_axis];
@@ -195,8 +194,7 @@ namespace ngraph
                             dilation,
                             pads_begin,
                             pads_end,
-                            strides,
-                            output_padding);
+                            strides);
                         group_batch += group_batch_size;
                         group_filter += group_filter_size;
                         group_out += group_out_size;

@@ -314,7 +314,7 @@ namespace ngraph
                                           output_padding);
             }
 
-            // DEPRECATED, can't be removed currently due to kmb-plugin dependency
+            // DEPRECATED, can't be removed currently due to arm-plugin dependency
             template <typename OUTPUT,
                       typename FILTER,
                       typename INPUT,
@@ -329,9 +329,10 @@ namespace ngraph
                                          const Strides& filter_dilation,
                                          const CoordinateDiff& forward_in_pad_bellow,
                                          const CoordinateDiff& forward_in_pad_above,
-                                         const Strides& stride,
-                                         const CoordinateDiff& output_padding)
+                                         const Strides& stride)
             {
+                const CoordinateDiff output_padding = {0, 0, 0};
+
                 convolution_backprop_in(delta_in,
                                         filter,
                                         delta_out,
