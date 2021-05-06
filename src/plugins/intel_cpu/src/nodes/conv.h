@@ -141,6 +141,9 @@ private:
     MemoryPtr inputZeroPointsMemPtr;
     MemoryPtr weightsZeroPointsMemPtr;
     MemoryPtr outputCompensationMemPtr;
+
+    mkldnn::memory::data_type outputDataType;
+    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };
 
 }   // namespace node
