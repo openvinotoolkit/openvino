@@ -54,4 +54,3 @@ def test_gather_batch_dims_1():
 
     result = run_op_node([input_data], ng.gather, input_indices, input_axis, batch_dims)
     assert np.allclose(result, expected)
-

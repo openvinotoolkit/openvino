@@ -3,16 +3,14 @@
 
 import argparse
 import os
-import logging
 import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
-from datetime import datetime
 
-logging.basicConfig()
-logger = logging.getLogger('Summarize')
-logger.setLevel(logging.INFO)
+from utils import constants
+from utils import utils
 
+logger = utils.get_logger('Summarize')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -29,108 +27,6 @@ def parse_arguments():
     parser.add_argument("--out", help=out_help, default="")
 
     return parser.parse_args()
-
-
-def get_verified_op_list():
-    return [
-        'Abs-1',
-        'Acos-1',
-        'Add-1',
-        'Asin-1',
-        'Assign-6',
-        'AvgPool-1',
-        'BatchNormInference-5',
-        'BinaryConvolution-1',
-        'Broadcast-1',
-        'Broadcast-3',
-        'Bucketize-3',
-        'CTCGreedyDecoder-1',
-        'CTCGreedyDecoderSeqLen-6',
-        'Concat-1',
-        'ConvertLike-1',
-        'Convolution-1',
-        'DeformableConvolution-1',
-        'DetectionOutput-1',
-        'Divide-1',
-        'ExperimentalDetectronDetectionOutput-6',
-        'ExperimentalDetectronGenerateProposalsSingleImage-6',
-        'ExperimentalDetectronPriorGridGenerator-6',
-        'ExperimentalDetectronROIFeatureExtractor-6',
-        'ExperimentalDetectronTopKROIs-6',
-    'FloorMod-1'
-        'GRUSequence-5',
-        'Gather-1',
-        'GatherElements-6',
-        'GatherND-5',
-        'Gelu-7',
-        'GroupConvolution-1',
-        'GroupConvolutionBackpropData-1',
-        'GRUSequence-5',
-        'HSigmoid-5',
-        'HSwish-4',
-        'HardSigmoid-1',
-        'Interpolate-4',
-        'LRN-1',
-        'LSTMCell-4',
-        'LSTMSequence-5',
-        'LogSoftmax-5',
-        'Loop-5',
-        'MVN-6',
-    'Maximum-1',
-        'MaxPool-1',
-        'Mish-4',
-        'Multiply-1',
-        'NonMaxSuppression-4',
-        'NonMaxSuppression-5',
-        'PSROIPooling-1',
-        'Proposal-1',
-        'Proposal-4',
-        'RNNSequence-5',
-        'ROIAlign-3',
-        'ROIPooling-2',
-        'Range-1',
-        'Range-4',
-        'ReadValue-6',
-        'ReduceL1-4',
-        'ReduceL2-4',
-        'ReduceMean-1',
-        'RegionYOLO-1',
-        'Relu-1',
-        'ReorgYOLO-2',
-        'Round-5',
-        'ScatterNDUpdate-4',
-        'ShapeOf-1',
-        'ShapeOf-3',
-        'Sigmoid-1',
-        'Sin-1',
-        'SoftPlus-4',
-        'Softmax-1',
-        'Split-1',
-        'StridedSlice-1',
-        'Subtract-1',
-        'Swish-4',
-        'Tile-1',
-        'TopK-1',
-        'TopK-3'
-    ]
-
-
-def update_passrates(results: ET.SubElement):
-    logger.info("Update passrates in the final report is started")
-    for device in results:
-        for op in device:
-            passed_tests = 0
-            total_tests = 0
-            for attrib in op.attrib:
-                if attrib == "passrate":
-                    continue
-                if attrib == "passed":
-                    passed_tests = int(op.attrib.get(attrib))
-                total_tests += int(op.attrib.get(attrib))
-            passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
-            op.set("passrate", str(round(passrate, 1)))
-    logger.info("Update passrates in the final report is completed")
-
 
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
@@ -169,7 +65,7 @@ def merge_xmls(xml_paths: list):
                                 continue
                             total_tests_count_xml += int(op_result.attrib.get(attr_name))
                             total_tests_count_summary += int(current_op_res.attrib.get(attr_name))
-                        if total_tests_count_xml > total_tests_count_xml:
+                        if total_tests_count_xml > total_tests_count_summary:
                             logger.warning(f'Test counter is different in {op_result.tag} for {device.tag}'\
                                            f'({total_tests_count_xml} vs {total_tests_count_xml})')
                             for attr_name in device_results.find(op_result.tag).attrib:
@@ -179,7 +75,7 @@ def merge_xmls(xml_paths: list):
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
-    update_passrates(summary_results)
+    utils.update_passrates(summary_results)
     summary.set("timestamp", timestamp)
     logger.info("Merging XML files is competed")
     return summary
@@ -192,6 +88,7 @@ def collect_statistic(root: ET.Element):
     general_pass_rate = dict()
     general_test_count = dict()
     general_passed_tests = dict()
+    op_res = dict()
 
     results = dict()
     for device in root.find("results"):
@@ -208,15 +105,32 @@ def collect_statistic(root: ET.Element):
             pass_rate_avg[device.tag] += pass_rate
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
-            general_test_count[device.tag] += (
-                    int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +
-                    int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
+            device_general_test_count = \
+                int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +\
+                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            general_test_count[device.tag] += device_general_test_count
             general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
 
+            if op in op_res.keys():
+                op_res[op].update({device.tag: device_general_test_count})
+            else:
+                op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] /= len(results[device.tag])
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+
+    logger.info("Test number comparison between devices is started")
+    for op in op_res:
+        op_counter = None
+        is_not_printed = True
+        for dev in op_res[op]:
+            if op_counter is None:
+                op_counter = op_res[op][dev]
+            elif op_counter != op_res[op][dev] and is_not_printed:
+                is_not_printed = False
+                logger.warning(f'{op} : {op_res[op]}')
+    logger.info("Test number comparison between devices is completed")
 
     devices = results.keys()
     logger.info("Statistic collecting is completed")
@@ -238,7 +152,7 @@ def create_summary(summary_root: ET.Element, output_folder: str):
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
-    verified_operations = get_verified_op_list()
+    verified_operations = constants.VERIFIED_OP_REFERENCES
 
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,

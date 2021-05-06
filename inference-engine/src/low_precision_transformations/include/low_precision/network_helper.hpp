@@ -21,6 +21,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
+#include "layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -35,6 +36,9 @@ public:
     static bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);
 
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
+
+    // returns true if at least one child is not FQ
+    static bool notAllChildrensAreFQ(const NodeVector& layer);
 
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
@@ -174,6 +178,7 @@ public:
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
+    static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 

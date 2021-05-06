@@ -42,8 +42,6 @@ xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support dif
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
 xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Det")
-xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -56,8 +54,6 @@ xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B 
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
-                                      "Required attribute 'to' is missing.")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
@@ -107,7 +103,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
@@ -164,3 +159,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
 
 xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")
 xfail_issue_49062 = xfail_test(reason="Gather with batch_dims is not implemented in CPU plugin yet.")
+xfail_issue_49359 = xfail_test(reason="DFT is not implemented in CPU plugin")
+xfail_issue_49375 = xfail_test(reason="IDFT is not implemented in CPU plugin")
+xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")

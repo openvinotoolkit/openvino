@@ -244,7 +244,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
     std::shared_ptr<ngraph::Node> onWeights = fakeQuantizeOnWeights.empty() ?
-        std::dynamic_pointer_cast<ngraph::Node>(weights) :
+        (weights->get_output_element_type(0).is_real() ?
+            convertedWeights :
+            std::dynamic_pointer_cast<ngraph::Node>(weights)) :
         ngraph::builder::makeFakeQuantize(
             convertedWeights->output(0),
             netPrecision,
