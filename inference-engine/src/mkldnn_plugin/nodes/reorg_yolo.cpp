@@ -4,6 +4,9 @@
 
 #include "base.hpp"
 #include <vector>
+#include <ngraph/opsets/opset2.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -11,14 +14,38 @@ namespace Cpu {
 
 class ReorgYoloImpl: public ExtLayerBase {
 public:
-    explicit ReorgYoloImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 1 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+            const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
+            if (!reorgYolo) {
+                errorMessage = "Only opset2 ReorgYolo operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            stride = layer->GetParamAsInt("stride");
+    explicit ReorgYoloImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+            errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
+            const auto strides = reorgYolo->get_strides();
+            if (strides.empty())
+                IE_THROW() << errorPrefix << " has empty strides";
+            stride = strides[0];
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -61,6 +88,8 @@ public:
 
 private:
     int stride;
+
+    std::string errorPrefix;
 };
 
 REG_FACTORY_FOR(ReorgYoloImpl, ReorgYolo);

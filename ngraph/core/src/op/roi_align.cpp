@@ -181,7 +181,8 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
     template <>
-    EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get()
+    NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>&
+        EnumNames<op::v3::ROIAlign::PoolingMode>::get()
     {
         static auto enum_names =
             EnumNames<op::v3::ROIAlign::PoolingMode>("op::v3::ROIAlign::PoolingMode",

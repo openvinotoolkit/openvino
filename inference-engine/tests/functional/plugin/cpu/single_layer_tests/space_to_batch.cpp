@@ -48,9 +48,9 @@ protected:
         inPrc = outPrc = netPrecision;
 
         if (strcmp(netPrecision.name(), "U8") == 0)
-            selectedType = std::string("unknown_") + "I8";
+            selectedType = std::string("ref_any_") + "I8";
         else
-            selectedType = std::string("unknown_") + netPrecision.name();
+            selectedType = std::string("ref_any_") + netPrecision.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

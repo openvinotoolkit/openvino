@@ -4,6 +4,8 @@
 
 #include "base.hpp"
 #include "ie_parallel.hpp"
+#include <ngraph/op/ctc_loss.hpp>
+#include <nodes/common/tensor_desc_creator.h>
 
 #include <cmath>
 
@@ -12,46 +14,52 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class CTCLossImpl : public ExtLayerBase {
 public:
-    explicit CTCLossImpl(const CNNLayer* layer) {
-        _logPrefix = std::string("CTCLoss layer with name '") + layer->name + "'";
-
-        if (layer->insData.size() != 4 && layer->insData.size() != 5)
-            IE_THROW() << _logPrefix << " has invalid inputs number.";
-
-        _ctcMergeRepeated = layer->GetParamAsBool("ctc_merge_repeated", true);
-        _preprocessCollapseRepeated = layer->GetParamAsBool("preprocess_collapse_repeated", false);
-        _unique = layer->GetParamAsBool("unique", false);
-
-        auto logitsData = layer->insData[0].lock();
-        if (logitsData == nullptr)
-            IE_THROW() << _logPrefix << " has nullable logits data";
-
-        LayerConfig config;
-        config.inConfs.resize(layer->insData.size());
-        config.inConfs[0].desc = TensorDesc(Precision::FP32,
-            logitsData->getTensorDesc().getDims(),
-            TensorDesc::getLayoutByDims(logitsData->getTensorDesc().getDims()));
-        auto intPrecision = Precision::I32;
-        for (int i = 1; i < layer->insData.size(); i++) {
-            auto data = layer->insData[i].lock();
-            if (data == nullptr)
-                IE_THROW() << _logPrefix << " has nullable input data at " << i;
-            config.inConfs[i].desc = TensorDesc(intPrecision,
-                data->getTensorDesc().getDims(),
-                TensorDesc::getLayoutByDims(data->getTensorDesc().getDims()));
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+        try {
+            auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+            if (!ctcLossOp) {
+                errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
+                return false;
+            }
+        } catch (...) {
+            return false;
         }
 
-        DataConfig outConfig;
-        auto& outDims = layer->outData[0]->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(Precision::FP32,
-            outDims,
-            TensorDesc::getLayoutByDims(outDims));
-        config.outConfs.push_back(outConfig);
-        config.dynBatchSupport = false;
+        return true;
+    }
 
-        confs.push_back(config);
+    explicit CTCLossImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            _logPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
+
+            if (op->get_input_size() != 4 && op->get_input_size() != 5)
+                IE_THROW() << _logPrefix << " has invalid inputs number.";
+
+            auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+            _ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
+            _preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
+            _unique = ctcLossOp->get_unique();
+
+            std::vector<DataConfigurator> inDataConfigurators;
+            inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::FP32});
+            for (int i = 1; i < op->get_input_size(); i++) {
+                inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::I32});
+            }
+            addConfig(op, inDataConfigurators,
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
+        }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs,

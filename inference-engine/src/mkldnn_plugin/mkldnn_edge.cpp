@@ -6,6 +6,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
@@ -603,7 +604,7 @@ InferenceEngine::Blob::Ptr MKLDNNEdge::getBlob() {
     else
         desc = InferenceEngine::TensorDesc(desc.getPrecision(), dims.ToSizeVector(), desc.getBlockingDesc());
 
-    return make_blob_with_precision(desc, memoryPtr->GetData());
+    return isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, memoryPtr->GetData());
 }
 
 void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr &edge) {

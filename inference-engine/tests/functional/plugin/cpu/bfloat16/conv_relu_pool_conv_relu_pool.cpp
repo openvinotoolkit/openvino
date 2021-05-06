@@ -162,7 +162,7 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Convolution_1"] = "FP32";
+        expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["ReLU_1"] = "ndef";
         expectedPrecisions["AvgPool_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
@@ -173,6 +173,8 @@ protected:
 };
 
 TEST_P(ConvReLUPoolConvReLUPool, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

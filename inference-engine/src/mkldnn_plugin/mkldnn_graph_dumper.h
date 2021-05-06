@@ -11,9 +11,6 @@
 
 namespace MKLDNNPlugin {
 
-void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out);
-
-InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
 InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 }  // namespace MKLDNNPlugin

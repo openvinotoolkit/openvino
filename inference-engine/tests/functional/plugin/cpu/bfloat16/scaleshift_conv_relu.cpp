@@ -93,17 +93,19 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 9e-2;
+        threshold = 1e-1;
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["ADD_1"] = "FP32";
+        expectedPrecisions["ADD_1"] = "ndef";
         expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["RELU_1"] = "ndef";
     }
 };
 
 TEST_P(ScaleshiftConvRelu, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

@@ -74,7 +74,7 @@ struct jit_uni_bin_conv_kernel {
 
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNBinaryConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -86,7 +86,11 @@ public:
         return false;
     }
     void setPostOps(mkldnn::primitive_attr &attr);
-    bool canFuse(const MKLDNNNodePtr& node) const;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    impl_desc_type getImplType() { return implType; }
 
 private:
     bool withSum = false;
@@ -112,6 +116,8 @@ private:
                           const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
     void executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
                           const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

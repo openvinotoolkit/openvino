@@ -114,7 +114,7 @@ protected:
         auto oh = builder::makeConstant(ngInPrec, inRangesShapes[3], rangesBounds[3], rangesBounds[3].empty());
         auto fq = std::make_shared<opset5::FakeQuantize>(paramOuts[0], il, ih, ol, oh, levels);
 
-        layerName = shouldBeDecomposed ? "" : "Quantize";
+        layerName = shouldBeDecomposed ? "" : "FakeQuantize";
 
         if (selectedType.empty()) {
            selectedType = getPrimitiveType() + "_" + inPrec.name();

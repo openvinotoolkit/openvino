@@ -13,85 +13,82 @@
 #include "mkldnn/ie_mkldnn.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
+#include <ngraph/opsets/opset7.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNRollNode::MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-                MKLDNNNode(layer, eng, cache) {
-    layerErrorPrefix = "Roll layer with name '" + layer->name + "'";
-    if (layer->insData.size() != numberOfInputs) {
-        IE_THROW() << layerErrorPrefix << " has incorrect number of input/output edges!";
+bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto interp = std::dynamic_pointer_cast<const ngraph::opset7::Roll>(op);
+        if (!interp) {
+            errorMessage = "Only opset7 Roll operation is supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
     }
+    return true;
+}
 
-    /* Data */
-    auto data = layer->insData[DATA_INDEX].lock();
-    if (data == nullptr) {
-        IE_THROW() << layerErrorPrefix << " has nullable data";
-    }
+MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+                MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        layerErrorPrefix = "Roll layer with name '" + getName() + "'";
+        if (getOriginalInputsNumber() != numberOfInputs) {
+            IE_THROW() << layerErrorPrefix << " has incorrect number of input/output edges!";
+        }
 
-    const auto &dataTensor = data->getTensorDesc();
-    shape = dataTensor.getDims();
-    const auto &dataPrecision = dataTensor.getPrecision();
+        shape = inDims[DATA_INDEX].ToSizeVector();
+        const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
-    if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
-        IE_THROW() << layerErrorPrefix << "has unsupported precision: " << dataPrecision.name();
+        if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
+            IE_THROW() << layerErrorPrefix << "has unsupported precision: " << dataPrecision.name();
 
-    if (shape.size() < 1) {
-        IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << shape.size();
-    }
-    numOfDims = shape.size();
+        if (shape.size() < 1) {
+            IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << shape.size();
+        }
+        numOfDims = shape.size();
 
-    if (shape != layer->outData[0]->getTensorDesc().getDims()) {
-        IE_THROW() << layerErrorPrefix << " has different 'data' input and output dimensions";
-    }
+        if (shape != outDims[0].ToSizeVector()) {
+            IE_THROW() << layerErrorPrefix << " has different 'data' input and output dimensions";
+        }
 
-    /* Axes */
-    auto axesData = layer->insData[AXES_INDEX].lock();
-    if (axesData == nullptr) {
-        IE_THROW() << layerErrorPrefix << " has nullable 'axes' data";
-    }
-    const auto& axesTensor = axesData->getTensorDesc();
-    const auto& axesTensorPrec = axesData->getTensorDesc().getPrecision();
-    if (axesTensorPrec != Precision::I32 && axesTensorPrec != Precision::I64) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesTensorPrec.name();
-    }
+        /* Axes */
+        const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
+        if (axesTensorPrec != Precision::I32 && axesTensorPrec != Precision::I64) {
+            IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesTensorPrec.name();
+        }
 
-    const auto axesTensorRank = axesTensor.getDims().size();
-    if (axesTensorRank > 1) {
-        IE_THROW() << layerErrorPrefix << " doesn't support 'axes' input tensor with rank: " << axesTensorRank;
-    }
+        const auto axesTensorRank = inDims[AXES_INDEX].ndims();
+        if (axesTensorRank > 1) {
+            IE_THROW() << layerErrorPrefix << " doesn't support 'axes' input tensor with rank: " << axesTensorRank;
+        }
 
-    /* Shift */
-    auto shiftData = layer->insData[SHIFT_INDEX].lock();
-    if (shiftData == nullptr) {
-        IE_THROW() << layerErrorPrefix << " has nullable 'shift' data";
-    }
-    const auto& shiftTensor = shiftData->getTensorDesc();
-    const auto& shiftTensorPrec = shiftData->getTensorDesc().getPrecision();
-    if (shiftTensorPrec != Precision::I32 && shiftTensorPrec != Precision::I64) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'shift' input precision: " << shiftTensorPrec.name();
-    }
+        /* Shift */
+        const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
+        if (shiftTensorPrec != Precision::I32 && shiftTensorPrec != Precision::I64) {
+            IE_THROW() << layerErrorPrefix << " has unsupported 'shift' input precision: " << shiftTensorPrec.name();
+        }
 
-    const auto shiftTensorRank = shiftTensor.getDims().size();
-    if (shiftTensorRank > 1) {
-        IE_THROW() << layerErrorPrefix << " doesn't support 'shift' input tensor with rank: " << shiftTensorRank;
+        const auto shiftTensorRank = inDims[SHIFT_INDEX].ndims();
+        if (shiftTensorRank > 1) {
+            IE_THROW() << layerErrorPrefix << " doesn't support 'shift' input tensor with rank: " << shiftTensorRank;
+        }
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
+
 void MKLDNNRollNode::getSupportedDescriptors() {}
 
 void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inputData = getCnnLayer()->insData[0].lock();
-
-    if (inputData == nullptr) {
-        IE_THROW() << layerErrorPrefix << " has nullable 'data'";
-    }
-
-    InferenceEngine::Precision precision = inputData->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 

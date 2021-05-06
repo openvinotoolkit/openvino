@@ -105,12 +105,14 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Add_4"] = "FP32";
+        expectedPrecisions["Add_4"] = "ndef";
         expectedPrecisions["Convolution_6"] = "BF16";
     }
 };
 
 TEST_P(Faster100_5_1_1_Conv, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

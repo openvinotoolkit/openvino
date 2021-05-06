@@ -19,7 +19,7 @@ const std::vector<RuntimePrecisionSpecificParams> params = {
         {makeEltwiseFunction, {Precision::BF16, Precision::BF16}, {{"Eltwise", Precision::BF16}}},
         {makeEltwiseFunction, {Precision::U8, Precision::U8}, {{"Eltwise", Precision::U8}}},
         {makeEltwiseFunction, {Precision::I8, Precision::I8}, {{"Eltwise", Precision::I8}}},
-        {makeFakeQuantizeReluFunction, {Precision::FP32}, {{"FakeQuantize", Precision::FP32}, {"Relu", Precision::U8}}},
+        {makeFakeQuantizeReluFunction, {Precision::FP32}, {{"FakeQuantize", Precision::FP32}, {"Relu_original", Precision::U8}}},
         {makeFakeQuantizeReluFunction, {Precision::U8}, {{"FakeQuantize", Precision::U8}, {"Relu", Precision::U8}}},
         {makeFakeQuantizeBinaryConvolutionFunction, {Precision::FP32}, {{"FakeQuantize", Precision::FP32}, {"BinaryConvolution", Precision::BIN}}},
 };

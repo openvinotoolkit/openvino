@@ -36,11 +36,11 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    CPUTestsBase::CheckPluginRelatedResults(execNet, nodeType);
+void CpuTestWithFusing::CheckFusingResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
+    bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
         const auto &rtInfo = op->get_rt_info();
 
@@ -55,6 +55,7 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
 
         auto layerType = getExecValue("layerType", rtInfo);
         if (layerType == nodeType) {
+            isNodeFound = true;
             auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
             std::string opFriendlyName = op->get_friendly_name();
             auto pos = originalLayersNames.find(opFriendlyName);
@@ -65,6 +66,12 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
             }
         }
     }
+    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
+}
+
+void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
+    CPUTestsBase::CheckPluginRelatedResults(execNet, nodeType);
+    CheckFusingResults(execNet, nodeType);
 }
 
 std::shared_ptr<ngraph::Node>

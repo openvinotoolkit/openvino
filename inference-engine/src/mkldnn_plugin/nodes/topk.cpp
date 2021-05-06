@@ -11,7 +11,11 @@
 #include <vector>
 #include <cassert>
 #include <functional>
+
 #include "ie_parallel.hpp"
+#include <ngraph/op/topk.hpp>
+#include "common/tensor_desc_creator.h"
+#include "utils/general_utils.h"
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #include <immintrin.h>
 #endif
@@ -20,51 +24,53 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class TopKImpl: public ExtLayerBase {
 public:
-    explicit TopKImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 2)
-                IE_THROW() << layer->name << " Incorrect number of input edges!";
-
-            if (layer->outData.size() != 1 && layer->outData.size() != 2)
-                IE_THROW() << layer->name << " Incorrect number of output edges!";
-
-            if (layer->insData[TOPK_K].lock()->getTensorDesc().getDims().size() > 1)
-                IE_THROW() << layer->name << " TopKImpl - Index vector should be 1 dimension";
-
-            SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
-            SizeVector src_data_dims = layer->insData[TOPK_DATA].lock()->getTensorDesc().getDims();
-            if (src_data_dims.size() != dst_dims.size())
-                IE_THROW() << layer->name << " TopKImpl - Incorrect input/output tensor dimension sizes";
-
-            if (layer->outData.size() == 2) {
-                SizeVector dst_idx_dims = layer->outData[TOPK_INDEX]->getTensorDesc().getDims();
-                if (dst_dims.size() != dst_idx_dims.size())
-                    IE_THROW() << layer->name << " Incorrect output tensor dimension sizes";
-
-                for (size_t i = 0; i < dst_dims.size(); i++) {
-                    if (dst_dims[i] != dst_idx_dims[i])
-                        IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
-                }
+            auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
+            if (!topKOp) {
+                errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
+                return false;
             }
+            if (topKOp->get_mode() != ngraph::op::TopKMode::MAX &&
+                    topKOp->get_mode() != ngraph::op::TopKMode::MIN) {
+                errorMessage = "Unsupported mode.";
+                return false;
+            }
+            if (!MKLDNNPlugin::one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
+                    ngraph::op::TopKSortType::SORT_VALUES,
+                    ngraph::op::TopKSortType::SORT_INDICES)) {
+                errorMessage = "Unsupported sort type.";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            src_dims = layer->insData[TOPK_DATA].lock()->getTensorDesc().getDims();
-            int axis_ = layer->GetParamAsInt("axis", -1);
-            if (axis_ < 0)
-                axis_ += src_dims.size();
+    explicit TopKImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            auto topK1Op = ngraph::as_type_ptr<ngraph::op::v1::TopK>(op);
 
-            axis = static_cast<size_t>(axis_);
+            SizeVector dstDims = topK1Op->get_output_shape(TOPK_VALUE);
+            src_dims = topK1Op->get_input_shape(TOPK_DATA);
 
-            if (src_dims.size() < (1 + axis))
-                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
+            axis = topK1Op->get_axis();
 
-            if (layer->GetParamAsString("mode", "max") == "max")
+            if (topK1Op->get_mode() == ngraph::op::TopKMode::MAX)
                 mode_max = true;
             else
                 mode_max = false;
 
-            if (layer->GetParamAsString("sort", "index") == "value")
+            if (topK1Op->get_sort_type() == ngraph::op::TopKSortType::SORT_VALUES)
                 sort_value = true;
             else
                 sort_value = false;
@@ -77,33 +83,27 @@ public:
 
             for (size_t i = 0; i < axis; i++) {
                 axis_step *= src_dims[i];
-                if (src_data_dims[i] != dst_dims[i])
-                    IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
             }
             axis_dim = src_dims[axis];
             for (size_t i = (axis + 1); i < src_dims.size(); i++) {
                 axis_stride *= src_dims[i];
-                if (src_data_dims[i] != dst_dims[i])
-                    IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
             }
             dim = static_cast<int>(src_dims[axis]);
             before_num = count(src_dims, 0, axis);
 
-            if (layer->outData.size() == 1) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
-                    { DataConfigurator(ConfLayout::PLN) });
+            if (topK1Op->get_output_size() == 1) {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
             } else {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
-                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN) });
-
-                // TODO: WA... While ICNNNetwork has no clear rule to fill tensor precision
-                //       it use precision of parent layer. So each output tensor Data object has
-                //       precision of producing layer. For TopK that is not true. Second output is
-                //       integer tensor. Will change it for corresponding output desc.
-                confs.back().outConfs[1].desc.setPrecision(Precision::I32);
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}});
             }
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
     }
 
@@ -455,15 +455,15 @@ public:
 
         if (outputs.size() == 1) {
             if (outputs[0]->getTensorDesc().getPrecision() == Precision::FP32) {
-                dst_data = outputs[0]->cbuffer().as<float *>() +
+                dst_data = outputs[0]->buffer().as<float *>() +
                     outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             } else {
-                dst_idx = outputs[0]->cbuffer().as<int *>() +
+                dst_idx = outputs[0]->buffer().as<int *>() +
                     outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             }
-            SizeVector dst_dims = outputs[0]->getTensorDesc().getDims();
+            SizeVector dstDims = outputs[0]->getTensorDesc().getDims();
 
-            if (dst_dims[axis] != static_cast<size_t>(src_k)) {
+            if (dstDims[axis] != static_cast<size_t>(src_k)) {
                 if (resp) {
                     std::string errorMsg = "Output tensor dimension mismatch";
                     errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
@@ -471,11 +471,11 @@ public:
                 return PARAMETER_MISMATCH;
             }
         } else if (outputs.size() == 2) {
-            dst_data = outputs[TOPK_VALUE]->cbuffer().as<float *>() +
+            dst_data = outputs[TOPK_VALUE]->buffer().as<float *>() +
                 outputs[TOPK_VALUE]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             SizeVector dst_data_dims = outputs[TOPK_VALUE]->getTensorDesc().getDims();
 
-            dst_idx = outputs[TOPK_INDEX]->cbuffer().as<int *>() +
+            dst_idx = outputs[TOPK_INDEX]->buffer().as<int *>() +
                 outputs[TOPK_INDEX]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             SizeVector dst_idx_dims = outputs[TOPK_INDEX]->getTensorDesc().getDims();
 

@@ -8,7 +8,7 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35911, xfail_issue_35912
+from tests import xfail_issue_35911
 
 
 @pytest.fixture
@@ -307,7 +307,6 @@ def test_pad_opset_2():
         run_model(model, [x])
 
 
-@xfail_issue_35912
 def test_pad_negative_values_begin():
     x = np.ones((2, 2), dtype=np.float32)
 
@@ -322,7 +321,6 @@ def test_pad_negative_values_begin():
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
-@xfail_issue_35912
 def test_pad_negative_values_end():
     x = np.ones((2, 2), dtype=np.float32)
 

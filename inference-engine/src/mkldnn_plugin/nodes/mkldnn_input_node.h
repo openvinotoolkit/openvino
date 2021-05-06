@@ -12,7 +12,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNInputNode : public MKLDNNNode {
 public:
-    MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &prc, const std::string &name,
+                    const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNInputNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -25,10 +27,14 @@ public:
         isMeanImage = true;
     }
 
+    const InferenceEngine::Blob::CPtr getConstBlob() const {
+        return constBlob;
+    }
+
 private:
     InferenceEngine::Precision precision;
 
-    InferenceEngine::Blob::Ptr constBlob;
+    InferenceEngine::Blob::Ptr constBlob = nullptr;
     bool isMeanImage = false;
 };
 

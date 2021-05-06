@@ -2913,7 +2913,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization)
                      1.0739619f,  1.6918856f,  2.3098092f,  2.927733f,    3.5456567f,   4.1635804f,
                      -4.130463f,  -3.1876516f, -2.2448401f, -1.3020288f,  -0.35921717f, 0.5835942f,
                      1.5264057f,  2.469217f,   3.4120288f,  4.35484f,     5.2976513f,   6.240463f});
-    test_case.run();
+    const size_t tolerance_bits = 3;
+    test_case.run(tolerance_bits);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic)
