@@ -24,17 +24,7 @@ public:
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
 
-        std::vector<size_t> inputShape;
-        std::vector<size_t> coordsShape;
-        std::vector<size_t> poolShape;
-        float spatial_scale;
-        ngraph::helpers::ROIPoolingTypes pool_method;
-        InferenceEngine::Precision netPrecision;
-        std::string targetDevice;
-
         std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
-        std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
-
         std::ostringstream result;
 
         result << LayerTestsDefinitions::ROIPoolingLayerTest::getTestCaseName(
@@ -53,7 +43,7 @@ public:
     }
 
 protected:
-    void GenerateInputs() {
+    void GenerateInputs() override {
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
 
         const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
@@ -71,13 +61,13 @@ protected:
                 blob->allocate();
                 switch (inPrc) {
                 case Precision::FP32: {
-                    CommonTestUtils::fill_data_roi<float>
-                        (blob->buffer(), blob->size(), feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                    CommonTestUtils::fill_data_roi<Precision::FP32>
+                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
                     break;
                 }
                 case Precision::BF16: {
-                    CommonTestUtils::fill_data_roi<MKLDNNPlugin::bfloat16_t>
-                        (blob->buffer(), blob->size(), feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                    CommonTestUtils::fill_data_roi<Precision::BF16>
+                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
                     break;
                 }
                 default:
@@ -92,7 +82,7 @@ protected:
         }
     }
 
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::roiPoolingParamsTuple basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -141,7 +131,9 @@ std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
+/* have to select particular implementation type, since currently
+ * nodes always choose the best one */
+std::vector<CPUSpecificParams> selectCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
@@ -196,14 +188,14 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inS
 INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_max,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_max,
-                                           ::testing::ValuesIn(filterCPUInfoForDevice()),
+                                           ::testing::ValuesIn(selectCPUInfoForDevice()),
                                            ::testing::ValuesIn(additionalConfig)),
                         ROIPoolingCPULayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_bilinear,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_bilinear,
-                                           ::testing::ValuesIn(filterCPUInfoForDevice()),
+                                           ::testing::ValuesIn(selectCPUInfoForDevice()),
                                            ::testing::ValuesIn(additionalConfig)),
                         ROIPoolingCPULayerTest::getTestCaseName);
 } // namespace

@@ -148,13 +148,13 @@ private:
 
         mov(aux_reg_input, reg_input);
 
-        int src_c_off = jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
+        const int src_c_off = jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
             load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx())}, {static_cast<size_t>(vmm_max.getIdx())},
                                     std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
-                                    {}, {load_pool_gpr_idxs});
+                                    {}, load_pool_gpr_idxs);
         }
 
         xor_(h_iter, h_iter);
@@ -168,7 +168,7 @@ private:
 
                     load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
                                             std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
-                                            {}, {load_pool_gpr_idxs});
+                                            {}, load_pool_gpr_idxs);
 
                     if (isa == cpu::x64::sse41) {
                         movups(vmm_mask, vmm_max);
@@ -197,13 +197,13 @@ private:
             jl(h_loop_label, T_NEAR);
         }
 
-        int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
+        const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_dst = get_acc_reg(i);
 
             store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
                                      std::make_shared<store_emitter_context>(Precision::FP32, jpp_.dst_prc, step, i * dst_c_off),
-                                     {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+                                     store_pool_vec_idxs, store_pool_gpr_idxs);
         }
     }
 
@@ -219,29 +219,29 @@ private:
         Vmm vmm_src11 = get_src_reg(3);
 
         for (int i = 0; i < c_blocks; i++) {
-            int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
+            const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
             const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", src_c_off);
 
             mov(aux_reg_input, reg_input);
 
             load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src00.getIdx())},
                                     load_context,
-                                    {}, {load_pool_gpr_idxs});
+                                    {}, load_pool_gpr_idxs);
             add(aux_reg_input, reg_xoff);
 
             load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src01.getIdx())},
                                     load_context,
-                                    {}, {load_pool_gpr_idxs});
+                                    {}, load_pool_gpr_idxs);
 
             add(aux_reg_input, reg_yoff);
             load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src11.getIdx())},
                                     load_context,
-                                    {}, {load_pool_gpr_idxs});
+                                    {}, load_pool_gpr_idxs);
             sub(aux_reg_input, reg_xoff);
 
             load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx())}, {static_cast<size_t>(vmm_src10.getIdx())},
                                     load_context,
-                                    {}, {load_pool_gpr_idxs});
+                                    {}, load_pool_gpr_idxs);
 
             uni_vsubps(vmm_src01, vmm_src01, vmm_src00);
             uni_vfmadd213ps(vmm_src01, vmm_xf, vmm_src00);
@@ -252,22 +252,22 @@ private:
             uni_vsubps(vmm_src11, vmm_src11, vmm_src01);
             uni_vfmadd213ps(vmm_src11, vmm_yf, vmm_src01);
 
-            int dst_c_off = i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
+            const int dst_c_off = i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
 
             store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
                                      std::make_shared<store_emitter_context>(Precision::FP32, jpp_.dst_prc, step, dst_c_off),
-                                     {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+                                     store_pool_vec_idxs, store_pool_gpr_idxs);
         }
     }
 
     void empty_roi(int c_blocks) {
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
+        const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_data_size;
         for (int i = 0; i < c_blocks; i++) {
             store_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx())}, {static_cast<size_t>(reg_output.getIdx())},
                                      std::make_shared<store_emitter_context>(jpp_.src_prc, jpp_.dst_prc, step, i * dst_c_off),
-                                     {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+                                     store_pool_vec_idxs, store_pool_gpr_idxs);
         }
     }
 
@@ -491,7 +491,7 @@ void MKLDNNROIPoolingNode::execute() {
     for (; real_rois < MB; real_rois++) {
         size_t roi_off = real_rois * src_roi_step;
 
-        const T* src_roi_ptr = &src_roi[roi_off];
+        const auto *src_roi_ptr = &src_roi[roi_off];
         int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
         if (roi_batch_ind == -1) {
             break;
@@ -520,7 +520,7 @@ void MKLDNNROIPoolingNode::execute() {
             (*roi_pooling_kernel)(&arg);
         } else {
             size_t roi_off = n * src_roi_step;
-            const T* src_roi_ptr = &src_roi[roi_off];
+            const auto *src_roi_ptr = &src_roi[roi_off];
 
             int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
