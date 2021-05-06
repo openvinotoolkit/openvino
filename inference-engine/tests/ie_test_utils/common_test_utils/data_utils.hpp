@@ -139,9 +139,12 @@ inline void fill_data_bbox(float *data, size_t size, int height, int width, floa
     }
 }
 
+template<InferenceEngine::Precision::ePrecision PRC>
 inline void
-fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega,
+fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int height, const int width, const float omega,
               const bool is_roi_max_mode, const int seed = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *data = blob->buffer().as<dataType *>();
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
@@ -151,31 +154,31 @@ fill_data_roi(float *data, size_t size, const uint32_t range, const int height, 
     float center_h = (max_y) / 2.0f;
     float center_w = (max_x) / 2.0f;
 
-    for (size_t i = 0; i < size; i += 5) {
-        data[i] = static_cast<float>(distribution(random));
+    for (size_t i = 0; i < blob->size(); i += 5) {
+        data[i] = static_cast<dataType>(distribution(random));
         const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
         const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-        data[i + 1] = is_roi_max_mode ? std::floor(x0) : x0;
-        data[i + 3] = is_roi_max_mode ? std::floor(x1) : x1;
+        data[i + 1] = static_cast<dataType>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<dataType>(is_roi_max_mode ? std::floor(x1) : x1);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
         if (data[i + 3] > max_x)
-            data[i + 3] = static_cast<float>(max_x);
+            data[i + 3] = static_cast<dataType>(max_x);
 
         const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
         const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-        data[i + 2] = is_roi_max_mode ? std::floor(y0) : y0;
-        data[i + 4] = is_roi_max_mode ? std::floor(y1) : y1;
+        data[i + 2] = static_cast<dataType>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<dataType>(is_roi_max_mode ? std::floor(y1) : y1);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
         if (data[i + 4] > max_y)
-            data[i + 4] = static_cast<float>(max_y);
+            data[i + 4] = static_cast<dataType>(max_y);
     }
 }
 
