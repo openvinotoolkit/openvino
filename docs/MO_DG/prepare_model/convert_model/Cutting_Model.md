@@ -81,7 +81,7 @@ The last layer in the model is `InceptionV1/Logits/Predictions/Reshape_1`, which
 ```
 Due to automatic identification of inputs and outputs, you do not need to provide the `--input` and `--output` options to convert the whole model. The following commands are equivalent for the Inception V1 model:
 ```sh
-python3 mo.py --input_model=inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+python3 mo.py --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
 python3 mo.py --input_model inception_v1.pb -b 1 --inputinput --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
 ```
