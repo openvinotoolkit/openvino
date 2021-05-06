@@ -63,7 +63,7 @@ extensions/back/TopKNormalizer.py
 extensions/back/TransposeReduceFusing.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
-extensions/front/ArgMaxSqueeze.py
+extensions/front/ArgOpsSqueeze.py
 extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
@@ -255,6 +255,7 @@ extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
 extensions/front/onnx/affine_ext.py
 extensions/front/onnx/argmax_ext.py
+extensions/front/onnx/argmin_ext.py
 extensions/front/onnx/aten_ext.py
 extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
@@ -368,6 +369,7 @@ extensions/front/Swish_fusion.py
 extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
+extensions/front/tf/argmin_ext.py
 extensions/front/tf/assign_elimination.py
 extensions/front/tf/automl_efficientdet.json
 extensions/front/tf/AutomlEfficientDet.py
@@ -545,7 +547,7 @@ extensions/middle/AddIsCyclicAttribute.py
 extensions/middle/AddMeanScaleValues.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
-extensions/middle/ArgMaxToTopK.py
+extensions/middle/ArgOpsToTopK.py
 extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
@@ -641,6 +643,7 @@ extensions/ops/accum.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
 extensions/ops/argmax.py
+extensions/ops/argmin.py
 extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py
