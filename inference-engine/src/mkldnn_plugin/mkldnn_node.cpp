@@ -38,6 +38,8 @@
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
+#include <nodes/mkldnn_depth_to_space_node.h>
+#include <nodes/mkldnn_space_to_depth_node.h>
 #include <nodes/mkldnn_strided_slice_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
@@ -78,6 +80,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
+        { "SoftPlus", Eltwise },
         { "Norm", Lrn },
         { "LRN", Lrn },
         { "Pooling", Pooling },
@@ -99,9 +102,11 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
+        { "DepthToSpace", DepthToSpace },
         { "Flatten", Flatten },
         { "Pad", Pad },
         { "Permute", Permute },
+        { "SpaceToDepth", SpaceToDepth },
         { "StridedSlice", StridedSlice },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
@@ -138,6 +143,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
         { "Erf", Eltwise },
+        { "Roll", Roll },
 };
 
 Type TypeFromName(const std::string type) {

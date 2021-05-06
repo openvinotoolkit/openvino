@@ -15,14 +15,6 @@
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 
-namespace
-{
-    int64_t get_valid_array_idx(int64_t idx, int64_t last_idx)
-    {
-        return (idx >= 0) ? std::min(idx, last_idx) : std::max<int64_t>(0, last_idx + idx);
-    }
-}
-
 namespace ngraph
 {
     namespace onnx_import
@@ -163,7 +155,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {

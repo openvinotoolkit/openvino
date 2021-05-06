@@ -21,5 +21,5 @@ namespace ngraph
                        size_t num_splits,
                        char** out_data);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

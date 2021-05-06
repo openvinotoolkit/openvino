@@ -67,8 +67,8 @@ public:
     struct GenericLayerParams {
         struct LayerPortData {
             size_t portId;
-            ngraph::element::Type_t precision;
             SizeVector dims;
+            ngraph::element::Type_t precision;
             std::unordered_set<std::string> names;
         };
         size_t layerId;

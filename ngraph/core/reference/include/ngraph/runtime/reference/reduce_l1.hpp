@@ -42,6 +42,6 @@ namespace ngraph
                         out[output_index] + std::abs(arg[input_transform.index(input_coord)]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

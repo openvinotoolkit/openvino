@@ -3,11 +3,12 @@
 
 DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
+ONNX_MODEL_ZOO_SHA = "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
 
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
     [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel+Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
 ]
 
 // workaround for aborting previous builds on PR update
@@ -29,7 +30,7 @@ BACKEND_CONFIGURATIONS = [
 
  }
 
-def getGitPrInfo(String project) {
+def getGitPrInfo(String project, String workdir) {
     def gitPrInfo = [
         prAuthorEmail : "",
         commitAuthorEmail : "",
@@ -37,7 +38,7 @@ def getGitPrInfo(String project) {
         commitSubject : ""
     ]
     try {
-        dir ("${WORKDIR}/${project}") {
+        dir ("${workdir}/${project}") {
             gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
             gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
             gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
@@ -70,8 +71,8 @@ def notifyByEmail(def gitPrInfo) {
     }
 }
 
-def gitSubmoduleUpdate(String repository_name) {
-    dir ("${WORKDIR}/${repository_name}") {
+def gitSubmoduleUpdate(String repository_name, String workdir) {
+    dir ("${workdir}/${repository_name}") {
         sh  label: "Init ${repository_name} submodules",
             script:
         """
@@ -83,23 +84,32 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
-def prepare_repository() {
-    dir("${WORKDIR}") {
+def prepare_repository(String workdir) {
+    dir("${workdir}") {
+        println "Preparing repository in directory: ${workdir}"
         checkout scm
-        gitSubmoduleUpdate(PROJECT_NAME)
+        gitSubmoduleUpdate(PROJECT_NAME, workdir)
     }
 }
 
 def updateModels() {
     sh """
-        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o
+        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/models_data -o -s ${ONNX_MODEL_ZOO_SHA}
     """
 }
 
-def buildDockerImage(Map configuration) {
+def get_docker_container_name(Map configuration){
+    println "RUN get_docker_container_name for ${configuration.name}"
+    String docker_container_name = "${DOCKER_CONTAINER_NAME}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
+    return docker_container_name
+}
+
+def buildDockerImage(Map configuration, String workdir) {
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+    println "docker_image_tag: ${docker_image_tag}"
     updateModels()
     sh """
-        docker build --tag=${DOCKER_IMAGE_TAG} \
+        docker build --tag=${docker_image_tag} \
         --build-arg BUILD_TYPE=${configuration.build_type} \
         --build-arg PROTOBUF_LITE=${configuration.protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
@@ -108,20 +118,26 @@ def buildDockerImage(Map configuration) {
     """
 }
 
-def runTests(Map configuration) {
+def runTests(Map configuration, String workdir) {
+    println "Run tests for ${configuration.name}"
+    String docker_image_tag = "${DOCKER_IMAGE_TAG}_${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}".toLowerCase()
+
+    String docker_container_name = get_docker_container_name(configuration)
+
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
+            docker run --name ${docker_container_name} ${docker_image_tag}
         """
     }
 
     // Run unit-tests AND large model tests by default
     else {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME} \
-            --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
+            docker run --name ${docker_container_name} \
+            --volume ${HOME}/ONNX_CI/models_data/model_zoo/onnx_model_zoo_${ONNX_MODEL_ZOO_SHA}:/root/.onnx/model_zoo/onnx_model_zoo \
+            --volume ${HOME}/ONNX_CI/data/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+            ${docker_image_tag} /bin/bash -c "tox && tox -e zoo_models"
         """
     }
 }
@@ -130,7 +146,6 @@ def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        configuration.name = "${configuration.name}"
         configurationsMap[configuration.name] = {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
@@ -139,29 +154,22 @@ def getConfigurationsMap() {
 }
 
 CONFIGURATION_WORKFLOW = { configuration ->
-    node("OpenVino") {
+    node("OpenVINO") {
         try {
             PROJECT_NAME = "openvino"
-            WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}"
+            String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
 
             stage("Clone repository") {
-                stopPreviousRunningBuilds()
-                try {
-                    prepare_repository()
-                }
-                catch(e){
-                    sleep(time: 30, unit: "SECONDS")
-                    prepare_repository()
-                }
+                    prepare_repository(workdir)
             }
             stage("Prepare Docker environment") {
-              dir("${WORKDIR}") {
-                    buildDockerImage(configuration)
+              dir("${workdir}") {
+                    buildDockerImage(configuration, workdir)
                 }
             }
             stage("Run tests") {
-                timeout(time: 20, unit: 'MINUTES') {
-                    runTests(configuration)
+                timeout(time: 60, unit: 'MINUTES') {
+                    runTests(configuration, workdir)
                 }
             }
         }
@@ -172,15 +180,15 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 } else {
                     currentBuild.result = "FAILURE"
                 }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                def gitPrInfo = getGitPrInfo(PROJECT_NAME, workdir)
                 notifyByEmail(gitPrInfo)
         }
         finally {
             stage("Cleanup") {
                 deleteDir()
+                String docker_container_name = get_docker_container_name(configuration)
                 sh """
-                    docker rm -f ${DOCKER_CONTAINER_NAME}
-                    docker image prune -f
+                    docker rm -f ${docker_container_name}
                 """
             }
         }
@@ -191,11 +199,12 @@ pipeline {
     agent none
     options {
         skipDefaultCheckout true
-        timeout(activity: true, time: 60, unit: 'MINUTES')
+        timeout(activity: true, time: 120, unit: 'MINUTES')
     }
     stages {
         stage('Parallel CI') {
             steps {
+                stopPreviousRunningBuilds()
                 script {
                     parallelStagesMap = getConfigurationsMap()
                     parallel parallelStagesMap

@@ -6,10 +6,11 @@
 #include <memory>
 #include <string>
 
-#include "cpp/ie_infer_request.hpp"
-#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 #include "ie_remote_context.hpp"
+
+#include "cpp/ie_infer_request.hpp"
+#include "ie_infer_async_request_base.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 namespace InferenceEngine {
 
@@ -30,8 +31,8 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(NetworkNotRead)      \
         CATCH_IE_EXCEPTION(InferCancelled)
 
-#define INFER_REQ_CALL_STATEMENT(...)                                                                        \
-    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";                     \
+#define INFER_REQ_CALL_STATEMENT(...)                                                              \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                    \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -162,6 +163,8 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
     )
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
         IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
@@ -183,20 +186,22 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
     )
 }
 
-std::vector<VariableState> InferRequest::QueryState() {
-    std::vector<VariableState> controller;
-    INFER_REQ_CALL_STATEMENT(
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
-        }
-    )
-    return controller;
-}
-
 InferRequest::operator IInferRequest::Ptr () {
     INFER_REQ_CALL_STATEMENT(
         return std::make_shared<InferRequestBase>(_impl);
     )
+}
+
+IE_SUPPRESS_DEPRECATED_END
+
+std::vector<VariableState> InferRequest::QueryState() {
+    std::vector<VariableState> controller;
+    INFER_REQ_CALL_STATEMENT(
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(VariableState(state, _so));
+        }
+    )
+    return controller;
 }
 
 bool InferRequest::operator!() const noexcept {

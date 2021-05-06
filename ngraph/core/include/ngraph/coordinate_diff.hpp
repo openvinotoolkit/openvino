@@ -57,4 +57,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff);
-}
+} // namespace ngraph
