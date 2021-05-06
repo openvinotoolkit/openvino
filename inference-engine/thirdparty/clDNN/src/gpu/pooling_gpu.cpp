@@ -211,8 +211,6 @@ attach_pooling_gpu::attach_pooling_gpu() {
 
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fs_b_yx_fsv32), pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::fs_b_yx_fsv32), pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_b_yx_fsv32), pooling_gpu::create);
 }
 
 }  // namespace detail
