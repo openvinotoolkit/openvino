@@ -108,6 +108,34 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
     return true;
 }
 
+bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) const {
+    // These modes are supposed to produce BOOL output type
+    // but this kernel uses vector data types, and these operation will produce 0xFFFF / 0x0000 instead of 0 / 1 values
+    // The value might be then converted to fp16/fp32 and used for some arithmetic, which will lead to invalid results, thus reject these modes
+    // to fallback on ref kernel with scalar types.
+    // TODO: Consider updating optimized kernels to produce 0/1 output for vector code if such operation is a bottleneck in some model
+    const std::vector<EltwiseMode> unsupported_modes = {
+        EltwiseMode::EQ,
+        EltwiseMode::NE,
+        EltwiseMode::LT,
+        EltwiseMode::LE,
+        EltwiseMode::GT,
+        EltwiseMode::GE,
+        EltwiseMode::LOGIC_AND,
+        EltwiseMode::LOGIC_OR,
+        EltwiseMode::LOGIC_XOR,
+        EltwiseMode::FLOOR_MOD,
+    };
+
+    for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
+        const auto& ew =  params.operations[op_num];
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end())
+            return true;
+    }
+
+    return false;
+}
+
 JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
     JitConstants jit = {};
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {

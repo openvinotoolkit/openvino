@@ -58,6 +58,9 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_
         }
     }
 
+    if (IsUnsupportedModeForVecCode(ewParams))
+        return false;
+
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
         return false;
     }
