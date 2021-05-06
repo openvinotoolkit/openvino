@@ -42,7 +42,7 @@ class DepthwiseConv2dNativeFrontExtractor(FrontExtractorOp):
                       'kernel_spatial_idx': np.array([0, 1], dtype=np.int64),
                       'get_group': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_output_feature_dim': lambda node: node.kernel_shape[-1] * node.kernel_shape[-2],
-                      'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([2, 3, 0, 1]),
+                      'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 2, 0, 1]),
                                                                       inv=int64_array([2, 3, 0, 1]))
                       })
 
