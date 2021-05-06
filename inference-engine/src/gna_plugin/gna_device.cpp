@@ -161,15 +161,15 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
 }
 
 Gna2DeviceVersion GNADeviceHelper::getExecutionTargetDevice() const {
-    const volatile uint32_t executionTarget0x30 = 0x30;
+    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
     if (executionTarget.empty()) {
         if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-            return isGnaLibVersion2_1 ? static_cast<Gna2DeviceVersion>(executionTarget0x30) : Gna2DeviceVersion2_0;
+            return isGnaLibVersion2_1 ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
         return detectedGnaDevVersion;
     } else if (executionTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
         if (!isGnaLibVersion2_1)
-            THROW_GNA_EXCEPTION << "Unsupported GNA execution target " << executionTarget << " when GNA Library version is 2.0.X.X";
-        return static_cast<Gna2DeviceVersion>(executionTarget0x30);
+            THROW_GNA_EXCEPTION << "Unsupported GNA execution target " << executionTarget << " when GNA Library version is 2.0.X.Y";
+        return Gna2DeviceVersion3_0;
     } else if (executionTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         return Gna2DeviceVersion2_0;
     }
@@ -181,6 +181,10 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
+
+    // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
+    // (bit exactly) as on the selected GNA execution target generation.
+    // See the GNA Plugin's GNA_EXEC_TARGET config option description.
     if (swExactMode) {
         const auto consistentDevice = getExecutionTargetDevice();
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);

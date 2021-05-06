@@ -28,21 +28,18 @@ static const char target_device_message[] = "Optional. Specify a target device t
                                             "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for execution target
-static const char execution_target_message[] = "Optional (aka, GNA_EXEC_TARGET). Overrides GNA execution target generation. "
-                                               "Should be one of GNA_TARGET_2_0, GNA_TARGET_3_0 or empty. "
-                                               "When empty default value assumed: "
-                                               "If GNA HW is present, use the option corresponding to this HW. "
-                                               "If HW is not present, use the latest supported generation (i.e., GNA_TARGET_3_0 for 2021.4) "
-                                               "The \"latest supported generation\" should be the latest available HW. "
-                                               "For example, for 2021.4 (GNA_TARGET_3_0 is the latest HW), "
-                                               "GNA Plugin does not support features even if they are supported by the GNA library "
-                                               "if not available in the current GNA HW.";
+static const char execution_target_message[] = "Optional. Specify GNA execution target generation. "
+                                               "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                               "By default, generation corresponds to the GNA HW available in the system "
+                                               "or the latest fully supported generation by the software. "
+                                               "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
 /// @brief message for execution target
-static const char compile_target_message[] = "Optional (aka, GNA_COMPILE_TARGET). Overrides GNA execution target generation. "
-                                             "Should be one of GNA_TARGET_2_0, GNA_TARGET_3_0 or empty. "
-                                             "When empty default value assumed: "
-                                             "same as GNA_EXEC_TARGET";
+static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
+                                             "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                             "By default, generation corresponds to the GNA HW available in the system "
+                                             "or the latest fully supported generation by the software. "
+                                             "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
