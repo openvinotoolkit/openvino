@@ -1000,7 +1000,7 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
         }
     };
 
-    auto childs = node->childEdges;
+    auto children = node->childEdges;
     auto parents = node->parentEdges;
 
     for (size_t i = 0; i < parents.size(); i++) {
@@ -1009,10 +1009,10 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < childs.size(); j++) {
-            if (!childs[j].lock())
+        for (size_t j = 0; j < children.size(); j++) {
+            if (!children[j].lock())
                 continue;
-            auto child = childs[j].lock()->getChild();
+            auto child = children[j].lock()->getChild();
             if (!child)
                 continue;
 
@@ -1023,7 +1023,7 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
                 remEdge->drop();
                 removeEdge(*this, remEdge);
             }
-            remEdge = childs[j].lock();
+            remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
@@ -1048,7 +1048,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         }
     };
 
-    auto childs = node->childEdges;
+    auto children = node->childEdges;
     auto parents = node->parentEdges;
 
     auto parentConvEdge = parents[0].lock();
@@ -1062,10 +1062,10 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < childs.size(); j++) {
-            if (!childs[j].lock())
+        for (size_t j = 0; j < children.size(); j++) {
+            if (!children[j].lock())
                 continue;
-            auto child = childs[j].lock()->getChild();
+            auto child = children[j].lock()->getChild();
             if (!child)
                 continue;
 
@@ -1076,7 +1076,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
                 remEdge->drop();
                 removeEdge(*this, remEdge);
             }
-            remEdge = childs[j].lock();
+            remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
