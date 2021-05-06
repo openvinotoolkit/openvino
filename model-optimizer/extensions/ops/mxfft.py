@@ -9,7 +9,7 @@ from mo.ops.op import Op
 class MXFFT(Op):
     """
     This operation is intended to read MxNet operations FFT and IFFT.
-    The operation MxMetFFT has one attribute: a boolean attribute is_inverse.
+    The operation MXFFT has one attribute: a boolean attribute is_inverse.
 
     If an operation to read is FFT, then the attribute 'is_inverse' is False, and True otherwise.
 
