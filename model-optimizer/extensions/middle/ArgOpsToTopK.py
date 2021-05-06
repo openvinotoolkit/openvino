@@ -8,24 +8,24 @@ from mo.ops.concat import Concat
 from mo.ops.const import Const
 
 
-class ArgMaxToTopK(MiddleReplacementPattern):
+class ArgOpsToTopK(MiddleReplacementPattern):
     """
-        The transformation replaces ArgMax with the TopK layer.
+        The transformation replaces ArgMax/ArgMin with the TopK layer.
     """
-    op = "ArgMax"
+
     enabled = True
     force_clean_up = True
 
     def pattern(self):
         return dict(
             nodes=[
-                ('argmax', dict(op='ArgMax')),
+                ('node', dict(op=lambda x: x in ['ArgMax', 'ArgMin'])),
             ],
             edges=[]
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        node = match['argmax']
+        node = match['node']
         node_name = node.soft_get('name', node.id)
 
         connected_ports = [port for port in node.in_ports().values() if not port.disconnected()]
@@ -36,7 +36,9 @@ class ArgMaxToTopK(MiddleReplacementPattern):
 
         assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node_name)
         assert node.has_and_set('output_type'), 'The data type is not set for node "{}"'.format(node_name)
-        topk_node = TopK(graph, {'axis': axis, 'mode': 'max', 'sort': 'index',
+
+        topk_mode = 'max' if node.op == 'ArgMax' else 'min'
+        topk_node = TopK(graph, {'axis': axis, 'mode': topk_mode, 'sort': 'index',
                                  'remove_values_output': node.has_and_set('remove_values_output'),
                                  'index_element_type': node.output_type}).create_node()
         node.in_port(0).get_connection().set_destination(topk_node.in_port(0))
@@ -47,7 +49,7 @@ class ArgMaxToTopK(MiddleReplacementPattern):
             topk_node.out_port(0).connect(concat_node.in_port(1))  # indices
             topk_node.out_port(1).connect(concat_node.in_port(0))  # values
             if not node.out_port(0).disconnected():
-                node.out_port(0).get_connection().set_source(concat_node.out_port(1))
+                node.out_port(0).get_connection().set_source(concat_node.out_port(0))
         else:
             if not node.out_port(0).disconnected():
                 node.out_port(0).get_connection().set_source(topk_node.out_port(1))

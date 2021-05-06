@@ -128,6 +128,7 @@ Standard TensorFlow\* operations:
 | AddV2 | No |
 | AddN | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
@@ -398,6 +399,7 @@ Standard ONNX\* operators:
 | Add | No |
 | Affine | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asin | No |
 | Asinh | No |
 | Atan | No |
