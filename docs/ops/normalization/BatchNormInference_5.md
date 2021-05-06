@@ -4,7 +4,7 @@
 
 **Category**: *Normalization*
 
-**Short description**: *BatchNormInference* performs Batch Normalizing Transform along a data batch. [Reference](https://arxiv.org/abs/1502.03167v2)
+**Short description**: *BatchNormInference* performs Batch Normalization operation described in the [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167v2) article.
 
 **Detailed Description**
 
@@ -14,7 +14,7 @@
 \f[
    \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
 \f]
-where \f$E[x^{(k)}]\f$ and \f$Var(x^{(k)})\f$ are the mean and variance, calculated along the channel axis of the `data` input, and correspond to `mean` and `variance` inputs respectively. Additionally, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
+where \f$E[x^{(k)}]\f$ and \f$Var(x^{(k)})\f$ are the mean and variance, calculated per the channel axis of `data` input, and correspond to `mean` and `variance` inputs respectively. Additionally, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
 
 * Linear transformation of each normalized activation based on `gamma` and `beta` input, representing the scaling factor and shift respectively.
 \f[
@@ -24,7 +24,7 @@ where \f$\gamma^{(k)}\f$ and \f$\beta^{(k)}\f$ are learnable parameters, calcula
 
 **Mathematical Formulation**
 
-Let x be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, we may focus on a particular activation and ommit k.
+Let `x` be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, we may focus on a particular activation and ommit k.
 
 Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activation. *BatchNormInference* performs Batch Normalizing Transform algorithm, as follows:
 
@@ -57,8 +57,8 @@ Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activati
 **Attributes**:
 
 * *epsilon*
-  * **Description**: *epsilon* is a constant added to the variance for numerical stability
-  * **Range of values**: a positive non-zero floating-point number
+  * **Description**: *epsilon* is a constant added to the variance for numerical stability.
+  * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: none
   * **Required**: *yes*
