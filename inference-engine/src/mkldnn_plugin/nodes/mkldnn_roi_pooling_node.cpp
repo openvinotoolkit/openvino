@@ -448,8 +448,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jpp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
     jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc.getPrecision();
-    jpp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jpp.src_prc));
-    jpp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jpp.dst_prc));
+    jpp.src_data_size = jpp.src_prc.size();
+    jpp.dst_data_size = jpp.dst_prc.size();
 
     jpp.alg = getAlgorithm();
 
