@@ -10,6 +10,7 @@ from mo.ops.op import Op
 
 class ArgMinOp(Op):
     op = 'ArgMin'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
