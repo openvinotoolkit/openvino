@@ -26,7 +26,7 @@ where \f$\gamma^{(k)}\f$ and \f$\beta^{(k)}\f$ are learnable parameters, calcula
 
 Let `x` be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, we may focus on a particular activation and ommit k.
 
-Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activation. *BatchNormInference* performs Batch Normalizing Transform algorithm, as follows:
+Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activation. *BatchNormInference* performs Batch Normalization algorithm, as follows:
 
 *   **Input**: Values of \f$x\f$ over a mini-batch:
     \f[
@@ -73,7 +73,7 @@ Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activati
 
 **Outputs**
 
-* **1**: The result of batch normalizing transform along input tensor `data`. A tensor of type *T* and the same shape as `data` input tensor.
+* **1**: The result of element-wise Batch Normalization operation applied to the input tensor `data`. A tensor of type *T* and the same shape as `data` input tensor.
 
 **Types**
 
