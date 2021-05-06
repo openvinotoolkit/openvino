@@ -2,7 +2,7 @@
 
 **Versioned name**: *Convert-1*
 
-**Category**: type conversion
+**Category**: *Type conversion*
 
 **Short description**: *Convert* operation performs element-wise conversion on a given input tensor to a type specified in the *destination_type* attribute.
 
