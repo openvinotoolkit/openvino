@@ -22,6 +22,9 @@ import yaml
 from pathlib import Path
 from pprint import pprint
 
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
+
 from test_runner.utils import filter_timetest_result
 
 
