@@ -12,31 +12,22 @@ using namespace ngraph;
 using namespace ngraph::onnx_editor;
 
 onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
+    : m_node_inputs(graph_proto.node().size())
+    , m_node_outputs(graph_proto.node().size())
 {
-    update(graph_proto);
-}
-
-void onnx_editor::EdgeMapper::update(const ONNX_NAMESPACE::GraphProto& graph_proto)
-{
-    // reset state
-    m_node_inputs.clear();
-    m_node_outputs.clear();
-    m_node_name_to_index.clear();
-
     int topological_index = 0;
-    m_node_inputs.resize(graph_proto.node().size());
-    m_node_outputs.resize(graph_proto.node().size());
     for (const auto& node_proto : graph_proto.node())
     {
         for (const auto& out_name : node_proto.output())
         {
             // node output name is unique
-            m_node_name_to_index.emplace(out_name, topological_index);
+            m_node_output_name_to_index.emplace(out_name, topological_index);
             m_node_outputs[topological_index].push_back(out_name);
         }
         for (const auto& in_name : node_proto.input())
         {
             m_node_inputs[topological_index].push_back(in_name);
+            m_output_consumers_index.emplace(in_name, topological_index);
         }
         if (!node_proto.name().empty())
         {
@@ -52,28 +43,22 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
 {
     if (!output_name.empty())
     {
-        const auto& index_iter = m_node_name_to_index.find(output_name);
-        if (index_iter != std::end(m_node_name_to_index))
+        const auto& index_iter = m_node_output_name_to_index.find(output_name);
+        if (index_iter != std::end(m_node_output_name_to_index))
         {
             return std::vector<int>{index_iter->second};
         }
     }
+    std::vector<int> result;
     if (!node_name.empty())
     {
         const auto matched_nodes_range = m_node_name_to_index.equal_range(node_name);
-        std::vector<int> result;
         std::transform(matched_nodes_range.first,
                        matched_nodes_range.second,
                        std::back_inserter(result),
                        [](const std::pair<std::string, int>& iter) { return iter.second; });
-        if (!result.empty())
-        {
-            return result;
-        }
     }
-    throw ngraph_error("Node with name: " + (node_name.empty() ? "not_given" : node_name) +
-                       " and output_name: " + (output_name.empty() ? "not_given" : output_name) +
-                       " was not found");
+    return result;
 };
 
 std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int output_index) const
@@ -117,6 +102,13 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
     if (node_indexes.size() == 1)
     {
         node_index = node_indexes[0];
+    }
+    else if (node_indexes.empty())
+    {
+        throw ngraph_error(
+            "Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " was not found");
     }
     else if (!in.m_input_name
                   .empty()) // input indexes are not deterministic if a node name is ambiguous
@@ -176,6 +168,13 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
     {
         node_index = node_indexes[0];
     }
+    else if (node_indexes.empty())
+    {
+        throw ngraph_error(
+            "Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " was not found");
+    }
     else if (!out.m_output_name
                   .empty()) // output indexes are not deterministic if a node name is ambiguous
     {
@@ -222,4 +221,23 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const
 {
     return find_output_edge(EditorNode{EditorOutput{output_name}}, EditorOutput{output_name});
+}
+
+std::vector<InputEdge>
+    onnx_editor::EdgeMapper::find_output_consumers(const std::string& output_name) const
+{
+    const auto matched_nodes_range = m_output_consumers_index.equal_range(output_name);
+    std::vector<InputEdge> input_edges;
+    std::transform(matched_nodes_range.first,
+                   matched_nodes_range.second,
+                   std::back_inserter(input_edges),
+                   [&output_name](const std::pair<std::string, int>& iter) {
+                       return InputEdge{iter.second, output_name};
+                   });
+    return input_edges;
+}
+
+bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& node) const
+{
+    return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
 }

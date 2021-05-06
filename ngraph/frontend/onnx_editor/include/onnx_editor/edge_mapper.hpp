@@ -78,11 +78,23 @@ namespace ngraph
             ///
             OutputEdge find_output_edge(const std::string& output_name) const;
 
-            /// \brief Updates state of a EdgeMapper instance if a model was changed.
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
             ///
-            /// \param graph_proto Reference to a GraphProto object.
+            /// \note  The output name is deterministic in the ONNX standard.
             ///
-            void update(const ONNX_NAMESPACE::GraphProto& graph_proto);
+            /// \param output_name A node output name.
+            ///
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
+
+            /// \brief Returns true if a provided node is correct (exists in a graph)
+            ///        and is not ambiguous (identification of an ONNX node can be ambiguous
+            ///        if an only tensor name is provided).
+            ///
+            /// \param node An EditorNode helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            bool is_correct_and_unambiguous_node(const EditorNode& node) const;
 
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
@@ -93,6 +105,8 @@ namespace ngraph
             std::vector<std::vector<std::string>> m_node_inputs;
             std::vector<std::vector<std::string>> m_node_outputs;
             std::multimap<std::string, int> m_node_name_to_index;
+            std::map<std::string, int> m_node_output_name_to_index;
+            std::multimap<std::string, int> m_output_consumers_index;
         };
     }
 }

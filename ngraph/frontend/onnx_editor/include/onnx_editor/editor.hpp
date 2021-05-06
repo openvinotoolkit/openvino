@@ -12,7 +12,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_editor/edge_mapper.hpp"
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
 
@@ -166,15 +165,33 @@ namespace ngraph
             ///
             OutputEdge find_output_edge(const std::string& output_name) const;
 
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
+
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
         private:
             void update_mapper_if_needed() const;
 
             const std::string m_model_path;
-            mutable bool m_is_mapper_updated;
+            //mutable bool m_is_mapper_updated;
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
-            mutable EdgeMapper m_edge_mapper;
+            //mutable EdgeMapper m_edge_mapper;
         };
     } // namespace onnx_editor
 } // namespace ngraph

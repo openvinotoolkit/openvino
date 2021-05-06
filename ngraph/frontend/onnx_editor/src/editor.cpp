@@ -10,6 +10,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "onnx_editor/edge_mapper.hpp"
 #include "onnx_editor/editor.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
 
@@ -190,6 +191,8 @@ struct onnx_editor::ONNXModelEditor::Impl
     // leave this member here as a reference to avoid modifying a lot of code
     // TODO: reimplement it
     ONNX_NAMESPACE::ModelProto& m_model_proto = *m_shared_model_proto;
+    EdgeMapper m_edge_mapper;
+    bool m_is_mapper_updated = false;
 
     Impl() = delete;
 
@@ -204,7 +207,6 @@ struct onnx_editor::ONNXModelEditor::Impl
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
-    , m_is_mapper_updated{false}
     , m_model_path{model_path}
 {
 }
@@ -295,7 +297,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     editor.extract_subgraph(outputs);
 
     m_pimpl->remove_shape_inference_info();
-    m_is_mapper_updated = false;
+    m_pimpl->m_is_mapper_updated = false;
 }
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
@@ -385,6 +387,7 @@ int onnx_editor::ONNXModelEditor::find_producing_node_idx(const std::string& ten
 
 
 std::vector<InputEdge> onnx_editor::ONNXModelEditor::find_consuming_input_edges(const std::string& tensorName) const {
+    std::cout << "[ WARNING ] Used an extension to ONNX Editor\n";
     const auto &graph = m_pimpl->m_model_proto.graph();
     std::vector<InputEdge> result;
     for (int i = 0; i < graph.node_size(); ++i) {
@@ -427,32 +430,46 @@ bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tenso
 }
 #endif
 
+
 void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const
 {
-    if (!m_is_mapper_updated)
+    if (!m_pimpl->m_is_mapper_updated)
     {
-        m_edge_mapper.update(m_pimpl->m_model_proto.graph());
+        m_pimpl->m_edge_mapper = EdgeMapper(m_pimpl->m_model_proto.graph());
     }
-    m_is_mapper_updated = true;
+    m_pimpl->m_is_mapper_updated = true;
 }
 
 InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
                                                         const EditorInput& input) const
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_input_edge(node, input);
+    return m_pimpl->m_edge_mapper.find_input_edge(node, input);
 }
 
 OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
                                                           const EditorOutput& input) const
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_output_edge(node, input);
+    return m_pimpl->m_edge_mapper.find_output_edge(node, input);
 }
 
 OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name) const
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_output_edge(output_name);
+    return m_pimpl->m_edge_mapper.find_output_edge(output_name);
+}
+
+std::vector<InputEdge>
+    onnx_editor::ONNXModelEditor::find_output_consumers(const std::string& output_name) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.find_output_consumers(output_name);
+}
+
+bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorNode& node) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
 }
 
