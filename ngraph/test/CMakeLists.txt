@@ -236,13 +236,7 @@ set(SRC
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
-    visitors/op/reduce_logical_and.cpp
-    visitors/op/reduce_logical_or.cpp
-    visitors/op/reduce_max.cpp
-    visitors/op/reduce_mean.cpp
-    visitors/op/reduce_min.cpp
-    visitors/op/reduce_prod.cpp
-    visitors/op/reduce_sum.cpp
+    visitors/op/reduce_ops.cpp
     visitors/op/region_yolo.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
