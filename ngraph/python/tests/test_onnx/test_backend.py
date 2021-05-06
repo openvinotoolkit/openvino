@@ -167,7 +167,7 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_min_uint64_cpu"),
     (xfail_issue_46765,
      "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
-     "OnnxBackendNodeModelTest.test_argmax_keepdims_example_select_last_index_cpu",
+     # "OnnxBackendNodeModelTest.test_argmax_keepdims_example_select_last_index_cpu",
      "OnnxBackendNodeModelTest.test_argmax_no_keepdims_example_select_last_index_cpu",
      "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_example_select_last_index_cpu",
      "OnnxBackendNodeModelTest.test_argmin_keepdims_example_select_last_index_cpu",

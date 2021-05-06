@@ -15,6 +15,8 @@ namespace ngraph
             ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
                 : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)}
                 , m_axis{node.get_attribute_value<std::int64_t>("axis", 0)}
+                , m_select_last_index{
+                      node.get_attribute_value<std::int64_t>("select_last_index", 0)}
             {
                 m_input_node = node.get_ng_inputs().at(0);
             }
@@ -34,8 +36,19 @@ namespace ngraph
             {
                 const auto k_node =
                     default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
-                const auto topk = std::make_shared<default_opset::TopK>(
+                auto topk = std::make_shared<default_opset::TopK>(
                     m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
+
+                if (m_select_last_index == 1)
+                {
+                    const auto axis_node =
+                        default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
+                    const auto reverse = std::make_shared<default_opset::Reverse>(
+                        m_input_node, axis_node, default_opset::Reverse::Mode::INDEX);
+
+                    topk = std::make_shared<default_opset::TopK>(
+                        reverse, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
+                }
 
                 if (m_keep_dims == 0)
                 {
@@ -46,6 +59,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Convert>(reshaped_indices, element::i64);
                 }
+
                 return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
             }
         } // namespace utils
