@@ -54,21 +54,16 @@ if(SELECTIVE_BUILD STREQUAL "ON")
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
+                                             inference_engine
+                                             inference_engine_transformations
+                                             inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 SSE42 ANY
-                    nodes/argmax_imp.cpp
-        API         nodes/argmax_imp.hpp
-        NAME        arg_max_execute
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
                     nodes/proposal_imp.cpp
@@ -85,7 +80,6 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>

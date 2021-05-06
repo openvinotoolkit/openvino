@@ -109,14 +109,16 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["CONV_1"] = "FP32";
-        expectedPrecisions["ADD_2"] = "FP32";
+        expectedPrecisions["CONV_1"] = "BF16";
+        expectedPrecisions["ADD_2"] = "ndef";
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";
     }
 };
 
 TEST_P(ScaleshiftConv_x2_mixed2_Eltwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
