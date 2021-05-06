@@ -82,7 +82,7 @@ namespace ngraph
             std::map<std::string, int> m_tensor_consumers;
 
             /// \brief Replace the name of an input indicated by the old_edge with a new one in the
-            /// helper struct.
+            ///        helper struct.
             ///        This is used by the output contributors discovery.
             void replace_input_edge(const InputEdge& old_edge, const std::string& new_input_name);
 
