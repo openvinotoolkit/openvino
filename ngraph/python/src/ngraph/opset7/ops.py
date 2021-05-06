@@ -164,4 +164,3 @@ def idft(
         inputs = as_nodes(data, axes, signal_size)
 
     return _get_node_factory_opset7().create("IDFT", inputs)
-
