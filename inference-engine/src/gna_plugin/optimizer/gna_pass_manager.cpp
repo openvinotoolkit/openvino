@@ -371,19 +371,21 @@ namespace {
 
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
-    // conv->relu->maxpooling
-    // changing it to conv->maxpooling->relu
+    // conv->activation->maxpooling
+    // changing it to conv->maxpooling->activation
     for (auto & l : *pLayers) {
         auto pool = LayerInfo(l);
         if (!pool.isMaxPooling()) continue;
 
         // don't reorder if pooling is 2D for CNN2D
         auto pooling = dynamic_cast<PoolingLayer*>(l.get());
-        if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
+        // todo: return the check for stride after it'll be fixed in MO for Kaldi models
+        if (pooling == nullptr || (is2D(pooling->_kernel))) continue;
 
         // checking prev layer type
-        auto activation = LayerInfo(CNNNetPrevLayer(l));
-        if (!activation.isActivation()) continue;
+        auto actLayer = CNNNetPrevLayer(l);
+        auto activation = LayerInfo(actLayer);
+        if (!activation.isActivation() || actLayer->insData.size() > 1) continue;
 
         // if activation came from convolution
         auto convolution = LayerInfo(CNNNetPrevLayer(static_cast<InferenceEngine::CNNLayer*>(activation)));
@@ -1994,7 +1996,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst()) {
+        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
             return true;
         }
 
@@ -2119,7 +2121,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const or activation layer
+        // FQ Layer is fused only when previous layer is const, memory or activation layer
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();
