@@ -71,5 +71,3 @@ class RollRealImagPack(FrontReplacementSubgraph):
         pack = match['pack']
         pack.out_port(0).get_connection().set_source(unroll.out_port(0))
         graph.remove_nodes_from([match['real'].id, match['imag'].id])
-        # match['real'].in_port(0).disconnect()
-        # match['imag'].in_port(0).disconnect()
