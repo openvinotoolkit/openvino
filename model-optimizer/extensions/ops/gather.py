@@ -32,7 +32,7 @@ class Gather(Op):
     def backend_attrs(self):
         version = self.get_opset()
         if version == 'opset7':
-            return [('batch_dims', lambda node: Gather.get_batch_dims(node))]
+            return ['batch_dims']
         elif version == 'opset1':
             return []
         else:
@@ -46,7 +46,7 @@ class Gather(Op):
 
     @staticmethod
     def get_batch_dims(node: Node):
-        return node.batch_dims + Gather.get_axis(node) if node.batch_dims < 0 else node.batch_dims
+        return node.batch_dims + len(node.in_port(1).data.get_shape()) if node.batch_dims < 0 else node.batch_dims
 
     @staticmethod
     def infer(node: Node):
@@ -61,7 +61,8 @@ class Gather(Op):
         assert data_shape is not None
         indices_shape = node.in_port(1).data.get_shape()
         assert indices_shape is not None
-        assert node.in_port(2).data.get_value() is not None
+        assert node.in_port(2).data.get_value() is not None, 'Cannot define axis value for operation {}'.\
+            format(node.soft_get('name', node.id))
         axis = Gather.get_axis(node)
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports

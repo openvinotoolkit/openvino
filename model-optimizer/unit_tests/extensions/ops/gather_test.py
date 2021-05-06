@@ -99,6 +99,12 @@ class TestGatherPartialInfer(unittest.TestCase):
         self.build_and_test_shape_inference(axis=2, batch_dims=-1,
                                             data_shape=[3, 4, 7],
                                             indices_shape=[3, 1, 2],
+                                            ref_shape=[3, 4, 2])
+
+    def test_shape_axis_2_batch_dims_minus_2(self):
+        self.build_and_test_shape_inference(axis=2, batch_dims=-2,
+                                            data_shape=[3, 4, 7],
+                                            indices_shape=[3, 1, 2],
                                             ref_shape=[3, 4, 1, 2])
 
     def test_axis_0_batch_dims_0(self):
