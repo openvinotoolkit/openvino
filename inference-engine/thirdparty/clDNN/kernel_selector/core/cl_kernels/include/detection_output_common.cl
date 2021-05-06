@@ -48,6 +48,7 @@
 void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint prior_offset = idx_image * (NUM_OF_PRIORS * PRIOR_INFO_SIZE * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2)) + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
+    const uint variance_offset = NUM_OF_PRIOR_COMPONENTS + (idx_prior * PRIOR_BOX_SIZE);
     uint location_offset =
         (NUM_LOC_CLASSES * (idx_prior * PRIOR_BOX_SIZE) + idx_image * INPUT0_FEATURE_NUM + idx_class * PRIOR_BOX_SIZE) *
         LOC_XY_SIZE_PRODUCT +
@@ -86,10 +87,10 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
             // variance is encoded in bbox, we need to scale the offset accordingly.
             for(uint i = 0; i < PRIOR_BOX_SIZE; i++)
             {
-                decoded_bbox[i] = 
-                    mad(input_prior_box[NUM_OF_PRIOR_COMPONENTS + i], // prior variances are places after prior bboxes
-                        input_location[location_offset],
-                        prior_bboxes[i]);
+                decoded_bbox[i] =
+                    prior_bboxes[i] +
+                    input_prior_box[variance_offset + i] *
+                    input_location[location_offset];
 
                 location_offset += LOC_XY_SIZE_PRODUCT;
             }
@@ -119,10 +120,10 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
         else
         {
             // variance is encoded in bbox, we need to scale the offset accordingly.
-            decode_bbox_center_x = input_prior_box[NUM_OF_PRIOR_COMPONENTS] * bbox_xmin * prior_width + prior_center_x;
-            decode_bbox_center_y = input_prior_box[NUM_OF_PRIOR_COMPONENTS + 1] * bbox_ymin * prior_height + prior_center_y;
-            decode_bbox_width = (exp(input_prior_box[NUM_OF_PRIOR_COMPONENTS + 2] * bbox_xmax) * prior_width) / 2;
-            decode_bbox_height = (exp(input_prior_box[NUM_OF_PRIOR_COMPONENTS + 3] * bbox_ymax) * prior_height) / 2;
+            decode_bbox_center_x = input_prior_box[variance_offset] * bbox_xmin * prior_width + prior_center_x;
+            decode_bbox_center_y = input_prior_box[variance_offset + 1] * bbox_ymin * prior_height + prior_center_y;
+            decode_bbox_width = (exp(input_prior_box[variance_offset + 2] * bbox_xmax) * prior_width) / 2;
+            decode_bbox_height = (exp(input_prior_box[variance_offset + 3] * bbox_ymax) * prior_height) / 2;
         }
 
         decoded_bbox[0] = decode_bbox_center_x - decode_bbox_width;
@@ -150,10 +151,10 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
         else
         {
             // variance is encoded in bbox, we need to scale the offset accordingly.
-            decoded_bbox[0] = prior_bboxes[0] + input_prior_box[NUM_OF_PRIOR_COMPONENTS] * bbox_xmin * prior_width;
-            decoded_bbox[1] = prior_bboxes[1] + input_prior_box[NUM_OF_PRIOR_COMPONENTS + 1] * bbox_ymin * prior_height;
-            decoded_bbox[2] = prior_bboxes[2] + input_prior_box[NUM_OF_PRIOR_COMPONENTS + 2] * bbox_xmax * prior_width;
-            decoded_bbox[3] = prior_bboxes[3] + input_prior_box[NUM_OF_PRIOR_COMPONENTS + 3] * bbox_ymax * prior_height;
+            decoded_bbox[0] = prior_bboxes[0] + input_prior_box[variance_offset] * bbox_xmin * prior_width;
+            decoded_bbox[1] = prior_bboxes[1] + input_prior_box[variance_offset + 1] * bbox_ymin * prior_height;
+            decoded_bbox[2] = prior_bboxes[2] + input_prior_box[variance_offset + 2] * bbox_xmax * prior_width;
+            decoded_bbox[3] = prior_bboxes[3] + input_prior_box[variance_offset + 3] * bbox_ymax * prior_height;
         }
     }
     if (CLIP_BEFORE_NMS)
