@@ -110,10 +110,8 @@ void SplitTransformation::updateOutputs(
                 std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
                 std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
                 if (outputNode.get() == lastNode.get()) {
-                    std::ostringstream oss;
-                    oss << i;
                     originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-                    lastNode->set_friendly_name(originalName + "." + oss.str());
+                    lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                     break;
                 }
             }
