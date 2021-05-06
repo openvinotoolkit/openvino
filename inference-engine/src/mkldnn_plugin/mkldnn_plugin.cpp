@@ -486,8 +486,8 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 total_convs++;
 
                 std::cout << " kernel is " << shape[2] << "x" << shape[3];
-//                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 5 && shape[3] >= 5) {
+                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+//                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 5 && shape[3] >= 5) {
                     std::cout << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
                     continue;
@@ -655,13 +655,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
                     std::cout << "case 2" <<std::endl;
                 } else {
-//                    if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedMuch) {
+                    if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedMuch) {
                         num_streams = std::min(default_num_streams, num_streams_default_not_ht);
                         std::cout << "case 3" << std::endl;
-//                    } else {
-//                        num_streams = 8; //hard-coding for 8270 experiment
-//                        std::cout << "case 3.1" << std::endl;
-//                    }
+                    } else {
+                        num_streams = default_num_streams/2;
+                        std::cout << "case 3.1" << std::endl;
+                    }
                 }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
 
