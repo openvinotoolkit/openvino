@@ -362,7 +362,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
-            return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+            return true;//MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
         });
         lptManager.run_passes(nGraphFunc);
     }
