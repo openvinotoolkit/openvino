@@ -27,7 +27,7 @@ Inference Engine Extension dynamic library contains the following components:
 
 The Inference Engine workflow involves the creation of custom kernels and either custom or existing operations.
 
-An _operation_ is a network building block implemented in the training frameworkfor example, `Convolution` in Caffe*.
+An _operation_ is a network building block implemented in the training framework, for example, `Convolution` in Caffe*.
 A _kernel_ is defined as the corresponding implementation in the Inference Engine.
 
 Refer to the [Model Optimizer Extensibility](../../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
