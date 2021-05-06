@@ -40,7 +40,11 @@ The table below lists the supported operating systems and Python* versions requi
 
 ## Install the Developer Package
 
-### Step 1. Set Up Python Virtual Environment
+### Step 1. Install External Software Dependencies
+
+On Windows* OS you are required to install [Microsoft* Visual C++ Redistributable Package (x64)](https://visualstudio.microsoft.com/downloads/#microsoft-visual-c-redistributable-for-visual-studio-2019) to be able to run OpenVINO™ applications.
+
+### Step 2. Set Up Python Virtual Environment
 
 To avoid dependency conflicts, use a virtual environment. Skip this
    step only if you do want to install all dependencies globally.
@@ -58,7 +62,7 @@ On Windows:
 python -m venv openvino_env
 ```
 
-### Step 2. Activate Virtual Environment
+### Step 3. Activate Virtual Environment
 
 On Linux and macOS:
 ```sh
@@ -69,14 +73,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update pip to the Highest Version
+### Step 4. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+### Step 5. Install the Package
 
 Run the command below: <br>
 
@@ -84,7 +88,7 @@ Run the command below: <br>
    pip install openvino-dev
    ```
 
-### Step 5. Verify that the Package is Installed
+### Step 6. Verify that the Package is Installed
 
 Run the command below (this may take a few seconds):
 ```sh
