@@ -70,5 +70,6 @@ class RollRealImagPack(FrontReplacementSubgraph):
         add_constant_to_negative_values(unroll, 2, int64_array(-1))
         pack = match['pack']
         pack.out_port(0).get_connection().set_source(unroll.out_port(0))
-        match['real'].in_port(0).disconnect()
-        match['imag'].in_port(0).disconnect()
+        graph.remove_nodes_from([match['real'].id, match['imag'].id])
+        # match['real'].in_port(0).disconnect()
+        # match['imag'].in_port(0).disconnect()
