@@ -34,6 +34,7 @@ namespace ngraph
             {
                 auto eps_casted = static_cast<T>(eps);
 
+                size_t in_idx = 0;
                 CoordinateTransform in_transform(in_shape);
                 for (Coordinate in_coord : in_transform)
                 {
@@ -43,9 +44,9 @@ namespace ngraph
                     auto ch_mean = mean[ch_num];
                     auto ch_var = variance[ch_num];
 
-                    auto in_idx = in_transform.index(in_coord);
                     auto normalized = norm(in[in_idx], ch_mean, ch_var, eps_casted);
                     out[in_idx] = normalized * ch_gamma + ch_beta;
+                    in_idx++;
                 }
             }
         } // namespace reference
