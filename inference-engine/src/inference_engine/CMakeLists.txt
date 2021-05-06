@@ -8,6 +8,11 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4 QUIET)
     if (TBBBIND_2_4_FOUND)
         message(STATUS "Static tbbbind_2_4 package was found")
+
+        # WA: need to update TBBBind_2_4 package
+        set_target_properties(TBBbind::tbbbind_2_4 PROPERTIES
+            MAP_IMPORTED_CONFIG_MINSIZEREL Release
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
     endif()
 endif()
 
