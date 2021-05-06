@@ -57,9 +57,9 @@ void op::util::GatherBase::validate_and_infer_types()
     {
         int64_t axis = get_axis();
 
-        // batch_dims, axis both can e positive by default or if data_rank & indices_rank are
-        // static and batch_dims, axis are successfully normalized to positive.
-        // If at least one of them is negative we cannot check their consistency
+        // batch_dims, axis both can be positive by default or after normalization if data_rank &
+        // indices_rank are static. If at least one of them is negative we cannot check their
+        // consistency.
         NODE_VALIDATION_CHECK(this,
                               batch_dims >= 0 && axis >= 0 && batch_dims <= axis,
                               "The batch_dims <= axis. But instead got: batch_dims = ",
