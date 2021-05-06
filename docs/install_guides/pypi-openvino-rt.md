@@ -28,7 +28,7 @@ The table below lists supported operating systems and Python* versions required 
 | :------------------------------------------------------------| :---------------------------------------------------|
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7, 3.8                                       |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
 |   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |

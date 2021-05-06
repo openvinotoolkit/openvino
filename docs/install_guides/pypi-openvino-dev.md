@@ -31,12 +31,12 @@ The table below lists the supported operating systems and Python* versions requi
 | :------------------------------------------------------------| :---------------------------------------------------|
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7, 3.8                                       |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
 |   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
 
-> **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
+> **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
 ## Install the Developer Package
 
@@ -46,13 +46,17 @@ To avoid dependency conflicts, use a virtual environment. Skip this
    step only if you do want to install all dependencies globally.
 
 Create virtual environment:
+
+On Linux and macOS:
 ```sh
-python -m pip install --user virtualenv 
-python -m venv openvino_env
+# Depending on your OS, this step may require installing python3-venv
+python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
-`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+On Windows: 
+```sh
+python -m venv openvino_env
+```
 
 ### Step 2. Activate Virtual Environment
 
@@ -93,4 +97,3 @@ You will see the help message for Post-Training Optimization Tool if installatio
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-
