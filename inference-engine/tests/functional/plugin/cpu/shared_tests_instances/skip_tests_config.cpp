@@ -53,15 +53,19 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 42538. Unexpected application crush
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
+            // TODO: 53618. BF16 gemm ncsp convolution crush
+        R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
+            // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
+        R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)"
 
         // incorrect reference implementation
         R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
-        // lpt transformation produce the same names for MatMul and Multiply
+            // lpt transformation produce the same names for MatMul and Multiply
         R"(.*MatMulTransformation.*)",
-        // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
+            // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
-        // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
+            // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 

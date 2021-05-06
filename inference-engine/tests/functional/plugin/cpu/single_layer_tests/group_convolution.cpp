@@ -254,7 +254,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Gemm_BF16, GroupConvolutionLayerCPUTe
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::Values(conv_gemm_2D_nspc), //todo [mkutakov]: gemm bf16 group conv ncsp failure
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_2D)),
                                 ::testing::ValuesIn(fusingParamsSetBF16)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
@@ -301,7 +301,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Gemm_BF16, GroupConvolutionLayerCPUTe
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::Values(conv_gemm_3D_nspc), //todo [mkutakov]: gemm bf16 group conv ncsp failure
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_3D)),
                                 ::testing::ValuesIn(fusingParamsSetBF16)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
@@ -595,30 +595,28 @@ const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = gener
         //  2. jcp.im2col_sz (=0,>0)
         //  3. is_blocking_applicable (true, false)
 
-        // todo [mkutakov]: gemm bf16 convolution failures for ncsp layout
-
         //  is_depthwise == false, im2col_sz > 0
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 2, 2, { conv_gemm_2D_nspc }, vecPrcConnectParams),
+                                        2, 1, {5, 5}, 2, 2, CPUParams_Gemm_2D, vecPrcConnectParams),
         //  is_depthwise == true
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID, 2, 1, {5, 5}, 1, 1,
-                                        { conv_gemm_2D_nspc }, vecPrcConnectParams),
+                                        CPUParams_Gemm_2D, vecPrcConnectParams),
         //  im2col_sz == 0, is_blocking_applicable == true
         makeSingleGroupConvCPUTestCases({1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 2, 2, { conv_gemm_2D_nspc }, vecPrcConnectParams),
+                                        2, 1, {5, 5}, 2, 2, CPUParams_Gemm_2D, vecPrcConnectParams),
         //  is_blocking_applicable == false ((jcp.im2col_sz == 0) && (jcp.ic / jcp.oc >= 42))
         makeSingleGroupConvCPUTestCases({1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 42, 1, { conv_gemm_2D_nspc }, vecPrcConnectParams),
+                                        2, 1, {5, 5}, 42, 1, CPUParams_Gemm_2D, vecPrcConnectParams),
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {129, 129}, 4, 2, { conv_gemm_2D_nspc }, vecPrcConnectParamsDefault),
+                                        3, 2, {129, 129}, 4, 2, CPUParams_Gemm_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10}, 3, 3, { conv_gemm_2D_nspc }, vecPrcConnectParamsDefault),
+                                        2, 1, {10, 10}, 3, 3, CPUParams_Gemm_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {33, 33, 33}, 4, 2, { conv_gemm_3D_nspc }, vecPrcConnectParamsDefault),
+                                        3, 2, {33, 33, 33}, 4, 2, CPUParams_Gemm_3D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10, 10}, 3, 3, { conv_gemm_3D_nspc }, vecPrcConnectParams)
+                                        2, 1, {10, 10, 10}, 3, 3, CPUParams_Gemm_3D, vecPrcConnectParams)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_GEMM_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(gemmGroupConvTestCases)),
@@ -854,11 +852,10 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCas
                                         avx512_DW_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT, 16, 1, {10, 10}, 1, 1,
                                         avx512_DW_2D, vecPrcConnectParamsDefault),
-        // todo [mkutakov]: fork DW bf16 convolution does not support 3d cases yet 53578
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        16, 2, {33, 33, 33}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32Default),
+                                        16, 2, {33, 33, 33}, 1, 1, avx512_DW_3D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32)
+                                        16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D, vecPrcConnectParams)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
