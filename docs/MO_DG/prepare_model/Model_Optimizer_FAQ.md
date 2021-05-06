@@ -174,7 +174,7 @@ Model Optimizer tried to infer a specified layer via the Caffe\* framework, howe
 
 #### 13. What does the message "Cannot infer shapes due to exception in Caffe" mean? <a name="question-13"></a>
 
-Model Optimizer tried to infer a custom layer via the Caffe\* framework, but an error occurred, meaning that the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases that result in problems with layers that have dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Model Optimizer Extensibility](Customize_Model_Optimizer.md).
+Model Optimizer tried to infer a custom layer via the Caffe\* framework, but an error occurred, meaning that the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases that result in problems with layers that have dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 14. What does the message "Cannot infer shape for node {} because there is no Caffe available. Please register python infer function for op or use Caffe for shape inference" mean? <a name="question-14"></a>
 
@@ -258,7 +258,7 @@ This error occurs when the `SubgraphMatch._add_output_node` function is called m
 
 #### 35. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean? <a name="question-35"></a>
 
-While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please refer to [Model Optimizer Extensibility](Customize_Model_Optimizer.md) for more details.
+While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) for more details.
 
 #### 36. What does the message "Cannot write an event file for the TensorBoard to directory" mean? <a name="question-36"></a>
 
