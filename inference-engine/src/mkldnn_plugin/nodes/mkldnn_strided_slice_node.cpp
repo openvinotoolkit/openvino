@@ -54,13 +54,15 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
     if (isSupportedOperation(op, errorMessage)) {
         const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
 
+        const size_t nDims = std::max(inDims[DATA_ID].ndims(), outDims[0].ndims());
+
         auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
             std::vector<int> mask(origMask.begin(), origMask.end());
             if (needReverse) {
                 for (size_t i = 0; i < mask.size(); i++)
                     mask[i] = 1 - mask[i];
             }
-            for (size_t i = mask.size(); i < outDims[0].ToSizeVector().size(); ++i) mask.push_back(bit);
+            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
             return mask;
         };
 
@@ -74,7 +76,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
             ellipsisMask.push_back(o);
         }
         if (ellipsisMask.size() == 0) {
-            for (size_t i = ellipsisMask.size(); i < outDims[0].ToSizeVector().size(); ++i) ellipsisMask.push_back(0);
+            for (size_t i = ellipsisMask.size(); i < nDims; ++i) ellipsisMask.push_back(0);
         }
 
     } else {

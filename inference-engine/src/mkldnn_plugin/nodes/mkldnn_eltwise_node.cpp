@@ -377,13 +377,9 @@ private:
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseTanh, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSigmoid, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseSquare, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseAbs, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSqrt, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseLinear, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseBoundedRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSoftRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseRelu6, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseExp, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseClamp, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSwish, jit_mkldnn_aux_emitter),
@@ -440,13 +436,9 @@ private:
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseTanh, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSigmoid, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseSquare, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseAbs, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSqrt, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseLinear, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseBoundedRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSoftRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(EltwiseRelu6, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseExp, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseClamp, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseSwish, jit_mkldnn_aux_emitter),
@@ -957,10 +949,9 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, co
 
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     switch (getAlgorithm()) {
-        case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs: case EltwiseSqrt:
-        case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp: case EltwiseErf:
+        case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseAbs: case EltwiseSqrt:
+        case EltwiseSoftRelu: case EltwiseExp: case EltwiseClamp: case EltwiseErf: case EltwiseLogicalNot: case EltwisePowerStatic:
         case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
-        case EltwiseLogicalNot: case EltwisePowerStatic:
             return 1;
         case EltwiseAdd: case EltwiseSubtract: case EltwiseMultiply: case EltwiseDivide: case EltwiseFloorMod: case EltwiseMod: case EltwiseMaximum:
         case EltwiseMinimum: case EltwiseSquaredDifference: case EltwisePowerDynamic: case EltwiseEqual: case EltwiseNotEqual: case EltwiseGreater:
@@ -1610,8 +1601,8 @@ void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src
             float* dst_ptr_f = reinterpret_cast<float *>(dst_ptr + index_out);
 
             switch (getAlgorithm()) {
-                case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs:
-                case EltwiseSqrt: case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp:
+                case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseAbs:
+                case EltwiseSqrt: case EltwiseSoftRelu: case EltwiseExp: case EltwiseClamp:
                 case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
                     *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
                 case EltwiseAdd:               *dst_ptr_f = src_f[0] + src_f[1]; break;

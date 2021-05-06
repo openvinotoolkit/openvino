@@ -979,10 +979,6 @@ Config MKLDNNGraph::getProperty() const {
 
 void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
     for (auto &it : inputNodesMap) {
-// TODO [NM]: Do we still need this?
-//        MKLDNNInputNode* node = dynamic_cast<MKLDNNInputNode*>(it.second.get());
-//        if (!node || node->isConstant())
-//            continue;
         resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
     }
 }

@@ -551,6 +551,10 @@ public:
         return typeStr;
     }
 
+    void setTypeStr(const std::string &typeStr) {
+        this->typeStr = typeStr;
+    }
+
     virtual size_t descInputNumbers(MKLDNNDescriptor desc) {
         return desc.inputNumbers();
     }
@@ -783,7 +787,7 @@ private:
     mkldnn::engine engine;
 
     std::string name;
-    const std::string typeStr;
+    std::string typeStr;
     Type type;
     int execIndex = -1;
 

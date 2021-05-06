@@ -16,6 +16,7 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
                                          const std::string& errorMessage) :
         MKLDNNNode(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
     setType(Reference);
+    setTypeStr("Reference");
 }
 
 void MKLDNNReferenceNode::getSupportedDescriptors() {}

@@ -771,9 +771,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDN
             continue;
         }
 
-        if (!one_of(fuseCandidate->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
+        if (!one_of(fuseCandidate->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
                                                    EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                                                   EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt, EltwiseSoftRelu)) {
+                                                   EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu)) {
             parent++;
             continue;
         }
@@ -945,7 +945,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr child) {
         return child->getType() == Eltwise &&
-                one_of(child->getAlgorithm(), EltwiseRelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseSwish, EltwiseHswish,
+                one_of(child->getAlgorithm(), EltwiseRelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseSwish, EltwiseHswish,
                                               EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu);
     };
 
