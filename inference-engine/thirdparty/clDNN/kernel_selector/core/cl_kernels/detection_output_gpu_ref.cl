@@ -149,7 +149,12 @@ KERNEL (detection_output_stage_0)(
         {
             for (uint idx_class = 0; idx_class < NUM_LOC_CLASSES; idx_class++)
             {
-                int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + NUM_LOC_CLASSES * idx_class + idx_prior;
+                int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
+                if (!SHARE_LOCATION && loc_label == BACKGROUND_LABEL_ID)
+                {
+                    continue;
+                }
+                int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS + idx_prior;
                 UNIT_TYPE decoded_bbox[4];
                 FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, idx_prior, idx_class, idx_image);
                 BBOXES_INFO bbox_info;
@@ -248,7 +253,7 @@ KERNEL (detection_output_stage_2)(
             int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
             int acc_num = buffer3[scores_size_offset];
             int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
-            int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + NUM_LOC_CLASSES * loc_label;
+            int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + loc_label * NUM_OF_PRIORS;
             int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
 
             //printf("detection_output_stage_2 |                 test_overlap1=[%f] vs test_overlap2=[%f]\n",
@@ -361,7 +366,7 @@ KERNEL (detection_output_stage_final)(
         //    {
         //        SCORES_INFO score_info;
         //        score_info = selectedScoresList[scores_offset + idx_score];
-        //        printf("detection_output_stage_1 | scoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", scores_offset + idx_score, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
+        //        printf("detection_output_stage_final | selectedScoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", scores_offset + idx_score, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
         //    }
         //}
     }
@@ -379,7 +384,7 @@ KERNEL (detection_output_stage_final)(
             }
             int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
             int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
-            int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + NUM_LOC_CLASSES * loc_label;
+            int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + loc_label * NUM_OF_PRIORS;
             for (uint idx_score = 0; idx_score < acc_num; idx_score++)
             {
                 SCORES_INFO score_info;
