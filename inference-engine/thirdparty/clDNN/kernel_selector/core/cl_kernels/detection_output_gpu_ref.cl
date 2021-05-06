@@ -42,10 +42,11 @@ inline void FUNC(swap_scores_info)(__global SCORES_INFO* a, __global SCORES_INFO
 
 inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h)
 {
-    UNIT_TYPE x = arr[h].score;
+    UNIT_TYPE pivotScore = arr[h].score;
+    int pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
-        if (arr[j].score >= x) {
+        if ((arr[j].score > pivotScore) || (arr[j].score == pivotScore && arr[j].boxId > pivotBoxId)) {
             i++;
             FUNC_CALL(swap_scores_info)(&arr[i], &arr[j]);
         }
