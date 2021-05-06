@@ -30,27 +30,25 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     auto image_size = node_context.get_ng_input("ImgSize");
 
     auto input_shape = data.get_partial_shape();
-    int32_t input_height = input_shape[2].get_length();
-    int32_t input_width = input_shape[3].get_length();   
+    uint32_t input_height = input_shape[2].get_length();
+    uint32_t input_width = input_shape[3].get_length();   
 
     int32_t class_num = node_context.get_attribute<int32_t>("class_num");
     // PDPD anchors attribute is of type int32. Convert to float for computing convinient.
     auto _anchors = node_context.get_attribute<std::vector<int32_t>>("anchors");
-    std::vector<float> anchors;
-    anchors.resize(_anchors.size());    
-    std::transform(_anchors.begin(), _anchors.end(), anchors.begin(), [](int i) {return static_cast<float>(i); });
+    std::vector<float> anchors(_anchors.begin(), _anchors.end());
 
-    int32_t num_anchors = anchors.size()/2; 
+    uint32_t num_anchors = anchors.size()/2; 
 
     auto default_scale = 1.0f;
     auto scale_x_y = node_context.get_attribute<float>("scale_x_y", default_scale);
     auto downsample_ratio = node_context.get_attribute<int32_t>("downsample_ratio");
     auto input_size = input_height * downsample_ratio;
 
-    auto conf_thresh = node_context.get_attribute<float>("conf_thresh");
-    std::vector<float> conf_thresh_mat((float)num_anchors * input_height * input_width, conf_thresh);
-
     std::vector<int64_t> score_shape {1, input_height * input_width * num_anchors, class_num};
+    
+    auto conf_thresh = node_context.get_attribute<float>("conf_thresh");
+    std::vector<float> conf_thresh_mat(score_shape[1], conf_thresh);
 
     std::cout << "input_height: " << input_height << " input_width: " << input_width << " input_size: " << input_size<< std::endl;
     std::cout << "num_anchors: " << num_anchors << " scale_x_y: " << scale_x_y << std::endl;
@@ -69,26 +67,19 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     auto node_x_transpose = std::make_shared<Transpose>(node_x_reshape, node_input_order); 
 
     //  range x/y
-    std::vector<float> range_x, range_y;
-    for (int32_t i = 0; i < input_width; i++)
-    {
-        range_x.push_back(i);
-    }
-    for (int32_t j = 0; j < input_height; j++)
-    {
-        range_y.push_back(j);
-    }
-    auto node_range_x = Constant::create<float>(f32, {range_x.size()}, range_x);
-    auto node_range_y = Constant::create<float>(f32, {range_y.size()}, range_y);
+    std::vector<float> range_x(input_width);
+    std::iota(range_x.begin(), range_x.end(), 0);
+    std::vector<float> range_y(input_height);
+    std::iota(range_y.begin(), range_y.end(), 0);
     
-    auto node_range_x_new_shape = Constant::create<int64_t>(i64, {2}, {1, input_width});
-    auto node_range_y_new_shape = Constant::create<int64_t>(i64, {2}, {input_height, 1});
+    auto node_range_x = Constant::create<float>(f32, {1, range_x.size()}, range_x);
+    auto node_range_y = Constant::create<float>(f32, {range_y.size(), 1}, range_y);
+    
+    auto node_range_x_shape = Constant::create<int64_t>(i64, {2}, {1, input_width});
+    auto node_range_y_shape = Constant::create<int64_t>(i64, {2}, {input_height, 1});
                                                  
-    auto node_range_x_reshape = std::make_shared<Reshape>(node_range_x, node_range_x_new_shape, false); 
-    auto node_range_y_reshape = std::make_shared<Reshape>(node_range_y, node_range_y_new_shape, false); 
-
-    auto node_grid_x = std::make_shared<Tile>(node_range_x_reshape, node_range_y_new_shape);
-    auto node_grid_y = std::make_shared<Tile>(node_range_y_reshape, node_range_x_new_shape);
+    auto node_grid_x = std::make_shared<Tile>(node_range_x, node_range_y_shape);
+    auto node_grid_y = std::make_shared<Tile>(node_range_y, node_range_x_shape);
 
     // main X (part2)
     auto node_split_axis = Constant::create<int64_t>(i64, {1}, {-1});
@@ -136,13 +127,10 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     auto node_box_y_encode = std::make_shared<Divide>(node_box_y_add_grid, node_input_h); 
 
     // w/h
-    auto node_anchor_tensor = Constant::create<float>(f32, {anchors.size()}, anchors); //FIXME:Paddle2ONNX use float!
-
-    auto node_anchor_shape = Constant::create<int64_t>(i64, {2}, {num_anchors, 2});
-    auto node_anchor_tensor_reshape = std::make_shared<Reshape>(node_anchor_tensor, node_anchor_shape, false);
+    auto node_anchor_tensor = Constant::create<float>(f32, {num_anchors, 2}, anchors); //FIXME:Paddle2ONNX use float!
 
     auto node_input_size = Constant::create<float>(f32, {1}, {(float)input_size});
-    auto node_anchors_div_input_size = std::make_shared<Divide>(node_anchor_tensor_reshape, node_input_size);    
+    auto node_anchors_div_input_size = std::make_shared<Divide>(node_anchor_tensor, node_input_size);    
   
     auto split_axis = Constant::create<int32_t>(i32, {}, {1});
     auto node_anchor_split = std::make_shared<Split>(node_anchors_div_input_size, split_axis, 2);
@@ -167,11 +155,9 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     // confidence
     auto node_conf_sigmoid = std::make_shared<Sigmoid>(node_conf);
 
-    auto node_conf_thresh = Constant::create<float>(f32, {conf_thresh_mat.size()}, conf_thresh_mat);
-    auto node_conf_shape = Constant::create<int64_t>(i64, {5}, {1, num_anchors, input_height, input_width, 1});
-    auto node_conf_thresh_reshape = std::make_shared<Reshape>(node_conf_thresh, node_conf_shape, false);
+    auto node_conf_thresh = Constant::create<float>(f32, {1, num_anchors, input_height, input_width, 1}, conf_thresh_mat);
 
-    auto node_conf_sub = std::make_shared<Subtract>(node_conf_sigmoid, node_conf_thresh_reshape);
+    auto node_conf_sub = std::make_shared<Subtract>(node_conf_sigmoid, node_conf_thresh);
 
     auto node_conf_clip = std::make_shared<Clamp>(node_conf_sub, 0.0f, std::numeric_limits<float>::max()); //FIXME: PDPD not specify min/max
 
