@@ -16,9 +16,13 @@ def parse_args() -> argparse.Namespace:
     """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
+    model = parser.add_mutually_exclusive_group(required=True)
+
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    args.add_argument('-m', '--model', required=True, type=str,
-                      help='Required. Path to an .xml or .onnx file with a trained model.')
+    model.add_argument('-m', '--model', type=str,
+                       help='Path to an .xml file with a trained model (required if -rg is missing).')
+    model.add_argument('-rg', '--import_gna_model', type=str,
+                       help='Read GNA model from file using path/filename provided (required if -m is missing).')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an utterance file.')
     args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save inference results.')
     args.add_argument('-r', '--reference', type=str,
@@ -30,6 +34,8 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16)')
+    args.add_argument('-wg', '--export_gna_model', type=str,
+                      help='Optional. Write GNA model to file using path/filename provided.')
 
     return parser.parse_args()
 
@@ -189,47 +195,58 @@ def main():
     ie = IECore()
 
 # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
-    log.info(f'Reading the network: {args.model}')
-    # (.xml and .bin files) or (.onnx file)
-    net = ie.read_network(model=args.model)
+    if args.model:
+        log.info(f'Reading the network: {args.model}')
+        # (.xml and .bin files) or (.onnx file)
+        net = ie.read_network(model=args.model)
 
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
-    log.info('Configuring input and output blobs')
-    # Get names of input and output blobs
-    input_blob = next(iter(net.input_info))
-    out_blob = next(iter(net.outputs))
+        log.info('Configuring input and output blobs')
+        # Get names of input and output blobs
+        input_blob = next(iter(net.input_info))
+        out_blob = next(iter(net.outputs))
 
-    # Set input and output precision manually
-    net.input_info[input_blob].precision = 'FP32'
-    net.outputs[out_blob].precision = 'FP32'
-    net.batch_size = args.batch_size
+        # Set input and output precision manually
+        net.input_info[input_blob].precision = 'FP32'
+        net.outputs[out_blob].precision = 'FP32'
+        net.batch_size = args.batch_size
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
-    use_gna = 'GNA' in args.device
-    use_hetero = 'HETERO' in args.device
-
     devices = args.device.replace('HETERO:', '').split(',')
-    plugin_config = None
+    plugin_config = {}
 
-    if use_gna:
+    if 'GNA' in args.device:
         gna_device_mode = devices[0] if '_' in devices[0] else 'GNA_AUTO'
         devices[0] = 'GNA'
+
+        plugin_config['GNA_DEVICE_MODE'] = gna_device_mode
+        plugin_config['GNA_PRECISION'] = f'I{args.quantization_bits}'
+
         # Get a GNA scale factor
-        utterances = read_utterance_file(args.input)
-        key = sorted(utterances)[0]
-        scale_factor = get_scale_factor(utterances[key])
-        log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
+        if args.import_gna_model:
+            log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
+        else:
+            utterances = read_utterance_file(args.input)
+            key = sorted(utterances)[0]
+            scale_factor = get_scale_factor(utterances[key])
+            log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
 
-        plugin_config = {
-            'GNA_DEVICE_MODE': gna_device_mode,
-            'GNA_PRECISION': f'I{args.quantization_bits}',
-            'GNA_SCALE_FACTOR': str(scale_factor),
-        }
+            plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
 
-    device_str = f'HETERO:{",".join(devices)}' if use_hetero else devices[0]
+    device_str = f'HETERO:{",".join(devices)}' if 'HETERO' in args.device else devices[0]
 
     log.info('Loading the model to the plugin')
-    exec_net = ie.load_network(net, device_str, plugin_config)
+    if args.model:
+        exec_net = ie.load_network(net, device_str, plugin_config)
+    else:
+        exec_net = ie.import_network(args.import_gna_model, device_str, plugin_config)
+        input_blob = next(iter(exec_net.input_info))
+        out_blob = next(iter(exec_net.outputs))
+
+    if args.export_gna_model:
+        log.info(f'Writing GNA Model to {args.export_gna_model}')
+        exec_net.export(args.export_gna_model)
+        return 0
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
 # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
