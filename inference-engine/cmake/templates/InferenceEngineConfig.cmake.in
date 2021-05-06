@@ -61,6 +61,9 @@ function(_ie_target_no_deprecation_error)
     endif()
 endfunction()
 
+set(InferenceEngine_inference_engine_FOUND ON)
+set(InferenceEngine_inference_engine_c_api_FOUND ON)
+
 if(TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
 else()
