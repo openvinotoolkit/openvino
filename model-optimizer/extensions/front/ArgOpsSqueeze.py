@@ -7,22 +7,21 @@ from mo.ops.const import Const
 from mo.ops.squeeze import Squeeze
 
 
-class ArgMaxSqueeze(FrontReplacementSubgraph):
+class ArgOpsSqueeze(FrontReplacementSubgraph):
     """
-        In some frameworks ArgMax operation has keepdims attribute that indicates whether to stay a dimension along
-        which maximum is computed or not. In case of keepdims=0 this dimension should be removed but ArgMax operation in
-        IR format is not designed to cover this case. So we should additionally add Squeeze operation right after ArgMax
-        for this case.
+        In some frameworks ArgMax/ArgMin operation has keepdims attribute that indicates whether to stay a dimension
+        along which maximum is computed or not. In case of keepdims=0 this dimension should be removed but ArgMax/ArgMin
+        operation in IR format is not designed to cover this case. So we should additionally add Squeeze operation right
+        after ArgMax/ArgMin for this case.
     """
-    op = "ArgMax"
     enabled = True
 
     def pattern(self):
-        return dict(nodes=[('argmax', dict(op='ArgMax', keepdims=0))],
+        return dict(nodes=[('node', dict(op=lambda x: x in ['ArgMax', 'ArgMin'], keepdims=0))],
                     edges=[])
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        node = match['argmax']
+        node = match['node']
 
         connected_ports = [port for port in node.in_ports().values() if not port.disconnected()]
         squeeze_node = Squeeze(graph, dict()).create_node([], dict(name=node.name + '/Squeeze'))
