@@ -164,6 +164,7 @@ namespace
 
     /// \brief Inserts a new input to the graph and connects it to the node designated by an input
     ///        edge passed to this function.
+    /// \note  input_consumers is number of nodes which consume a new input
     /// \return A new input edge (along with "true") if a new input was added to the graph,
     ///         false + the original edge otherwise.
     std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& graph,
@@ -325,14 +326,10 @@ void SubgraphExtractor::add_new_outputs(const std::vector<OutputEdge>& new_outpu
 }
 
 void SubgraphExtractor::replace_input_edge(const InputEdge& old_edge,
-                                           const std::string& new_edge_name)
+                                           const std::string& new_input_name)
 {
-    // remove the old edge from the helper map and insert a new edge
-    const auto pos_to_replace_it =
-        m_node_inputs.at(old_edge.m_node_idx).begin() + old_edge.m_port_idx;
-
-    m_node_inputs.at(old_edge.m_node_idx).erase(pos_to_replace_it);
-    m_node_inputs.at(old_edge.m_node_idx).insert(pos_to_replace_it, new_edge_name);
+    // set a new name of an input indicated by the old_edge
+    m_node_inputs.at(old_edge.m_node_idx).at(old_edge.m_port_idx) = new_input_name;
 }
 
 void SubgraphExtractor::extract_subgraph(std::vector<OutputEdge> subgraph_outputs)
