@@ -203,7 +203,9 @@ public:
 
 const std::vector<InterpolateTransformationTestValues> testValues {
     // opset1
-    // nearest mode - move dequantization
+    // nearest mode - transformed
+    // LP input and LP output for Interpolate
+    // not drop accuracy due to just movement process, and for precision propogation.
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
@@ -230,7 +232,9 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
-    // mode is not nearest - transformed
+    // mode is linear - transformed
+    // LP input and float precision output for Interpolate
+    // execution precision is float, keep output of float for accuracy
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
@@ -252,12 +256,41 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::u8,
             {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // mode is cubic - transformed
+    // LP input and float precision output for Interpolate
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(
+            ngraph::AxisSet{2, 3},
+            "cubic",
+            false,
+            false,
+            {0},
+            {0}),
+        interp4Attributes(),
+        1,
+        {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {-0.32f}, {0.1f}}
         }
     },
 
     // AxisSet is not {2,3} - not transformed
+    // float precision input and float precision output for Interpolate
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 8, 32, 32 },
@@ -279,7 +312,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ngraph::element::f32,
             {{}, {}, {}}
         }
     },
@@ -306,7 +339,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ngraph::element::f32,
             {{}, {}, {}}
         }
     },
@@ -333,7 +366,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ngraph::element::f32,
             {{}, {}, {}}
         }
     },
@@ -364,7 +397,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
-    // mode is not nearest - transformed
+    // mode is linear_onnx - transformed
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
@@ -384,8 +417,58 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::i8,
             {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // mode is linear - transformed
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::linear,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
             ngraph::element::i8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // mode is cubic - transformed
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::cubic,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {-0.32f}, {0.1f}}
         }
     },
 
@@ -409,7 +492,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::i8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::i8,
+            ngraph::element::f32,
             {{}, {}, {}}
         }
     },
@@ -434,7 +517,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         {
             ngraph::element::i8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::i8,
+            ngraph::element::f32,
             {{}, {}, {}}
         }
     },

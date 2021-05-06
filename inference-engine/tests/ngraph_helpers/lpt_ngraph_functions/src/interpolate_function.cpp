@@ -62,7 +62,10 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
-    const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(quantizationOpBefore, outShape, interpAttrs);
+    const std::shared_ptr<ngraph::Node> interpolate = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Interpolate>>(
+        opset1::Interpolate(quantizationOpBefore, outShape, interpAttrs),
+        std::vector<ngraph::element::Type>{quantizationOpBefore->get_output_element_type(0), ngraph::element::i64},
+        std::vector<ngraph::element::Type>{precisionAfterOperation});
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(interpolate, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 
@@ -128,7 +131,10 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
     const auto scales = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{ scalesShape.size() }, scalesShape);
-    const auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(quantizationOpBefore, outShape, scales, interpAttrs);
+    const std::shared_ptr<ngraph::Node> interpolate = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v4::Interpolate>>(
+        opset4::Interpolate(quantizationOpBefore, outShape, scales, interpAttrs),
+        std::vector<ngraph::element::Type>{quantizationOpBefore->get_output_element_type(0), ngraph::element::i64, ngraph::element::f32},
+        std::vector<ngraph::element::Type>{precisionAfterOperation});
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(interpolate, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 

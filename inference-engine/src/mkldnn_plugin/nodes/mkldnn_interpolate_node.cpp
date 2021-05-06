@@ -1723,13 +1723,7 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
         const auto &interpMode = interpAttr.mode;
         if (interpMode == ngInterpMode::nearest) {
             mode = InterpolateMode::nearest;
-        } else if (interpMode == ngInterpMode::linear) {
-            if (dataRank < 5) {
-                mode = InterpolateMode::linear_onnx;
-            } else {
-                mode = InterpolateMode::linear;
-            }
-        } else if (interpMode == ngInterpMode::linear_onnx) {
+        } else if (interpMode == ngInterpMode::linear_onnx || interpMode == ngInterpMode::linear) {
             mode = InterpolateMode::linear_onnx;
         } else if (interpMode == ngInterpMode::cubic) {
             mode = InterpolateMode::cubic;
@@ -1884,7 +1878,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     if ((inputPrecision == Precision::BF16) && !mayiuse(avx512_core)) {
         inputPrecision = Precision::FP32;
     }
-    Precision outputPrecision = inputPrecision;
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
