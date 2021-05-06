@@ -310,7 +310,10 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
 
             src = port.get_connection().get_source()
-            port.get_connection().set_source(reverse_channels_copy.out_port(0))
+            if src.node.soft_get('type') == 'Parameter':
+                port.get_connection().set_source(reverse_channels_copy.out_port(0), attributes_save_mode="source")
+            else:
+                port.get_connection().set_source(reverse_channels_copy.out_port(0))
             src.connect(reverse_channels_copy.in_port(0))
 
             copies.append(reverse_channels_copy)
