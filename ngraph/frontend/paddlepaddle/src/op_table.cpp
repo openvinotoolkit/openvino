@@ -73,7 +73,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"cast", op::cast},
             {"softmax", op::softmax},
             {"split", op::split},
-            {"assign", op::assign_value},
+            {"assign_value", op::assign_value},
             {"clip", op::clip},
             {"fill_constant", op::fill_constant},
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
@@ -82,9 +82,10 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"nearest_interp", op::nearest_interp_v2},
             {"pad3d", op::pad3d},
             {"slice", op::slice},
-            {"squeeze", op::squeeze},
-            {"unsqueeze", op::unsqueeze},
-            {"yolo_box", op::yolo_box}
+            {"squeeze2", op::squeeze},
+            {"unsqueeze2", op::unsqueeze},
+            {"yolo_box", op::yolo_box},
+            {"flatten_contiguous_range", op::flatten_contiguous_range}
     };
 };
 
