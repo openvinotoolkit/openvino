@@ -10,7 +10,7 @@
 
 *BatchNormInference* performs the following operations on a given data batch input tensor `data`:
 
-* Normalize each activation \f$x^{(k)}\f$ by the mean and variance.
+* Normalizes each activation \f$x^{(k)}\f$ by the mean and variance.
 \f[
    \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
 \f]
