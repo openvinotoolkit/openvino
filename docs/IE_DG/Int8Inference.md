@@ -27,7 +27,7 @@ Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github
 ```sh
 ./downloader.py --name resnet-50-tf --precisions FP16-INT8
 ```
-After that you should quantize model by [Model Quantizer](@ref omz_tools_downloader) tool.
+After that you should quantize model by the [Model Quantizer](@ref omz_tools_downloader) tool.
 ```sh
 ./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
@@ -35,7 +35,7 @@ The simplest way to infer the model and collect performance counters is [C++ Ben
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
-If you infer the model in the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
+If you infer the model with the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
@@ -46,7 +46,7 @@ For 8-bit integer computations, a model must be quantized. Quantized models can 
 
    When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
 
-2. *Run-time stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to update the model to infer it in low precision:
+2. *Runtime stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to update the model to infer it in low precision:
    - Update `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
    - Weights are quantized and stored in `Constant` layers. 
 

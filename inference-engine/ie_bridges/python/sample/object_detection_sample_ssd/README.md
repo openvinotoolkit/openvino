@@ -21,7 +21,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data.  
+On startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data.  
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 You can see the explicit description of

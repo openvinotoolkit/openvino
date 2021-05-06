@@ -152,7 +152,7 @@ You're ready to configure the Host Machine for networking.
 This step is for the combined Model Developer and Independent Software Vendor roles. If Model User VM is running on different physical host, repeat the following steps for that host also.
 
 In this step you prepare two network bridges:
-* A global IP address that a KVM can access across the Internet. This is the address that the OpenVINO™ Security Add-on Run-time software on a user's machine uses to verify they have a valid license.
+* A global IP address that a KVM can access across the Internet. This is the address that the OpenVINO™ Security Add-on runtime software on a user's machine uses to verify they have a valid license.
 * A host-only local address to provide communication between the Guest VM and the QEMU host operating system.
 
 This example in this step uses the following names. Your configuration might use different names:

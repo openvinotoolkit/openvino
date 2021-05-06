@@ -27,7 +27,7 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
 ```sh
 python hello_classification.py -h
@@ -68,7 +68,7 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+For example, to perform inference of an image using a pre-trained model on a GPU, run the following command:
 
 ```sh
 python hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU

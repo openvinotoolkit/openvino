@@ -1,10 +1,9 @@
 # Extending Model Optimizer with Caffe* Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
 
 This section provides instruction on how to support a custom Caffe operation written only in Python. For example, the
-[Faster-R-CNN model]((http://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0)) implemented in
-Caffe contains a custom layer Proposal written in Python. The layer is described in the
-[Faster-R-CNN protoxt](https://raw.githubusercontent.com/rbgirshick/py-faster-rcnn/master/models/pascal_voc/VGG16/faster_rcnn_end2end/test.prototxt)
-the following way:
+[Faster-R-CNN model](http://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0) implemented in
+Caffe contains a custom proposal layer written in Python. The layer is described in the
+[Faster-R-CNN prototxt](https://raw.githubusercontent.com/rbgirshick/py-faster-rcnn/master/models/pascal_voc/VGG16/faster_rcnn_end2end/test.prototxt) in the following way:
 ```sh
 layer {
   name: 'proposal'

@@ -46,7 +46,7 @@ Here, the `register_operator` function is called in the constructor of Extension
 The example below demonstrates how to unregister an operator from the destructor of Extension:
 @snippet template_extension/extension.cpp extension:dtor
 
-> **NOTE**: It is mandatory to unregister a custom ONNX operator if it is defined in a dynamic shared library.
+> **REQUIRED**: It is mandatory to unregister a custom ONNX operator if it is defined in a dynamic shared library.
 
 ## Requirements for Building with CMake
 

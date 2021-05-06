@@ -44,8 +44,8 @@ To request the internal context of the given `ExecutableNetwork`, use the `GetCo
 
 ## Shared Blob User-Side Wrappers
 
-The classes that implement the `RemoteBlob` interface both are wrappers for native API 
-memory handles (which can be obtained from them at any moment) and act just like regular OpenVINO™ 
+The classes that implement the `RemoteBlob` interface are both wrappers for native API 
+memory handles (which can be obtained from them at any time) and act just like regular OpenVINO™ 
 `Blob` objects.
 
 Once you obtain the context, you can use it to compile a new `ExecutableNetwork` or create `RemoteBlob` 

@@ -73,7 +73,7 @@ Limitations include:
 
 #### Experimental Support for 2D Convolutions
 
-The Intel® GNA hardware natively supports only 1D convolution.
+The Intel® GNA hardware natively supports only 1D convolutions.
 
 However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
 

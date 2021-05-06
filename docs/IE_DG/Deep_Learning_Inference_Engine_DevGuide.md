@@ -1,11 +1,10 @@
 # Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
-> **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+> **NOTE:** [Intel® System Studio](https://software.intel.com/content/www/us/en/develop/tools/oneapi/commercial-base-iot.html) (click "Intel® System Studio Users" tab) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
-This Guide provides an overview of the Inference Engine describing the typical workflow for performing
-inference of a pre-trained and optimized deep learning model and a set of sample applications.
+This Guide provides an overview of the Inference Engine describing the typical workflow for performing inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
+> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in runtime using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -22,7 +21,7 @@ For complete API Reference, see the [Inference Engine API References](./api_refe
 Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
 
 ## Modules in the Inference Engine component
-### Core Inference Engine Libraries ###
+### Core Inference Engine Libraries
 
 Your application must link to the core Inference Engine libraries:
 * Linux* OS:
@@ -39,7 +38,7 @@ This library contains the classes to:
 * Manipulate network information (InferenceEngine::CNNNetwork)
 * Execute and pass inputs and outputs (InferenceEngine::ExecutableNetwork and InferenceEngine::InferRequest)
 
-### Plugin Libraries to Read a Network Object ###
+### Plugin Libraries to Read a Network Object
 
 Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
 * Linux* OS:
@@ -49,7 +48,7 @@ Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwo
     - `inference_engine_ir_reader.dll` to read a network from IR
     - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
 
-### Device-Specific Plugin Libraries ###
+### Device-Specific Plugin Libraries
 
 For each supported target device, Inference Engine provides a plugin — a DLL/shared library that contains complete implementation for inference on this particular device. The following plugins are available:
 

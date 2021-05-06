@@ -14,7 +14,7 @@ You can find more information, including preferred data types for specific devic
 
 ## Lowering Inference Precision
 Default optimization is used for CPU and implies that inference is made with lower precision if it is possible on a given platform to reach better performance with acceptable range of accuracy.
-This approach is used for CPU device if platform supports the AVX512_BF16 instruction. In this case, a regular float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation and inference is provided with bfloat16 layers usage.
+This approach can be used for CPU devices where the platform supports the AVX512_BF16 instruction. In this case, a regular float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation and inference is provided with bfloat16 layers usage.
 Below is the example command line to disable this feature on the CPU device with the AVX512_BF16 instruction and execute regular float32.
 ```
 $ benchmark_app -m <model.xml> -enforcebf16=false

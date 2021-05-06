@@ -27,7 +27,7 @@ Transformation flow in the transformation library has several layers:
 2. Transformations - Perform a particular transformation algorithm on `ngraph::Function`.
 3. Low-level functions - Take a set of nodes and perform some transformation action.
 They are not mandatory and all transformation code can be located inside the transformation.
-But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as a separate functions.
+But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as separate functions.
 
 ### Location for Your Transformation Code
 To decide where to store your transformation code, please follow these rules:

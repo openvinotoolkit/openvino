@@ -94,6 +94,13 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Image Classification demo script</strong></summary>
 
+To preview the image that the script will classify:
+
+```sh
+cd ${INTEL_OPENVINO_DIR}/deployment_tools/demo
+eog car.png
+```
+
 To run the script to perform inference on a CPU:
 
 ```sh
@@ -173,11 +180,12 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Benchmark demo script</strong></summary>
 
-To run the script that performs inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
+To run the script that performs inference (runs on CPU by default):
 
 ```sh
-./demo_squeezenet_download_convert_run.sh -d HDDL
+./demo_benchmark_app.sh
 ```
+
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>
 
@@ -513,6 +521,24 @@ source /opt/intel/openvino_2021/bin/setupvars.sh
 - Model: Neural Network topology converted with the Model Optimizer to the IR format (.bin and .xml files). See <a href="#download-models">Download Models</a> for more information.
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
+
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos_README) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
+build_samples.sh
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+build_demos.sh
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `~/inference_engine_samples_build/intel64/Release`
+* `~/inference_engine_cpp_samples_build/intel64/Release`
+* `~/inference_engine_demos_build/intel64/Release`
 
 Template to call sample code or a demo application:
 

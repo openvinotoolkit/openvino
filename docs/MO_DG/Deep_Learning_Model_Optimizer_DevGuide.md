@@ -68,7 +68,7 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 > **NOTE:** 
 > [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
-## Table of Content
+## Table of Contents
 
 * [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
     * [Configuring Model Optimizer](prepare_model/Config_Model_Optimizer.md)

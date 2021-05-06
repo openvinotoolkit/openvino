@@ -96,6 +96,8 @@ The script:
 
 To run the script to perform inference on a CPU:
 
+1. Open the `car.png` file in any image viewer to see what the demo will be classifying.
+2. Run the following script:
 ```bat
 .\demo_squeezenet_download_convert_run.bat
 ```
@@ -167,10 +169,10 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Benchmark demo script</strong></summary>
 
-To run the script that performs inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
+To run the script that performs inference (runs on CPU by default):
 
 ```bat
-.\demo_squeezenet_download_convert_run.bat -d HDDL
+.\demo_benchmark_app.bat
 ```
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>
@@ -481,6 +483,24 @@ Below you can find basic guidelines for executing the OpenVINO™ workflow using
 - Model: Neural Network topology converted with the Model Optimizer to the IR format (.bin and .xml files). See <a href="#download-models">Download Models</a> for more information.
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
+
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later and Microsoft Visual Studio 2017 or 2019 installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos_README) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR\inference_engine_samples\cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>\inference_engine\samples\c
+build_samples_msvc.bat
+cd $INTEL_OPENVINO_DIR\deployment_tools\open_model_zoo\demos
+build_demos_msvc.bat
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
+* `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
+* `C:\Users\<username>\Documents\Intel\OpenVINO\omz_demos_build\intel64\Release`
 
 Template to call sample code or a demo application:
 
