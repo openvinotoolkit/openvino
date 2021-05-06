@@ -34,7 +34,6 @@ class SliceReplacerTest(unittest.TestCase):
         graph = build_graph(nodes_attrs=nodes, edges=[
             ('input', 'tfslice'),
             *connect_front('begin:0', '1:tfslice'),
-            *connect_front('begin:0', '0:john_doe'),
             *connect_front('size:0', '2:tfslice'),
             *connect_front('tfslice:0', 'output'),
         ], nodes_with_edges_only=True)
@@ -46,7 +45,6 @@ class SliceReplacerTest(unittest.TestCase):
             *connect_front('input:0', 'slice'),
             *connect_front('input:0', 'shapeof'),
             *connect_front('begin:0', 'slice:1'),
-            *connect_front('begin:0', 'john_doe:1'),
 
             *connect_front('begin:0', 'end_const:0'),
             *connect_front('size:0', 'end_const:1'),
