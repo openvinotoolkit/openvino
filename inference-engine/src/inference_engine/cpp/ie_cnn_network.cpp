@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_icnn_network.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "exception2status.hpp"
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
@@ -11,7 +11,7 @@
 namespace InferenceEngine {
 
 CNNNetwork::CNNNetwork() :
-    network(), actual(), output() {
+    network(), actual() {
 }
 
 CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network)
@@ -121,6 +121,12 @@ void CNNNetwork::reshape(const ICNNNetwork::InputShapes& inputShapes) {
 
 void CNNNetwork::serialize(const std::string& xmlPath, const std::string& binPath) const {
     CALL_STATUS_FNC(serialize, xmlPath, binPath);
+}
+
+std::string CNNNetwork::getOVNameForTensor(const std::string& orig_name) const {
+    std::string ov_name;
+    CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
+    return ov_name;
 }
 
 }  // namespace InferenceEngine

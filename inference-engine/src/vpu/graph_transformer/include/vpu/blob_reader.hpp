@@ -8,7 +8,6 @@
 #include <utility>
 
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 
 #include <vpu/backend/blob_format.hpp>
 #include <vpu/model/data_desc.hpp>

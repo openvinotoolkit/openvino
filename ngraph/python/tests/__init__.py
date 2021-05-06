@@ -103,7 +103,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
@@ -159,3 +158,7 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 
 xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")
+
+xfail_issue_49359 = xfail_test(reason="DFT is not implemented in CPU plugin")
+xfail_issue_49375 = xfail_test(reason="IDFT is not implemented in CPU plugin")
+xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")

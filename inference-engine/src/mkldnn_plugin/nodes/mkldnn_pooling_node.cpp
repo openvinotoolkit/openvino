@@ -104,6 +104,9 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         effective_pad_end[i] = (dst - calc_dst) * stride[i];
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
+        //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
+        if (outputDataType == memory::data_type::bf16)
+            outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
