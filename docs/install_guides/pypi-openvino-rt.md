@@ -8,7 +8,7 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
+The Intel® Distribution of OpenVINO™ toolkit\*:
 - Enables CNN-based deep learning inference on the edge
 - Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
@@ -20,15 +20,16 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | [Inference Engine](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_inference_engine_intro.html)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
 ## System Requirements
+The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
 
-The table below lists the supported operating systems and Python* versions required to run the installation.
+The table below lists supported operating systems and Python* versions required to run the installation.
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7                                            |
-|   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.7, 3.8                                       |
+|   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
 
