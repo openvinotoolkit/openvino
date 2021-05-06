@@ -62,9 +62,6 @@ std::vector<std::string> disabledTestPatterns() {
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
-        // shared SLT test
-        R"(.*TensorIteratorCommonClip/TensorIteratorTest.*)",
-
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",

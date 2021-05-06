@@ -1312,6 +1312,7 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
         } else if (childNode->getType() == Eltwise) {
             auto childs = childNode->childEdges;
             auto parents = childNode->parentEdges;
+            auto initialParentInNum = parentNode->getParentEdges().size();
 
             for (size_t i = 0; i < parents.size(); i++) {
                 auto p_edge = parents[i].lock();
@@ -1350,20 +1351,25 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                     }
                 } else {
                     MKLDNNEdgePtr &remEdge = p_edge;
+                    auto parentEltwise = parentNode;
                     int inNum = 0;
+                    int outNum = parentNode->getParentEdges().size();
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
+                        // Need to keep order for MulAdd
+                        if (childNode->getAlgorithm() == EltwiseMulAdd) {
+                            outNum = initialParentInNum + remEdge->getOutputNum() - 1;
+                        }
                         remEdge->drop();
                         removeEdge(graph, remEdge);
                     }
 
-                    auto parentEltwise = parentNode;
-                    MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
+                    MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentNode, inNum, outNum));
                     auto &graphEdges = graph.GetEdges();
                     graphEdges.push_back(newEdge);
                     parent->addEdge(newEdge);
 
-                    parentEltwise->inDims.push_back(parent->outDims[0]);
+                    parentNode->inDims.push_back(parent->outDims[0]);
                 }
             }
 
