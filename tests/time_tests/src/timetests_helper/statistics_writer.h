@@ -23,6 +23,7 @@ private:
   std::map<std::pair<int, std::string>, std::pair<std::string, float>> time_structure;
   std::map<std::string, int> order_structure;
   int tab_count = 0;
+  int order = 0;
 
   StatisticsWriter() = default;
   StatisticsWriter(const StatisticsWriter &) = delete;
@@ -53,8 +54,9 @@ public:
   /**
    * @brief Compute order for statistics operations.
    */
-  void addOrderCount(const std::pair<std::string, int> &order_record) {
-    order_structure.insert(order_record);
+  void addOrderCount(const std::string name) {
+    order++;
+    order_structure.insert(std::make_pair(name, order));
     tab_count++;
   }
 
