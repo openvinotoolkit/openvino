@@ -47,7 +47,7 @@
 
 void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
-    const uint prior_offset = idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
+    const uint prior_offset = idx_image * (NUM_OF_PRIORS * PRIOR_INFO_SIZE * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2)) + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
     uint location_offset =
         (NUM_LOC_CLASSES * (idx_prior * PRIOR_BOX_SIZE) + idx_image * INPUT0_FEATURE_NUM + idx_class * PRIOR_BOX_SIZE) *
         LOC_XY_SIZE_PRODUCT +
