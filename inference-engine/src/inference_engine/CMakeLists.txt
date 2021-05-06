@@ -66,6 +66,10 @@ if(ENABLE_SSE42)
     ie_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
+
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")
+        set_source_files_properties(${SSE_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
 endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
@@ -109,7 +113,7 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
-    UNITY
+    UNITY PCH PRIVATE "precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API

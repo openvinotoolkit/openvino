@@ -664,6 +664,15 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
     }
 }
 
+static bool BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+    return childNode->getType() == Quantize &&
+        one_of(Precision::BF16,
+            parentNode->getCnnLayer()->precision,
+            childNode->getCnnLayer()->precision,
+            parentNode->getCnnLayer()->outData[0].get()->getPrecision(),
+            childNode->getCnnLayer()->outData[0].get()->getPrecision());
+}
+
 void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -750,6 +759,12 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSutableChildNode(parentNode, childNode)) {
+            parent++;
+            continue;
+        }
+
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
             parent++;
             continue;
         }
@@ -1011,6 +1026,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSutableChildNode(child)) continue;
 
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parent, child))
+            continue;
+
         parent->fuseWith(child);
 
         auto parents = child->parentEdges;
@@ -1073,6 +1092,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
             continue;
         }
 
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
+            parent++;
+            continue;
+        }
+
         parentNode->fuseWith(childNode);
 
         if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
@@ -1116,6 +1141,10 @@ void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) 
 
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSutableChildNode(parent, child)) continue;
+
+        //  BF16 Quantize Layer Fusing Disabling
+        if (BF16QuantizeNodeFusing(parent, child))
+            continue;
 
         parent->fuseWith(child);
 
