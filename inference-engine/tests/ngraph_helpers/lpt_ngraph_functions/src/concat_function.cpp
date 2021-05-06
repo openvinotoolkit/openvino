@@ -490,12 +490,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
 
-std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
+std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
@@ -550,7 +550,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecis
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
@@ -1259,12 +1259,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
 
-std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPrecisionOnChilds(
+std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const bool multiChannel,
@@ -1340,7 +1340,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPreci
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
