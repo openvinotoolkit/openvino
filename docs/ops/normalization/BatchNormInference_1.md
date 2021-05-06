@@ -10,23 +10,23 @@
 
 *BatchNormInference* performs the following operations on a given data batch input tensor `data`:
 
-* Normalize each activation \f$x^{(k)}\f$ by means of the mean and variance.
+* Normalize each activation \f$x^{(k)}\f$ by the mean and variance.
 \f[
    \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
 \f]
-where \f$E[x^{(k)}]\f$ and \f$Var(x^{(k)})\f$ are the mean and variance, calculated per the channel axis of `data` input, and correspond to `mean` and `variance` inputs respectively. Additionally, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
+where \f$E[x^{(k)}]\f$ and \f$Var(x^{(k)})\f$ are the mean and variance, calculated per channel axis of `data` input, and correspond to `mean` and `variance` inputs, respectively. Additionally, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
 
-* Linear transformation of each normalized activation based on `gamma` and `beta` input, representing the scaling factor and shift respectively.
+* Performs linear transformation of each normalized activation based on `gamma` and `beta` input, representing the scaling factor and shift, respectively.
 \f[
    \hat{y}^{(k)}=\gamma^{(k)}\hat{x}^{(k)} + \beta^{(k)}
 \f]
-where \f$\gamma^{(k)}\f$ and \f$\beta^{(k)}\f$ are learnable parameters, calculated along the channel axis, and correspond to `gamma` and `beta` inputs.
+where \f$\gamma^{(k)}\f$ and \f$\beta^{(k)}\f$ are learnable parameters, calculated per channel axis, and correspond to `gamma` and `beta` inputs.
 
 **Mathematical Formulation**
 
-Let `x` be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, we may focus on a particular activation and ommit k.
+Let `x` be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, you can focus on a particular activation and omit k.
 
-Considering a mini-batch \f$\mathcal{B}\f$ of m values for a particular activation. *BatchNormInference* performs Batch Normalization algorithm, as follows:
+For a particular activation, consider a mini-batch \f$\mathcal{B}\f$ of m values. *BatchNormInference* performs Batch Normalization algorithm as follows:
 
 *   **Input**: Values of \f$x\f$ over a mini-batch:
     \f[
