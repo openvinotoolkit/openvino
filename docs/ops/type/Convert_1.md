@@ -4,7 +4,7 @@
 
 **Category**: type conversion
 
-**Short description**: Operation converts all elements of the input tensor to a type specified in the *destination_type* attribute.
+**Short description**: *Convert* operation performs element-wise conversion on a given input tensor to a type specified in the *destination_type* attribute.
 
 **Detailed description**
 
@@ -21,13 +21,13 @@ o_{i} = convert(a_{i})
 
   * **Description**: the destination type
   * **Range of values**: one of the supported types *T*
-  * **Type**: string
+  * **Type**: `string`
   * **Default value**: None
   * **Required**: *Yes*
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
