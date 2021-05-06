@@ -86,7 +86,7 @@ def roll(
 
 
 @nameable_op
-def Gather(
+def gather(
         data: NodeInput,
         indices: NodeInput,
         axis: NodeInput,
