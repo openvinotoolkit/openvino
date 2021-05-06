@@ -18,4 +18,5 @@ split_test2,
 squeeze_null_axes,
 unsqueeze,
 yolo_box_test1,
-flatten_contiguous_range_test1
+flatten_contiguous_range_test1,
+clip
