@@ -11,7 +11,7 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
-class ConcatWithDifferentChildsTransformationParam {
+class ConcatWithDifferentChildrenTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
@@ -21,16 +21,16 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string, // target device: CPU, GPU
-    ConcatWithDifferentChildsTransformationParam,
+    ConcatWithDifferentChildrenTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     // multichannel
-    bool> ConcatWithDifferentChildsTransformationParams;
+    bool> ConcatWithDifferentChildrenTransformationParams;
 
-class ConcatWithDifferentChildsTransformation :
-    public testing::WithParamInterface<ConcatWithDifferentChildsTransformationParams>,
+class ConcatWithDifferentChildrenTransformation :
+    public testing::WithParamInterface<ConcatWithDifferentChildrenTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildsTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
