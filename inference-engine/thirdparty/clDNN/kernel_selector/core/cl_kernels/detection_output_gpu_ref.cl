@@ -370,7 +370,7 @@ KERNEL (detection_output_stage_final)(
         //    }
         //}
     }
-    printf("gpu kernel result =====================================\n");
+    //printf("gpu kernel result =====================================\n");
     int count = 0;
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
@@ -409,7 +409,7 @@ KERNEL (detection_output_stage_final)(
                 output[count * OUTPUT_ROW_SIZE + 4] = ymin;
                 output[count * OUTPUT_ROW_SIZE + 5] = xmax;
                 output[count * OUTPUT_ROW_SIZE + 6] = ymax;
-                printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
+                //printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
                 ++count;
             }
         }
@@ -424,9 +424,9 @@ KERNEL (detection_output_stage_final)(
         output[count * OUTPUT_ROW_SIZE + 4] = 0.f;
         output[count * OUTPUT_ROW_SIZE + 5] = 0.f;
         output[count * OUTPUT_ROW_SIZE + 6] = 0.f;
-        printf("[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n");
+        //printf("[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n");
         ++count;
     }
-    printf("===============================================\n");
+    //printf("===============================================\n");
 }
 #endif  /* IS_THIRD_ITER */
