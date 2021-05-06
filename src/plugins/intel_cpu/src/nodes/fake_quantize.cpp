@@ -1159,7 +1159,29 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                     quantizationOnly = false;
             }
 
-            algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
+            bool isFakeQuantization = true;
+            bool isFakeQuantizationWithScale = true;
+            for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+                float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+                float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+                float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+                float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+
+                isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
+                isFakeQuantizationWithScale = isFakeQuantizationWithScale && ol != 0 && oh != 0 && (il / ol - ih / oh < 0.1f);
+            }
+
+            if (isFakeQuantizationWithScale) {
+                for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+                    float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+                    float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+
+                    fqScales.push_back(1 / (il / ol));
+                }
+            }
+
+            algorithm = quantizationOnly ? Algorithm::FQQuantization :
+                        (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1828,8 +1850,8 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
     if (getAlgorithm() == Algorithm::FQBinarization) {
         ops.append_binarization(dnnl::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
     } else {
-        dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon ? dnnl::algorithm::quantization_quantize_dequantize :
-                                                                        dnnl::algorithm::quantization_quantize;
+        dnnl::algorithm alg = getAlgorithm() == Algorithm::FQQuantization ? dnnl::algorithm::quantization_quantize :
+                                                                            dnnl::algorithm::quantization_quantize_dequantize;
 
         std::array<bool, 6> per_channel = {cropLowSize > 1, cropHighSize > 1, inputScaleSize > 1,
                                            inputShiftSize > 1, outputScaleSize > 1, outputShiftSize > 1};

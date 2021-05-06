@@ -114,6 +114,8 @@ public:
         outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
     }
 
+    const std::vector<float>& getFQScales() const { return fqScales; }
+
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
@@ -194,6 +196,8 @@ private:
     size_t inputShiftSize;
     size_t outputScaleSize;
     size_t outputShiftSize;
+
+    std::vector<float> fqScales;
 
     // onednn style post ops data representation
     bool isPostOpDataInitialized = false;
