@@ -77,14 +77,14 @@ typedef std::tuple <
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
-class ConcatWithDifferentChildsTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatTransformationParams> {
+class ConcatWithDifferentChildrenTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape inputShape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
+        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
             precision,
             inputShape,
             testValues.actual.fakeQuantize1,
@@ -100,7 +100,7 @@ public:
         transform.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithDifferentPrecisionOnChilds(
+        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
             precision,
             inputShape,
             testValues.multiChannels,
@@ -128,7 +128,7 @@ public:
     }
 };
 
-TEST_P(ConcatWithDifferentChildsTransformation, CompareFunctions) {
+TEST_P(ConcatWithDifferentChildrenTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
@@ -239,10 +239,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
-    ConcatWithDifferentChildsTransformation,
+    ConcatWithDifferentChildrenTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
-    ConcatWithDifferentChildsTransformation::getTestCaseName);
+    ConcatWithDifferentChildrenTransformation::getTestCaseName);
 }  // namespace

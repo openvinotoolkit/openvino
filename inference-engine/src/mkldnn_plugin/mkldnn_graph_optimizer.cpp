@@ -1310,7 +1310,7 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
 
             graph.DropNode(childNode);
         } else if (childNode->getType() == Eltwise) {
-            auto childs = childNode->childEdges;
+            auto children = childNode->childEdges;
             auto parents = childNode->parentEdges;
             auto initialParentInNum = parentNode->getParentEdges().size();
 
@@ -1321,10 +1321,10 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                 if (!parent) continue;
 
                 if (parent == parentNode) {
-                    for (size_t j = 0; j < childs.size(); j++) {
-                        if (!childs[j].lock())
+                    for (size_t j = 0; j < children.size(); j++) {
+                        if (!children[j].lock())
                             continue;
-                        auto child = childs[j].lock()->getChild();
+                        auto child = children[j].lock()->getChild();
                         if (!child)
                             continue;
 
@@ -1335,7 +1335,7 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                             remEdge->drop();
                             removeEdge(graph, remEdge);
                         }
-                        remEdge = childs[j].lock();
+                        remEdge = children[j].lock();
                         int outNum = 0;
                         if (remEdge) {
                             outNum = remEdge->getOutputNum();

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/concat_with_different_precision_on_childs.hpp"
+#include "low_precision_transformations/concat_with_different_precision_on_children.hpp"
 
 #include <memory>
 #include <tuple>
@@ -19,11 +19,11 @@ using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithDifferentChildsTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildsTransformationParams> obj) {
+std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj) {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
-    ConcatWithDifferentChildsTransformationParam param;
+    ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannel;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, multiChannel) = obj.param;
@@ -36,11 +36,11 @@ std::string ConcatWithDifferentChildsTransformation::getTestCaseName(testing::Te
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatWithDifferentChildsTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
-    ConcatWithDifferentChildsTransformationParam param;
+    ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannel;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, multiChannel) = this->GetParam();
@@ -49,25 +49,25 @@ InferenceEngine::Blob::Ptr ConcatWithDifferentChildsTransformation::GenerateInpu
     return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
 }
 
-void ConcatWithDifferentChildsTransformation::SetUp() {
+void ConcatWithDifferentChildrenTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
-    ConcatWithDifferentChildsTransformationParam param;
+    ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannel;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, multiChannel) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
+    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 
     validate();
 }
 
-void ConcatWithDifferentChildsTransformation::validate() {
+void ConcatWithDifferentChildrenTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
-    ConcatWithDifferentChildsTransformationParam param;
+    ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannel;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, multiChannel) = this->GetParam();
@@ -83,7 +83,7 @@ void ConcatWithDifferentChildsTransformation::validate() {
     }
 }
 
-TEST_P(ConcatWithDifferentChildsTransformation, CompareWithRefImpl) {
+TEST_P(ConcatWithDifferentChildrenTransformation, CompareWithRefImpl) {
     Run();
 };
 

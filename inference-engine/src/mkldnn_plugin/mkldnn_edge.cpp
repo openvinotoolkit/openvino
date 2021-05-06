@@ -82,7 +82,7 @@ bool MKLDNNEdge::needReorder() {
             childCanChangeMem = true;
     }
 
-    const auto& detectInPlaceChildsNum = [](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
+    const auto& detectInPlaceChildrenNum = [](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
         size_t count = 0;
         for (const auto& edge : edges) {
             auto childSPD = edge->getChild()->getSelectedPrimitiveDescriptor();
@@ -98,7 +98,7 @@ bool MKLDNNEdge::needReorder() {
     };
 
     const auto portChildEdges = getParent()->getChildEdgesAtPort(inNumber);
-    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildsNum(portChildEdges) > 1)
+    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildrenNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
     if (!canBeInPlaceConflicts && in_place && !getParent()->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {
