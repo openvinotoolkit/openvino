@@ -83,7 +83,7 @@ Due to automatic identification of inputs and outputs, you do not need to provid
 ```sh
 python3 mo.py --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
-python3 mo.py --input_model inception_v1.pb -b 1 --inputinput --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
+python3 mo.py --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 The Intermediate Representations are identical for both conversions. The same is true if the model has multiple inputs and/or outputs.
 
