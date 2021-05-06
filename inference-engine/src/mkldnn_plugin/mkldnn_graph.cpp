@@ -277,7 +277,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
                 if (node->getType() != Input && node->getType() != Output) {
                     for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                         auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                        if (!(parent->getType() == Input && parent->isConstant()) && node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                        if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
+                            !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                            node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
                             node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
                     }
 
