@@ -200,6 +200,7 @@ const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
 const std::vector<SizeVector> inputShapes2d = { {1, 64, 7, 7}, {1, 67, 7, 7} };
+const std::vector<SizeVector> inputShapesPlain2Blocked2d = { {1, 1, 7, 7}, {1, 2, 7, 7},  {1, 3, 7, 7} };
 
 /* ============= Convolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -208,6 +209,7 @@ const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} }
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<SizeVector> inputShapes3d = { {1, 64, 7, 7, 7}, {1, 67, 7, 7, 7} };
+const std::vector<SizeVector> inputShapesPlain2Blocked3d = { {1, 1, 7, 7, 7}, {1, 2, 7, 7, 7},  {1, 3, 7, 7, 7} };
 /* ============= */
 
 /* INSTANCES */
@@ -275,7 +277,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-/* ============= GroupConvolution (GEMM 3D) ============= */
+/* ============= Convolution (GEMM 3D) ============= */
 const auto convParams_ExplicitPadding_GEMM_3D = ::testing::Combine(
     ::testing::ValuesIn(kernels3d),
     ::testing::ValuesIn(strides3d),
@@ -339,7 +341,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-/* ============= GroupConvolution (2D) ============= */
+/* ============= Convolution (2D) ============= */
 const auto convParams_ExplicitPadding_2D = ::testing::Combine(
     ::testing::ValuesIn(kernels2d),
     ::testing::ValuesIn(strides2d),
@@ -407,7 +409,45 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-/* ============= GroupConvolution (3D) ============= */
+const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
+        conv_sse42_plain_to_blocked_2D,
+        conv_avx2_plain_to_blocked_2D,
+        conv_avx512_plain_to_blocked_2D,
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_ExplicitPadding_2D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapesPlain2Blocked2d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_plain_to_blocked)),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_ExplicitPadding_2D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::BF16),
+            ::testing::Values(Precision::BF16, Precision::FP32),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapesPlain2Blocked2d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_2D})),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= Convolution (3D) ============= */
 const auto convParams_ExplicitPadding_3D = ::testing::Combine(
     ::testing::ValuesIn(kernels3d),
     ::testing::ValuesIn(strides3d),
@@ -471,6 +511,43 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
         ::testing::Values(fusingSum),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+const std::vector<CPUSpecificParams> CPUParams_3D_plain_to_blocked = {
+        conv_avx2_plain_to_blocked_3D,
+        conv_avx512_plain_to_blocked_3D,
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_ExplicitPadding_3D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapesPlain2Blocked3d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_plain_to_blocked)),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_ExplicitPadding_3D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::BF16),
+            ::testing::Values(Precision::BF16, Precision::FP32),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapesPlain2Blocked3d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_3D})),
+        ::testing::Values(emptyFusingSpec),
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
