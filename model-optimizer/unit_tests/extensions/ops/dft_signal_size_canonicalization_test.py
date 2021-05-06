@@ -6,11 +6,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.dft import DFT, IDFT, FFTBase
-from extensions.ops.MatMul import MatMul, transpose
+from extensions.ops.dft import FFTBase
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from unit_tests.utils.graph import build_graph
 
 
 @generator
