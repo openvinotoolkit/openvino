@@ -66,8 +66,6 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.output.Batch().v));
 
-    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
-
     if (params.has_num_select_per_class) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexNumSelectPerClass());
@@ -81,27 +79,27 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexIouThreshold());
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", std::string(inputTypeStr)));
-        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "TO_ACCUMULATOR_TYPE(iou_threshold[0])"));
+        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "convert_float(iou_threshold[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "ACCUMULATOR_VAL_ZERO"));
+        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "0.0f"));
     }
 
     if (params.has_score_threshold) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexScoreThreshold());
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", std::string(inputTypeStr)));
-        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "TO_ACCUMULATOR_TYPE(score_threshold[0])"));
+        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "convert_float(score_threshold[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "ACCUMULATOR_VAL_ZERO"));
+        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "0.0f"));
     }
 
     if (params.has_soft_nms_sigma) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSoftNmsSigma());
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", std::string(inputTypeStr)));
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "TO_ACCUMULATOR_TYPE(soft_nms_sigma[0])"));
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "ACCUMULATOR_VAL_ZERO"));
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "0.0f"));
     }
 
     if (params.has_second_output) {
@@ -156,7 +154,7 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
         dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
         dispatchData.lws = {1, 1, 256};
     } else if (idx == 1) {
-        const size_t kSplitNum = 8;    // 1, 2, 4, 8
+        const size_t kSplitNum = 4;
         dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
         const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
         dispatchData.lws = {1, kClassSize, kSplitNum};

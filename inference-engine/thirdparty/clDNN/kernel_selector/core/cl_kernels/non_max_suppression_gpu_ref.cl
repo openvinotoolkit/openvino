@@ -46,30 +46,51 @@ typedef struct {
 #define BOX_INFO FUNC(BoxInfo)
 
 inline float FUNC(intersectionOverUnion)(const __global INPUT0_TYPE *boxes,
-    int batchA, int boxIdA,
-    int batchB, int boxIdB)
+    const int batchA, const int boxIdA,
+    const int batchB, const int boxIdB)
 {
     const float4 pA = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchA, boxIdA, 0, 0)]));
     const float4 pB = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchB, boxIdB, 0, 0)]));
 
-    const float areaA = (pA[3] - pA[1]) * (pA[2] - pA[0]);
-    const float areaB = (pB[3] - pB[1]) * (pB[2] - pB[0]);
+#if BOX_ENCODING == 0
+    const float ax1 = min(pA[1], pA[3]);
+    const float ax2 = max(pA[1], pA[3]);
+    const float ay1 = min(pA[0], pA[2]);
+    const float ay2 = max(pA[0], pA[2]);
+    const float bx1 = min(pB[1], pB[3]);
+    const float bx2 = max(pB[1], pB[3]);
+    const float by1 = min(pB[0], pB[2]);
+    const float by2 = max(pB[0], pB[2]);
 
-    const float intersection_ymin = max(pA[1], pB[1]);
-    const float intersection_xmin = max(pA[0], pB[0]);
-    const float intersection_ymax = min(pA[3], pB[3]);
-    const float intersection_xmax = min(pA[2], pB[2]);
+    /// CORNER
+    const float areaA = (ax2 - ax1) * (ay2 - ay1);
+    const float areaB = (bx2 - bx1) * (by2 - by1);
 
-    const float intersection_x = max(intersection_xmax - intersection_xmin, 0.f);
-    const float intersection_y = max(intersection_ymax - intersection_ymin, 0.f);
-    if (intersection_x == 0.f || intersection_y == 0.f)
-        return 0.f;
+    const float intersection_ymin = max(ay1, by1);
+    const float intersection_xmin = max(ax1, bx1);
+    const float intersection_ymax = min(ay2, by2);
+    const float intersection_xmax = min(ax2, bx2);
+#else
+    /// CENTER
+    const float areaA = pA[3] * pA[2];
+    const float areaB = pB[3] * pB[2];
+    const float halfWidthA = pA[2] / 2;
+    const float halfHeightA = pA[3] / 2;
+    const float halfWidthB = pB[2] / 2;
+    const float halfHeightB = pB[3] / 2;
 
-    const float intersection_area = intersection_x * intersection_y;
+    const float intersection_ymin = max(pA[1] - halfHeightA, pB[1] - halfHeightB);
+    const float intersection_xmin = max(pA[0] - halfWidthA,  pB[0] - halfWidthB);
+    const float intersection_ymax = min(pA[1] + halfHeightA, pB[1] + halfHeightB);
+    const float intersection_xmax = min(pA[0] + halfWidthA,  pB[0] + halfWidthB);
+#endif
+
+    if (areaA <= 0.0f || areaB <= 0.0f)
+        return 0.0f;
+
+    const float intersection_area = max(intersection_xmax - intersection_xmin, 0.f) *
+                                    max(intersection_ymax - intersection_ymin, 0.f);
     const float union_area = areaA + areaB - intersection_area;
-    if (union_area <= 0.0f)
-        return 0.f;
-
     return intersection_area / union_area;
 }
 
@@ -91,10 +112,11 @@ inline void FUNC(swap_sbox_info)(__global SBOX_INFO* a, __global SBOX_INFO* b)
 
 inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
 {
-    INPUT1_TYPE x = arr[h].score;
+    const INPUT1_TYPE pivotScore = arr[h].score;
+    const int pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
-        if (arr[j].score <= x) {
+        if ((arr[j].score < pivotScore) || (arr[j].score == pivotScore && arr[j].boxId > pivotBoxId)) {
             i++;
             FUNC_CALL(swap_sbox_info)(&arr[i], &arr[j]);
         }
@@ -124,7 +146,7 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
   
         // Set pivot element at its correct position
         // in sorted array
-        int p = FUNC_CALL(partition)(arr, l, h);
+        const int p = FUNC_CALL(partition)(arr, l, h);
   
         // If there are elements on left side of pivot,
         // then push left side to stack
@@ -146,7 +168,7 @@ inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __g
 {
     int count = 0;
     for (int i = 0; i < boxNum; ++i) {
-        INPUT1_TYPE score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
+        const INPUT1_TYPE score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
         if (convert_float(score) < score_threshold) continue;
 
         SBOX_INFO binfo;
@@ -163,7 +185,7 @@ inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __g
 inline void FUNC(initOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, __global OUTPUT_TYPE *output)
 {
     for (int i = 0; i < boxNum; ++i) {
-        int outputId = i * 3;
+        const int outputId = i * 3;
         outBoxes[i].batchId = output[outputId + 0];
         outBoxes[i].classId = output[outputId + 1];
         outBoxes[i].boxId = output[outputId + 2];
@@ -251,7 +273,7 @@ KERNEL (non_max_suppression_ref_stage_0)(
                 if ((i + bi) >= NUM_BOXES)
                     break;
 
-                if (TO_ACCUMULATOR_TYPE(score8[bi]) < SCORE_THRESHOLD_VAL)
+                if (convert_float(score8[bi]) <= SCORE_THRESHOLD_VAL)
                     continue;
 
                 mask |= (1 << bi);
@@ -299,6 +321,7 @@ KERNEL (non_max_suppression_ref_stage_0)(
                     binfo.suppress_begin_index = 0;
                     binfo.score = score8[bi];
                     sortedBoxList[write_offset] = binfo;
+
                     write_offset++;
                 }
             }
@@ -314,13 +337,13 @@ KERNEL (non_max_suppression_ref_stage_1)(
     , __global int *buffer3
     )
 {
-    int batchId = get_global_id(0);
-    int classId = get_global_id(1);
-    int workItemId = get_global_id(2);
-    int localClassId = get_local_id(1);
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    const int workItemId = get_global_id(2);
+    const int localClassId = get_local_id(1);
     __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 4];
 
-    int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
+    const int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     if (workItemId == 0 && sortedBoxNum > 1) {
         __range[localClassId][0] = 0;
@@ -329,15 +352,15 @@ KERNEL (non_max_suppression_ref_stage_1)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     int range_step = 2;
-    int first_id = workItemId * 2;
+    const int first_id = workItemId * 2;
     for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
         if (sortedBoxNum > 1 && workItemId <= i) {
-            int begin_id = __range[localClassId][first_id];
-            int end_id = __range[localClassId][first_id + 1];
-            int second_id = first_id + range_step;
+            const int begin_id = __range[localClassId][first_id];
+            const int end_id = __range[localClassId][first_id + 1];
+            const int second_id = first_id + range_step;
 
             if (begin_id < end_id) {
-                int pivot = FUNC_CALL(partition)(sortedBoxList, begin_id, end_id);
+                const int pivot = FUNC_CALL(partition)(sortedBoxList, begin_id, end_id);
                 __range[localClassId][first_id     ] = begin_id;
                 __range[localClassId][first_id + 1 ] = max(pivot - 1, begin_id);
                 __range[localClassId][second_id    ] = min(pivot + 1, end_id);
@@ -352,8 +375,8 @@ KERNEL (non_max_suppression_ref_stage_1)(
     }
 
     if (sortedBoxNum > 1) {
-        int begin_id = __range[localClassId][first_id];
-        int end_id = __range[localClassId][first_id + 1];
+        const int begin_id = __range[localClassId][first_id];
+        const int end_id = __range[localClassId][first_id + 1];
         if (begin_id < end_id) {
             FUNC_CALL(quickSortIterative)(sortedBoxList, begin_id, end_id);
         }
@@ -381,8 +404,8 @@ KERNEL (non_max_suppression_ref_stage_2)(
     #endif
     )
 {
-    int batchId = get_global_id(0);
-    int classId = get_global_id(1);
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
 
     float scale = 0.0f;
     if (SOFT_NMS_SIGMA_VAL > 0.0f) {
@@ -394,7 +417,6 @@ KERNEL (non_max_suppression_ref_stage_2)(
 
     __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int selectedBoxNum = 0;
-    int iouNum = 0;
     while (sortedBoxNum != 0 && selectedBoxNum < NUM_SELECT_PER_CLASS_VAL) {
         SBOX_INFO next_candidate = sortedBoxList[sortedBoxNum - 1];
         INPUT1_TYPE original_score = next_candidate.score;
@@ -406,14 +428,13 @@ KERNEL (non_max_suppression_ref_stage_2)(
                 --j) {
             const float iou = FUNC_CALL(intersectionOverUnion)(boxes, batchId, next_candidate.boxId, batchId, selectedBoxList[j].boxId);
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
-            iouNum++;
 
             if (iou >= IOU_THRESHOLD_VAL) {
                 should_hard_suppress = true;
                 break;
             }
 
-            if (next_candidate.score <= SCORE_THRESHOLD_VAL) {
+            if (convert_float(next_candidate.score) <= SCORE_THRESHOLD_VAL) {
                 break;
             }
         }
@@ -429,10 +450,11 @@ KERNEL (non_max_suppression_ref_stage_2)(
                 binfo.score = next_candidate.score;
                 selectedBoxList[selectedBoxNum] = binfo;
                 ++selectedBoxNum;
+
                 continue;
             }
 
-            if (next_candidate.score > SCORE_THRESHOLD_VAL) {
+            if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
                 sortedBoxList[sortedBoxNum] = next_candidate;
                 ++sortedBoxNum;
                 FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
@@ -479,8 +501,7 @@ KERNEL (non_max_suppression_ref_stage_final)(
 #if SORT_RESULT_DESCENDING == 1
     FUNC_CALL(sortOutputBoxList)(sortedBoxList, outputIdx);
 #endif
-    int output_num = outputIdx;
-    unroll_for (int i = 0; i < output_num; i++) {
+    unroll_for (int i = 0; i < outputIdx; i++) {
         const int offset = 3 * i;
         output[offset + 0] = sortedBoxList[i].batchId;
         output[offset + 1] = sortedBoxList[i].classId;
@@ -488,7 +509,7 @@ KERNEL (non_max_suppression_ref_stage_final)(
     }
 
     // Padding
-    unroll_for (int i = output_num; i < OUTPUT_NUM; i++) {
+    unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
         const int offset = 3 * i;
         output[offset + 0] = -1;
         output[offset + 1] = -1;
@@ -496,21 +517,24 @@ KERNEL (non_max_suppression_ref_stage_final)(
     }
 
 #ifdef SECOND_OUTPUT_TYPE
-    unroll_for (int i = 0; i < output_num; i++) {
+    unroll_for (int i = 0; i < outputIdx; i++) {
         const int offset = 3 * i;
         selected_scores[offset + 0] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].batchId);
         selected_scores[offset + 1] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].classId);
         selected_scores[offset + 2] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].score);
     }
+
+    // Padding
+    unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
+        const int offset = 3 * i;
+        selected_scores[offset + 0] = -1;
+        selected_scores[offset + 1] = -1;
+        selected_scores[offset + 2] = -1;
+    }
 #endif
 
 #ifdef THIRD_OUTPUT_TYPE
-    valid_outputs[0] = TO_THIRD_OUTPUT_TYPE(output_num);
+    valid_outputs[0] = TO_THIRD_OUTPUT_TYPE(outputIdx);
 #endif
 }
 #endif  /* IS_STAGE_FINAL */
-
-#undef unroll_for
-#undef NUM_BATCHES
-#undef NUM_BOXES
-#undef NUM_CLASSES
