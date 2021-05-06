@@ -82,8 +82,6 @@ const std::vector<std::vector<float>> defaultScales = {
     {1.f, 1.f, 2.f, 2.f}
 };
 
-std::map<std::string, std::string> additional_config = {};
-
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(modesWithoutNearest),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -117,8 +115,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
@@ -130,8 +127,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testi
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
     InterpolateLayerTest::getTestCaseName);
 
 } // namespace

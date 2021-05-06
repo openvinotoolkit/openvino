@@ -82,8 +82,6 @@ const std::vector<std::vector<float>> defaultScales = {
     {1.f, 1.f, 1.333333f, 1.333333f}
 };
 
-std::map<std::string, std::string> additional_config = {};
-
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(modesWithoutNearest),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -117,8 +115,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
@@ -130,8 +127,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testi
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> targetShapesTailTest = {
@@ -175,8 +171,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLay
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapesTailTest),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
@@ -188,8 +183,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateL
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapesTailTest),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(additional_config)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
 } // namespace

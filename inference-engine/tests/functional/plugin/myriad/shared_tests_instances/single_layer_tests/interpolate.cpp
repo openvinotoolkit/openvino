@@ -172,7 +172,7 @@ const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_2x, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_2x, InterpolateLayerTestWithConfig, ::testing::Combine(
         interpolateCasesNearestMode2x,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -183,9 +183,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_2x, InterpolateLayerTest,
         ::testing::ValuesIn(targetShapes2x),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
-    InterpolateLayerTest::getTestCaseName);
+    InterpolateLayerTestWithConfig::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTestWithConfig, ::testing::Combine(
         interpolateCasesNearestMode,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -196,9 +196,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, InterpolateLayerTest, ::
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
-    InterpolateLayerTest::getTestCaseName);
+    InterpolateLayerTestWithConfig::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTestWithConfig, ::testing::Combine(
         interpolateCasesNearestModeMore,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -209,9 +209,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_more, InterpolateLayerTes
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
-    InterpolateLayerTest::getTestCaseName);
+    InterpolateLayerTestWithConfig::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, InterpolateLayerTestWithConfig, ::testing::Combine(
         interpolateCasesWithoutNearestMode,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -222,6 +222,6 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, InterpolateLayerTest,
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
-    InterpolateLayerTest::getTestCaseName);
+    InterpolateLayerTestWithConfig::getTestCaseName);
 
 } // namespace
