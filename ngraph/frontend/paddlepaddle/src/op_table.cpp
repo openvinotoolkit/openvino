@@ -35,6 +35,7 @@
 #include "op/clip.hpp"
 #include "op/fill_constant.hpp"
 #include "op/fill_constant_batch_size_like.hpp"
+#include "op/flatten_contiguous_range.hpp"
 #include "op/interp.hpp"
 #include "op/pad3d.hpp"
 #include "op/slice.hpp"
