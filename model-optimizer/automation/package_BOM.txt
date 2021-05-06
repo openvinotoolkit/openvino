@@ -576,6 +576,7 @@ extensions/middle/fusings.py
 extensions/middle/GatherNdNormalizer.py
 extensions/middle/GroupNorm.py
 extensions/middle/GRURNNSequenceToTensorIterator.py
+extensions/middle/if_const_condition_front.py
 extensions/middle/InputCut.py
 extensions/middle/InsertLayoutPropagationTransposes.py
 extensions/middle/InsertSelect.py

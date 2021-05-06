@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ def extract_method(cls, if_node: Node):
 
     # check that required body and condition functions exist in the graph library
     main_graph = if_node.graph
-    then_graph_name = if_node.pb.attr['else_branch'].func.name
-    else_graph_name = if_node.pb.attr['then_branch'].func.name
+    then_graph_name = if_node.pb.attr['then_branch'].func.name
+    else_graph_name = if_node.pb.attr['else_branch'].func.name
     assert 'library' in main_graph.graph, 'The graph does not contain a library that is required ' \
                                           'by node with name "{}".'.format(if_name)
     library_graph = main_graph.graph['library']
@@ -42,7 +42,7 @@ def extract_method(cls, if_node: Node):
     assert then_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
                                              'that is required by node ' \
                                              'with name "{}".'.format(then_graph_name, if_name)
-    then_graph_proto = library_graph[else_graph_name]
+    then_graph_proto = library_graph[then_graph_name]
 
     assert else_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
                                              'that is required by node ' \
@@ -91,10 +91,6 @@ def extract_method(cls, if_node: Node):
         # update the If body graph with the body function graph
         body_results = []
         update_body_graph(body_graph, body_graph_proto, body_parameter_names, body_results)
-
-        # add 'internal_layer_id' attribute which is a must have attribute for the If body node
-        for idx, body_node in enumerate(body_graph.get_op_nodes()):
-            body_node['internal_layer_id'] = idx
 
         body_graph.stage = 'front'
 

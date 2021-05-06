@@ -31,11 +31,6 @@ class If(Op):
         base_attrs = {
             'type': self.op,
             'op': self.op,
-            'then_input_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
-            'else_input_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
-            'then_output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
-            'else_output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
-            'back_edges': [],  # a list of dicts with such attrs as from_layer, from_port, etc.
             'then_graph': None,  # an Graph object with a "then" body sub-graph (condition is True)
             'else_graph': None,  # an Graph object with a "else" body sub-graph (condition is False)
             'sub_graphs': ['then_graph', 'else_graph'],  # built-in attribute with all sub-graphs
@@ -45,20 +40,14 @@ class If(Op):
         base_attrs.update(attrs)
         super().__init__(graph, base_attrs, attrs)
 
-    def backend_attrs(self):
-        return ['gg']
-
     def port_map_attrs(self):
         return [
             'external_port_id',
-            'internal_layer_id',
-            # 'internal_port_id',
+            'internal_layer_id'
         ]
 
     @staticmethod
-    def connect_body_input(if_node: Node, condition: bool, if_input_port_idx: int, body_parameter: Node,
-                           axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                           stride: [int, None] = None, part_size: [int, None] = None):
+    def connect_body_input(if_node: Node, condition: bool, if_input_port_idx: int, body_parameter: Node):
         """
         Update the input port map to connect the input port with the specified body parameter
 
@@ -66,26 +55,16 @@ class If(Op):
         :param condition: the boolean defining a condition (then/else) graph to add connect the body
         :param if_input_port_idx: the input port index to connect
         :param body_parameter: the body parameter node to connect
-        :param axis: dimension for input slicing
-        :param start: start value of dimension from which to start slicing
-        :param end: end value of dimension when to finish slicing
-        :param stride: a step value for slicing
-        :param part_size: a partial size for slicing, i.e. slicing [start; start + part_size)
         :return: None
         """
         assert if_node.soft_get('op') == 'If'
         assert body_parameter.soft_get('op') == 'Parameter'
         sub_graph = if_node.then_graph if condition else if_node.else_graph
-        port_map = if_node.then_input_port_map if condition else if_node.else_input_port_map
         assert body_parameter.id in sub_graph
-
-        port_map.append({'external_port_id': if_input_port_idx,
-                         'internal_layer_id': body_parameter['internal_layer_id']})
+        body_parameter['input_id'] = if_input_port_idx
 
     @staticmethod
-    def connect_body_output(if_node: Node, condition: bool, if_output_port_idx: int, internal_result: Node,
-                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                            stride: [int, None] = None, part_size: [int, None] = None):
+    def connect_body_output(if_node: Node, condition: bool, if_output_port_idx: int, internal_result: Node):
         """
         Update the output port map to connect the body Result node with the specified output port
 
@@ -93,21 +72,13 @@ class If(Op):
         :param condition: the boolean defining a condition (then/else) graph to add connect the body
         :param if_output_port_idx: the output port index to connect
         :param internal_result: the body Result node to connect
-        :param axis: dimension for output concatenation
-        :param start: start value of dimension from which to start concatenation
-        :param end: end value of dimension when to finish concatenation
-        :param stride: a step value for concatenation
-        :param part_size: a partial size for concatenation, i.e. concatenation [start; start + part_size)
         :return: None
         """
         assert if_node.soft_get('op') == 'If'
         assert internal_result.soft_get('op') == 'Result'
         sub_graph = if_node.then_graph if condition else if_node.else_graph
-        port_map = if_node.then_output_port_map if condition else if_node.else_output_port_map
         assert internal_result.id in sub_graph
-
-        port_map.append({'external_port_id': if_output_port_idx,
-                         'internal_layer_id': internal_result['internal_layer_id']})
+        internal_result['output_id'] = if_output_port_idx
 
     @staticmethod
     def update_body_parameters_type(if_node: Node, condition: bool):
@@ -116,28 +87,20 @@ class If(Op):
         for them.
 
         :param if_node: The If node
-        :param condition: the boolean defining a condition (then/else) graph to add conne
+        :param condition: the boolean defining a condition (then/else) graph
         :return: None
         """
         assert if_node.soft_get('type') == 'If'
-        port_map = if_node.then_input_port_map if condition else if_node.else_input_port_map
-        for record in port_map:
-            body_node = If.get_body_node_by_internal_id(if_node, condition, record['internal_layer_id'])
-            # the Parameter may be removed because it was not used in the body, for example, the current iteration
-            # number input
-            if body_node is not None:
-                assert body_node.soft_get('type') == 'Parameter'
 
-                if_port_idx = record['external_port_id']
-                if if_port_idx != -1:
-                    input_type = if_node.in_port(if_port_idx).get_data_type()
-                else:  # this is a current iteration number input node which is not connected to the Loop node
-                    assert record['purpose'] == 'current_iteration'
-                    input_type = np.int64
-
-                body_node.data_type = input_type
-                log.debug('Updated data type for the body node with internal_id "{}" with value {}'
-                          ''.format(record['internal_layer_id'], body_node.data_type))
+        subgraph = if_node.then_graph if condition else if_node.else_graph
+        for node in subgraph.get_op_nodes():
+            if node.has('input_id'):
+                assert node.soft_get('type') == 'Parameter'
+                input_port_id = node['input_id']
+                input_type = if_node.in_port(input_port_id).get_data_type()
+                node.data_type = input_type
+                log.debug('Updated data type for the body node with name "{}" with value {}'
+                          .format(node.name, node.data_type))
 
     @staticmethod
     def updated_body_parameters_shape(if_node: Node, condition: bool):
@@ -148,79 +111,127 @@ class If(Op):
         :param condition: the boolean defining a condition (then/else) graph to add connect the body
         :return: None
         """
-        port_map = if_node.then_input_port_map if condition else if_node.else_input_port_map
-        for record in port_map:
-            body_node = If.get_body_node_by_internal_id(if_node, condition, record['internal_layer_id'])
-            # the Parameter may be removed because it was not used in the body, for example, the current iteration
-            # number input
-            if body_node is not None:
-                assert body_node.soft_get('type') == 'Parameter'
-
-                loop_port_idx = record['external_port_id']
-                input_shape = if_node.in_port(loop_port_idx).get_connection().get_source().data.get_shape()
-                body_node.shape = input_shape.copy()
-                log.debug('Updated shape for the body node with internal_id "{}" with value {}'
-                          ''.format(record['internal_layer_id'], body_node.shape))
+        subgraph = if_node.then_graph if condition else if_node.else_graph
+        for node in subgraph.get_op_nodes():
+            if node.has('input_id'):
+                assert node.soft_get('type') == 'Parameter'
+                input_port_id = node['input_id']
+                input_shape = if_node.in_port(input_port_id).get_connection().get_source().data.get_shape()
+                node.shape = input_shape.copy()
+                log.debug('Updated shape for the body node with name "{}" with value {}'
+                          .format(node.name, node.shape))
 
     @staticmethod
     def updated_if_output_ports_shape(if_node: Node):
         """
-        Update shape and values for If output ports. If the number of iterations is dynamic then the corresponding
-        dimension for the scan outputs (having "axis" attribute) are set to 1 because MO cannot generate IR with
-        undefined dimensions.
+        Update shape and values for If output ports.
 
         :param if_node: The If node to update output ports and shapes
         :return: None
         """
-        out_ports = if_node.out_ports().keys()
-        for out_port in out_ports:
-            then_internal_port = [record['internal_layer_id'] for record in if_node.then_output_port_map
-                                  if record['external_port_id'] == out_port][0]
-            else_internal_port = [record['internal_layer_id'] for record in if_node.else_output_port_map
-                                  if record['external_port_id'] == out_port][0]
 
-            then_body_node = If.get_body_node_by_internal_id(if_node, True, then_internal_port)
-            else_body_node = If.get_body_node_by_internal_id(if_node, False, else_internal_port)
-            assert then_body_node is not None
-            assert then_body_node.soft_get('type') == 'Result'
-            assert else_body_node is not None
-            assert else_body_node.soft_get('type') == 'Result'
+        then_outputs = [node for node in if_node.then_graph.get_op_nodes() if node.has('output_id')]
+        else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
+        outputs_mapping = {}
+        outputs_number = len(if_node.out_ports())
+        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of \'If\' with"' \
+                                                    'name \"{0}\"! then_graph must has {1} outputs' \
+            .format(if_node.name, outputs_number)
+        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of \'If\' with"' \
+                                                    'name \"{0}\"! else_graph must has {1} outputs' \
+            .format(if_node.name, outputs_number)
+        for port_id in if_node.out_ports().keys():
+            outputs_mapping[port_id] = {}
+        port_ids = outputs_mapping.keys()
 
-            then_shape = then_body_node.in_port(0).data.get_shape()
-            else_shape = else_body_node.in_port(0).data.get_shape()
-            # This assert excluded dynamism
-            comp = then_shape == else_shape
-            assert comp.all(), ""
-            if_node.out_port(out_port, control_flow=True).data.set_shape(then_shape)
+        for then_output_node in then_outputs:
+            assert then_output_node.soft_get('type') == 'Result'
+            port_id = then_output_node['output_id']
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
+                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+                .format(then_output_node.name, port_id)
+            outputs_mapping[port_id]['then_graph'] = then_output_node
+
+        for else_output_node in else_outputs:
+            assert else_output_node.soft_get('type') == 'Result'
+            port_id = else_output_node['output_id']
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
+                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+                .format(else_output_node.name, port_id)
+            outputs_mapping[port_id]['else_graph'] = else_output_node
+
+        for port_id in outputs_mapping:
+            then_else_nodes = outputs_mapping[port_id]
+            assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
+                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+            assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
+                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+            then_shape = then_else_nodes['then_graph'].in_port(0).get_connection().data.get_shape()
+            else_shape = then_else_nodes['else_graph'].in_port(0).get_connection().data.get_shape()
+            equal_shapes = then_shape == else_shape
+            assert equal_shapes.all(), 'Cannot calculate shape for if.out_port[{0}]! ' \
+                                       'Shapes in then_graph and else_graph are not equal!'.format(port_id)
+            if_node.out_port(port_id).data.set_shape(then_shape)
 
     @staticmethod
     def updated_if_output_ports_type(if_node: Node):
         """
-        Update shape and values for If output ports. If the number of iterations is dynamic then the corresponding
-        dimension for the scan outputs (having "axis" attribute) are set to 1 because MO cannot generate IR with
-        undefined dimensions.
+        Update shape and values for If output ports.
 
         :param if_node: The If node to update output ports and shapes
         :return: None
         """
-        out_ports = if_node.out_ports().keys()
-        for out_port in out_ports:
-            then_internal_port = [record['internal_layer_id'] for record in if_node.then_output_port_map
-                                  if record['external_port_id'] == out_port][0]
-            else_internal_port = [record['internal_layer_id'] for record in if_node.else_output_port_map
-                                  if record['external_port_id'] == out_port][0]
-            then_body_node = If.get_body_node_by_internal_id(if_node, True, then_internal_port)
-            else_body_node = If.get_body_node_by_internal_id(if_node, False, else_internal_port)
-            assert then_body_node is not None
-            assert then_body_node.soft_get('type') == 'Result'
-            assert else_body_node is not None
-            assert else_body_node.soft_get('type') == 'Result'
+        then_outputs = [node for node in if_node.then_graph.get_op_nodes() if node.has('output_id')]
+        else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
+        outputs_mapping = {}
+        outputs_number = len(if_node.out_ports())
+        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of \'If\' with"' \
+                                                    'name \"{0}\"! then_graph must has {1} outputs' \
+            .format(if_node.name, outputs_number)
+        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of \'If\' with"' \
+                                                    'name \"{0}\"! else_graph must has {1} outputs' \
+            .format(if_node.name, outputs_number)
+        for port_id in if_node.out_ports().keys():
+            outputs_mapping[port_id] = {}
+        port_ids = outputs_mapping.keys()
 
-            then_type = then_body_node.in_port(0).get_data_type()
-            else_type = else_body_node.in_port(0).get_data_type()
-            assert then_type==else_type, "Output types of else({}) and then({}) branch is not equal for node {}".\
-                format(else_type, then_type, if_node.soft_get('name'))
-            if_node.out_port(out_port).set_data_type(then_type)
+        for then_output_node in then_outputs:
+            assert then_output_node.soft_get('type') == 'Result'
+            port_id = then_output_node['output_id']
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
+                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+                .format(then_output_node.name, port_id)
+            outputs_mapping[port_id]['then_graph'] = then_output_node
+
+        for else_output_node in else_outputs:
+            assert else_output_node.soft_get('type') == 'Result'
+            port_id = else_output_node['output_id']
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
+                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+                .format(else_output_node.name, port_id)
+            outputs_mapping[port_id]['else_graph'] = else_output_node
+
+        for port_id in outputs_mapping:
+            then_else_nodes = outputs_mapping[port_id]
+            assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
+                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+            assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
+                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+            then_type = then_else_nodes['then_graph'].in_port(0).get_data_type()
+            else_type = then_else_nodes['else_graph'].in_port(0).get_data_type()
+            assert then_type == else_type, 'Cannot get type for if.out_port[{0}]! ' \
+                                           'Types in then_graph and else_graph are not equal!'.format(port_id)
+            if_node.out_port(port_id).set_data_type(then_type)
+
+    @staticmethod
+    def re_numerate_internal_id_and_get_if_id(if_node):
+        then_graph_nodes = if_node.then_graph.nodes()
+        for idx in range(len(if_node.then_graph.get_op_nodes())):
+            then_graph_nodes[idx]['internal_layer_id'] = idx
+        else_graph_nodes = if_node.else_graph.nodes()
+        for idx in range(len(if_node.else_graph.get_op_nodes())):
+            else_graph_nodes[idx]['internal_layer_id'] = idx
+        return if_node.node
 
     def substitute_ie_attrs(self, new_attrs: dict):
         """
@@ -229,28 +240,22 @@ class If(Op):
         """
 
         port_map_attrs = self.port_map_attrs()
-
-        back_edges_attrs = [
-            ('from-layer', 'from_layer'),
-            ('to-layer', 'to_layer'),
-        ]
-
         new_attrs.update({
             'IE': [(
                 'layer',
-                [('id', lambda node: node.node), 'name', 'type', 'version'],
+                [('id', lambda node: self.re_numerate_internal_id_and_get_if_id(node)), 'name', 'type', 'version'],
                 [
                     '@ports',
                     ('then_port_map', [], [
-                        ('@list', lambda node: self.generate_port_map(node, node.then_input_port_map, 'in'),
+                        ('@list', lambda node: self.generate_port_map(node, True, 'in'),
                          ('input', port_map_attrs, [])),
-                        ('@list', lambda node: self.generate_port_map(node, node.then_output_port_map, 'out'),
+                        ('@list', lambda node: self.generate_port_map(node, True, 'out'),
                          ('output', port_map_attrs, [])),
                     ]),
                     ('else_port_map', [], [
-                        ('@list', lambda node: self.generate_port_map(node, node.else_input_port_map, 'in'),
+                        ('@list', lambda node: self.generate_port_map(node, False, 'in'),
                          ('input', port_map_attrs, [])),
-                        ('@list', lambda node: self.generate_port_map(node, node.else_output_port_map, 'out'),
+                        ('@list', lambda node: self.generate_port_map(node, False, 'out'),
                          ('output', port_map_attrs, [])),
                     ]),
                     ('then_body', [], [('@network', 'then_graph')]),
@@ -259,39 +264,29 @@ class If(Op):
         })
 
     @staticmethod
-    def generate_port_map(node: Node, src_port_map, dir: str):
+    def generate_port_map(node: Node, condition: bool, dir: str):
         """ Extract port_map attributes from node and node.body attributes.
 
             It iterates over src_port_map and substitute external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
         """
-        result_list = []
-        for map_item in src_port_map:
-            result = dict(map_item)
-            assert result is not map_item
-            # result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'], 'external_port_id')
-            # result['internal_layer_id'] = __class__.find_internal_layer_id(node.body, result['internal_layer_id'])
-            result_list.append(result)
-        return src_port_map
+        port_map = []
+        subgraph = node.then_graph if condition else node.else_graph
+        name_of_connection = 'input_id' if dir == 'in' else 'output_id'
+        connection_nodes = []
+        for internal_node in subgraph.get_op_nodes():
+            if internal_node.has(name_of_connection):
+                connection_nodes.append(internal_node)
+        for connection_node in connection_nodes:
+            port_map.append({'external_port_id': connection_node[name_of_connection],
+                             'internal_layer_id': connection_node['internal_layer_id']})
+        return port_map
 
     @staticmethod
     def find_port_id(node: Node, virtual_id: str, attr: str):
         attrs = node.edge({attr: virtual_id})[2]
         assert bool('in' in attrs) != bool('out' in attrs), attrs
         return attrs['in' if 'in' in attrs else 'out']
-
-    @staticmethod
-    def generate_back_edges(node: Node):
-        ''' Extract back_edges attributes from node and node.body attributes. '''
-        result_list = []
-        for back_edge in node.back_edges:
-            result = dict(back_edge)
-            assert result is not back_edge
-            result['from_layer'] = __class__.find_internal_layer_id(node.body, result['from_layer'])
-            result['to_layer'] = __class__.find_internal_layer_id(node.body, result['to_layer'])
-            result_list.append(result)
-        return result_list
-
 
     @staticmethod
     def get_body_node_by_internal_id(if_node: Node, condition: bool, internal_id: int):
