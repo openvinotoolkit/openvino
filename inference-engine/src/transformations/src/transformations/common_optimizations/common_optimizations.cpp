@@ -41,7 +41,7 @@
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/stride_optimization.hpp"
+#include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -164,7 +164,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     // need to convert to Gather-1 until plugins do not support Gather-7
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
-    manager.register_pass<ngraph::pass::StrideOptimization>();
+    manager.register_pass<ngraph::pass::StridesOptimization>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
