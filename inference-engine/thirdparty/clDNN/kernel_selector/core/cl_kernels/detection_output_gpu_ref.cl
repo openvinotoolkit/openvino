@@ -46,7 +46,7 @@ inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h)
     int pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
-        if ((arr[j].score > pivotScore) || (arr[j].score == pivotScore && arr[j].boxId > pivotBoxId)) {
+        if ((arr[j].score > pivotScore) || (arr[j].score == pivotScore && arr[j].boxId < pivotBoxId)) {
             i++;
             FUNC_CALL(swap_scores_info)(&arr[i], &arr[j]);
         }
@@ -409,7 +409,7 @@ KERNEL (detection_output_stage_final)(
                 output[count * OUTPUT_ROW_SIZE + 4] = ymin;
                 output[count * OUTPUT_ROW_SIZE + 5] = xmax;
                 output[count * OUTPUT_ROW_SIZE + 6] = ymax;
-                printf("[%d, %d, %f, %f, %f, %f, %f]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax);
+                printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
                 ++count;
             }
         }

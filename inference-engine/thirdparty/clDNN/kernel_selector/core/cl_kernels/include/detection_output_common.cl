@@ -24,7 +24,7 @@
 #define CONF_PADDING (CONF_PADDING_Y * CONF_SIZE_X + CONF_PADDING_X)
 #define CONF_XY_SIZE_PRODUCT (CONF_SIZE_X * CONF_SIZE_Y)
 
-#define NUM_OF_PRIOR_COMPONENTS (NUM_OF_PRIORS * PRIOR_BOX_SIZE)
+#define NUM_OF_PRIOR_COMPONENTS (NUM_OF_PRIORS * PRIOR_INFO_SIZE)
 #define NUM_OF_IMAGE_CONF (INPUT0_LENGTH/NUM_OF_IMAGES/PRIOR_BOX_SIZE)
 
 #define SCORES_COUNT (((TOP_K != -1) && (TOP_K < NUM_OF_PRIORS))? TOP_K : NUM_OF_PRIORS)
@@ -47,8 +47,9 @@
 
 void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
-    const uint prior_offset = idx_image * (NUM_OF_PRIORS * PRIOR_INFO_SIZE * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2)) + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
-    const uint variance_offset = NUM_OF_PRIOR_COMPONENTS + (idx_prior * PRIOR_BOX_SIZE);
+    const uint prior_box_offset = idx_image * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
+    const uint prior_offset = prior_box_offset + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
+    const uint variance_offset = prior_box_offset + NUM_OF_PRIOR_COMPONENTS + (idx_prior * PRIOR_BOX_SIZE);
     uint location_offset =
         (NUM_LOC_CLASSES * (idx_prior * PRIOR_BOX_SIZE) + idx_image * INPUT0_FEATURE_NUM + idx_class * PRIOR_BOX_SIZE) *
         LOC_XY_SIZE_PRODUCT +
