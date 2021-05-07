@@ -14,7 +14,6 @@
 #include <vpu/model/data_contents/hw_const_data_content.hpp>
 
 #include <precision_utils.h>
-#include <ie_parallel.hpp>
 
 #include <utility>
 #include <memory>

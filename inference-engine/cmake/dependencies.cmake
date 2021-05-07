@@ -18,7 +18,6 @@ else()
     set(MODELS_BRANCH "master")
 endif()
 
-
 if (ENABLE_DATA)
     add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/models/src/data")
@@ -294,8 +293,6 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-# TODO: remove global CMAKE_MODULE_PATH
-list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)

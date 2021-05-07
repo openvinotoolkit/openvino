@@ -7,7 +7,6 @@
 #include <vpu/stages/stub_stage.hpp>
 #include <vpu/model/data_contents/priorbox_contents.hpp>
 
-#include <ie_parallel.hpp>
 #include <precision_utils.h>
 
 #include <cmath>

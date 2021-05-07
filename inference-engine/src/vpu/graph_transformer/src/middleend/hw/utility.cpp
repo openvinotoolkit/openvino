@@ -8,8 +8,6 @@
 #include <unordered_map>
 #include <algorithm>
 
-#include <ie_parallel.hpp>
-
 #include <vpu/model/stage.hpp>
 #include <vpu/utils/numeric.hpp>
 #include <vpu/utils/profiling.hpp>

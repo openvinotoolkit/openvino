@@ -9,8 +9,6 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/model/data_contents/prelu_blob_content.hpp>
 
-#include <ie_parallel.hpp>
-
 #include <vector>
 #include <memory>
 

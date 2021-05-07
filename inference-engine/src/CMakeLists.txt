@@ -21,7 +21,7 @@ if(ENABLE_CLDNN)
 endif()
 
 if(ENABLE_VPU)
-  add_subdirectory(vpu)
+    add_subdirectory(vpu)
 endif()
 
 if(ENABLE_GNA)

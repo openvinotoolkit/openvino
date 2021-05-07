@@ -11,7 +11,6 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <precision_utils.h>
-#include <ie_parallel.hpp>
 
 #include <vector>
 #include <memory>
