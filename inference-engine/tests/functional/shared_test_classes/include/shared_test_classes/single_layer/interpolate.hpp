@@ -38,35 +38,14 @@ typedef std::tuple<
         InferenceEngine::Layout,           // Output layout
         InferenceEngine::SizeVector,       // Input shapes
         InferenceEngine::SizeVector,       // Target shapes
-        LayerTestsUtils::TargetDevice     // Device name
-> InterpolateLayerTestParams;
-
-typedef std::tuple<
-        InterpolateSpecificParams,
-        InferenceEngine::Precision,        // Net precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        InferenceEngine::SizeVector,       // Input shapes
-        InferenceEngine::SizeVector,       // Target shapes
         LayerTestsUtils::TargetDevice,     // Device name
         std::map<std::string, std::string> // Additional network configuration
-> InterpolateLayerTestParamsWithConfig;
+> InterpolateLayerTestParams;
 
 class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj);
-
-protected:
-    void SetUp() override;
-};
-
-class InterpolateLayerTestWithConfig : public testing::WithParamInterface<InterpolateLayerTestParamsWithConfig>,
-                             virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParamsWithConfig> obj);
 
 protected:
     void SetUp() override;
