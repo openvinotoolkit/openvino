@@ -118,11 +118,11 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     }
 
     if (fakeQuantize1 && fakeQuantize2) {
-        size_t childs1 = fakeQuantize1->get_output_target_inputs(0).size();
-        size_t childs2 = fakeQuantize2->get_output_target_inputs(0).size();
-        if (childs1 == 1 && childs2 > 1)
+        size_t children1 = fakeQuantize1->get_output_target_inputs(0).size();
+        size_t children2 = fakeQuantize2->get_output_target_inputs(0).size();
+        if (children1 == 1 && children2 > 1)
             return 0;
-        if (childs1 > 1 && childs2 == 1)
+        if (children1 > 1 && children2 == 1)
             return 1;
     }
 

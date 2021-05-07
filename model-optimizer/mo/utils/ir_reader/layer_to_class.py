@@ -11,6 +11,7 @@ from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
+from extensions.ops.dft import FFTBase
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.loop import Loop
@@ -60,7 +61,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
-                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
