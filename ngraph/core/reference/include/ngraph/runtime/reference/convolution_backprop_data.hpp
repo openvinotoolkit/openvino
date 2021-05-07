@@ -24,7 +24,7 @@ namespace ngraph
                 template <typename T>
                 void extend_with_zeros(const Strides& strides,
                                        const Shape& input_shape,
-                                       const T*& in,
+                                       const T* in,
                                        Shape& output_shape,
                                        std::vector<T>& input_zeros)
                 {
@@ -64,6 +64,7 @@ namespace ngraph
                                         {
                                             auto offset = batch * input_size * input_shape[1] +
                                                           channel * input_size;
+
                                             input_zeros.push_back(
                                                 in[offset + i_x + i_y * input_3d[2] +
                                                    i_z * input_3d[2] * input_3d[1]]);
@@ -294,7 +295,7 @@ namespace ngraph
                 {
                     extend_with_zeros<T>(filter_dilation,
                                          filter_shape,
-                                         reinterpret_cast<const T*&>(reversed),
+                                         reinterpret_cast<const T*>(&reversed[0]),
                                          conv_filter_shape,
                                          extended_filter);
                     std::fill(conv_filter_dilation.begin(), conv_filter_dilation.end(), 1);
