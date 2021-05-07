@@ -1204,16 +1204,17 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto in_2b_width = GetDataDimSize(inputs2Bytes, InferenceEngine::DataDimName::W);
     auto in_2b_total_size = in_2b_batch * in_2b_channels * in_2b_height * in_2b_width;
 
-    if (((in_2b_batch > 1) || (in_4b_batch > 1)) && in_2b_batch != in_4b_batch) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with different batch sizes that not equals 1 is not supported";
+    if (in_2b_batch != in_4b_batch) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with different batch sizes are not supported";
     }
 
     if (in_4b_total_size != in_2b_total_size) {
         THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch " << in_4b_total_size << " != " << in_2b_total_size;
     }
 
-    uint32_t num_rows_in = in_4b_channels * in_4b_height * in_4b_width;
-    uint32_t num_columns_in = in_4b_batch;
+    // If batch size > 1 the data is reshaped to one with batch size = 1
+    uint32_t num_rows_in = in_4b_total_size;
+    uint32_t num_columns_in = 1;
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
 

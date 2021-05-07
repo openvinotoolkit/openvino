@@ -65,6 +65,11 @@ INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
+INTERPRETER.gather_v7_4d_indices_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_int8
+INTERPRETER.gather_v7_axis_0_int16
+INTERPRETER.gather_v7_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_uint16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 

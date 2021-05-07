@@ -1,74 +1,118 @@
-# Object Detection Python* Sample SSD {#openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README}
+# Object Detection SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README}
 
-This sample demonstrates how to run the Object Detection sample application.
+This sample demonstrates how to do inference of object detection networks using Synchronous Inference Request API.  
+Models with 1 input and 1 or 2 outputs are supported.  
+In the last case names of output blobs must be "boxes" and "labels".
 
-The sample demonstrates how to use the new Infer Request API of Inference Engine in applications.
-Refer to [Integrate the Inference Engine New Request API with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
-The sample demonstrates how to build and execute an inference request on example of object detection networks.
+The following Inference Engine Python API is used in the application:
 
-Due to properties of SSD networks, this sample works correctly only on a batch of the size 1. For a greater number of images in a batch, network reshape is required.
+| Feature                  | API                                                                                                                         | Description                                           |
+| :----------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| Custom Extension Kernels | [IECore.add_extension], [IECore.set_config]                                                                                 | Load extension library and config to the device       |
+
+Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
+
+| Options                    | Values                                                                                                                                                                                                                                                                                |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Validated Models           | [mobilenet-ssd](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-ssd/mobilenet-ssd.md), [face-detection-0206](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-0206/description/face-detection-0206.md) |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                                                                                                                              |
+| Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                                                                                                                               |
+| Other language realization | [C++](../../../../samples/object_detection_sample_ssd), [C](../../../c/samples/object_detection_sample_ssd)                                                                                                                                                                           |
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads specified network and input images (or a
-folder with images) to the Inference Engine plugin.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data.  
+As a result, the program creates an output image, logging each step in a standard output stream.
 
-Then, the sample creates an inference request object and executes inference on it.
-
-When inference is done, the application outputs data to the standard output stream and creates an output image with bounding boxes drawn atop the initial image.
-
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+You can see the explicit description of
+each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Running the application with the <code>-h</code> option yields the following usage message:
+Run the application with the <code>-h</code> option to see the usage message:
+
 ```
-python3 object_detection_sample_ssd.py -h
+python object_detection_sample_ssd.py -h
 ```
-The command yields the following usage message:
+
+Usage message:
+
 ```
-usage: object_detection_sample_ssd.py [-h] -m MODEL -i INPUT [INPUT ...]
-                                      [-l CPU_EXTENSION]
-                                      [-d DEVICE] [--labels LABELS]
-                                      [-nt NUMBER_TOP]
+usage: object_detection_sample_ssd.py [-h] -m MODEL -i INPUT [-l EXTENSION]
+                                      [-c CONFIG] [-d DEVICE]
+                                      [--labels LABELS]
 
 Options:
-  -h, --help            Show this help message and exit
+  -h, --help            Show this help message and exit.
   -m MODEL, --model MODEL
-                        Required. Path to an .xml file with a trained model
-  -i INPUT [INPUT ...], --input INPUT [INPUT ...]
-                        Required. Path to a folder with images or path to an
-                        image files
-  -l CPU_EXTENSION, --cpu_extension CPU_EXTENSION
-                        Optional. Required for CPU custom layers. Absolute
-                        path to a shared library with the kernels
-                        implementations
+                        Required. Path to an .xml or .onnx file with a trained
+                        model.
+  -i INPUT, --input INPUT
+                        Required. Path to an image file.
+  -l EXTENSION, --extension EXTENSION
+                        Optional. Required by the CPU Plugin for executing the
+                        custom operation on a CPU. Absolute path to a shared
+                        library with the kernels implementations.
+  -c CONFIG, --config CONFIG
+                        Optional. Required by GPU or VPU Plugins for the
+                        custom operation kernel. Absolute path to operation
+                        description file (.xml).
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, FPGA, HDDL or MYRIAD is acceptable. The sample
-                        will look for a suitable plugin for device specified
-                        Default value is CPU
-  --labels LABELS       Optional. Labels mapping file
-  -nt NUMBER_TOP, --number_top NUMBER_TOP
-                        Optional. Number of top results
+                        GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
+                        will look for a suitable plugin for device specified.
+                        Default value is CPU.
+  --labels LABELS       Optional. Path to a labels mapping file.
 ```
 
-Running the application with the empty list of options yields the usage message given above and an error message.
+To run the sample, you need specify a model and image:
+ - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+ - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
-To run the sample, you can use RMNet_SSD or other object-detection models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
+> **NOTES**:
+>
+> * By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+>
+> * Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> * The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
-> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-You can do inference of an image using the [person detection SSD model](@ref omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013) from the Open Model Zoo on CPU using the following command:
 ```
-    python3 object_detection_sample_ssd.py -i <path_to_image>/cat.bmp -m <path_to_model>/person-detection-retail-0013.xml -d CPU
+python object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
 ```
 
 ## Sample Output
 
-By default, the application outputs all inference results and draws bounding boxes for inference results with an over 50% confidence.
+The sample application logs each step in a standard output stream and creates an output image, drawing bounding boxes for inference results with an over 50% confidence.
+
+```
+[ INFO ] Creating Inference Engine
+[ INFO ] Reading the network: models\mobilenet-ssd.xml
+[ INFO ] Configuring input and output blobs
+[ INFO ] Loading the model to the plugin
+[ INFO ] Starting inference in synchronous mode
+[ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
+[ INFO ] Image out.bmp created!
+[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+```
 
 ## See Also
+
+* [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 * [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+
+[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
+[IECore.add_extension]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a8a4b671a9928c7c059bd1e76d2333967
+[IECore.set_config]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a2c738cee90fca27146e629825c039a05
+[IECore.read_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a0d69c298618fab3a08b855442dca430f
+[IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[DataPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
+[IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
+[InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[ExecutableNetwork.infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
