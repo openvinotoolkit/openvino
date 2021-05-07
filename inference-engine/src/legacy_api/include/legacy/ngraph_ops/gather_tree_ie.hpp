@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(GatherTreeIE) : public Op {
+class GatherTreeIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"GatherTreeIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

@@ -28,7 +28,7 @@ struct InterpolateIEAttrs {
     int pad_end = 0;
 };
 
-class INFERENCE_ENGINE_API_CLASS(Interp) : public Op {
+class Interp : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"Interp", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -53,7 +53,7 @@ struct ResampleIEAttrs {
     std::string mode = "";
 };
 
-class INFERENCE_ENGINE_API_CLASS(ResampleV2) : public Op {
+class ResampleV2 : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

@@ -19,7 +19,7 @@ public:
 /**
  * @brief gets padding with runtime type check
  */
-INFERENCE_ENGINE_API_CPP(Paddings) getPaddingsImpl(const CNNLayer& layer);
+Paddings getPaddingsImpl(const CNNLayer& layer);
 
 /**
  * @brief checks that given type is one of specified in variadic template list
@@ -62,7 +62,7 @@ getPaddings(const T& layer) {
  * @param ti TensorIterator layer to parse
  * @return positive value in case of correct TI layer, -1 in case of inconsistency
  */
-INFERENCE_ENGINE_API_CPP(int) getNumIteration(const TensorIterator& ti);
+int getNumIteration(const TensorIterator& ti);
 
 IE_SUPPRESS_DEPRECATED_END
 

@@ -23,11 +23,6 @@ ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_ir_v10_reader"
 ie_coverage_genhtml(INFO_FILE "inference_engine_ir_v10_reader"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_legacy"
-                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/legacy_api/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
-                    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
-
 ie_coverage_extract(INPUT "dldt" OUTPUT "hetero_plugin"
                     PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/hetero_plugin/*")
 ie_coverage_genhtml(INFO_FILE "hetero_plugin"

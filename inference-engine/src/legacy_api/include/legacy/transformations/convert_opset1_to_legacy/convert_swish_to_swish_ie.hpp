@@ -14,7 +14,7 @@
 
 namespace ngraph {
 namespace pass {
-    class INFERENCE_ENGINE_API_CLASS(ConvertSwishToSwishIEMatcher);
+class ConvertSwishToSwishIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 

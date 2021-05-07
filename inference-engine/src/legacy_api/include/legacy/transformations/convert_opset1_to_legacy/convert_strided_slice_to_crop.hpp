@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertStridedSliceToCropMatcher);
+class ConvertStridedSliceToCropMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

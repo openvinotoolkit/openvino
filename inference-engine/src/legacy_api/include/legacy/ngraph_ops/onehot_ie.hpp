@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(OneHotIE) : public Op {
+class OneHotIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"OneHotIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

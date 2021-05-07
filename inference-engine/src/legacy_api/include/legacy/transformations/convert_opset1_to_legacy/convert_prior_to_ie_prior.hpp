@@ -14,9 +14,9 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertPriorBox);
-class INFERENCE_ENGINE_API_CLASS(ConvertPriorBoxToLegacy);
-class INFERENCE_ENGINE_API_CLASS(ConvertPriorBoxClusteredToLegacy);
+class ConvertPriorBox;
+class ConvertPriorBoxToLegacy;
+class ConvertPriorBoxClusteredToLegacy;
 
 }  // namespace pass
 }  // namespace ngraph

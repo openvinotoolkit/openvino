@@ -14,7 +14,7 @@ enum class ELTWISE_TYPE {Sum, Prod, Max, Sub, Min, Div};
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(Eltwise) : public Op {
+class Eltwise : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"Eltwise", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
