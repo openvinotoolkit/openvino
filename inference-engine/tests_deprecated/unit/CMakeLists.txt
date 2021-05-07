@@ -83,7 +83,6 @@ source_group("include" FILES ${TEST_INCLUDE})
 # create target
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
-set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${IE_MAIN_SOURCE_DIR}/src/gna_plugin

@@ -12,7 +12,7 @@
 #   2) ${TBBROOT} with IE own version of TBBConfig.cmake (actual for TBB < 2017.7)
 #
 
-## Path to IE own version of TBBConfig.cmake old TBB version without cmake config.
+# Path to IE own version of TBBConfig.cmake old TBB version without cmake config.
 if(APPLE)
     set(IE_OWN_TBB_CONFIG tbb/mac)
 elseif(UNIX)
@@ -27,6 +27,7 @@ find_package(TBB
     CONFIG
     PATHS ${TBBROOT}/cmake
           ${IEDevScripts_DIR}/${IE_OWN_TBB_CONFIG}
+    NO_CMAKE_FIND_ROOT_PATH
     NO_DEFAULT_PATH
 )
 
