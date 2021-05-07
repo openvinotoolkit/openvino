@@ -47,13 +47,13 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
         return nullptr;
     }
 
-    auto constant = fold<opset1::Negative>(add->get_input_node_shared_ptr(constBranchIndex));
+    auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
     const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(dataBranchIndex), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
         add->get_autob());
 
@@ -73,13 +73,13 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     }
 
     const auto newSubConst = fold<opset1::Subtract>(
-        add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1),
-        add->get_input_node_shared_ptr(1));
+        add->get_input_node_shared_ptr(0)->input_value(1),
+        add->input_value(1));
 
     const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
 
@@ -178,7 +178,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         // graph update
-        std::vector<Output<Node>> inputs{ {}, {} };
+        OutputVector inputs{ {}, {} };
         auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
 
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;

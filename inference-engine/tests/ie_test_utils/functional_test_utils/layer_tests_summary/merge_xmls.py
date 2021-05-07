@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import xml.etree.ElementTree as ET
-from jinja2 import Environment, FileSystemLoader
 import argparse
 import os
 from datetime import datetime
@@ -81,7 +80,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
             logger.error(f" {folder_path} is not a directory!")
             continue
 
-        xml_reports = glob.glob(os.path.join(folder_path, 'report*.xml'))
+        xml_reports = glob.glob(os.path.join(folder_path, '**/report*.xml'))
 
         xml_root = ET.parse(xml_reports[0]).getroot()
         for op in xml_root.find("ops_list"):
@@ -93,6 +92,8 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 
+        if not os.path.exists(output_folder_paths):
+            os.mkdir(output_folder_paths)
         out_file_path = os.path.join(output_folder_paths, "report.xml")
         with open(out_file_path, "w") as xml_file:
             xml_file.write(ET.tostring(summary).decode('utf8'))

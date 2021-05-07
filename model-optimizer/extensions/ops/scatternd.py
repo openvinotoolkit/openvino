@@ -44,14 +44,16 @@ class ScatterNDBase(Op):
         # 1. ranks of both input and indices must be at least 1
         assert len(input_shape) >= 1 and len(indices_shape) >= 1, \
             'The node "{}" input and indices ranks must be at least 1'.format(node_name)
-           
+
         # 2. the last dimension of indices shape must be at most a rank of input
         assert indices_shape[-1] <= len(input_shape), \
             'The last dimension of indices shape must be at most a rank of input for the node "{}"'.format(node_name)
 
         # 3. updates is a tensor of shape indices_shape[:-1] + input_shape[indices_shape[-1]:]
+        # if expected updates shape is scalar, updates can be tensor with the single element (for example, of shape [1], [[1]], etc.)
         expected_updates_shape = np.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
-        assert np.array_equal(updates_shape, expected_updates_shape), \
+        assert np.array_equal(updates_shape, expected_updates_shape) or\
+               np.array_equal(expected_updates_shape, []) and np.array_equal(updates_shape, np.ones(len(updates_shape))), \
             'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node "{}"'.format(node_name)
 
         node.out_port(0).data.set_shape(input_shape)

@@ -5,8 +5,8 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.activation_ops import Floor
 from extensions.ops.Cast import Cast
+from extensions.ops.activation_ops import Floor
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.interpolate import Interpolate
 from extensions.ops.range import Range
@@ -15,7 +15,6 @@ from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -79,9 +78,9 @@ def replace_resize(graph: Graph, resize: Node):
                                            {1: float_array([1.0e-5])},
                                            {'name': resize_name + '/Add'})
 
-    input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+    dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
-    cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
+    cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
 
     shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
     mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node([cast_shape_to_float, add_node])

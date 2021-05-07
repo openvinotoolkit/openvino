@@ -57,7 +57,7 @@ SimpleLowPrecisionTransformer getTransformerWithTransformationByName(
     using namespace pass::low_precision;
     SimpleLowPrecisionTransformer transformer;
 
-    if (name == "AddTransformation") {
+    if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
         transformer.add<AddTransformation, ngraph::opset1::Add>(params);
         return transformer;
     }
@@ -185,7 +185,8 @@ TEST_P(TransformationsAfterSplitTransformation, Run) {
 }
 
 const std::vector<std::string> transformationNames = {
-    "AddTransformation",
+    "AddTransformationWithoutConcat",
+    "AddTransformationWithConcat",
     "AvgPoolTransformation",
     "ClampTransformation",
     "ConvolutionTransformation",

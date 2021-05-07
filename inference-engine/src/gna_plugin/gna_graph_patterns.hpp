@@ -133,16 +133,21 @@ inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNN
 }
 
 /**
- * @brief returns rotation information for a layer based on the previous convolution or pooling dimensions order
- * @param layer layer from which rotation info search must be started
- * @return bool value which identifies if rotation info is found and rotation information
+ * @brief returns transposition information for a layer based on the previous convolution or pooling dimensions order
+ * @param layer layer from which transposition info search must be started
+ * @return bool value which identifies if transposition info is found and transposition information
  */
 inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNLayerPtr layer) {
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
+        auto getTransposeInfoFromData = [](InferenceEngine::DataPtr data, bool transpose = true) {
+            auto rows = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::W);
+            return std::vector<TranspositionInfo>{{transpose, rows, columns}};
+        };
         if (LayerInfo(layer).isConvolution() || LayerInfo(layer).isPooling()) {
-            auto out_dims = layer->outData[0]->getDims();
-            return {{true, out_dims[1], out_dims[2] * out_dims[3]}};
+            return getTransposeInfoFromData(layer->outData[0]);
         }
 
         /* If a fullyconnected or input layers are reached, it means that transposition isn't needed, but we should keep
@@ -160,6 +165,46 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
             return findTranspositionInfoRecursive(input1);
         }
 
+        /* If it's a concat along not channel axis and its inputs are transposed the whole concat output must be transposed,
+         * otherwise every part corresponding to some input must be transposed separately */
+        if (LayerInfo(layer).isConcat() && !layer->insData.empty())  {
+            auto concatLayer = LayerInfo(layer).as<InferenceEngine::ConcatLayer*>();
+            IE_ASSERT(concatLayer != nullptr);
+            if (concatLayer->_axis > 1) {
+                for (const auto& input : layer->insData) {
+                    auto in_dims = input.lock()->getDims();
+                    if (in_dims.size() <= 2) {
+                        THROW_GNA_EXCEPTION << layer->name << " Invalid number of input dimensions " << in_dims.size()
+                                            << " for a concat with axis=" << concatLayer->_axis;
+                    }
+                    if (concatLayer->_axis == in_dims.size() - 1 && in_dims[in_dims.size() - 2] > 1) {
+                        std::ostringstream in_dims_oss;
+                        std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+                        THROW_GNA_EXCEPTION << layer->name << " Unsupported concatenation axis=" << concatLayer->_axis
+                                            << " for input dimensions: " << in_dims_oss.str();
+                    }
+                }
+                // Check if non-const inputs are transposed
+                bool transpose = false;
+                int nonConstInputIx = 0;
+                for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(layer.get(), i); ++i) {
+                    auto input = InferenceEngine::CNNNetPrevLayer(layer, i);
+                    if (LayerInfo(input).isConst()) continue;
+                    auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
+                    auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
+                        [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
+                    bool inputTranspose = (partToTranspose != std::end(transpositionInfo));
+                    if (nonConstInputIx == 0) {
+                        transpose = inputTranspose;
+                    } else if (inputTranspose != transpose) {
+                        THROW_GNA_EXCEPTION << layer->name << " concat has inputs with different layouts";
+                    }
+                    ++nonConstInputIx;
+                }
+                return getTransposeInfoFromData(layer->outData[0], transpose);
+            }
+        }
+
         std::vector<TranspositionInfo> transpositionInfo;
         for (int idx = 0; idx < layer->insData.size(); ++idx) {
             if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx)) continue;
@@ -169,8 +214,8 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
                 auto in_dims = layer->insData[idx].lock()->getDims();
                 transpositionInfo.push_back({false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))});
             } else if (LayerInfo(layer).isConcat() && LayerInfo(inputLayer).isConst()) {
-                // If a concat input is a const we should keep its size to skip this part during transposition
                 auto in_dims = layer->insData[idx].lock()->getDims();
+                // We should keep its size to skip this part during transposition
                 auto data_size = InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims));
                 transpositionInfo.push_back({false, 1, data_size});
             } else {
@@ -184,16 +229,18 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
 }
 
 /**
- * @brief returns rotation information for a layer based on the next convolution layer dimensions order
- * @param layer layer from which rotation info search must be started
- * @return bool value which identifies if rotation info is found and rotation information
+ * @brief returns transposition information for a layer based on the next convolution layer dimensions order
+ * @param layer layer from which transposition info search must be started
+ * @return bool value which identifies if transposition info is found and transposition information
  */
 inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(InferenceEngine::CNNLayerPtr layer) {
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
         if (LayerInfo(layer).isConvolution()) {
-            auto in_dims = layer->input()->getDims();
-            return {{true, in_dims[1], in_dims[2] * in_dims[3]}};
+            auto rows = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::W);
+            return {{true, rows, columns}};
         }
 
         /* If a fullyconnected or output layers are reached, it means that transposition isn't needed, but we should keep

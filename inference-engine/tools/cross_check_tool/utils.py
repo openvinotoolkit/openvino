@@ -11,15 +11,15 @@ import xml
 try:
     import cv2
 except Exception as e:
-    log.error("Can not import OpenCV Python package.\nPlease install required python packages by running:\n"
-              "pip3 install -r requirements.txt\n\n Original error message: {}".format(e))
+    log.error(f"Can not import OpenCV Python package.\nPlease install required python packages by running:\n"
+              f"pip3 install -r requirements.txt\n\n Original error message: {e}")
     sys.exit(1)
 
 try:
     import numpy as np
 except Exception as e:
-    log.error("Can not import numpy python package.\nPlease install required python packages by running:\n"
-              "pip3 install -r requirements.txt\n\n Original error message: {}".format(e))
+    log.error(f"Can not import numpy python package.\nPlease install required python packages by running:\n"
+              f"pip3 install -r requirements.txt\n\n Original error message: {e}")
     sys.exit(1)
 
 verbosity = False
@@ -78,8 +78,7 @@ def error_handling(desc: str):
                 return func(*args, **kwargs)
             except Exception as e:
                 exception_type = type(e).__name__
-                log.error("The following error happened while {}:\n[ {} ] {}".format(desc.format(**kwargs),
-                                                                                     exception_type, e))
+                log.error(f"The following error happened while {desc.format(**kwargs)}:\n[ {exception_type} ] {e}")
                 global verbosity
                 if verbosity:
                     traceback.print_tb(tb=e.__traceback__, file=sys.stdout)
@@ -98,7 +97,7 @@ class ExistingFileAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if values is not None:
             if not os.path.isfile(values):
-                log.error("File was not found: {}".format(values))
+                log.error(f"File was not found: {values}")
                 sys.exit(1)
         setattr(namespace, self.dest, values)
 
@@ -111,7 +110,7 @@ class ExistingDirAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if values is not None:
             if not os.path.isdir(values):
-                log.error("Directory was not found: {}".format(values))
+                log.error(f"Directory was not found: {values}")
                 sys.exit(1)
         setattr(namespace, self.dest, values)
 
@@ -276,12 +275,12 @@ def find_out_cct_mode(args):
 
 def print_input_layers(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
-    log.info('{} {} detected: {}'.format(len(inputs), word, ', '.join(inputs)))
+    log.info(f"{len(inputs)} {word} detected: {', '.join(inputs)}")
 
 
 def print_output_layers(outputs: list):
     layers = 'layers' if len(outputs) > 1 else 'layer'
-    log.info('Statistics will be dumped for {} {}: {}'.format(len(outputs), layers, ', '.join(outputs)))
+    log.info(f"Statistics will be dumped for {len(outputs)} {layers}: {', '.join(outputs)}")
 
 
 ###
@@ -313,24 +312,21 @@ def read_multi_input_file(input_file: str, net_inputs: dict):
     dump = {}
     for net_input in net_inputs:
         if net_input not in files:
-            raise Exception('Can not find input data for input {} in multi-input file {}.\n'
-                            'Input data was provided for layers: {}\n'
-                            'Network inputs: {}'.format(net_input, input_file, ', '.join(files),
-                                                        ', '.join(net_inputs.keys())))
+            raise Exception(f"Can not find input data for input {net_input} in multi-input file {input_file}.\n"
+                            f"Input data was provided for layers: {', '.join(files)}\n"
+                            f"Network inputs: {', '.join(net_inputs.keys())}")
         if 'blob' in npz[net_input].item(0):
             just_blob = npz[net_input].item(0)['blob']
             network_shape = net_inputs[net_input].input_data.shape
-            log.info('Layer {} shape = {}, input blob from multi-input file shape = {}'
-                     ''.format(net_input, network_shape, just_blob.shape))
+            log.info(f'Layer {net_input} shape = {network_shape}, input blob from multi-input file shape = {just_blob.shape}')
             try:
                 reshaped_blob = np.reshape(just_blob, network_shape)
             except:
-                raise Exception('Can not reshape input blob from multi-input file for layer {} to shape {}'
-                                ''.format(net_input, network_shape))
+                raise Exception(f'Can not reshape input blob from multi-input file for layer {net_input} to shape {network_shape}')
             dump[net_input] = reshaped_blob
         else:
             raise Exception(
-                'Can not find \'blob\' parameter for input {} in input file {}'.format(net_input, input_file))
+                f'Can not find \'blob\' parameter for input {net_input} in input file {input_file}')
     return dump
 
 
@@ -372,8 +368,7 @@ def input_processing(model_path: str, net_inputs: dict, input_file: str, layers_
 
 def accuracy_metrics(out_blob, ref_out_blob):
     if out_blob.size != ref_out_blob.size:
-        raise Exception('Different number of elements in blobs {} and {}. Can not compare'
-                        ''.format(out_blob.size, ref_out_blob.size))
+        raise Exception(f'Different number of elements in blobs {out_blob.size} and {ref_out_blob.size}. Can not compare')
     abs_diff = np.absolute(out_blob - ref_out_blob)
     rel_diff = np.divide(abs_diff, np.min(abs_diff) if np.min(abs_diff) != 0 else 1e-20)
 
@@ -394,9 +389,9 @@ def accuracy_metrics(out_blob, ref_out_blob):
 
     for key, value in metrics:
         if len(str(value)) > 5:
-            log.info('{:>35} : {:.5E}'.format(key, value), extra={'no_lvl': True})
+            log.info(f'{key:>35} : {value:.5E}', extra={'no_lvl': True})
         else:
-            log.info('{:>35} : {}'.format(key, value), extra={'no_lvl': True})
+            log.info(f'{key:>35} : {value}', extra={'no_lvl': True})
     return {metric: value for metric, value in metrics}
 
 
@@ -409,7 +404,7 @@ def performance_metrics(pc, ref_pc):
     ]
 
     for metric, actual, reference in compare:
-        log.info('{:>35}: {:>16} {:>16}'.format(metric, actual, reference), extra={'no_lvl': True})
+        log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})
 
 
 def blob_counters(out_blob, ref_out_blob):
@@ -420,7 +415,7 @@ def blob_counters(out_blob, ref_out_blob):
          ref_out_blob.size - np.count_nonzero(ref_out_blob))
     ]
     for metric, actual, reference in counters:
-        log.info('{:>35}: {:>16} {:>16}'.format(metric, actual, reference), extra={'no_lvl': True})
+        log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})
 
 
 def update_global_accuracy_matrics(global_accuracy: list, current_accuracy: dict):
@@ -444,12 +439,13 @@ def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: 
                                    ref_global_times: list = None):
     if global_times is not None and ref_global_times is not None and len(global_times) and len(ref_global_times):
         log.info('-' * 70, extra={'no_lvl': True})
-        log.info('{:>35}: {:>16,.5E} {:>16,.5E}'.format(
-            'Overall performance, microseconds', global_times[len(global_times) // 2].microseconds,
-            ref_global_times[len(ref_global_times) // 2].microseconds), extra={'no_lvl': True})
+        log.info(f'{"Overall performance, microseconds":>35}: '
+                                f'{global_times[len(global_times) // 2].microseconds:>16,.5E} '
+                                f'{ref_global_times[len(ref_global_times) // 2].microseconds:>16,.5E}', 
+                                                                                extra={'no_lvl': True})
         log.info('-' * 70, extra={'no_lvl': True})
     for metric, value in global_accuracy:
-        log.info('{} {} = {}'.format('Overall', metric.lower(), value))
+        log.info(f"Overall {metric.lower()} = {value}")
 
 
 ###
@@ -493,9 +489,9 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
         if layer not in layers_map:
             if mapping is not None and reference_mapping is not None:
                 log.warning(
-                    'Can not map layer {} from --model/-m to any layer from --reference_model/-ref_m'.format(layer))
+                    f'Can not map layer {layer} from --model/-m to any layer from --reference_model/-ref_m')
             else:
-                log.warning('Can not find layer {} in --reference_model/-ref_m model'.format(layer))
+                log.warning(f'Can not find layer {layer} in --reference_model/-ref_m model')
     for layer in layers_map:
         if layer not in user_layers:
             del layers_map[layer]
@@ -513,9 +509,9 @@ def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
             layers_to_check = []
             for user_layer in user_layers:
                 if user_layer not in all_layers_names:
-                    raise Exception("Layer {} doesn't exist in the model".format(user_layer))
+                    raise Exception(f"Layer {user_layer} doesn't exist in the model")
                 if user_layer in inputs:
-                    raise Exception("Layer {} is input layer. Can not proceed".format(user_layer))
+                    raise Exception(f"Layer {user_layer} is input layer. Can not proceed")
                 if all_layers_names[user_layer].get_type_name() != 'Result':
                     layers_to_check.append(user_layer)
                 else:
@@ -533,7 +529,7 @@ def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
 
 def dump_output_file(output_file, dump_dict):
     np.savez_compressed(output_file, **dump_dict)
-    log.info('Dump file path: {}'.format(output_file))
+    log.info(f'Dump file path: {output_file}')
 
 
 def load_dump(file_to_load: str):

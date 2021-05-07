@@ -82,11 +82,13 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 }
 
 template <class T>
-bool stringToType(const std::string& valStr, T& value) {
+T stringToType(const std::string& valStr) {
+    T ret{0};
     std::istringstream ss(valStr);
-    if (ss.eof()) return false;
-    ss >> value;
-    return !ss.fail();
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
 }
 
 class XmlDeserializer : public ngraph::AttributeVisitor {
@@ -124,16 +126,12 @@ public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
         std::string val;
         if (!getStrAttribute(node.child("data"), name, val)) return;
-        double value;
-        stringToType<double>(val, value);
-        adapter.set(value);
+        adapter.set(stringToType<double>(val));
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
         std::string val;
         if (!getStrAttribute(node.child("data"), name, val)) return;
-        int64_t value;
-        stringToType<int64_t>(val, value);
-        adapter.set(value);
+        adapter.set(stringToType<int64_t>(val));
     }
 
     void on_adapter(

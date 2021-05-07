@@ -11,15 +11,18 @@ collected statistics.
 # pylint: disable=redefined-outer-name
 
 import statistics
-from pathlib import Path
 import tempfile
 import subprocess
 import logging
 import argparse
 import sys
 import os
-from pprint import pprint
 import yaml
+
+from pathlib import Path
+from pprint import pprint
+
+from test_runner.utils import filter_timetest_result
 
 
 def run_cmd(args: list, log=None, verbose=True):
@@ -95,8 +98,11 @@ def run_timetest(args: dict, log=None):
         stats = dict((step_name, stats.get(step_name, []) + [duration])
                      for step_name, duration in raw_data.items())
 
+    # Remove outliers
+    filtered_stats = filter_timetest_result(stats)
+
     # Aggregate results
-    aggregated_stats = aggregate_stats(stats)
+    aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
     return 0, aggregated_stats
@@ -129,7 +135,7 @@ def cli_parser():
                         type=str,
                         help='target device to infer on')
     parser.add_argument('-niter',
-                        default=3,
+                        default=10,
                         type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',

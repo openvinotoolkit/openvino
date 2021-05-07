@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
     np_data_type_to_destination_type, packed_I4, packed_U4
@@ -84,7 +84,7 @@ class Cast(Op):
         bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
         bit_order_big = np.flip(bit_order_little, axis=1)
         bit_order_big_flattened = bit_order_big.flatten()
-        packed = np.packbits(bit_order_big_flattened, bitorder='big')
+        packed = np.packbits(bit_order_big_flattened)
 
         node.out_node(0)['force_shape'] = data_shape.copy()
         node.out_node(0)['force_type'] = np_data_type_to_precision(dst_type)

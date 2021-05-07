@@ -236,6 +236,7 @@ onnx_model_gru_defaults_fwd_const_dynamic
 onnx_model_rnn_defaults_fwd_const_dynamic
 onnx_model_depth_to_space_dynamic_input
 onnx_model_space_to_depth_dynamic_input
+squeeze_dynamic
 
 
 # Constant network
@@ -1059,6 +1060,14 @@ rnn_cell_zero_bias_default_attrs
 # Activation function hardsigmoid is not supported
 gru_cell_hardsigmoid_activation_function
 
+# Roll is not implemented yet for CPU, GPU 
+roll_2d_input
+roll_2d_input_negative_shift
+roll_repeated_axes
+roll_3d_input
+roll_3d_input_negative_shift
+roll_negative_axes
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1586,3 +1595,6 @@ bin_convolution_2D_2batch_1channel
 
 # RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
 onnx_upsample6_dynamic
+
+# random values returned from the plugin: ticket 51762
+onnx_model_deformable_conv_2d

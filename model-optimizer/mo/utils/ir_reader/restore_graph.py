@@ -17,6 +17,7 @@ from mo.utils.class_registration import apply_replacements_list
 from mo.utils.ir_engine.ir_engine import IREngine
 from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
 from mo.utils.utils import get_mo_root_dir
+from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
@@ -64,6 +65,7 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         BlobNormalizer,
         ConvolutionNormalizer,
         KaldiRemoveMemoryOutputBackReplacementPattern,
+        MarkNodesWithShapeValues,
     ]
 
     # We need to run some specific passes from MO back stage.

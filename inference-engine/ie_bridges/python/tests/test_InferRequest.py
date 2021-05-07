@@ -376,6 +376,9 @@ def test_async_infer_callback_wait_in_callback(device):
 
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -395,6 +398,8 @@ def test_get_perf_counts(device):
                             "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
     ie_core = ie.IECore()
+    if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to dynamic batch isn't supported")
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
@@ -438,6 +443,9 @@ def test_set_negative_batch_size(device):
 
 def test_blob_setter(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
