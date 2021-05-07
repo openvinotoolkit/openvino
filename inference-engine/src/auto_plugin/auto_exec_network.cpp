@@ -41,7 +41,7 @@ IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsD
 }
 
 IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequest() {
-    return CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    return CreateAsyncInferRequestFromSync();
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter> &config) {
