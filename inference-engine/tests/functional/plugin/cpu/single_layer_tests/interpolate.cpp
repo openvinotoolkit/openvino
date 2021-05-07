@@ -242,6 +242,8 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         fusingFakeQuantizePerChannelRelu,
 };
 
+std::map<std::string, std::string> additional_config = {};
+
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
     if (with_cpu_x86_avx512f()) {
         return {
