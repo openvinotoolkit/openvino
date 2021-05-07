@@ -349,7 +349,7 @@ int main(int argc, char* argv[]) {
             auto FE = manager.loadByFramework("onnx");
             auto inputModel = FE->loadFromFile(FLAGS_m);
 
-            int test_scenario = 0;
+            int test_scenario = 2;
 
             // The next test cases are applicable for resnet50-v1-7.onnx model from the official repository
 
