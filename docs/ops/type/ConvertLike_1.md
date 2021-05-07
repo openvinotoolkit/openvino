@@ -8,13 +8,13 @@
 
 **Detailed description**
 
-Conversion from one supported type to another supported type is always allowed. User must be aware of precision loss and value change caused by range difference between two types. For example, a 32-bit float *3.141592* may be round to a 32-bit int *3*. The result of unsupported conversions is undefined, e.g. convertion of negative signed integer value to any unsigned integer type.
+Conversion from one supported type to another supported type is always allowed. User must be aware of precision loss and value change caused by range difference between two types. For example, a 32-bit float *3.141592* may be round to a 32-bit int *3*. The result of unsupported conversions is undefined, e.g. conversion of negative signed integer value to any unsigned integer type.
 
-Ouput elements are represented as follows:
+Output elements are represented as follows:
 
     o[i] = Convert[destination_type=type(b)](a[i])
 
-where `a` and `b` correspond to `data` and `like` input tensors respectively.
+where `a` and `b` correspond to `data` and `like` input tensors, respectively.
 
 **Attributes**: *ConvertLike* operation has no attributes.
 
@@ -29,12 +29,10 @@ where `a` and `b` correspond to `data` and `like` input tensors respectively.
 
 **Types**
 
-* *T1*: `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `f16`, `f32`, `boolean`, `bf16`
-* *T2*: `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `f16`, `f32`, `boolean`, `bf16`
+* *T1*: any supported type
+* *T2*: any supported type
 
-**Examples**
-
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="ConvertLike">
