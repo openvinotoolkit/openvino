@@ -269,8 +269,9 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({wl->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                            << "cannot copy weights for layer :"<< wl->name << " of size" << intWeights->byteSize();
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy weights for layer :"<< wl->name << " of size" << intWeights->byteSize();
     }
 
     int oIdx = wl->outData[0]->getDims().size() - 1;
@@ -296,8 +297,9 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                                << "cannot copy bias for layer :"<< wl->name <<"of size" << bias->byteSize();
+            THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy bias for layer :"<< wl->name <<"of size" << bias->byteSize();
         }
 
         memset(bias->buffer(), 0, bias->byteSize());
@@ -386,8 +388,9 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     auto intWeights = make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({conv->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                            << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+            << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+            << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
     }
 
     auto getBiasSizeForLayer = [](InferenceEngine::WeightableLayer *wl) {
@@ -410,8 +413,9 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
                                                                                                       }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                                << "cannot copy bias for layer :"<< conv->name <<"of size" << bias->byteSize();
+            THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy bias for layer :"<< conv->name <<"of size" << bias->byteSize();
         }
         memset(bias->buffer(), 0, bias->byteSize());
 
@@ -523,7 +527,7 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 outData->setPrecision(Desc::mandatory().getInputPrecision());
             }
         } else {
-                if (LayerInfo(*cnnLayer).isActivation() ||
+            if (LayerInfo(*cnnLayer).isActivation() ||
                     LayerInfo(*cnnLayer).isCopy() ||
                     LayerInfo(*cnnLayer).isNonFunctional() ||
                     LayerInfo(*cnnLayer).isPermute() ||
@@ -531,6 +535,13 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
+                }
+            }
+            // for pooling layer output precision is the same as input precision
+            if (LayerInfo(*cnnLayer).isMaxPooling()) {
+                const auto inputPrecision = cnnLayer->insData.front().lock()->getPrecision();
+                for (auto&& outData : cnnLayer->outData) {
+                    outData->setPrecision(inputPrecision);
                 }
             }
         }

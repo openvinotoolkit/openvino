@@ -55,18 +55,11 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
-// TODO: issue with RTTI
-#ifdef __APPLE__
-using NotImplementedException = std::exception;
-#else
-using NotImplementedException = InferenceEngine::NotImplemented;
-#endif
-
 #define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch (const NotImplementedException &) {                                 \
+    } catch (const InferenceEngine::NotImplemented&) {                          \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -219,7 +212,7 @@ TEST(IEClassBasicTest, smoke_createDefault) {
 TEST_P(IEClassBasicTestP, registerExistingPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.RegisterPlugin(pluginName, deviceName), InferenceEngineException);
+    ASSERT_THROW(ie.RegisterPlugin(pluginName, deviceName), Exception);
 }
 
 TEST_P(IEClassBasicTestP, registerNewPluginNoThrows) {
@@ -232,12 +225,12 @@ TEST_P(IEClassBasicTestP, registerNewPluginNoThrows) {
 TEST(IEClassBasicTest, smoke_registerExistingPluginFileThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.RegisterPlugins("nonExistPlugins.xml"), InferenceEngineException);
+    ASSERT_THROW(ie.RegisterPlugins("nonExistPlugins.xml"), Exception);
 }
 
 TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ASSERT_THROW(Core ie("nonExistPlugins.xml"), InferenceEngineException);
+    ASSERT_THROW(Core ie("nonExistPlugins.xml"), Exception);
 }
 
 #ifdef __linux__
@@ -256,7 +249,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
     std::string filename{"mock_engine.xml"};
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
-    ASSERT_THROW(Core ie(filename), InferenceEngineException);
+    ASSERT_THROW(Core ie(filename), Exception);
     CommonTestUtils::removeFile(filename.c_str());
 }
 
@@ -300,7 +293,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
             GTEST_COUT << "OK" << std::endl;
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e_next) {
+        catch (const InferenceEngine::Exception &e_next) {
             CommonTestUtils::removeFile(pluginsXmlW);
             std::remove(pluginXML.c_str());
             FAIL() << e_next.what();
@@ -341,7 +334,7 @@ TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
     // device instance is not created yet
-    ASSERT_THROW(ie.UnregisterPlugin(deviceName), InferenceEngineException);
+    ASSERT_THROW(ie.UnregisterPlugin(deviceName), Exception);
 
     // make the first call to IE which created device instance
     ie.GetVersions(deviceName);
@@ -352,7 +345,7 @@ TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
 TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.UnregisterPlugin(deviceName), InferenceEngineException);
+    ASSERT_THROW(ie.UnregisterPlugin(deviceName), Exception);
     ASSERT_NO_THROW(ie.GetVersions(deviceName));
     ASSERT_NO_THROW(ie.UnregisterPlugin(deviceName));
     ASSERT_NO_THROW(ie.SetConfig({}, deviceName));
@@ -363,7 +356,7 @@ TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
 TEST(IEClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.UnregisterPlugin("unkown_device"), InferenceEngineException);
+    ASSERT_THROW(ie.UnregisterPlugin("unkown_device"), Exception);
 }
 
 //
@@ -380,7 +373,7 @@ TEST_P(IEClassBasicTestP, SetConfigAllThrows) {
 TEST_P(IEClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.SetConfig({{"unsupported_key", "4"}}, "unregistered_device"), InferenceEngineException);
+    ASSERT_THROW(ie.SetConfig({{"unsupported_key", "4"}}, "unregistered_device"), Exception);
 }
 
 TEST_P(IEClassBasicTestP, SetConfigNoThrow) {
@@ -432,7 +425,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
 
     if (deviceName == CommonTestUtils::DEVICE_CPU ||
         deviceName == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplementedException);
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
     }
 }
 
@@ -440,13 +433,13 @@ TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), InferenceEngineException);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), Exception);
 }
 
 TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), InferenceEngineException);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), Exception);
 }
 
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
@@ -454,7 +447,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
     Core ie;
     RemoteContext::Ptr context = nullptr;
     std::istringstream stream("None");
-    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), InferenceEngineException);
+    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), Exception);
 }
 
 //
@@ -547,7 +540,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
 
     try {
         ie.QueryNetwork(actualNetwork, deviceName);
-    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+    } catch (const InferenceEngine::Exception & ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -566,7 +559,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
                 FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
             }
         }
-    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+    } catch (const InferenceEngine::Exception & ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -618,7 +611,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
             op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
         }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoNetwork, deviceName);
-    } catch (const NotImplementedException& ex) {
+    } catch (const NotImplemented& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -642,7 +635,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
             op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
         }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoNetwork, deviceName);
-    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+    } catch (const InferenceEngine::Exception & ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -659,7 +652,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngineException);
+    ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI), Exception);
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -701,7 +694,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     Core ie;
     // TODO: check
     std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
-    ASSERT_THROW(ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), InferenceEngineException);
+    ASSERT_THROW(ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), Exception);
 }
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
@@ -854,7 +847,7 @@ TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     Core ie;
     Parameter p;
 
-    ASSERT_THROW(p = ie.GetMetric(deviceName, "unsupported_metric"), InferenceEngineException);
+    ASSERT_THROW(p = ie.GetMetric(deviceName, "unsupported_metric"), Exception);
 }
 
 TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
@@ -890,7 +883,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     Core ie;
     Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), InferenceEngineException);
+    ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), Exception);
 }
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
@@ -899,7 +892,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     Parameter p;
 
     ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
-                 InferenceEngineException);
+                 Exception);
 }
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
@@ -907,7 +900,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     Core ie;
     Parameter p;
 
-    ASSERT_THROW(p = ie.GetConfig(deviceName, "unsupported_config"), InferenceEngineException);
+    ASSERT_THROW(p = ie.GetConfig(deviceName, "unsupported_config"), Exception);
 }
 
 TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
@@ -1009,7 +1002,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.GetMetric("unsupported_metric"), InferenceEngineException);
+    ASSERT_THROW(p = exeNetwork.GetMetric("unsupported_metric"), Exception);
 }
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
@@ -1036,7 +1029,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.GetConfig("unsupported_config"), InferenceEngineException);
+    ASSERT_THROW(p = exeNetwork.GetConfig("unsupported_config"), Exception);
 }
 
 TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
@@ -1046,7 +1039,7 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.SetConfig({{"unsupported_config", "some_value"}}), InferenceEngineException);
+    ASSERT_THROW(exeNetwork.SetConfig({{"unsupported_config", "some_value"}}), Exception);
 }
 
 TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
@@ -1068,7 +1061,7 @@ TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngineException);
+    ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), Exception);
 }
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
@@ -1231,7 +1224,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     if (supportsDeviceID(ie, deviceName)) {
         try {
             ie.QueryNetwork(simpleNetwork, deviceName + ".0");
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        } catch (const InferenceEngine::Exception & ex) {
             std::string message = ex.what();
             ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
         }
@@ -1245,7 +1238,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".110"), InferenceEngineException);
+        ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".110"), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1256,7 +1249,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".l0"), InferenceEngineException);
+        ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".l0"), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1268,7 +1261,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
-                                     {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngineException);
+                                     {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1311,7 +1304,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".10"), InferenceEngineException);
+        ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".10"), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1322,7 +1315,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".l0"), InferenceEngineException);
+        ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".l0"), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1334,7 +1327,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, "HETERO",
-                                    {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngineException);
+                                    {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1347,7 +1340,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
                                     {{"TARGET_FALLBACK",     deviceName + "," + CommonTestUtils::DEVICE_CPU},
-                                     {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngineException);
+                                     {CONFIG_KEY(DEVICE_ID), "110"}}), Exception);
     } else {
         GTEST_SKIP();
     }

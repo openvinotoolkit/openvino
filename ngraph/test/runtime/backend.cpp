@@ -63,9 +63,7 @@ static string find_my_pathname()
 #endif
 }
 
-runtime::Backend::~Backend()
-{
-}
+runtime::Backend::~Backend() {}
 
 std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
                                                            bool must_support_dynamic)

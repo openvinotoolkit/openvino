@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ie_layouts.h>
-#include <details/ie_exception.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <api/layout.hpp>
 
@@ -49,7 +48,8 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::BOOL:
         return cldnn::data_types::i8;
     default:
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << p.name() << " precision";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+            << "The plugin does not support " << p.name() << " precision";
     }
 }
 
@@ -74,7 +74,8 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::u1:
         return cldnn::data_types::bin;
     default:
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << t.get_type_name()<< " precision";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+            << "The plugin does not support " << t.get_type_name()<< " precision";
     }
 }
 
@@ -94,7 +95,7 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " layout";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "The plugin does not support " << l << " layout";
     }
 }
 
@@ -119,7 +120,8 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << desc.getLayout() << " layout";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+            << "The plugin does not support " << desc.getLayout() << " layout";
     }
 }
 
@@ -135,7 +137,8 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::nv12;
     default:
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " image layout";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+            << "The plugin does not support " << l << " image layout";
     }
 }
 

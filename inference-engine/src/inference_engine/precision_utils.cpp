@@ -3,7 +3,6 @@
 //
 
 #include "precision_utils.h"
-#include <details/ie_exception.hpp>
 
 #include <stdint.h>
 

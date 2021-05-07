@@ -74,6 +74,7 @@ namespace ngraph
                 }
                 bool get_ctc_merge_repeated() const { return ctc_merge_repeated_; }
                 bool get_unique() const { return unique_; }
+
             private:
                 bool preprocess_collapse_repeated_;
                 bool ctc_merge_repeated_;

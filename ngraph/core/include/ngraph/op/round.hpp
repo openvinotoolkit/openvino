@@ -61,6 +61,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 RoundMode get_mode() const { return m_mode; }
+
             private:
                 RoundMode m_mode;
             };

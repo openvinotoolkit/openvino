@@ -28,9 +28,7 @@ std::ostream& ngraph::operator<<(std::ostream& s, const Coordinate& coordinate)
     return s;
 }
 
-ngraph::Coordinate::Coordinate()
-{
-}
+ngraph::Coordinate::Coordinate() {}
 
 ngraph::Coordinate::Coordinate(const std::initializer_list<size_t>& axes)
     : std::vector<size_t>(axes)
@@ -57,9 +55,7 @@ ngraph::Coordinate::Coordinate(size_t n, size_t initial_value)
 {
 }
 
-ngraph::Coordinate::~Coordinate()
-{
-}
+ngraph::Coordinate::~Coordinate() {}
 
 ngraph::Coordinate& ngraph::Coordinate::operator=(const Coordinate& v)
 {

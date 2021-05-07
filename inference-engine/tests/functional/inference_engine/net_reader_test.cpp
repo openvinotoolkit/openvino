@@ -31,7 +31,7 @@ using NetReaderNoParamTest = CommonTestUtils::TestsCommon;
 
 TEST_F(NetReaderNoParamTest, IncorrectModel) {
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.ReadNetwork("incorrectFilePath"), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(ie.ReadNetwork("incorrectFilePath"), InferenceEngine::Exception);
 }
 
 using NetReaderTestParams = std::tuple<InferenceEngine::SizeVector, InferenceEngine::Precision>;
@@ -141,7 +141,7 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             CommonTestUtils::removeFile(weightsPath);
             GTEST_COUT << "OK" << std::endl;
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e_next) {
+        catch (const InferenceEngine::Exception &e_next) {
             CommonTestUtils::removeFile(modelPath);
             CommonTestUtils::removeFile(weightsPath);
             FAIL() << e_next.what();

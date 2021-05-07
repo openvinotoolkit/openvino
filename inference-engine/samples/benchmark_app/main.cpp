@@ -432,7 +432,7 @@ int main(int argc, char *argv[]) {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
                     nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-                } catch (const details::InferenceEngineException& ex) {
+                } catch (const std::exception& ex) {
                     THROW_IE_EXCEPTION
                             << "Every device used with the benchmark_app should "
                             << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "

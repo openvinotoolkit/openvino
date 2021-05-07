@@ -2421,7 +2421,7 @@ TEST(constant_folding, constant_v1_one_hot)
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes)
 {
-    const vector<int64_t> indices{0, 2, -1, 1};
+    const vector<int64_t> indices{0, 2, 3, 1};
     const int32_t on_value = 4;
     const int32_t off_value = 1;
 
@@ -2464,7 +2464,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes)
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes_2)
 {
-    vector<int64_t> indices{0, 2, 1, -1};
+    vector<int64_t> indices{0, 2, 1, 3};
     auto on_value = true;
     auto off_value = false;
 

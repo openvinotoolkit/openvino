@@ -92,7 +92,7 @@ protected:
             InferenceEngine::Core ie;
             ASSERT_NO_THROW(ie.ReadNetwork(model, Blob::CPtr()));
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

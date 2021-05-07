@@ -177,7 +177,7 @@ protected:
             //  Check results
             if (memcmp((*output).data(), &p.reference[0], output->byteSize()) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

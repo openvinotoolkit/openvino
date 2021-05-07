@@ -178,7 +178,7 @@ protected:
 
             compare(*outputBlobs.begin()->second, dst_ref);
 
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

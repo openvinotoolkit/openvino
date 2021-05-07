@@ -82,6 +82,8 @@ void op::HardSigmoid::pre_validate_and_infer_types()
         this,
         data_et == alpha_et && data_et == beta_et,
         "The element types of both alpha and beta inputs must match the data input type.");
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 OutputVector op::HardSigmoid::decompose_op() const

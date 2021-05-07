@@ -82,6 +82,7 @@ namespace ngraph
             ///
             /// See Node::set_input_is_relevant_to_value for more details.
             bool get_is_relevant_to_value() const { return m_is_relevant_to_value; }
+
         protected:
             /// \return the tensor for the connected output
             std::shared_ptr<const Tensor> get_tensor_ptr() const;

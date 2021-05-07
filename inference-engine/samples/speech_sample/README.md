@@ -109,6 +109,10 @@ Options:
                             If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.
     -cw_r "<integer>"       Optional. Number of frames for right context windows (default is 0). Works only with context window networks.
                             If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
+    -oname "<outputs>"      Optional. Layer names for output blobs. The names are separated with ",". Allows to change the order of output layers for -o flag.
+                            Example: Output1:port,Output2:port.
+    -iname "<inputs>"       Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order of input layers for -i flag. 
+                            Example: Input1,Input2
 
 ```
 

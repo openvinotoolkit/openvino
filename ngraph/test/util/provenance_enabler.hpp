@@ -33,6 +33,7 @@ namespace ngraph
                 set_provenance_enabled(true);
             }
             ~ProvenanceEnabler() { set_provenance_enabled(saved_enable_state); }
+
         private:
             bool saved_enable_state;
         };

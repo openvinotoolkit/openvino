@@ -403,7 +403,10 @@ void InferenceEnginePython::InferRequestWrap::setShape(const std::string &blob_n
 
 void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
     if (code != InferenceEngine::StatusCode::OK) {
-        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+        IE_EXCEPTION_SWITCH(code, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION
+                << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
     }
     InferenceEnginePython::InferRequestWrap *requestWrap;
     InferenceEngine::ResponseDesc dsc;

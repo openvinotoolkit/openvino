@@ -19,16 +19,6 @@ typedef struct {
 
 using SqueezeTestParam = std::tuple<InferenceEngine::Precision, bool, SqueezeCaseParam>;
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
-    if (vec.empty()) return std::operator<<(out, "[]");
-    out << "[" << vec[0];
-    for (unsigned i = 1; i < vec.size(); i++) {
-        out << " " << vec[i];
-    }
-    return out << "]";
-}
-
 class GNASqueezeTest_ : public GNATest<>,
                        public testing::WithParamInterface<SqueezeTestParam> {
  public:

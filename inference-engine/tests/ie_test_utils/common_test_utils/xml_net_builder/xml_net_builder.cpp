@@ -5,7 +5,6 @@
 #include <utility>
 #include <algorithm>
 #include <string>
-#include "details/ie_exception.hpp"
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 
 namespace CommonTestUtils {

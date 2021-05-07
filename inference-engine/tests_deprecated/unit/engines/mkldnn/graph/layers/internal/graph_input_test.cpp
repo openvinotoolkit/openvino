@@ -155,7 +155,7 @@ protected:
                     ASSERT_EQ(p.selectedType, nodes[i]->getSelectedPrimitiveDescriptor()->getImplementationType());
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -349,7 +349,7 @@ protected:
                     index2++; index++;
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -454,7 +454,7 @@ protected:
             if (memcmp((*output).data(), &p.reference[0], output->byteSize()) != 0)
                 FAIL() << "Wrong result with compare reference!";
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

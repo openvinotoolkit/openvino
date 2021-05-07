@@ -21,7 +21,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
 ParamMap CLDNNRemoteBlobImpl::getParams() const {

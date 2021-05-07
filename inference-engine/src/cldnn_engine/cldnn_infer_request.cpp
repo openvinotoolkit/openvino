@@ -337,7 +337,7 @@ void checkInputBlob(const Blob::Ptr &blob,
         auto nv12_ptr = blob->as<NV12Blob>();
 
         if (nv12_ptr == nullptr) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << wrong_nv12_blob;
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << wrong_nv12_blob;
         }
 
         auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
@@ -402,7 +402,8 @@ void CLDNNInferRequest::checkBlobs() {
         if (foundInputPair != std::end(_networkInputs)) {
             foundInput = foundInputPair->second;
         } else {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find input with name: \'" << input.first << "\'";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+                << "Failed to find input with name: \'" << input.first << "\'";
         }
         checkInputBlob(input.second, input.first, foundInput, m_graph->getConfig().nv12_two_inputs);
     }
@@ -415,7 +416,8 @@ void CLDNNInferRequest::checkBlobs() {
         if (foundOutputPair != std::end(_networkOutputs)) {
             foundOutput = foundOutputPair->second;
         } else {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find output with name: \'" << output.first << "\'";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+                << "Failed to find output with name: \'" << output.first << "\'";
         }
         checkOutputBlob(output.second, output.first, foundOutput);
     }
@@ -449,10 +451,10 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
 
     // perform all common checks first
     if (name.empty()) {
-        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to set blob with empty name";
     }
     if (!data)
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
 
     size_t dataSize = data->size();
     if (0 == dataSize) {
@@ -470,7 +472,7 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
         : foundOutput->getTensorDesc();
 
     if (desc.getPrecision() != blobDesc.getPrecision()) {
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
             << "Failed to set Blob with precision not corresponding to user "
             << (is_input ? "input" : "output") << " precision";
     }
@@ -498,7 +500,7 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
                 auto nv12_ptr = data->as<NV12Blob>();
 
                 if (nv12_ptr == nullptr) {
-                    THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << wrong_nv12_blob;
+                    THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << wrong_nv12_blob;
                 }
 
                 auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
@@ -530,7 +532,7 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
                 _preProcData[name]->setRoiBlob(data);
             } else {
                 if (compoundBlobPassed) {
-                    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << cannot_set_compound;
+                    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented) << cannot_set_compound;
                 }
 
                 size_t blobSize = desc.getLayout() != SCALAR
@@ -548,7 +550,7 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) 
         }
     } else {
         if (compoundBlobPassed) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << cannot_set_compound;
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented) << cannot_set_compound;
         }
 
         if (is_remote) {
@@ -697,7 +699,7 @@ void CLDNNInferRequest::SetGraph(std::shared_ptr<CLDNNPlugin::CLDNNGraph> graph)
     m_graph = graph;
 
     if (m_graph == nullptr) {
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
     }
 
     if (m_graph->GetMaxDynamicBatchSize() > 1) {

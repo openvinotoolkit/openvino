@@ -66,16 +66,16 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
                                                                    OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+            THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
         }
 
         if (!graph->IsLoaded()) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str << ": no networks created";
+            THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded) << ": no networks created";
         }
     }
 
@@ -98,7 +98,7 @@ IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
 
 InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
 
     return m_graphs.front()->GetExecGraphInfo();
 }

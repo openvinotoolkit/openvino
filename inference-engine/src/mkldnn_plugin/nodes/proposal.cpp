@@ -126,7 +126,7 @@ public:
                 addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
                                  DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (const InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -179,7 +179,7 @@ public:
                     {img_H, img_W, scale_H, scale_W}, anchors.data(), roi_indices.data(), p_roi_item, p_prob_item, conf);
 
             return OK;
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        } catch (const InferenceEngine::Exception& e) {
             if (resp) {
                 std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);

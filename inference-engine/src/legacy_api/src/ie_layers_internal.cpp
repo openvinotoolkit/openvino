@@ -91,7 +91,7 @@ Paddings getPaddingsInternal(const Layer& layer) {
             }
         }
         return {layer._padding, layer._pads_end};
-    } catch (const InferenceEngine::details::InferenceEngineException& iee) {
+    } catch (const InferenceEngine::Exception& iee) {
         THROW_IE_EXCEPTION << errorPrefix << iee.what();
     }
 }

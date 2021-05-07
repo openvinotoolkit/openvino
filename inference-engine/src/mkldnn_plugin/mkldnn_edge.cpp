@@ -168,10 +168,29 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     status = Status::Allocated;
 }
 
-std::string MKLDNNEdge::name() const {
+std::string MKLDNNEdge::name() {
+    auto tensorDescToStr = [](InferenceEngine::TensorDesc const & desc) {
+        std::string name = desc.getPrecision().name();
+
+        auto blockingDesc = desc.getBlockingDesc();
+        auto dims = blockingDesc.getBlockDims();
+
+        if (!dims.empty()) {
+            name += "[";
+            for (size_t i = 1; i < dims.size(); ++i) {
+                name += std::to_string(dims[i - 1]) + ",";
+            }
+            name += std::to_string(dims.back()) + "]";
+        }
+
+        return name;
+    };
+
     auto parentPtr = getParent();
     auto childPtr = getChild();
-    return parentPtr->getName() + std::to_string(parent_port) + "<->" + childPtr->getName() + std::to_string(child_port);
+
+    return parentPtr->getName() + std::to_string(parent_port) + tensorDescToStr(getInputDesc())
+            + "<->" + childPtr->getName() + std::to_string(child_port);
 }
 
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {

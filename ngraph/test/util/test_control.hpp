@@ -39,6 +39,7 @@ namespace ngraph
     {                                                                                              \
     public:                                                                                        \
         NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                \
+                                                                                                   \
     private:                                                                                       \
         virtual void TestBody();                                                                   \
         static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;                      \

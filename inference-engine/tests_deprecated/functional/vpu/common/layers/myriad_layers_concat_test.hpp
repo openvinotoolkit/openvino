@@ -151,20 +151,6 @@ static std::vector<InferenceEngine::SizeVector> s_concatInputs = {
     {{1,}, {1, 2, 4}, {1, 2, 3, 4, 5}, {2, 4}}
 };
 
-template<class T>
-std::ostream &operator << (std::ostream & os, const std::vector<T> & vector_of_elements) {
-    os <<"{";
-    int idx=0;
-    for(const auto & element : vector_of_elements) {
-        os << element;
-        if(++idx != vector_of_elements.size()) {
-            os<<",";
-        }
-    }
-    os <<"}";
-    return os;
-}
-
 //function is returning correct name to gtest
 std::string getTestCaseName(testing::TestParamInfo<myriadConcatTestParams> param) {
     auto core    = std::get<0>(param.param);

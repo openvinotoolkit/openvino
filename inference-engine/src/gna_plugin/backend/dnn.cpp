@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <cmath>
 
-#include <details/ie_exception.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>

@@ -74,7 +74,10 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                   if (nullptr != InferenceEngine::CurrentException())
                       std::rethrow_exception(InferenceEngine::CurrentException());
                   else
-                      THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
+                      IE_EXCEPTION_SWITCH(status, ExceptionType,
+                        InferenceEngine::details::ThrowNow<ExceptionType>{}
+                            <<= std::stringstream{} << IE_LOCATION
+                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();

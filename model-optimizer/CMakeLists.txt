@@ -14,7 +14,7 @@
 
 
 # install
-ie_cpack_add_component(model_optimizer REQUIRED)
+ie_cpack_add_component(model_optimizer)
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"

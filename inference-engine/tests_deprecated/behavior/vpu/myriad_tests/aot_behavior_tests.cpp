@@ -67,27 +67,15 @@ class AOTBehaviorTests : public BehaviorPluginTest {
     }
 
     void canImportBlob() {
-        ASSERT_EQ(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_NO_THROW(importBlob()) << response.msg;
     }
 
     void canNotImportBlob() {
-        ASSERT_NE(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_THROW(importBlob(), InferenceEngine::Exception) << response.msg;
     }
 
-    StatusCode importBlob() {
-        InferenceEngine::Core core;
-        ExecutableNetwork ret;
-
-        try
-        {
-            ret = core.ImportNetwork("local_tmp.fw", GetParam().device);
-        }
-        catch (InferenceEngine::details::InferenceEngineException & ex)
-        {
-            return ex.getStatus();
-        }
-
-        return StatusCode::OK;
+    void importBlob() {
+        InferenceEngine::Core{}.ImportNetwork("local_tmp.fw", GetParam().device);
     }
 
     void setHeaderVersion(int major, int minor) {

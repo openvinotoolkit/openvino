@@ -35,7 +35,7 @@ protected:
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
         EXPECT_THROW(config.UpdateFromMap({{key, val}}),
-                     details::InferenceEngineException);
+                     Exception);
     }
     void SetAndCheckFlag(const std::string& key, bool& val, bool reverse = false) {
         const bool yes = reverse ? false : true;

@@ -85,9 +85,7 @@ pass::Manager::Manager()
 {
 }
 
-pass::Manager::~Manager()
-{
-}
+pass::Manager::~Manager() {}
 
 struct OperationDescription
 {

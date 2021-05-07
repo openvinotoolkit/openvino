@@ -51,7 +51,7 @@ py::buffer_info _get_buffer_info(const ngraph::op::Constant& c)
         static_cast<ssize_t>(shape.size()), /* Number of dimensions */
         std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
         _get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
-        );
+    );
 }
 
 template <>
@@ -65,7 +65,7 @@ py::buffer_info _get_buffer_info<ngraph::float16>(const ngraph::op::Constant& c)
         static_cast<ssize_t>(shape.size()), /* Number of dimensions */
         std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
         _get_byte_strides<ngraph::float16>(shape)         /* Strides (in bytes) for each index */
-        );
+    );
 }
 
 template <typename T>

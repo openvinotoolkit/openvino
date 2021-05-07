@@ -10,7 +10,6 @@
 #include <set>
 #include <string>
 
-#include "details/ie_exception.hpp"
 #include "ie_precision.hpp"
 
 int XMLParseUtils::GetIntAttr(const pugi::xml_node& node, const char* str) {

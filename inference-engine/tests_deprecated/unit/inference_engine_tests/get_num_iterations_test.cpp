@@ -62,19 +62,6 @@ public:
     }
 };
 
-template<class T>
-std::ostream& operator<<(std::ostream& stream, const std::vector<T>& object) {
-    stream << "[";
-    for (std::size_t i = 0; i < object.size(); ++i) {
-        stream << object[i];
-        if (i < object.size() - 1) {
-            stream << " ";
-        }
-    }
-    stream << "]";
-    return stream;
-}
-
 struct NegativeTestParams {
     std::vector<InferenceEngine::SizeVector> inputsDimensions;
     std::vector<PortMap> inputRules;

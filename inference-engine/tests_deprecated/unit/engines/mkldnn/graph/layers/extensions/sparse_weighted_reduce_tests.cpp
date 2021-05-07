@@ -202,7 +202,7 @@ protected:
             auto iter = out.begin();
             compare(*output_blob_map[iter->first], *output_blob_ref, 0.0f);
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

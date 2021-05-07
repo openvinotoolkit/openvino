@@ -209,7 +209,7 @@ void RawMatcher::match() {
                 *config.perfInfoPtr = inferRequest.GetPerformanceCounts();
             }
         }
-    } catch (details::InferenceEngineException &e) {
+    } catch (Exception &e) {
         FAIL() << e.what();
     }
     catch (std::exception &e) {

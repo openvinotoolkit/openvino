@@ -50,3 +50,5 @@ IncludeCategories:
   - Regex:           '^<.*'
     Priority:        2
 SortIncludes: true
+
+FixNamespaceComments: false

@@ -122,6 +122,7 @@ void readInputFilesArgument(const char *arg) {
                     for (i = 0; i < file_num; ++i) {
                         free(file_paths[i]);
                     }
+                    free(file_path);
                     free(file_paths);
                     file_num = 0;
                 }
@@ -279,6 +280,10 @@ int main(int argc, char **argv) {
     ie_version_free(&version);
 
     char **argv_temp =(char **)calloc(argc, sizeof(char *));
+    if (!argv_temp) {
+        return EXIT_FAILURE;
+    }
+
     int i, j;
     for (i = 0; i < argc; ++i) {
         argv_temp[i] = argv[i];
@@ -419,6 +424,10 @@ int main(int argc, char **argv) {
     /** Collect images data **/
     c_mat_t *originalImages = (c_mat_t *)calloc(file_num, sizeof(c_mat_t));
     c_mat_t *images = (c_mat_t *)calloc(file_num, sizeof(c_mat_t));
+
+    if (!originalImages || !images)
+        goto err;
+
     int image_num = 0;
     for (i = 0; i < file_num; ++i) {
         c_mat_t img = {NULL, 0, 0, 0, 0, 0};
@@ -435,20 +444,27 @@ int main(int argc, char **argv) {
             resized_img.mat_height = img.mat_height;
             resized_img.mat_type = img.mat_type;
             resized_img.mat_data = calloc(1, resized_img.mat_data_size);
+            if (resized_img.mat_data == NULL) {
+                image_free(&img);
+                continue;
+            }
+
             for (j = 0; j < resized_img.mat_data_size; ++j)
                 resized_img.mat_data[j] = img.mat_data[j];
         } else {
             printf("%sImage is resized from (%d, %d) to (%zu, %zu)\n", \
-            warn, img.mat_width, img.mat_height, input_width, input_height);
+                warn, img.mat_width, img.mat_height, input_width, input_height);
 
-            image_resize(&img, &resized_img, (int)input_width, (int)input_height);
+            if (image_resize(&img, &resized_img, (int)input_width, (int)input_height) == -1) {
+                printf("%sImage %s cannot be resized!\n", warn, file_paths[i]);
+                image_free(&img);
+                continue;
+            }
         }
 
-        if (resized_img.mat_data) {
-            originalImages[image_num] = img;
-            images[image_num] = resized_img;
-            ++image_num;
-        }
+        originalImages[image_num] = img;
+        images[image_num] = resized_img;
+        ++image_num;
     }
 
     if (!image_num) {
@@ -523,8 +539,8 @@ int main(int argc, char **argv) {
     if (config_msg) {
         ie_config_t * config = parseConfig(config_msg, '#');
         status = ie_core_load_network(core, network, device_name, config, &exe_network);
+        config_free(config);
         if (status != OK) {
-            config_free(config);
             goto err;
         }
     } else {

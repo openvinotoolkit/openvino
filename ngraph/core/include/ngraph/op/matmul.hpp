@@ -55,6 +55,7 @@ namespace ngraph
                 bool get_transpose_b() const { return m_transpose_b; }
                 void set_transpose_a(bool transpose_a) { m_transpose_a = transpose_a; }
                 void set_transpose_b(bool transpose_b) { m_transpose_b = transpose_b; }
+
             private:
                 bool m_transpose_a;
                 bool m_transpose_b;

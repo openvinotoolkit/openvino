@@ -102,7 +102,7 @@ public:
                 //       integer tensor. Will change it for corresponding output desc.
                 confs.back().outConfs[1].desc.setPrecision(Precision::I32);
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

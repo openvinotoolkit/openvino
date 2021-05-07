@@ -41,6 +41,8 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
                                           PRIVATE ${NGRAPH_INCLUDE_PATH})
 
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 

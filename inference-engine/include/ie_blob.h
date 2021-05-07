@@ -25,7 +25,6 @@
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
 #include "details/ie_blob_iterator.hpp"
-#include "details/ie_exception.hpp"
 #include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {

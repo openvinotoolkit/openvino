@@ -58,6 +58,11 @@ def pytest_addoption(parser):
         type=Path,
         help="Artifacts directory where tests write output or read input",
     )
+    parser.addoption(
+        "--openvino_ref",
+        type=Path,
+        help="Path to root directory with installed OpenVINO",
+    )
 
 
 def pytest_generate_tests(metafunc):
@@ -103,3 +108,9 @@ def collector_dir(request):
 def artifacts(request):
     """Fixture function for command-line option."""
     return request.config.getoption("artifacts")
+
+
+@pytest.fixture(scope="session")
+def openvino_root_dir(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption("openvino_ref")

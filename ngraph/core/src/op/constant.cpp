@@ -179,7 +179,9 @@ op::Constant::Constant(const element::Type& type,
         {
             throw std::runtime_error("deserialize unsupported type dynamic");
         }
-        case element::Type_t::u1: { throw std::runtime_error("deserialize unsupported type u1");
+        case element::Type_t::u1:
+        {
+            throw std::runtime_error("deserialize unsupported type u1");
         }
         }
         m_all_elements_bitwise_identical = true;
@@ -328,9 +330,7 @@ op::Constant::Constant(const Constant& other)
     constructor_validate_and_infer_types();
 }
 
-op::Constant::~Constant()
-{
-}
+op::Constant::~Constant() {}
 
 string op::Constant::convert_value_to_string(size_t index) const
 {

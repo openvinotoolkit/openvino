@@ -82,7 +82,7 @@ void SetBlobOfKindTest::ExpectSetBlobThrow() {
         const auto &info = input.second;
         auto blob = GenerateInput(*info);
         EXPECT_THROW(inferRequest.SetBlob(info->name(), blob),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 

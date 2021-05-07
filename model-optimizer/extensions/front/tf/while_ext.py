@@ -19,7 +19,7 @@ from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import extract_node_attrs, FrontExtractorOp
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
+from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.graph.graph import add_opoutput, Graph, Node
 from mo.ops.op import PermuteAttrs
@@ -60,16 +60,8 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
             src_id = map_original_name[orig_src_id]
             src_port = 0 if len(inp.split(":")) == 1 else int(inp.split(":")[-1])
             assert (body_graph.has_node(src_id))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': src_id,
-                'fw_tensor_debug_info': [(src_id, src_port)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
-            body_graph.add_edge(src_id, id, **edge_attrs)
+
+            body_graph.add_edges_from([create_tf_edge(src_id + ":" + str(src_port), id, dst_port)])
 
     # create Result nodes in the loop body graph
     for output in subgraph_proto['output_arg']:

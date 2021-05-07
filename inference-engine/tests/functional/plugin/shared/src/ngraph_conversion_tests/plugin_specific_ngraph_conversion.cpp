@@ -35,7 +35,7 @@ TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, device);
         network.addOutput("add1");
         InferenceEngine::ExecutableNetwork exeNetwork2 = ie.LoadNetwork(network, device);
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+    } catch (InferenceEngine::Exception& ex) {
         FAIL() << ex.what();
     }
 }

@@ -14,7 +14,6 @@
 #include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
-#include <details/ie_exception.hpp>
 
 #include <ie_plugin_ptr.hpp>
 

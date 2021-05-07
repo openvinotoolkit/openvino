@@ -53,7 +53,7 @@ TEST_P(BehaviorTests, canNotLoadNetworkWithoutWeights) {
     InferenceEngine::Core core;
     auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
     ASSERT_THROW(core.ReadNetwork(model.model_xml_str, InferenceEngine::Blob::CPtr()),
-                 InferenceEngine::details::InferenceEngineException);
+                 InferenceEngine::Exception);
 }
 
 TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
@@ -83,17 +83,7 @@ TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
             || targetDevice == CommonTestUtils::DEVICE_HDDL
             || targetDevice == CommonTestUtils::DEVICE_KEEMBAY)
          && netPrecision == InferenceEngine::Precision::I16) {
-        std::string msg;
-        InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-        try {
-            ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        } catch (InferenceEngine::details::InferenceEngineException & ex) {
-            msg = ex.what();
-            sts = ex.getStatus();
-        }
-        ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, sts) << msg;
-        std::string refError = "Input image format I16 is not supported yet.";
-        ASSERT_EQ(refError, msg);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration), InferenceEngine::GeneralError);
     } else {
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
@@ -107,24 +97,14 @@ TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
     InferenceEngine::OutputsDataMap output_info;
     InferenceEngine::CNNNetwork cnnNet(function);
     setOutputNetworkPrecision(cnnNet, output_info, netPrecision);
-
-    std::string msg;
-    InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-
-    try {
-        InferenceEngine::ExecutableNetwork exeNetwork = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    } catch (InferenceEngine::details::InferenceEngineException & ex) {
-        sts = ex.getStatus();
-        msg = ex.what();
-        std::cout << "LoadNetwork() threw InferenceEngineException. Status: " << sts << ", message: " << msg << std::endl;
-    }
-
     if ((netPrecision == InferenceEngine::Precision::I16 || netPrecision == InferenceEngine::Precision::U8)) {
         if ((targetDevice == "CPU") || (targetDevice == "GPU"))  {
-            ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+            ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        } else {
+            GTEST_SKIP();
         }
     } else {
-        ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 }
 }  // namespace BehaviorTestsDefinitions

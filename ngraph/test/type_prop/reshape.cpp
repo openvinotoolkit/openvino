@@ -145,6 +145,70 @@ TEST(type_prop, interval_value_propagation_mul_div)
     ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(4, 16), 2}));
 }
 
+TEST(type_prop, interval_value_propagation_mul_div_lhs_scalar)
+{
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(op::Constant::create(element::f32, {}, {2}), cast_fp);
+    auto div = make_shared<op::v1::Divide>(mul, op::Constant::create(element::f32, {3}, {2, 1, 3}));
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_div_rhs_scalar)
+{
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(cast_fp, op::Constant::create(element::f32, {}, {2}));
+    auto div = make_shared<op::v1::Divide>(mul, op::Constant::create(element::f32, {3}, {2, 1, 3}));
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_div_lhs_1D)
+{
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(op::Constant::create(element::f32, {1}, {2}), cast_fp);
+    auto div = make_shared<op::v1::Divide>(mul, op::Constant::create(element::f32, {3}, {2, 1, 3}));
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_div_rhs_1D)
+{
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(cast_fp, op::Constant::create(element::f32, {1}, {2}));
+    auto div = make_shared<op::v1::Divide>(mul, op::Constant::create(element::f32, {3}, {2, 1, 3}));
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(8, 32), 4}));
+}
+
 TEST(type_prop, interval_value_propagation_reduce)
 {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});

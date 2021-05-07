@@ -41,7 +41,7 @@ TEST(ExtensionTests, testGetImplTypes) {
 TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node> ()),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST(ExtensionTests, testGetImplementation) {
@@ -54,5 +54,5 @@ TEST(ExtensionTests, testGetImplementation) {
 TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }

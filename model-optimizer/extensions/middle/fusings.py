@@ -99,11 +99,12 @@ class Fusing(MiddleReplacementPattern):
         for_graph_and_each_sub_graph_recursively(graph, normalize_eltwise_inputs)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)
-        FakeQuantizeFuse().find_and_replace_pattern(graph)
-        AddFakeQuantizeFuse().find_and_replace_pattern(graph)
-        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
-        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        if not argv.disable_fusing:
+            MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)
+            FakeQuantizeFuse().find_and_replace_pattern(graph)
+            AddFakeQuantizeFuse().find_and_replace_pattern(graph)
+            MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())

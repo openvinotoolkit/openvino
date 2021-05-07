@@ -106,7 +106,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     << ". Expected only YES/NO";
             }
         } else {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property " << key << " by CPU plugin";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
         _config.clear();
     }

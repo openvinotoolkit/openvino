@@ -254,38 +254,6 @@ if(NGRAPH_ADDRESS_SANITIZER_ENABLE OR NGRAPH_THREAD_SANITIZER_ENABLE OR NGRAPH_U
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fno-omit-frame-pointer")
 endif()
 
-# Since UNIX support Bash we can use a Bash script to do the clang-format functions
-# This is much faster than the cmake method
-if (UNIX)
-    add_custom_target(style-check COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/check-code-format.sh)
-    add_custom_target(style-apply COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/apply-code-format.sh)
-    add_custom_target(style COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/apply-code-format.sh)
-else()
-    add_custom_target(style-check
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_check.cmake
-    )
-
-    add_custom_target(style-apply
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_apply.cmake
-    )
-
-    add_custom_target(style
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_apply.cmake
-    )
-endif()
-
-add_custom_target(fix-mode
-    COMMAND ${CMAKE_COMMAND}
-    -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/fix_mode.cmake
-)
-
 #-----------------------------------------------------------------------------------------------
 # enable or disable output from NGRAPH_DEBUG statements
 #-----------------------------------------------------------------------------------------------
@@ -311,35 +279,6 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 
 if(NOT DEFINED EXTERNAL_PROJECTS_ROOT)
     set(EXTERNAL_PROJECTS_ROOT ${CMAKE_CURRENT_BINARY_DIR})
-endif()
-
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    if (MSVC)
-        # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
-        # These two options can't be mixed, because they requires link two imcompatiable runtime.
-        set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
-
-        if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
-            set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
-        endif()
-        if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
-            set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
-        endif()
-    endif()
-
-    set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
-    if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        include(cmake/external_protobuf.cmake)
-    else()
-        find_package(Protobuf 2.6.1 REQUIRED)
-    endif()
-    include(cmake/external_onnx.cmake)
-    if (TARGET ext_protobuf)
-        add_dependencies(onnx ext_protobuf)
-    endif()
-    set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
-    unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(core)
@@ -369,6 +308,38 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
         COMPONENT ngraph)
+endif()
+
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    if (MSVC)
+        # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+        # These two options can't be mixed, because they requires link two imcompatiable runtime.
+        set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
+
+        if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
+            set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+        endif()
+        if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+            set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+        endif()
+    endif()
+
+    set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS ON)
+
+    if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
+        include(cmake/external_protobuf.cmake)
+    else()
+        find_package(Protobuf 2.6.1 REQUIRED)
+    endif()
+
+    # target onnx_proto will be shared lib, onnx static
+    include(cmake/external_onnx.cmake)
+    if (TARGET ext_protobuf)
+        add_dependencies(onnx ext_protobuf)
+    endif()
+    set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
+    unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(frontend)

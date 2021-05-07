@@ -105,7 +105,6 @@ void op::v1::OneHot::validate_and_infer_types()
                               " (got ",
                               depth_val,
                               ").");
-
         out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
         result_shape = out_dims;
     }
@@ -128,79 +127,62 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
-namespace detail
+namespace one_hot
 {
-    template <typename ind_t, typename out_t>
+    template <element::Type_t T>
     bool evaluate(const HostTensorVector& output_values,
                   const HostTensorVector& input_values,
                   const int64_t axis)
     {
+        using INPUT_TYPE = typename element_type_traits<T>::value_type;
         const auto& indices = input_values[0];
         const auto& on_value = input_values[2];
         const auto& off_value = input_values[3];
-
         const auto& out = output_values[0];
-
-        runtime::reference::one_hot<ind_t, out_t>(indices->get_data_ptr<ind_t>(),
-                                                  out->get_data_ptr<out_t>(),
-                                                  indices->get_shape(),
-                                                  out->get_shape(),
-                                                  axis,
-                                                  on_value->get_data_ptr<out_t>()[0],
-                                                  off_value->get_data_ptr<out_t>()[0]);
+        runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
+                                                indices->get_shape(),
+                                                out->get_data_ptr<char>(),
+                                                out->get_element_type().size(),
+                                                out->get_shape()[axis],
+                                                axis,
+                                                on_value->get_data_ptr<char>(),
+                                                off_value->get_data_ptr<char>());
         return true;
     }
-
-#define TYPE_OUT_CASE(a, ...)                                                                      \
-    case element::Type_t::a:                                                                       \
-    {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_one_hot_out, _, a));                                   \
-        using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
-        using OT = typename element_type_traits<out_t>::value_type;                                \
-        rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \
-    }                                                                                              \
-    break
-
-    template <element::Type_t out_t>
-    bool evaluate(const HostTensorVector& output_values,
-                  const HostTensorVector& input_values,
-                  const int64_t axis)
-    {
-        const auto& indices = input_values[0];
-
-        bool rc = true;
-        switch (indices->get_element_type())
-        {
-            TYPE_OUT_CASE(i32, output_values, input_values, axis);
-            TYPE_OUT_CASE(i64, output_values, input_values, axis);
-        default: rc = false; break;
-        }
-
-        return rc;
-    }
-#undef TYPE_OUT_CASE
     bool evaluate_onehot(const HostTensorVector& output_values,
                          const HostTensorVector& input_values,
                          const int64_t axis)
     {
-        const auto& on_value = input_values[2];
-
-        bool rc = false;
-        switch (on_value->get_element_type())
+        bool rc = true;
+        const auto& indices = input_values[0];
+        switch (indices->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_onehot, boolean, output_values, input_values, axis);
-            NGRAPH_TYPE_CASE(evaluate_onehot, f32, output_values, input_values, axis);
             NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
             NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
         default: rc = false;
         }
         return rc;
     }
-} // namespace detail
+} // namespace one_hot
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
-    return detail::evaluate_onehot(output_values, input_values, get_axis());
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+
+    const auto& ind_Pshape = input_values[0]->get_partial_shape();
+    const auto& out_Pshape = output_values[0]->get_partial_shape();
+    NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(),
+                 "Only static input/output shapes are supported");
+    const auto out_shape = out_Pshape.get_shape();
+    const auto axis = get_axis();
+    NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
+    const auto depth = get_constant_from_source(input_value(1))->cast_vector<int64_t>()[0];
+    const auto ind_shape = ind_Pshape.get_shape();
+    NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
+                 "Incompatible I/O shapes or wrong depth value.");
+    NGRAPH_CHECK(out_shape[axis] == depth, "Incompatible axis and depth values.");
+    return one_hot::evaluate_onehot(output_values, input_values, axis);
 }

@@ -68,6 +68,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 /// \brief Returns attributes of the operation.
                 const Attributes& get_attrs() const { return m_attrs; }
+
             private:
                 Attributes m_attrs;
             };

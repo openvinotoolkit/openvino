@@ -27,7 +27,7 @@ TEST_F(MKLDNNGraphReorderTests, cannotCreatePrimitiveDescriprorsWithoutOtherLaye
     node.reset(MKLDNNPlugin::MKLDNNNode::factory().create(layer, eng, {}, cache));
     ASSERT_EQ(MKLDNNPlugin::Type::Reorder, node->getType());
 
-    ASSERT_THROW(node->getSupportedDescriptors(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(node->getSupportedDescriptors(), InferenceEngine::Exception);
 }
 
 TEST_F(MKLDNNGraphReorderTests, CreateReorder) {

@@ -328,7 +328,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -386,7 +386,7 @@ public:
         try {
             is_blocked = layer->GetParamAsBool("is_blocked");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -601,7 +601,7 @@ protected:
             dst_ref.allocate();
             ref_mvn(*srcPtr, dst_ref, p);
             compare(*output, dst_ref, 0.0001f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

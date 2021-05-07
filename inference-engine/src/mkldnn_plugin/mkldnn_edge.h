@@ -72,7 +72,7 @@ public:
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
 private:
-    std::string name() const;
+    std::string name();
 
 private:
     std::weak_ptr<MKLDNNNode> parent;
