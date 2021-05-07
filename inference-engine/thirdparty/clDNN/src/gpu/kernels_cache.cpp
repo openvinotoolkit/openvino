@@ -108,49 +108,6 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
     }
 }
 
-std::string get_undef_jit(cldnn::gpu::kernels_cache::source_code org_source_code) {
-    const std::string white_space_with_new_lines = " \t\r\n";
-    const std::string white_space = " \t";
-
-    size_t current_pos = 0;
-
-    const std::string define = "define";
-
-    std::set<std::string> to_undef;
-    for (const auto& source : org_source_code) {
-        do {
-            size_t index_to_hash = source.find_first_not_of(white_space_with_new_lines, current_pos);
-            if (index_to_hash != std::string::npos && source[index_to_hash] == '#') {
-                size_t index_define = source.find_first_not_of(white_space, index_to_hash + 1);
-
-                if (index_define != std::string::npos && !source.compare(index_define, define.size(), define)) {
-                    size_t index_to_name = source.find_first_not_of(white_space, index_define + define.size());
-                    if (index_to_name != std::string::npos) {
-                        size_t index_to_end_name =
-                            source.find_first_of(white_space_with_new_lines + "(", index_to_name);
-                        if (index_to_end_name == std::string::npos) {
-                            index_to_end_name = source.size();
-                        }
-                        std::string name = source.substr(index_to_name, index_to_end_name - index_to_name);
-                        to_undef.insert(name);
-                    }
-                }
-            }
-
-            current_pos = source.find_first_of('\n', current_pos + 1);
-        } while (current_pos != std::string::npos);
-    }
-
-    std::string undefs;
-    for (const auto& name : to_undef) {
-        undefs += "#ifdef " + name + "\n";
-        undefs += "#undef " + name + "\n";
-        undefs += "#endif\n";
-    }
-
-    return undefs;
-}
-
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
     std::set<std::string> sorted_options;
@@ -205,8 +162,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     std::map<std::string, std::vector<batch_program>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
-        std::string full_code = code.kernel_strings->jit + code.kernel_strings->str;
-        full_code += get_undef_jit({full_code});
+        std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
         const source_code org_source_code = { full_code };
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;

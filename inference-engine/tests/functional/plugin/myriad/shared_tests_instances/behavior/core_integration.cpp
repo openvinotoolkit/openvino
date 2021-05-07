@@ -50,7 +50,7 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }

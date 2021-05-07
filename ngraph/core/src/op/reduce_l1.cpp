@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::ReduceL1::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::ReduceL1, "ReduceL1", 4, util::ArithmeticReductionKeepDims);
 
 op::v4::ReduceL1::ReduceL1(const Output<Node>& arg,
                            const Output<Node>& reduction_axes,

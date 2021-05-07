@@ -13,6 +13,7 @@
 #include <vector>
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
@@ -104,9 +105,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const InferenceEngine::CNNNetwork &network,
         const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
@@ -130,22 +131,22 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     void Export(const std::string &fileName);
     void Export(std::ostream &networkModel);
-    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(const std::string &modelFileName,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const InferenceEngine::RemoteContext::Ptr& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel);
 
     /**
      * utility to provide input and output blobs externally to be used by InferenceEngine request API clients

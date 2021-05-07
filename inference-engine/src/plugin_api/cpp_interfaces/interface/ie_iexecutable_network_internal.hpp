@@ -17,10 +17,9 @@ namespace InferenceEngine {
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
- * which is used in ExecutableNetworkBase forwarding mechanism.
  * @ingroup ie_dev_api_exec_network_api
  */
-class IExecutableNetworkInternal {
+class IExecutableNetworkInternal : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
      * @brief A shared pointer to IExecutableNetworkInternal interface

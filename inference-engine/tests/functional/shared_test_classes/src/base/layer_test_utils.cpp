@@ -358,6 +358,30 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
     return "";
 }
 
+std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layerType) {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
+
+        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        if (type == layerType) {
+            const auto& it = rtInfo.find("runtimePrecision");
+
+            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
+
+            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+            return rtPrecisionPtr->get();
+        }
+    }
+
+    return "";
+}
+
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
 }

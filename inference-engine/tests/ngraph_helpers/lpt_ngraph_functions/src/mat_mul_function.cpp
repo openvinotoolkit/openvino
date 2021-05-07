@@ -313,12 +313,15 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const auto dequantizationOnData = makeFakeQuantize(input, precision, fqOnData);
 
     const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        weights.outPrecision,
+        weights.outPrecision.is_real() ? precision : weights.outPrecision,
         weights.shape,
         weights.values);
 
     const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
-    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqOnWeights);
+
+    auto deqStructure = deqOnWeights;
+    deqStructure.setPrecision(precision);
+    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqStructure);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
         dequantizationOnData,

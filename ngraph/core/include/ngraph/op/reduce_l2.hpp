@@ -18,8 +18,7 @@ namespace ngraph
             class NGRAPH_API ReduceL2 : public util::ArithmeticReductionKeepDims
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReduceL2", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a reducet L2-norm operation.
                 ReduceL2() = default;
                 /// \brief Constructs a reduce L2-norm operation.

@@ -32,6 +32,7 @@ namespace ngraph
                 LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
                 void validate_and_infer_types() override;
 
                 /// \return true if reduction axes are constant else false.

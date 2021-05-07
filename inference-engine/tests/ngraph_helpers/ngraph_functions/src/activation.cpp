@@ -39,7 +39,7 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
         case ngraph::helpers::ActivationTypes::Abs:
             return std::make_shared<ngraph::op::Abs>(in);
         case ngraph::helpers::ActivationTypes::Gelu:
-            return std::make_shared<ngraph::op::Gelu>(in);
+            return std::make_shared<ngraph::op::v0::Gelu>(in);
         case ngraph::helpers::ActivationTypes::Clamp:
             return std::make_shared<ngraph::op::Clamp>(in, constantsValue[0], constantsValue[1]);
         case ngraph::helpers::ActivationTypes::Negative:
@@ -107,6 +107,10 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::v5::Round>(in, ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN);
         case ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero:
             return std::make_shared<ngraph::op::v5::Round>(in, ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+        case ngraph::helpers::ActivationTypes::GeluErf:
+            return std::make_shared<ngraph::op::v7::Gelu>(in, ngraph::op::GeluApproximationMode::ERF);
+        case ngraph::helpers::ActivationTypes::GeluTanh:
+            return std::make_shared<ngraph::op::v7::Gelu>(in, ngraph::op::GeluApproximationMode::TANH);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

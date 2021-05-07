@@ -10,7 +10,10 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = { ngraph::element::f32 };
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
 
 //transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
@@ -20,7 +23,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 2, 2.f), ngraph::element::f32, ngraph::Shape{ 2, 4 } },
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
-        "result_result",
+        "FullyConnected",
         "FP32"
     },
     {
@@ -29,7 +32,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 2, 2.f), ngraph::element::i8, ngraph::Shape{ 2, 4 } },
         {},
         { ngraph::element::f32, {}, {0.1f} },
-        "result_result",
+        "FullyConnected",
         "FP32"
     },
     {
@@ -38,7 +41,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 2, 2.f), ngraph::element::f32, ngraph::Shape{ 2, 4 } },
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
-        "result_result",
+        "FullyConnected",
         "FP32"
     },
     {
@@ -47,7 +50,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 2, 2.f), ngraph::element::f32, ngraph::Shape{ 2, 4 } },
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
-        "matMul",
+        "FullyConnected",
         "U8"
     },
     {
@@ -56,7 +59,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 2, 2.f), ngraph::element::i8, ngraph::Shape{ 2, 4 } },
         {},
         { ngraph::element::f32, {}, {{0.1f, 0.01}, ngraph::element::f32, ngraph::Shape{ 2, 1 }} },
-        "matMul",
+        "FullyConnected",
         "U8"
     },
     {
@@ -65,7 +68,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>(4 * 4, 2.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
         { {}, {}, {} },
-        "result_result",
+        "FullyConnected",
         "FP32"
     },
     {
@@ -74,7 +77,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>{1, 2, 3, 4, 5, 6}, ngraph::element::f32, ngraph::Shape{ 2, 3 } },
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-12.8f}, {12.7f} },
         { {}, {}, {} },
-        "matMul",
+        "FullyConnected",
         "U8"
     },
     {
@@ -83,6 +86,8 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { std::vector<float>{1, 2, 3, 4, 5, 6}, ngraph::element::i8, ngraph::Shape{ 2, 3 } },
         {},
         { ngraph::element::f32, {}, {0.1f} },
+        "FullyConnected",
+        "U8"
     }
 };
 

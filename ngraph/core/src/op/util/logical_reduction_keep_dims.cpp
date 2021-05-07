@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::LogicalReductionKeepDims, "LogicalReductionKeepDims", 1);
+
 op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,
     const ngraph::Output<ngraph::Node>& reduction_axes,

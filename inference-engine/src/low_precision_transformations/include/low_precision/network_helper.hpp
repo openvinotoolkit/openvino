@@ -50,6 +50,12 @@ public:
     template <typename OperationType>
     static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType> operation, const element::Type& precision);
 
+    // applies constant folding of operation to constant and returns the specified output
+    static std::shared_ptr<opset1::Constant> foldDequantizationConstant(
+        const std::shared_ptr<opset1::Constant>& foldingConstant,
+        const std::shared_ptr<Node>& operation,
+        const size_t outIdx = 0);
+
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
     static std::vector<std::shared_ptr<Node>> getParentsRecursivelyExceptTypes(

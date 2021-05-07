@@ -38,6 +38,7 @@
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -85,6 +86,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ngraph::pass::TransposeSinking>();
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
@@ -160,8 +162,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
-    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
-    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);

@@ -92,7 +92,7 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 

@@ -22,8 +22,7 @@ namespace InferenceEngine {
  * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal,
-                                           public std::enable_shared_from_this<ExecutableNetworkThreadSafeDefault> {
+class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeDefault object

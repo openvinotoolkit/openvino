@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -311,8 +312,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
 
         pass::Manager pass_manager;
         pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::AlgebraicSimplification>();
-        pass_manager.register_pass<pass::ConstantFolding>();
+        pass_manager.register_pass<pass::TransposeSinking>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);

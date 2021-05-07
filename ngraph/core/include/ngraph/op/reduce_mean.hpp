@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API ReduceMean : public util::ArithmeticReductionKeepDims
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReduceMean", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 ReduceMean() = default;
 
                 /// \param arg The tensor to be summed.

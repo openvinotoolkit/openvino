@@ -97,7 +97,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through_conv(node, reverse_channels):
-        """
+        r"""
         For non grouped convolution:
         BEFORE                          AFTER
 
@@ -167,7 +167,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through_eltwise(node, reverse_channels):
-        """
+        r"""
         BEFORE                              AFTER
 
           previous_op                                       previous_op'
@@ -268,7 +268,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):
-        """
+        r"""
         BEFORE                      AFTER
 
                                     previous_op              previous_op'

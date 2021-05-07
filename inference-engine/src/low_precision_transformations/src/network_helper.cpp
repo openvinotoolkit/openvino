@@ -87,6 +87,31 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
     return true;
 }
 
+std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
+    const std::shared_ptr<opset1::Constant>& foldingConstant,
+    const std::shared_ptr<Node>& operation,
+    const size_t outIdx) {
+    OutputVector inputs = operation->input_values();
+    OutputVector outputs(operation->get_output_size());
+
+    if (shape_size(foldingConstant->get_shape()) == 1ul) {
+        return toScalar(foldingConstant);
+    } else {
+        inputs[0] = foldingConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        // constant folding of constant
+        op->constant_fold(outputs, inputs);
+
+        const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
+        if (result == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+        }
+
+        return result;
+    }
+}
+
 size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights) {
     if (layer->outputs().size() == 0) {
         THROW_TRANSFORMATION_EXCEPTION << "Layer " << layer->get_friendly_name() << " doesn't have output tensors";

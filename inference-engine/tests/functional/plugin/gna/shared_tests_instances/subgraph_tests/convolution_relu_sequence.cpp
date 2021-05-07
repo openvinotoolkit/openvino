@@ -24,7 +24,7 @@ protected:
         }
     }
 
-    void SetUp() {
+    void SetUp() override {
         ConvolutionReluSequenceTest::SetUp();
     }
 };

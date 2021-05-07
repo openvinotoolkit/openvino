@@ -2647,7 +2647,8 @@ TEST(type_prop, conv_v1_partial_data_shape_dynamic)
     auto conv = make_shared<op::v1::Convolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({PartialShape::dynamic()}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic()}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 }

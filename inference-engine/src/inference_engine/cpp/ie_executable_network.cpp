@@ -4,117 +4,109 @@
 
 #include "cpp/ie_executable_network.hpp"
 #include "ie_common.h"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/exception2status.hpp"
+#include "ie_iexecutable_network.hpp"
+#include "cpp_interfaces/base/ie_executable_network_base.hpp"
 
 namespace InferenceEngine {
 
-ExecutableNetwork::ExecutableNetwork(IExecutableNetwork::Ptr actual_, details::SharedObjectLoader::Ptr plg)
-    : actual(actual_), plg(plg) {
-    //  plg can be null, but not the actual
-    if (actual == nullptr) {
-        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
+#define CALL_STATEMENT(...)                                                                        \
+    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                  \
+    try {                                                                                          \
+        __VA_ARGS__;                                                                               \
+    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
+        IE_THROW() << ex.what();                                                                   \
+    } catch (...) {                                                                                \
+        IE_THROW(Unexpected);                                                                      \
     }
+
+ExecutableNetwork::ExecutableNetwork(const IExecutableNetworkInternal::Ptr& impl,
+                                     const std::shared_ptr<details::SharedObjectLoader>& so)
+    : _impl(impl), _so(so) {
+    IE_ASSERT(_impl != nullptr);
 }
 
 ExecutableNetwork::~ExecutableNetwork() {
-    actual = {};
+    _impl = {};
 }
 
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
-    ConstOutputsDataMap data;
-    CALL_STATUS_FNC(GetOutputsInfo, data);
-    return data;
+    CALL_STATEMENT(return _impl->GetOutputsInfo());
 }
 
 ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
-    ConstInputsDataMap info;
-    CALL_STATUS_FNC(GetInputsInfo, info);
-    return info;
+    CALL_STATEMENT(return _impl->GetInputsInfo());
 }
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
-    if (actual == nullptr) {
-        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
-    }
-    if (newActual == nullptr) {
-        IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
-    }
-    this->actual.swap(newActual);
+    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
+    if (newActual == nullptr) IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
+    auto newBase = std::dynamic_pointer_cast<ExecutableNetworkBase>(newActual);
+    IE_ASSERT(newBase != nullptr);
+    auto newImpl = newBase->GetImpl();
+    IE_ASSERT(newImpl != nullptr);
+    this->_impl.swap(newImpl);
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
-    IInferRequest::Ptr req;
-    CALL_STATUS_FNC(CreateInferRequest, req);
-    if (req.get() == nullptr) IE_THROW() << "Internal error: pointer to infer request is null";
-    return InferRequest(req, plg);
+    CALL_STATEMENT(return InferRequest{_impl->CreateInferRequest(), _so});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
-    IInferRequest::Ptr req;
-    CALL_STATUS_FNC(CreateInferRequest, req);
-    return std::make_shared<InferRequest>(req, plg);
+    CALL_STATEMENT(return std::make_shared<InferRequest>(_impl->CreateInferRequest(), _so));
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {
-    CALL_STATUS_FNC(Export, modelFileName);
+    CALL_STATEMENT(return _impl->Export(modelFileName));
 }
 
 void ExecutableNetwork::Export(std::ostream& networkModel) {
-    CALL_STATUS_FNC(Export, networkModel);
+    CALL_STATEMENT(return _impl->Export(networkModel));
 }
 
-ExecutableNetwork::operator IExecutableNetwork::Ptr&() {
-    return actual;
+ExecutableNetwork::operator IExecutableNetwork::Ptr() {
+    return std::make_shared<ExecutableNetworkBase>(_impl);
 }
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     IE_SUPPRESS_DEPRECATED_START
-    ICNNNetwork::Ptr ptr = nullptr;
-    CALL_STATUS_FNC(GetExecGraphInfo, ptr);
-    return CNNNetwork(ptr);
-    IE_SUPPRESS_DEPRECATED_END
+    CALL_STATEMENT(return _impl->GetExecGraphInfo());
 }
 
-
+IE_SUPPRESS_DEPRECATED_START
 std::vector<VariableState> ExecutableNetwork::QueryState() {
-    if (actual == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
-    IVariableState::Ptr pState = nullptr;
-    auto res = OK;
     std::vector<VariableState> controller;
-    for (size_t idx = 0; res == OK; ++idx) {
-        ResponseDesc resp;
-        IE_SUPPRESS_DEPRECATED_START
-        res = actual->QueryState(pState, idx, &resp);
-        IE_SUPPRESS_DEPRECATED_END
-        if (res != OK && res != OUT_OF_BOUNDS) {
-            IE_THROW() << resp.msg;
-        }
-        if (res != OUT_OF_BOUNDS) {
-            controller.push_back(VariableState(pState, plg));
-        }
-    }
-
+    CALL_STATEMENT(
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
+        });
     return controller;
 }
+IE_SUPPRESS_DEPRECATED_END
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-    CALL_STATUS_FNC(SetConfig, config);
+    CALL_STATEMENT(_impl->SetConfig(config));
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    Parameter configValue;
-    CALL_STATUS_FNC(GetConfig, name, configValue);
-    return configValue;
+    CALL_STATEMENT(return _impl->GetConfig(name));
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    Parameter metricValue;
-    CALL_STATUS_FNC(GetMetric, name, metricValue);
-    return metricValue;
+    CALL_STATEMENT(return _impl->GetMetric(name));
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
-    RemoteContext::Ptr pContext;
-    CALL_STATUS_FNC(GetContext, pContext);
-    return pContext;
+    CALL_STATEMENT(return _impl->GetContext());
 }
+
+bool ExecutableNetwork::operator!() const noexcept {
+    return !_impl;
+}
+
+ExecutableNetwork::operator bool() const noexcept {
+    return !!_impl;
+}
+
 }  // namespace InferenceEngine

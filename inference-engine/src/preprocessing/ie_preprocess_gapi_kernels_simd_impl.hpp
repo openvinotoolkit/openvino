@@ -788,19 +788,19 @@ inline void copyRow_32F_impl(const float in[], float out[], int length) {
 }
 
 // Resize (bi-linear, 32FC1)
-static inline void calcRowLinear_32FC1(float *dst[],
-                                       const float *src0[],
-                                       const float *src1[],
-                                       const float  alpha[],
-                                       const int    mapsx[],
-                                       const float  beta[],
-                                       const Size& inSz,
-                                       const Size& outSz,
-                                               int lpi) {
+CV_ALWAYS_INLINE void calcRowLinear_32FC1(float *dst[],
+                                          const float *src0[],
+                                          const float *src1[],
+                                          const float  alpha[],
+                                          const int    mapsx[],
+                                          const float  beta[],
+                                          const Size& inSz,
+                                          const Size& outSz,
+                                          const int   lpi) {
     bool xRatioEq1 = inSz.width == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
-#if CPU_SIMD
+#if MANUAL_SIMD
     const int nlanes = v_float32::nlanes;
 #endif
 
@@ -811,19 +811,19 @@ static inline void calcRowLinear_32FC1(float *dst[],
 
             int x = 0;
 
-#if CPU_SIMD
+#if MANUAL_SIMD
+            v_float32 low1, high1, s00, s01;
+            v_float32 low2, high2, s10, s11;
             for (; x <= outSz.width - nlanes; x += nlanes) {
                 v_float32 alpha0 = vx_load(&alpha[x]);
                 //  v_float32 alpha1 = 1.f - alpha0;
 
-                v_float32 low1, high1, s00, s01;
                 v_gather_pairs(src0[line], mapsx, x, low1, high1);
                 v_deinterleave(low1, high1, s00, s01);
 
                 //  v_float32 res0 = s00*alpha0 + s01*alpha1;
                 v_float32 res0 = v_fma(s00 - s01, alpha0, s01);
 
-                v_float32 low2, high2, s10, s11;
                 v_gather_pairs(src1[line], mapsx, x, low2, high2);
                 v_deinterleave(low2, high2, s10, s11);
 
@@ -854,12 +854,12 @@ static inline void calcRowLinear_32FC1(float *dst[],
         for (int line = 0; line < lpi; ++line) {
             int x = 0;
 
-#if CPU_SIMD
+#if MANUAL_SIMD
+            v_float32 low, high, s00, s01;
             for (; x <= outSz.width - nlanes; x += nlanes) {
                 v_float32 alpha0 = vx_load(&alpha[x]);
                 //  v_float32 alpha1 = 1.f - alpha0;
 
-                v_float32 low, high, s00, s01;
                 v_gather_pairs(src0[line], mapsx, x, low, high);
                 v_deinterleave(low, high, s00, s01);
 
@@ -889,7 +889,7 @@ static inline void calcRowLinear_32FC1(float *dst[],
 
             int x = 0;
 
-#if CPU_SIMD
+#if MANUAL_SIMD
             for (; x <= length - nlanes; x += nlanes) {
                 v_float32 s0 = vx_load(&src0[line][x]);
                 v_float32 s1 = vx_load(&src1[line][x]);
