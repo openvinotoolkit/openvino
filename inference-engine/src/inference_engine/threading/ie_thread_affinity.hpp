@@ -24,18 +24,18 @@ using cpu_set_t = void;
  *
  * @param      mask  The mask
  */
-INFERENCE_ENGINE_API_CPP(void) ReleaseProcessMask(cpu_set_t* mask);
+void ReleaseProcessMask(cpu_set_t* mask);
 
 /**
  * @brief      Deleter for process mask
  * @ingroup    ie_dev_api_threading
  */
 struct ReleaseProcessMaskDeleter {
-	/**
-	 * @brief      A callable operator to release object
-	 *
-	 * @param      mask  The mask to release
-	 */
+    /**
+     * @brief      A callable operator to release object
+     *
+     * @param      mask  The mask to release
+     */
     void operator()(cpu_set_t* mask) const {
         ReleaseProcessMask(mask);
     }
@@ -52,7 +52,7 @@ using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
  * @ingroup ie_dev_api_threading
  * @return A core affinity mask
  */
-INFERENCE_ENGINE_API_CPP(std::tuple<CpuSet, int>) GetProcessMask();
+std::tuple<CpuSet, int> GetProcessMask();
 
 /**
  * @brief      Pins current thread to a set of cores determined by the mask
@@ -64,18 +64,18 @@ INFERENCE_ENGINE_API_CPP(std::tuple<CpuSet, int>) GetProcessMask();
  * @param[in]  processMask   The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-INFERENCE_ENGINE_API_CPP(bool) PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask);
+bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask);
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.
- * 	           The function can also handle the hyper-threading (by populating the physical cores first)
+ *             The function can also handle the hyper-threading (by populating the physical cores first)
  * @ingroup    ie_dev_api_threading
  *
  * @param[in]  ncores       The ncores
  * @param[in]  processMask  The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-INFERENCE_ENGINE_API_CPP(bool) PinCurrentThreadByMask(int ncores, const CpuSet& processMask);
+bool PinCurrentThreadByMask(int ncores, const CpuSet& processMask);
 
 /**
  * @brief      Pins a current thread to a socket.
@@ -84,5 +84,5 @@ INFERENCE_ENGINE_API_CPP(bool) PinCurrentThreadByMask(int ncores, const CpuSet& 
  * @param[in]  socket  The socket id
  * @return     `True` in case of success, `false` otherwise
  */
-INFERENCE_ENGINE_API_CPP(bool) PinCurrentThreadToSocket(int socket);
+bool PinCurrentThreadToSocket(int socket);
 }  //  namespace InferenceEngine
