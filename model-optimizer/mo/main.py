@@ -7,6 +7,7 @@ import logging as log
 import os
 import platform
 import sys
+import subprocess
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
@@ -152,7 +153,8 @@ def prepare_ir(argv: argparse.Namespace):
     except Exception as e:
         argv.ie_is_available = False
 
-    argv.transform = parse_transform(argv.transform, argv.ie_is_available)
+    # This is just to check that transform key is valid
+    parse_transform(argv.transform, argv.ie_is_available)
 
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
@@ -278,8 +280,13 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # dependency search does not break the MO pipeline
         try:
             if not argv.legacy_ir_generation and argv.ie_is_available:
-                from mo.back.offline_transformations import apply_offline_transformations
-                return_code = apply_offline_transformations(orig_model_name, argv.framework, argv.transform)
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations,
+                                         "--input_model", orig_model_name,
+                                         "--framework", argv.framework,
+                                         "--transform", argv.transform], env=os.environ)
+                return_code = status.returncode
         except Exception as e:
             return_code = "failed"
             log.error(e, extra={'is_warning': True})
@@ -299,7 +306,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         suffixes = [".xml", ".bin", ".mapping"]
         if return_code != 0:
             if len(argv.transform) != 0:
-                raise Error("Failed to apply transformations: {}".format(",".join([name for name, _ in argv.transform])))
+                # Remove temporary IR before throwing exception
+                for suf in suffixes:
+                    path_to_file = orig_model_name + "_tmp" + suf
+                    if os.path.exists(path_to_file):
+                        os.remove(path_to_file)
+                raise Error("Failed to apply transformations: {}".format(argv.transform))
 
             log.error("Using fallback to produce IR.", extra={'is_warning': True})
             for suf in suffixes:
@@ -411,9 +423,6 @@ def subprocess_main(framework=None):
     ret_code = check_python_version()
     if ret_code:
         sys.exit(ret_code)
-
-    import os
-    import subprocess
 
     from mo.utils.find_ie_version import find_ie_version
     find_ie_version(silent=True)

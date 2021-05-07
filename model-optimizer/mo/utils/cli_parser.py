@@ -11,7 +11,6 @@ from itertools import zip_longest
 
 import numpy as np
 
-from mo.back.offline_transformations import get_available_transformations
 from mo.front.extractor import split_node_in_port
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils import import_extensions
@@ -1195,6 +1194,7 @@ def parse_transform(transform: str, ie_is_available: bool) -> list:
         raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
             ','.join([name for name, _ in transforms])))
 
+    from mo.back.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
     missing_transformations = []

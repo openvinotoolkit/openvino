@@ -33,8 +33,8 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
 
 def import_core_modules(silent: bool, path_to_module: str):
     try:
-        from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
+        from openvino.inference_engine import get_version, read_network # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, GenerateMappingFile # pylint: disable=import-error
 
         import openvino # pylint: disable=import-error
 
