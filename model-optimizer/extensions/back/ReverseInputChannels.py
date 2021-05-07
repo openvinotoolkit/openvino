@@ -288,7 +288,6 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         """
         before_shape = reverse_channels.in_port(0).data.get_shape()
 
-
         port_axis = []
         for idx, port in node.in_ports().items():
             shape = port.data.get_shape()
