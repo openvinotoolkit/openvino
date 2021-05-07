@@ -52,6 +52,15 @@ const std::vector<std::vector<size_t>> targetShapes2x = {
         {5, 19, 37 * 2, 37 * 2},
 };
 
+const std::vector<std::vector<size_t>> inShapesNoBatch = {
+        {1, 8, 38, 38},
+        {1, 8, 36, 36},
+};
+
+const std::vector<std::vector<size_t>> targetShapesNoBatch = {
+        {1, 8, 38 * 2, 38 * 2},
+        {1, 8, 70, 70},  // * 1.94
+};
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
@@ -181,6 +190,32 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_2x, InterpolateLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes2x),
         ::testing::ValuesIn(targetShapes2x),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode_no_batch, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapesNoBatch),
+        ::testing::ValuesIn(targetShapesNoBatch),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest_mode_no_batch, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapesNoBatch),
+        ::testing::ValuesIn(targetShapesNoBatch),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     InterpolateLayerTest::getTestCaseName);

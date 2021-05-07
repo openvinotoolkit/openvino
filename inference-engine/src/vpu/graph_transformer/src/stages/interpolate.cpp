@@ -61,8 +61,10 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                  interpolateModeIt->second == InterpolateMode::LinearOnnx;
     VPU_THROW_UNLESS(modeIsSupported, "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
 
-    const auto paramIsSupported = ic == oc && isPadZeros(padsBegin) && isPadZeros(padsEnd);
-    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings, and resize by channels");
+    auto paramIsSupported = ic == oc;
+    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support resize by channels");
+    paramIsSupported = isPadZeros(padsBegin) && isPadZeros(padsEnd);
+    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings");
 
     if (interpolateModeIt->second == InterpolateMode::Nearest) {
         // current "Resample" supports the following "Interpolate" modes only:
