@@ -21,7 +21,7 @@ void FrontEndBasicTest::SetUp() {
 
 void FrontEndBasicTest::initParamTest() {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
-    m_modelFile = std::string(TEST_FILES) + m_pathToModels + m_modelFile;
+    m_modelFile = m_pathToModels + m_modelFile;
     std::cout << "Model: " << m_modelFile << std::endl;
 }
 

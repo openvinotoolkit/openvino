@@ -8,14 +8,13 @@ using namespace ngraph;
 using namespace ngraph::frontend;
 
 static const auto PDPD = "pdpd";
-static const std::string PATH_TO_MODELS = "/paddlepaddle/models/";
 
 using PDPDCutTest = FrontEndElementTypeTest;
 
 static SetTypeFEParam getTestData_relu() {
     SetTypeFEParam res;
     res.m_frontEndName =    PDPD;
-    res.m_modelsPath =      PATH_TO_MODELS;
+    res.m_modelsPath =      std::string(TEST_PDPD_MODELS);
     res.m_modelName =       "relu/relu.pdmodel";
     return res;
 }

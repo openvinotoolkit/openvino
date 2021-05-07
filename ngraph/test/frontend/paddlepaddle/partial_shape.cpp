@@ -8,7 +8,6 @@ using namespace ngraph;
 using namespace ngraph::frontend;
 
 static const auto PDPD = "pdpd";
-static const std::string PATH_TO_MODELS = "/paddlepaddle/models/";
 
 using PDPDPartialShapeTest = FrontEndPartialShapeTest;
 
@@ -59,7 +58,7 @@ static PartShape getTestShape_conv2d_relu() {
 
 INSTANTIATE_TEST_CASE_P(PDPDPartialShapeTest, FrontEndPartialShapeTest,
                         ::testing::Combine(
-                                ::testing::Values(BaseFEParam { PDPD, PATH_TO_MODELS }),
+                                ::testing::Values(BaseFEParam { PDPD, std::string(TEST_PDPD_MODELS) }),
                                 ::testing::ValuesIn(std::vector<PartShape> {
                                     getTestShape_2in_2out(),
                                     getTestShape_conv2d_relu(),
