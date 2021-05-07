@@ -58,9 +58,7 @@ Allocator::Allocator(): _allocatorOfShaves(_cmxMemoryPool) {
     _memPools.emplace(MemoryType::CMX, &_cmxMemoryPool);
 }
 
-namespace {
-
-void updateChildDataAllocation(const Data& data, int offsetLimitation) {
+void Allocator::updateChildDataAllocation(const Data& data) {
     for (const auto& edge : data->childDataToDataEdges()) {
         auto parent = edge->parent();
         auto child = edge->child();
@@ -77,8 +75,7 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
             }
 
             memoryOffset += byteOffset;
-
-            IE_ASSERT(memoryOffset + child->lastElemOffset() <= offsetLimitation);
+            IE_ASSERT(parent->dataLocation().location != Location::CMX || memoryOffset + child->lastElemOffset() <= _maxCmxSize);
         } else if (edge->mode() == SharedDataMode::Reshape) {
             IE_ASSERT(parent->checkStrides(StridesRequirement::compact()));
             IE_ASSERT(child->checkStrides(StridesRequirement::compact()));
@@ -88,9 +85,11 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
 
         child->setDataAllocationInfo({parent->dataLocation().location, memoryOffset});
 
-        updateChildDataAllocation(child, offsetLimitation);
+        updateChildDataAllocation(child);
     }
 }
+
+namespace {
 
 int getInUse(const Data& data) {
     int inUse = 0;
@@ -131,7 +130,7 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            updateChildDataAllocation(data, 0);
+            updateChildDataAllocation(data);
 
             _allocatedData.emplace(data);
         }
@@ -147,12 +146,16 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            auto finalByteSize = data->totalByteSize() * _modelBatchSize;
+            auto finalByteSize = data->totalByteSize();
+            if (_modelBatchSize > 1) {
+                finalByteSize *= _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
+            }
 
             data->setIOInfo(Location::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
             _inputMemOffset = alignVal(_inputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
-            updateChildDataAllocation(data, DDR_MAX_SIZE);
+            updateChildDataAllocation(data);
 
             _allocatedData.emplace(data);
         }
@@ -168,17 +171,16 @@ bool Allocator::allocateData(const Data& data) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
-            int finalByteSize = 0;
-            if (data->attrs().getOrDefault<bool>("unbatched", false)) {
-                finalByteSize = data->totalByteSize();
-            } else {
+            auto finalByteSize = data->totalByteSize();
+            if (!data->attrs().getOrDefault<bool>("unbatched", false)) {
                 finalByteSize = data->totalByteSize() * _modelBatchSize;
+                data->attrs().set("batch", _modelBatchSize);
             }
 
             data->setIOInfo(Location::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
             _outputMemOffset = alignVal(_outputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
-            updateChildDataAllocation(data, DDR_MAX_SIZE);
+            updateChildDataAllocation(data);
 
             _allocatedData.emplace(data);
         }
@@ -201,7 +203,7 @@ bool Allocator::allocateData(const Data& data) {
             data->setDataAllocationInfo({Location::Blob, _blobMemOffset});
             _blobMemOffset += finalByteSize;
 
-            updateChildDataAllocation(data, DDR_MAX_SIZE);
+            updateChildDataAllocation(data);
 
             _allocatedData.emplace(data);
         }
@@ -287,8 +289,7 @@ bool Allocator::allocateData(const Data& data) {
 
     data->setDataAllocationInfo({chunk->memType == MemoryType::CMX ? Location::CMX : Location::BSS, chunk->pointer});
 
-    auto offsetLimitation = (data->dataLocation().location == Location::CMX) ? _maxCmxSize : DDR_MAX_SIZE;
-    updateChildDataAllocation(data, offsetLimitation);
+    updateChildDataAllocation(data);
 
     _memChunksPerData.emplace(data, chunk);
     _allocatedIntermData.emplace(data);
@@ -429,7 +430,7 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
             _memChunksPerData[data] = ddrChunk;
 
             data->setDataAllocationInfo({Location::BSS, ddrChunk->pointer});
-            updateChildDataAllocation(data, DDR_MAX_SIZE);
+            updateChildDataAllocation(data);
 
             break;
         }
@@ -462,14 +463,6 @@ UsedMemory Allocator::usedMemoryAmount() const {
     return stats;
 }
 
-std::size_t Allocator::freeDDRMemoryAmount() const {
-    const auto& pool = _memPools.at(MemoryType::DDR);
-    const auto offset = pool->curMemOffset;
-    VPU_THROW_UNLESS(offset <= DDR_MAX_SIZE, "Out of bound offset for next free data in DDR: size = {}, while offset = {}", DDR_MAX_SIZE, offset);
-
-    return DDR_MAX_SIZE - offset;
-}
-
 std::size_t Allocator::freeCMXMemoryAmount() const {
     const auto& pool = _memPools.at(MemoryType::CMX);
     const auto shavesCMX = _allocatorOfShaves.getLockedSHAVEs() * CMX_SLICE_SIZE;
@@ -477,10 +470,6 @@ std::size_t Allocator::freeCMXMemoryAmount() const {
     VPU_THROW_UNLESS(offset <= _maxCmxSize, "Out of bound offset for next free data in CMX: size = {}, while offset = {}", _maxCmxSize, offset);
 
     return _maxCmxSize - offset;
-}
-
-std::size_t Allocator::freeMemoryAmount(const MemoryType& type) const {
-    return type == MemoryType::CMX ? freeCMXMemoryAmount() : freeDDRMemoryAmount();
 }
 
 void Allocator::extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const {
@@ -537,8 +526,7 @@ allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int in
     // Check free space
     //
 
-    const auto freeSpace = freeMemoryAmount(memType);
-    if (static_cast<std::size_t>(size) > freeSpace) {
+    if (memType == MemoryType::CMX && static_cast<std::size_t>(size) > freeCMXMemoryAmount()) {
         return nullptr;
     }
 

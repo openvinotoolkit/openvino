@@ -29,6 +29,6 @@ namespace ngraph
                                                (std::exp(arg[i]) - 1));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

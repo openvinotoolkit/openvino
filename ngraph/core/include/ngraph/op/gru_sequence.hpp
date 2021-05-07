@@ -51,6 +51,6 @@ namespace ngraph
                 op::RecurrentSequenceDirection m_direction;
                 bool m_linear_before_reset;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 } // namespace ngraph

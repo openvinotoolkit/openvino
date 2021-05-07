@@ -163,7 +163,7 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpecialDimension(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
         return false;
     }
 
@@ -187,6 +187,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             if ((constantShape.size() == mulShape.size()) && (constantShape[columnsIdx] != 1)) {
                 return false;
             }
+        }
+
+        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
+            return false;
         }
     }
 

@@ -4,11 +4,24 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    find_package(TBBBIND_2_4 QUIET)
+    if (TBBBIND_2_4_FOUND)
+        message(STATUS "Static tbbbind_2_4 package was found")
+
+        # WA: need to update TBBBind_2_4 package
+        set_target_properties(TBBbind::tbbbind_2_4 PROPERTIES
+            MAP_IMPORTED_CONFIG_MINSIZEREL Release
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+    endif()
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
@@ -58,6 +71,10 @@ if(ENABLE_SSE42)
     ie_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
+
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")
+        set_source_files_properties(${SSE_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
 endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
@@ -101,7 +118,7 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
-    UNITY
+    UNITY PCH PRIVATE "precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
@@ -118,9 +135,13 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -136,6 +157,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} ${FRONTEND_LIBRARIES} inference_engine_transformations)
@@ -163,6 +188,10 @@ add_library(${TARGET_NAME}_s STATIC
             ${IE_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

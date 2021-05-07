@@ -14,6 +14,8 @@
 #include <assert.h>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph_ops/framework_node.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 
@@ -319,6 +321,24 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
+            const auto & attrs = a->get();
+
+            // Update type and version attributes
+            pugi::xml_node layer = m_xml_node.parent();
+
+            auto type_attr = layer.attribute("type");
+            auto version_attr = layer.attribute("version");
+
+            type_attr.set_value(attrs.get_type_name().c_str());
+            version_attr.set_value(attrs.get_opset_name().c_str());
+
+            // Update node attributes in data field
+            for (const auto & attr : attrs.get_attrs()) {
+                m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
+            }
+        } else {
+            throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
     }
 
@@ -480,8 +500,7 @@ std::string get_opset_name(
     return "experimental";
 }
 
-std::string get_output_precision_name(ngraph::Output<Node>& o) {
-    auto elem_type = o.get_element_type();
+std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
     case ::ngraph::element::Type_t::dynamic:
@@ -494,6 +513,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "BF16";
     case ::ngraph::element::Type_t::f64:
         return "FP64";
+    case ::ngraph::element::Type_t::i4:
+        return "I4";
     case ::ngraph::element::Type_t::i8:
         return "I8";
     case ::ngraph::element::Type_t::i16:
@@ -502,6 +523,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "I32";
     case ::ngraph::element::Type_t::i64:
         return "I64";
+    case ::ngraph::element::Type_t::u4:
+        return "U4";
     case ::ngraph::element::Type_t::u8:
         return "U8";
     case ::ngraph::element::Type_t::u16:
@@ -515,8 +538,9 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
     default:
-        NGRAPH_CHECK(false, "Unsupported precision in ", o);
-        return "";
+        std::stringstream msg;
+        msg << "Unsupported precision: " << elem_type;
+        throw ngraph_error(msg.str());
     }
 }
 
@@ -530,6 +554,17 @@ std::string generate_unique_name(
         suffix++;
         return generate_unique_name(unique_names, base_name, suffix);
     }
+}
+
+std::string escape_delim(const std::string& name, const char delim = ',') {
+    std::string result_name = name;
+    const std::string escaped_delim = std::string("\\") + delim;
+    size_t index = result_name.find(delim, 0);
+    while (index != std::string::npos) {
+        result_name.replace(index, 1, escaped_delim);
+        index = result_name.find(delim, index + 2);
+    }
+    return result_name;
 }
 
 // TODO: remove when CNNNetwork will be supporting not-unique names
@@ -664,6 +699,9 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         pugi::xml_node data = layer.append_child("data");
         std::string node_type_name{node->get_type_name()};
 
+        // must be executed before visit_attributes which can change values
+        layer_type_attribute.set_value(translate_type_name(node_type_name).c_str());
+
         // <layers/data> general attributes
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
@@ -673,8 +711,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                          "Visitor API is not supported in ", node);
             rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
         }
-        layer_type_attribute.set_value(
-            translate_type_name(node_type_name).c_str());
 
         const bool data_attr_size =
             data.attributes().begin() == data.attributes().end();
@@ -686,9 +722,17 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
-            for (auto i : node->inputs()) {
+            for (const auto & i : node->inputs()) {
+                // WA for LSTMCellv0, peephole input shall not be serialized
+                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
+                    port_id++;
+                    continue;
+                }
+
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
+                port.append_attribute("precision")
+                        .set_value(get_precision_name(i.get_element_type()).c_str());
                 for (auto d : std::vector<Dimension>(i.get_partial_shape())) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
@@ -703,11 +747,23 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
-            for (auto o : node->outputs()) {
+            for (const auto & o : node->outputs()) {
+                NGRAPH_CHECK(o.get_partial_shape().is_static(),
+                             "Unsupported dynamic output shape in ", node);
+
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
-                    .set_value(get_output_precision_name(o).c_str());
+                    .set_value(get_precision_name(o.get_element_type()).c_str());
+                std::string names;
+                for (const auto& name : o.get_tensor().get_names()) {
+                    if (!names.empty())
+                        names += ", ";
+                    names += escape_delim(name);
+                }
+                if (!names.empty()) {
+                    port.append_attribute("names").set_value(names.c_str());
+                }
                 for (auto d : std::vector<Dimension>(o.get_partial_shape())) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)

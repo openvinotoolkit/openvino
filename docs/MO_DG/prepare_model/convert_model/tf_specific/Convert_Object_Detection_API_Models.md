@@ -8,8 +8,7 @@
 
 With 2018 R3 release, the Model Optimizer introduces a new approach to convert models created using the TensorFlow\* Object Detection API. Compared with the previous approach, the new process produces inference results with higher accuracy and does not require modifying any configuration files and providing intricate command line parameters.
 
-You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a>
-or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
+You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
 <strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
 
@@ -56,7 +55,7 @@ For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http:/
 ```
 
 ## Custom Input Shape <a name="tf_od_custom_input_shape"></a>
-Model Optimizer handles command line parameter `--input_shape` for TensorFlow\* Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow\* Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
+Model Optimizer handles the command line parameter `--input_shape` for TensorFlow\* Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow\* Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
 * `fixed_shape_resizer` --- *Stretches* input image to the specific height and width. The `pipeline.config` snippet below shows a `fixed_shape_resizer` sample definition:
 ```
 image_resizer {
@@ -106,7 +105,7 @@ Models with `keep_aspect_ratio_resizer` were trained to recognize object in real
 Inference Engine comes with a number of samples that use Object Detection API models including:
 
 * [Object Detection for SSD Sample](../../../../../inference-engine/samples/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
-* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_README) --- for Mask R-CNNs
+* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
 
 There are a number of important notes about feeding input images to the samples:
 
@@ -1047,4 +1046,4 @@ The Mask R-CNN models are cut at the end with the sub-graph replacer `ObjectDete
 
 ```SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd```
 
-One of these two nodes produces output mask tensors. The child nodes of these nodes are related to post-processing which is implemented in the [Mask R-CNN demo](@ref omz_demos_mask_rcnn_demo_README) and should be cut off.
+One of these two nodes produces output mask tensors. The child nodes of these nodes are related to post-processing which is implemented in the [Mask R-CNN demo](@ref omz_demos_mask_rcnn_demo_cpp) and should be cut off.

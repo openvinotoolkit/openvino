@@ -111,4 +111,4 @@ namespace ngraph
     {
         using value_type = uint64_t;
     };
-}
+} // namespace ngraph

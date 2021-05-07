@@ -8,17 +8,6 @@
 #include <string>
 #include <map>
 
-#include <ie_blob.h>
-#include <description_buffer.hpp>
-#include <debug.h>
-#include <ie_layouts.h>
-#include <threading/ie_executor_manager.hpp>
-#include <blob_transform.hpp>
-#include <ie_parallel.hpp>
-#include <ie_memcpy.h>
-#include <precision_utils.h>
-
-#include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
@@ -33,7 +22,7 @@ using Time = std::chrono::high_resolution_clock;
 TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&                     networkInputs,
                                            const InferenceEngine::OutputsDataMap&                    networkOutputs,
                                            const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork) :
-    InferRequestInternal(networkInputs, networkOutputs),
+    IInferRequestInternal(networkInputs, networkOutputs),
     _executableNetwork(executableNetwork) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
@@ -72,7 +61,8 @@ template<typename BlobDataMap, typename GetNetworkPrecisionF>
 static void AllocateImpl(const BlobDataMap& userDataMap,
                          BlobMap& userBlobMap,
                          BlobMap& deviceBlobMap,
-                         GetNetworkPrecisionF&& GetNetworkPrecision) {
+                         GetNetworkPrecisionF&& GetNetworkPrecision,
+                         bool isInputBlob = true) {
     for (auto&& userData : userDataMap) {
         auto& dims = userData.second->getTensorDesc().getDims();
         const auto devicePrecision = Precision::FP32;
@@ -88,7 +78,7 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
             case Precision::FP32 : {
                 userBlob = InferenceEngine::make_shared_blob<float>({userPrecision, dims, userLayout});
             } break;
-            default: IE_THROW() << "Template Plugin: Unsupported Input/Output Precision";
+            default: IE_THROW(NotImplemented) << "Template Plugin: Unsupported Input/Output Precision";
         }
         userBlob->allocate();
         userBlobMap[userData.first] = userBlob;
@@ -103,12 +93,16 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                     deviceBlob = InferenceEngine::make_shared_blob<float>({devicePrecision, dims, deviceLayout});
                 }
             } break;
-            default: IE_THROW() << "Template Plugin: Unsupported network Input/Output Presision";
+            default: IE_THROW(NotImplemented) << "Template Plugin: Unsupported network Input/Output Presision";
         }
-        // preprocessing converts user input blob to desired device input blob automatically
-        // NOTE: this is not supported for output user blobs yet
         if (userBlob != deviceBlob) {
-            deviceBlob->allocate();
+            if (isInputBlob) {
+                // preprocessing converts user input blob to desired device input blob automatically
+                deviceBlob->allocate();
+            } else {
+                // NOTE: this is not supported for output user blobs yet
+                IE_THROW(NotImplemented) << "Template Plugin: does not support setPrecision, setLayout for outputs";
+            }
         }
         deviceBlobMap[userData.first] = deviceBlob;
     }
@@ -122,7 +116,7 @@ void TemplateInferRequest::allocateBlobs() {
     auto&& results = _executableNetwork->_function->get_results();
     AllocateImpl(_networkOutputs, _outputs, _networkOutputBlobs, [&] (const std::string& blobName) {
         return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
-    });
+    }, false);
 }
 
 // ! [infer_request:infer_impl]
@@ -151,7 +145,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
                 default : {
-                    IE_THROW() << "Unsupported precision conversion from "
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
@@ -163,13 +157,13 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
                 default : {
-                    IE_THROW() << "Unsupported precision conversion from "
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
         default : {
-            IE_THROW() << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
         }
     }
 }
@@ -178,9 +172,9 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 void TemplateInferRequest::inferPreprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
-    // NOTE: After InferRequestInternal::execDataPreprocessing call
+    // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    InferRequestInternal::execDataPreprocessing(_deviceInputs);
+    IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];

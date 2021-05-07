@@ -173,7 +173,7 @@ namespace
         }
         return static_cast<int64_t>(static_cast<float>(bound) * scale);
     }
-}
+} // namespace
 
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
@@ -417,7 +417,7 @@ namespace
 
         return result;
     }
-}
+} // namespace
 
 void op::v4::Interpolate::correct_pads()
 {
@@ -581,7 +581,7 @@ namespace ngraph
     }
 
     template <>
-    EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
+    NGRAPH_API EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
         EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get()
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::CoordinateTransformMode>(
@@ -606,7 +606,8 @@ namespace ngraph
     }
 
     template <>
-    EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interpolate::NearestMode>::get()
+    NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>&
+        EnumNames<op::v4::Interpolate::NearestMode>::get()
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
             "op::v4::Interpolate::NearestMode",

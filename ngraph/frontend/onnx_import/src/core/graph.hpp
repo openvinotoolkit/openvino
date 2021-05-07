@@ -24,6 +24,7 @@ namespace ngraph
         {
         public:
             Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, bool decode_only);
+            Graph(const Graph& graph);
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -36,6 +37,7 @@ namespace ngraph
             const GraphCache& get_graph_cache() const;
             void update_node_input_cache (const std::string& name, Output<ngraph::Node>&& output);
             const OpsetImports& get_opset_imports() const;
+            virtual ~Graph() = default;
 
             void set_decode_only (bool decode_only) { m_decode_only = decode_only; }
 

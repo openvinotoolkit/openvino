@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNPoolingNode() override = default;
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
@@ -32,7 +32,6 @@ public:
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    InferenceEngine::PoolingLayer::PoolType type = InferenceEngine::PoolingLayer::MAX;
     bool exclude_pad = false;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
@@ -52,8 +51,6 @@ private:
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 };
 
 }  // namespace MKLDNNPlugin

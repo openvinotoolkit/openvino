@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = std::acos(arg[i]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

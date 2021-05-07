@@ -30,8 +30,8 @@ namespace ngraph
             class NGRAPH_API Sqrt : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Sqrt", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a square operation.
                 ///
                 /// \param arg Node that produces the input tensor.
@@ -44,7 +44,7 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        }
+        } // namespace v0
         using v0::Sqrt;
-    }
-}
+    } // namespace op
+} // namespace ngraph
