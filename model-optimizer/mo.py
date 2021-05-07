@@ -5,5 +5,5 @@
 
 
 if __name__ == "__main__":
-    from mo.main import subprocess_main
+    from mo.main import subprocess_main # pylint: disable=no-name-in-module
     subprocess_main(framework=None)

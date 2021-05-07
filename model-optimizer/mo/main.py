@@ -259,6 +259,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
+    # Remove temporary ie_is_available key form argv no to have it in IR
+    ie_is_available = argv.ie_is_available
+    del argv.ie_is_available
+
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
@@ -279,7 +283,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if not argv.legacy_ir_generation and argv.ie_is_available:
+            if not argv.legacy_ir_generation and ie_is_available:
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations,
