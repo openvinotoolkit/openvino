@@ -63,12 +63,12 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
 
 std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int output_index) const
 {
-    if (node_index >= int(m_node_outputs.size()))
+    if (node_index >= static_cast<int>(m_node_outputs.size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            "is out of scope outputs list");
     }
-    if (output_index >= int(m_node_outputs[node_index].size()))
+    if (output_index >= static_cast<int>(m_node_outputs[node_index].size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            " has not output with index: " + std::to_string(output_index));
@@ -79,12 +79,12 @@ std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int ou
 
 std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int input_index) const
 {
-    if (node_index >= int(m_node_inputs.size()))
+    if (node_index >= static_cast<int>(m_node_inputs.size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            "is out of scope inputs list");
     }
-    if (input_index >= int(m_node_inputs[node_index].size()))
+    if (input_index >= static_cast<int>(m_node_inputs[node_index].size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            " has not input with index: " + std::to_string(input_index));

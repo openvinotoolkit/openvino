@@ -108,5 +108,5 @@ namespace ngraph
             std::map<std::string, int> m_node_output_name_to_index;
             std::multimap<std::string, int> m_output_consumers_index;
         };
-    }
-}
+    } // namespace onnx_editor
+} // namespace ngraph
