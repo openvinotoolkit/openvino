@@ -15,7 +15,6 @@
 
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
-#include <threading/ie_thread_affinity.hpp>
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
