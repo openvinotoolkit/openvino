@@ -4,7 +4,6 @@
 import ngraph as ng
 import numpy as np
 
-from tests import xfail_issue_49062
 from tests.test_ngraph.util import run_op_node
 
 
@@ -38,7 +37,6 @@ def test_gather_with_scalar_axis():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_49062
 def test_gather_batch_dims_1():
 
     input_data = np.array([[1, 2, 3, 4, 5],
