@@ -139,6 +139,7 @@ protected:
     }
 
     void TearDown() override {
+        PluginCache::get().reset();
     }
 
     template <Precision::ePrecision PRC>
