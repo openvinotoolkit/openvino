@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "auto_plugin/auto_config.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include <base/behavior_test_utils.hpp>
 #include "behavior/set_preprocess.hpp"
@@ -23,6 +24,10 @@ namespace {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}}
     };
 
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+            {{ InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -35,6 +40,13 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
+                            PreprocessTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
                             PreprocessTest::getTestCaseName);
 
 

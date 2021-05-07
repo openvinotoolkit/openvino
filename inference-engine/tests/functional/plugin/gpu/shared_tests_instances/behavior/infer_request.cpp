@@ -17,6 +17,11 @@ namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
     };
+
+    const std::vector<std::map<std::string, std::string>> autoconfigs = {
+            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -29,5 +34,12 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(configs)),
+                            InferRequestTests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, InferRequestTests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoconfigs)),
                             InferRequestTests::getTestCaseName);
 }  // namespace
