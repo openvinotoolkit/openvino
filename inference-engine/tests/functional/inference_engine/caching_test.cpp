@@ -192,6 +192,8 @@ public:
     }
 
     void TearDown() override {
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(net.get()));
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockPlugin.get()));
         CommonTestUtils::removeIRFiles(modelName, weightsName);
     }
 
@@ -766,8 +768,6 @@ TEST_P(CachingTest, TestThrowOnExport) {
 // TODO: temporary behavior is to no re-throw exception on import error (see 54335)
 // In future add separate 'no throw' test for 'blob_outdated' exception from plugin
 TEST_P(CachingTest, TestThrowOnImport) {
-    ON_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).WillByDefault(Throw(1));
-    ON_CALL(*mockPlugin, ImportNetworkImpl(_, _)).WillByDefault(Throw(1));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -785,20 +785,25 @@ TEST_P(CachingTest, TestThrowOnImport) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        if (m_remoteContext) {
+            EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(1).WillOnce(Throw(1));
+            EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        } else {
+            EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+            EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(1).WillOnce(Throw(1));
+        }
         EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
-    { // Step 3: same load, cache should be deleted due to unsuccessful import on step 2
-        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
-        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+    { // Step 3: same load, cache is re-created on export on step 2 and shall be successfully imported now
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             EXPECT_NO_THROW(m_testFunction(ie));
