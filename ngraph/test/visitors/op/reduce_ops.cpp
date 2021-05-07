@@ -37,6 +37,8 @@ TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
     auto reduce_op = make_shared<TypeParam>(data, reduction_axes, keep_dims);
 
     NodeBuilder builder(reduce_op);
+    const auto expected_attr_count = 1;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     auto g_reduce_op = as_type_ptr<TypeParam>(builder.create());
     EXPECT_EQ(g_reduce_op->get_keep_dims(), reduce_op->get_keep_dims());
 }
