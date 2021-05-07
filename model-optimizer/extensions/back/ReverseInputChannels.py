@@ -311,7 +311,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
             src = port.get_connection().get_source()
             if src.node.soft_get('type') == 'Parameter':
-                # For Parameter nodes tensor debug attributes should not propagate to the last node
+                # For Parameter nodes tensor debug attributes should not move to the last node
                 # of subgraph. It is needed for the proper mapping of input framework name.
                 # For this reason "source" mode is used to keep tensor debug attributes at Parameter node.
                 port.get_connection().set_source(reverse_channels_copy.out_port(0), attributes_save_mode="source")
