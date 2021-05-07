@@ -76,7 +76,8 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_stru
 
 }
 
-TEST_F(GNAAOTTests, TwoInputsModel_canbe_export_imported) {
+TEST_F(GNAAOTTests, DISABLED_TwoInputsModel_canbe_export_imported) {
+    // Disabled because of random conflicts with other tests: Issue-54220
 #if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
@@ -95,8 +96,8 @@ TEST_F(GNAAOTTests, TwoInputsModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
-
+TEST_F(GNAAOTTests, DISABLED_PermuteModel_canbe_export_imported) {
+    // Disabled because of random conflicts with other tests: Issue-54220
 #if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
@@ -112,8 +113,8 @@ TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
-
+TEST_F(GNAAOTTests, DISABLED_PoolingModel_canbe_export_imported) {
+    // Disabled because of random conflicts with other tests: Issue-54220
 #if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
