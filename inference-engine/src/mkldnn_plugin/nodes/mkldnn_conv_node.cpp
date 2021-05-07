@@ -236,9 +236,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         createDescriptor({in_candidate}, {out_candidate});
     } else {
         inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
-                && !(isDW && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+                && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
         outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
-                && !(isDW && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+                && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
@@ -763,35 +763,49 @@ InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
 bool MKLDNNConvolutionNode::isNspcAvailable() const {
     using impl::cpu::x64::mayiuse;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
-    auto * convLayer = dynamic_cast<ConvolutionLayer*>(getCnnLayer().get());
-    if (convLayer == nullptr)
-        IE_THROW() << "Cannot convert convolution layer.";
 
-    auto& inpDims = convLayer->input()->getDims();
+    auto inpDims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    auto outDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    auto ndims = inpDims.size();
 
-    if (isDW) {
+    if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
         if (1 == inpDims[inpDims.size() - 2]) {
             return false;
         }
     } else {
-        // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than 2048
-        size_t IC = inpDims[1];
-        size_t OC = convLayer->_out_depth;
+        // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than the specific value
+        size_t activationSize = ndims - 2; //two means batch dim plus channels dim
 
-        auto weightDimsReversItr = weightDims.rbegin();
-        bool is1x1 = (*weightDimsReversItr == 1) && (*(++weightDimsReversItr) == 1);
+        bool is1x1 = !isGrouped;
 
-        unsigned thresholdNumChennels = 128u; // for avx and below
-        if (mayiuse(impl::cpu::x64::avx512_common) || is1x1) {
-            thresholdNumChennels = 2048u;
+        if (is1x1) {
+            auto weightDimsReversItr = weightDims.crbegin();
+            auto inpDimsReversItr = inpDims.crbegin();
+            auto outDimsReversItr = outDims.crbegin();
+            auto paddingLreversItr = paddingL.crbegin();
+            auto paddingRreversItr = paddingR.crbegin();
+
+            for (size_t i = 0; i < activationSize; ++i) {
+                is1x1 = is1x1
+                        && *(weightDimsReversItr++) == 1
+                        && *(inpDimsReversItr++) == *(outDimsReversItr++)
+                        && *(paddingLreversItr++) == 0
+                        && *(paddingRreversItr++) == 0;
+            }
         }
 
-        if (std::max(IC, OC) >= thresholdNumChennels) {
+        unsigned thresholdNumChannels = 128u; // for avx and below
+        if (mayiuse(impl::cpu::x64::avx512_common) || is1x1) {
+            thresholdNumChannels = 2048u;
+        }
+
+        size_t OC = outDims[1];
+        if (std::max(IC, OC) >= thresholdNumChannels) {
             return false;
         }
         if (!mayiuse(impl::cpu::x64::avx)) {
-            // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much better than the gemm
+            // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much better than gemm
             if ((IC % 8) || (OC % 8)) {
                 return false;
             }

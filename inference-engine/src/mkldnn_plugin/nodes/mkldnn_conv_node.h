@@ -38,7 +38,6 @@ public:
 
     bool canBeExecutedInInt8() const;
     size_t getGroupNum() const { return groupNum; }
-    void selectOptimalPrimitiveDescriptor() override;
 
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;
@@ -57,13 +56,13 @@ public:
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
-    bool isNspcAvailable() const;
 
 private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
+    bool isNspcAvailable() const;
 
     bool withBiases;
     bool withSum;
