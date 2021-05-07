@@ -23,10 +23,5 @@ std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &i
             throw std::logic_error("Unsupported operation type");
     }
 }
-
-std::shared_ptr<ngraph::Node> makeSqueezeNoAxes(const ngraph::Output<Node> &in,
-                                                const element::Type &type) {
-    return std::make_shared<ngraph::opset1::Squeeze>(in);
-}
 } // namespace builder
 } // namespace ngraph

@@ -265,9 +265,6 @@ std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &i
                                                    const std::vector<int> &squeeze_indices,
                                                    ngraph::helpers::SqueezeOpType opType);
 
-std::shared_ptr<ngraph::Node> makeSqueezeNoAxes(const ngraph::Output<Node> &in,
-                                                   const element::Type &type);
-
 std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
                                          const ngraph::Output<Node> &in2,
                                          ngraph::helpers::MinMaxOpType opType);
