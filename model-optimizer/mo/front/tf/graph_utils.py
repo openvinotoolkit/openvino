@@ -10,6 +10,7 @@ import numpy as np
 from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
     mark_output_as_in_correct_layout
 from extensions.ops.activation_ops import Sigmoid
+from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
@@ -185,3 +186,31 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
     else:
         raise Error('Unknown post-processing activation function "{}".'.format(activation_function))
     return activation_node
+
+
+def add_constant_to_negative_values(node: Node, port_idx: int, added_value: np.array):
+    """
+    This function adds the given values to negative elements of value from the given input port.
+    :param node: node with corrected values in the input port port_idx
+    :param port_idx: input port index for negative values
+    :param added_value: the value to add
+    :return: None
+    """
+    negative_values_source = node.in_port(port_idx).get_source()
+    negative_values_node = node.in_port(port_idx).get_source().node
+    negative_values_node_name = negative_values_node.soft_get('name', negative_values_node.id)
+
+    graph = node.graph
+
+    less_node = create_op_with_const_inputs(graph, Less,
+                                            {1: np.array(0, dtype=added_value.dtype)},
+                                            {'name': negative_values_node_name + '/Less'})
+    mul_node = create_op_with_const_inputs(graph, Mul, {1: added_value}, {'name': negative_values_node_name + '/Mul'})
+
+    node.in_port(port_idx).get_connection().set_destination(less_node.in_port(0))
+    less_node.out_port(0).connect(mul_node.in_port(0))
+
+    add_node = Add(graph, {}).create_node()
+    mul_node.out_port(0).connect(add_node.in_port(1))
+    negative_values_source.connect(add_node.in_port(0))
+    add_node.out_port(0).connect(node.in_port(port_idx))

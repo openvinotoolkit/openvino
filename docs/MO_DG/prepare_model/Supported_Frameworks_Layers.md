@@ -160,6 +160,9 @@ Standard TensorFlow\* operations:
 | EuclideanNorm | No |
 | FakeQuantWithMinMaxVars | No |
 | FakeQuantWithMinMaxVarsPerChannel | No |
+| FFT | Supported only when it is part of a sub-graph of the special form |
+| FFT2D | Supported only when it is part of a sub-graph of the special form |
+| FFT3D | Supported only when it is part of a sub-graph of the special form |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
@@ -172,6 +175,9 @@ Standard TensorFlow\* operations:
 | Greater | No |
 | GreaterEqual | No |
 | Identity | Not needed for shape inference |
+| IFFT | Supported only when it is part of a sub-graph of the special form |
+| IFFT2D | Supported only when it is part of a sub-graph of the special form |
+| IFFT3D | Supported only when it is part of a sub-graph of the special form |
 | LRN | No |
 | Less | No |
 | Log | No |
