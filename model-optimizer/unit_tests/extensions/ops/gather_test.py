@@ -9,6 +9,7 @@ from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.middle.passes.infer import partial_infer
+from mo.utils.error import Error
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
     shaped_parameter, build_graph
 
@@ -16,7 +17,7 @@ from unit_tests.utils.graph import valued_const_with_data, result, regular_op_wi
 class TestGatherPartialInfer(unittest.TestCase):
 
     @staticmethod
-    def build_and_test_value_inference(data, indices, axis, batch_dims, ref_value):
+    def build_and_test_value_inference(data, indices, axis, batch_dims, ref_value, negative_test_string=None):
         nodes = {
             **valued_const_with_data('data', int64_array(data)),
             **valued_const_with_data('indices', int64_array(indices)),
@@ -97,9 +98,9 @@ class TestGatherPartialInfer(unittest.TestCase):
 
     def test_shape_axis_2_batch_dims_minus_1(self):
         self.build_and_test_shape_inference(axis=2, batch_dims=-1,
-                                            data_shape=[3, 4, 7],
+                                            data_shape=[3, 1, 7],
                                             indices_shape=[3, 1, 2],
-                                            ref_shape=[3, 4, 2])
+                                            ref_shape=[3, 1, 2])
 
     def test_shape_axis_2_batch_dims_minus_2(self):
         self.build_and_test_shape_inference(axis=2, batch_dims=-2,
@@ -174,3 +175,32 @@ class TestGatherPartialInfer(unittest.TestCase):
                                                        [[[37, 38, 39, 40],
                                                          [33, 34, 35, 36],
                                                          [29, 30, 31, 32]]]])
+
+    # negative tests
+    def test_shape_indices_data_shape_inconsistency(self):
+        self.assertRaises(Error, self.build_and_test_shape_inference,
+                          axis=2, batch_dims=2,
+                          data_shape=[3, 4, 7],
+                          indices_shape=[3, 1, 2],
+                          ref_shape=[3, 4, 2])
+
+    def test_shape_batch_dims_greater_than_axis(self):
+        self.assertRaises(Error, self.build_and_test_shape_inference,
+                          axis=2, batch_dims=3,
+                          data_shape=[3, 4, 7],
+                          indices_shape=[3, 4, 2],
+                          ref_shape=[3, 4, 2])
+
+    def test_shape_batch_dims_out_of_bound(self):
+        self.assertRaises(Error, self.build_and_test_shape_inference,
+                          axis=2, batch_dims=4,
+                          data_shape=[3, 4, 7],
+                          indices_shape=[3, 4, 2],
+                          ref_shape=[3, 4, 2])
+
+    def test_shape_axis_out_of_bound(self):
+        self.assertRaises(Error, self.build_and_test_shape_inference,
+                          axis=3, batch_dims=2,
+                          data_shape=[3, 4, 7],
+                          indices_shape=[3, 4, 2],
+                          ref_shape=[3, 4, 2])

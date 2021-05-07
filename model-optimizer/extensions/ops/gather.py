@@ -39,16 +39,6 @@ class Gather(Op):
             raise Error('Unsupported operation opset version "{}"'.format(version))
 
     @staticmethod
-    def get_axis(node: Node):
-        data_rank = len(node.in_port(0).data.get_shape())
-        axis_value = node.in_port(2).data.get_value()
-        return axis_value + data_rank if axis_value < 0 else axis_value
-
-    @staticmethod
-    def get_batch_dims(node: Node):
-        return node.batch_dims + len(node.in_port(1).data.get_shape()) if node.batch_dims < 0 else node.batch_dims
-
-    @staticmethod
     def infer(node: Node):
         name = node.soft_get('name', node.id)
 
@@ -61,15 +51,32 @@ class Gather(Op):
         assert data_shape is not None
         indices_shape = node.in_port(1).data.get_shape()
         assert indices_shape is not None
-        assert node.in_port(2).data.get_value() is not None, 'Cannot define axis value for operation {}'.\
-            format(node.soft_get('name', node.id))
-        axis = Gather.get_axis(node)
+        axis = node.in_port(2).data.get_value()
+        assert axis is not None, 'axis input is undefined'
+
+        assert -len(data_shape) <= axis < len(data_shape), \
+            'axis must be within interval [-data_rank, data_rank). Instead got axis = {}, data_rank = {} '.\
+            format(axis, len(data_shape))
+
+        batch_dims = node.batch_dims
+        assert -len(indices_shape) <= batch_dims <= len(indices_shape), \
+            'batch_dims must be within interval [-indices_rank, indices_rank]. Instead got batch_dims = {}, ' \
+            'indices_rank = {} '.format(batch_dims, len(indices_shape))
+
+        # normalize to positive values
+        axis = axis + len(data_shape) if axis < 0 else axis
+        batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
+
+        assert np.array_equal(data_shape[:batch_dims], indices_shape[:batch_dims]), \
+            'data and indices inputs must have equal first dimensions until batch_dims'
+
+        assert batch_dims <= axis, \
+            'normalized batch_dims must be <= axis. Instead got batch_dims = {}, axis = {}'.format(axis, batch_dims)
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
 
-        batch_dims = Gather.get_batch_dims(node)
         batch_dims_range = indices_shape[:batch_dims]
         out_shape = np.concatenate((data_shape[:axis], indices_shape[batch_dims:], data_shape[axis + 1:]))
 
