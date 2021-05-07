@@ -179,7 +179,7 @@ std::vector<int64_t> DecoderPDPDProto::get_longs(const std::string& name, const 
 
 int64_t DecoderPDPDProto::get_long(const std::string& name, const int64_t& def) const
     {
-        std::cout << "Running get_longs" << std::endl;
+        std::cout << "Running get_long" << std::endl;
         std::vector<proto::OpDesc_Attr> attrs;
         for (const auto &attr : op.attrs()) {
             if (attr.name() == name)

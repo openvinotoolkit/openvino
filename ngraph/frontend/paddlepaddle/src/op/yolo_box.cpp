@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits>       // std::numeric_limits
+#include <numeric>
 
 #include <ngraph/opsets/opset6.hpp>
 #include "yolo_box.hpp"
