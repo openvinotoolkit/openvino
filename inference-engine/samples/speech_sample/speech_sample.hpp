@@ -27,6 +27,20 @@ static const char target_device_message[] = "Optional. Specify a target device t
                                             "below. "
                                             "The sample will look for a suitable plugin for device specified.";
 
+/// @brief message for execution target
+static const char execution_target_message[] = "Optional. Specify GNA execution target generation. "
+                                               "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                               "By default, generation corresponds to the GNA HW available in the system "
+                                               "or the latest fully supported generation by the software. "
+                                               "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
+
+/// @brief message for execution target
+static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
+                                             "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                             "By default, generation corresponds to the GNA HW available in the system "
+                                             "or the latest fully supported generation by the software. "
+                                             "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
+
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
@@ -108,6 +122,12 @@ DEFINE_string(m, "", model_message);
 
 /// \brief device the target device to infer on (default CPU) <br>
 DEFINE_string(d, "CPU", target_device_message);
+
+/// \brief GNA execution target <br>
+DEFINE_string(exec_target, "", execution_target_message);
+
+/// \brief GNA compile target <br>
+DEFINE_string(compile_target, "", compile_target_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
