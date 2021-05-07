@@ -12,6 +12,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
 
+#include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
 
 namespace AutoPlugin {
@@ -135,13 +136,27 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
     auto metaDevices = GetDeviceChoice(fullConfig);
     auto optCap = GetOptimizationCapabilities();
 
-    DeviceInformation selectedDevice = SelectDevice(network, metaDevices, optCap);
+    DeviceInformation selectedDevice;
     IE::SoExecutableNetworkInternal executableNetwork;
-    try {
-        executableNetwork = GetCore()->LoadNetwork(network, selectedDevice.deviceName, selectedDevice.config);
-    } catch(const IE::Exception &iie) {
-        IE_THROW() << "Failed to load network to device named " << selectedDevice.deviceName
-                   << " with exception " << iie.what();
+    while (!metaDevices.empty()) {
+        selectedDevice = SelectDevice(network, metaDevices, optCap);;
+        try {
+            GetCore()->QueryNetwork(network, selectedDevice.deviceName, selectedDevice.config);
+            executableNetwork = GetCore()->LoadNetwork(
+                network, selectedDevice.deviceName, selectedDevice.config);
+            break;
+        } catch (...) {
+            auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
+                                            [=](const DeviceInformation& d)->bool{return d.deviceName == selectedDevice.deviceName;});
+            if (eraseDevice == metaDevices.end()) {
+                IE_THROW() << "Didn't find the selected device name";
+            }
+            metaDevices.erase(eraseDevice);
+            executableNetwork = {};
+        }
+    }
+    if (!executableNetwork) {
+        IE_THROW() << "Failed to load network by AUTO plugin";
     }
 
     bool enablePerfCounters = false;
@@ -224,16 +239,31 @@ IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
         std::vector<std::string> configKeys;
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        std::vector<std::string> capabilities = { "" };
+        std::vector<std::string> capabilities = GetOptimizationCapabilities();
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
 
+//////////////////////////////////// private & protected functions ///////////////////
 std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(const ConfigType&  config) const {
     std::vector<DeviceInformation> metaDevices;
-    std::vector<std::string> availableDevices = GetCore()->GetAvailableDevices();
+    std::vector<std::string> availableDevices;
+
+    auto deviceListConfig = config.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    if (deviceListConfig == config.end()) {
+        availableDevices = GetCore()->GetAvailableDevices();
+    } else {
+        auto& devices = deviceListConfig->second;
+        std::string::size_type i = 0;
+        std::string::size_type idelimeter;
+        while ((idelimeter = devices.find(',', i)) != std::string::npos) {
+            availableDevices.push_back(devices.substr(i, idelimeter - i));
+            i = idelimeter + 1;
+        }
+        availableDevices.push_back(devices.substr(i, devices.length() - i));
+    }
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         IE::DeviceIDParser deviceParser(deviceWithID);
@@ -279,7 +309,6 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() cons
     return {capabilities.begin(), capabilities.end()};
 }
 
-//////////////////////////////////// private & protected functions ///////////////////
 ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
                                                    const std::string& deviceName) const {
     std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
