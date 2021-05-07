@@ -100,6 +100,7 @@ protected:
             inPrc = outPrc = netPrecision = Precision::BF16;
         else
             inPrc = outPrc = netPrecision;
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
