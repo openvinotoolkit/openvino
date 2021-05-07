@@ -40,10 +40,6 @@ IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsD
     return std::make_shared<AutoInferRequest>(networkInputs, networkOutputs, inferRequest);
 }
 
-IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequest() {
-    return CreateInferRequestImpl(_networkInputs, _networkOutputs);
-}
-
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         unsigned int res = 0u;
