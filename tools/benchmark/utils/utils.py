@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from openvino.inference_engine import IENetwork,IECore
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
@@ -59,16 +47,71 @@ def next_step(additional_info='', step_id=0):
     step_info_template = step_info_template.format(next_step.step_id, len(step_names), step_name)
     print(step_info_template)
 
+def process_precision(ie_network: IENetwork, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    _configure_network_inputs(ie_network, app_inputs_info, input_precision)
+    _configure_network_outputs(ie_network, output_precision)
+    if input_output_precision:
+        _configure_network_inputs_and_outputs(ie_network, input_output_precision)
 
-def config_network_inputs(ie_network: IENetwork, app_inputs_info):
+def _configure_network_inputs(ie_network: IENetwork, app_inputs_info, input_precision: str):
     input_info = ie_network.input_info
+
     for key in input_info.keys():
         if app_inputs_info[key].is_image:
-            # Set the precision of input data provided by the user
-            # Should be called before load of the network to the plugin
-            app_inputs_info[key].precision = 'U8'
-            input_info[key].precision = 'U8'
+            app_inputs_info[key].precision = input_precision
+            input_info[key].precision = input_precision 
 
+def _configure_network_outputs(ie_network: IENetwork, output_precision: str):
+    output_info = ie_network.outputs
+
+    for key in output_info.keys():
+        output_info[key].precision = output_precision
+
+def _configure_network_inputs_and_outputs(ie_network: IENetwork, input_output_precision: str):
+    if not input_output_precision:
+        raise Exception("Input/output precision is empty")
+
+    user_precision_map = _parse_arg_map(input_output_precision)
+
+    input_info = ie_network.input_info
+    output_info = ie_network.outputs
+    
+    for key, value in user_precision_map.items():
+        if key in input_info:
+            input_info[key].precision = value
+        elif key in output_info:
+            output_info[key].precision = value
+        else:
+            raise Exception("Element '{}' does not exist in network".format(key))
+
+def _parse_arg_map(arg_map: str):
+    arg_map = arg_map.replace(" ", "")
+    pairs = [x.strip() for x in arg_map.split(',')]
+
+    parsed_map = {}
+    for pair in pairs:
+        key_value = [x.strip() for x in pair.split(':')]
+        parsed_map.update({key_value[0]:key_value[1]})
+
+    return parsed_map
+
+def print_inputs_and_outputs_info(ie_network: IENetwork):
+    input_info = ie_network.input_info
+    for key in input_info.keys():
+        tensor_desc = input_info[key].tensor_desc
+        logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
+                                                                                  tensor_desc.precision,
+                                                                                  tensor_desc.layout,
+                                                                                  " ".join(str(x) for x in
+                                                                                           tensor_desc.dims)))
+    output_info = ie_network.outputs
+    for key in output_info.keys():
+        info = output_info[key]
+        logger.info("Network output '{}' precision {}, dimensions ({}): {}".format(key,
+                                                                                  info.precision,
+                                                                                  info.layout,
+                                                                                  " ".join(str(x) for x in
+                                                                                           info.shape)))
 
 def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
     niter = number_iterations

@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 constexpr NodeTypeInfo op::ShuffleChannels::type_info;
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,

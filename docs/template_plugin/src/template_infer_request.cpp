@@ -72,41 +72,42 @@ void TemplateInferRequest::allocateDeviceBuffers() {
 
 template<typename BlobData, typename GetNetworkPrecisionF>
 static void AllocateImplSingle(
-                         BlobMap& blobMap,
-                         BlobMap& networkBlobMap,
-                         BlobData& blobData,
+                         BlobMap& userBlobMap,
+                         BlobMap& deviceBlobMap,
+                         BlobData& userData,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          const SizeVector& dims) {
-    auto& precision = blobData.second->getTensorDesc().getPrecision();
-    auto layout = blobData.second->getTensorDesc().getLayout();
-    Blob::Ptr blob;
-    blob = make_blob_with_precision({precision, dims, layout});
-    blob->allocate();
-    blobMap[blobData.first] = blob;
+    auto userPrecision = userData.second->getTensorDesc().getPrecision();
+    auto userLayout = userData.second->getTensorDesc().getLayout();
 
-    auto networkPresion = GetNetworkPrecision(blobData.first);
-    Blob::Ptr networkBlob;
-    if (InferenceEngine::details::convertPrecision(precision) == networkPresion) {
-        networkBlob = blob;
+    Blob::Ptr userBlob;
+    userBlob = make_blob_with_precision({userPrecision, dims, userLayout});
+    userBlob->allocate();
+    userBlobMap[userData.first] = userBlob;
+
+    auto networkPrecision = GetNetworkPrecision(userData.first);
+    Blob::Ptr deviceBlob;
+    if (InferenceEngine::details::convertPrecision(userPrecision) == networkPrecision) {
+        deviceBlob = userBlob;
     } else {
-        networkBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPresion), dims, layout});
-        networkBlob->allocate();
+        deviceBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPrecision), dims, userLayout});
+        deviceBlob->allocate();
     }
-    networkBlobMap[blobData.first] = networkBlob;
+    deviceBlobMap[userData.first] = deviceBlob;
 }
 
 template<typename BlobDataMap, typename GetNetworkPrecisionF>
-static void AllocateImpl(const BlobDataMap& blobDataMap,
-                         BlobMap& blobMap,
-                         BlobMap& networkBlobMap,
+static void AllocateImpl(const BlobDataMap& userDataMap,
+                         BlobMap& userBlobMap,
+                         BlobMap& deviceBlobMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision) {
-    for (auto&& blobData : blobDataMap) {
-        if (blobData.second->getTensorDesc().getPartialShape().is_dynamic()) {
-            // Cannot pre-allocate blob for a tensor with unknown dimensions
+    for (auto&& userData : userDataMap) {
+        if (userData.second->getTensorDesc().getPartialShape().is_dynamic()) {
+            // Cannot pre-allocate userBlob for a tensor with unknown dimensions
             continue;
         }
-        auto& dims = blobData.second->getTensorDesc().getDims();
-        AllocateImplSingle(blobMap, networkBlobMap, blobData, GetNetworkPrecision, dims);
+        auto& dims = userData.second->getTensorDesc().getDims();
+        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims);
     }
 }
 

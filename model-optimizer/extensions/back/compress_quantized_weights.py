@@ -1,18 +1,5 @@
-"""
- Copyright (c) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
 
@@ -22,7 +9,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Sub, Div, Mul, Negative
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
 from mo.ops.const import Const
 
 
@@ -104,6 +91,12 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
     force_clean_up = True
 
+    QUANTIZATION_MAP = {
+        # max_levels: (np_dtype, quantization_mode)
+        256: (np.int8, "signed"),
+        16: (packed_I4, "signed"),
+    }
+
     def pattern(self):
         return dict(
             nodes=[
@@ -118,7 +111,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         )
 
     @staticmethod
-    def quantize_data(fake_quantize: Node, dst_type: type):
+    def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
         graph = fake_quantize.graph
         name = fake_quantize.soft_get('name', fake_quantize.id)
         levels = fake_quantize.levels
@@ -131,8 +124,12 @@ class CompressQuantizeWeights(BackReplacementPattern):
         fake_quantize.in_port(2).get_connection().set_destination(quantize.in_port(2))
 
         # calculate output limits for quantized weights
-        i_min = np.array([-(levels // 2)], dtype=dst_type)
+        assert mode in ["signed", "unsigned"]
+        i_min_value = -(levels // 2) if mode == "signed" else 0
+
+        i_min = np.array([i_min_value], dtype=dst_type)
         i_max = np.array(levels + i_min - 1, dtype=dst_type)
+
         assert i_max - i_min == levels - 1
         out_low = Const(graph, dict(name=name + '/Copy/out_low', value=i_min)).create_node()
         out_high = Const(graph, dict(name=name + '/Copy/out_high', value=i_max)).create_node()
@@ -144,19 +141,20 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
         original_const = quantize.in_port(0).get_source().node
         quantized_data_name = original_const.soft_get('name', original_const.id) + '/quantized'
-        cast = Cast(graph, dict(name=quantized_data_name, dst_type=np.int8, stop_value_propagation=False)).create_node()
+        cast = Cast(graph, dict(name=quantized_data_name, dst_type=quantized_type,
+                                stop_value_propagation=False)).create_node()
 
         quantize.out_port(0).connect(cast.in_port(0))
 
         cast.out_port(0).connect(fake_quantize.in_port(0))
 
     @staticmethod
-    def dequantize_data(fake_quantize: Node, dst_type: type) -> Node:
+    def dequantize_data(fake_quantize: Node, dst_type: type, quantized_type: type) -> Node:
         graph = fake_quantize.graph
         quantized_data = fake_quantize.in_port(0).get_source().node
         name = fake_quantize.soft_get('name', fake_quantize.id)
 
-        assert quantized_data.soft_get('type') == 'Convert' and quantized_data.dst_type == np.int8, \
+        assert quantized_data.soft_get('type') == 'Convert' and quantized_data.dst_type == quantized_type, \
             'Weights aren`t compressed as expected for node {}'.format(fake_quantize.soft_get('name', fake_quantize.id))
 
         dequantizing_cast = Cast(graph, dict(
@@ -212,5 +210,11 @@ class CompressQuantizeWeights(BackReplacementPattern):
         if np.issubdtype(dst_type, np.floating):
             dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
-        self.quantize_data(fake_quantize, dst_type)
-        self.dequantize_data(fake_quantize, dst_type)
+        quantized_type, mode = None, None
+        for quantization_levels in sorted(self.QUANTIZATION_MAP):
+            if quantization_levels >= fake_quantize.levels:
+                quantized_type, mode = self.QUANTIZATION_MAP[quantization_levels]
+                break
+
+        self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
+        self.dequantize_data(fake_quantize, dst_type, quantized_type)

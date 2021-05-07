@@ -14,6 +14,7 @@ namespace {
 // ! [test_convolution:declare_parameters]
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
 };
 
 /* ============= 2D Convolution ============= */
@@ -112,7 +113,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -124,7 +125,7 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(nightly_Convolution3D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),

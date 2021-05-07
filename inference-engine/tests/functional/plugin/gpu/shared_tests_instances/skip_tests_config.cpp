@@ -24,8 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
-            // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
-            R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
+            // TODO: Issue: 51764
+            ".*PreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 41461

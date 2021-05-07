@@ -13,11 +13,9 @@ namespace CommonTestUtils {
 class TestsCommon : virtual public ::testing::Test {
 protected:
     TestsCommon();
-
     ~TestsCommon() override;
 
     static std::string GetTimestamp();
-
     std::string GetTestName() const;
 };
 

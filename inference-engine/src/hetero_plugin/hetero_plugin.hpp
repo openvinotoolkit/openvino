@@ -44,5 +44,6 @@ public:
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
+    std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin

@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT NGRAPH_TEST_UTIL_ENABLE)
-    return()
-endif()
-
 set (SRC
     all_close_f.cpp
     engine/ie_engines.cpp
@@ -34,7 +30,7 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         VERSION ${NGRAPH_VERSION})
 endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
-target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest openvino::pp)
+target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend libgtest)
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(ngraph_test_util PRIVATE onnx_common onnx)
+    target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()

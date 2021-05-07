@@ -105,6 +105,9 @@ Options:
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
     -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
+    -ip "U8"/"FP16"/"FP32"    Optional. Specifies precision for all input layers of the network.
+    -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
+    -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 
 
   Statistics dumping options:

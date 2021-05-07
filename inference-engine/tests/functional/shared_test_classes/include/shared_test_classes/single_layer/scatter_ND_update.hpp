@@ -12,14 +12,14 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
-using sliceSelcetInShape = std::tuple<
+using sliceSelectInShape = std::tuple<
         std::vector<size_t>,    // input shape
         std::vector<size_t>,    // indices shape
         std::vector<size_t>,    // indices value
         std::vector<size_t>>;   // update shape
 
 using scatterNDUpdateParamsTuple = typename std::tuple<
-        sliceSelcetInShape,                // Input description
+        sliceSelectInShape,                // Input description
         InferenceEngine::Precision,        // Network precision
         InferenceEngine::Precision,        // indices precision
         std::string>;                      // Device name
@@ -28,7 +28,7 @@ class ScatterNDUpdateLayerTest : public testing::WithParamInterface<scatterNDUpd
                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<scatterNDUpdateParamsTuple> &obj);
-    static std::vector<sliceSelcetInShape> combineShapes(
+    static std::vector<sliceSelectInShape> combineShapes(
         const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>>& inputShapes);
 
 protected:

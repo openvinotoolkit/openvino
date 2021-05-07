@@ -16,9 +16,8 @@ namespace ngraph
     {
         namespace v6
         {
-            /// \brief An operation ExperimentalDetectronPriorGridGenerator, according to
-            /// the repository https://github.com/openvinotoolkit/training_extensions
-            /// (see pytorch_toolkit/instance_segmentation/segmentoly/rcnn/prior_box.py).
+            /// \brief An operation ExperimentalDetectronPriorGridGenerator generates prior
+            /// grids of specified sizes.
             class NGRAPH_API ExperimentalDetectronPriorGridGenerator : public Op
             {
             public:

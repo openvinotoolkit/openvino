@@ -16,9 +16,9 @@ namespace ngraph
     {
         namespace v6
         {
-            /// \brief An operation ExperimentalDetectronDetectionOutput, according to
-            /// the repository https://github.com/openvinotoolkit/training_extensions
-            /// (see pytorch_toolkit/instance_segmentation/segmentoly/rcnn/detection_output.py).
+            /// \brief An operation ExperimentalDetectronDetectionOutput performs
+            /// non-maximum suppression to generate the detection output using
+            /// information on location and score predictions.
             class NGRAPH_API ExperimentalDetectronDetectionOutput : public Op
             {
             public:

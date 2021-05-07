@@ -218,6 +218,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
         add<InterpolateTransformation, opset1::Interpolate>(params).
+        add<InterpolateTransformation, opset4::Interpolate>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
@@ -231,7 +232,6 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<StridedSliceTransformation, opset1::StridedSlice>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
-        add<InterpolateTransformation, opset4::Interpolate>(params).
 
         addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).

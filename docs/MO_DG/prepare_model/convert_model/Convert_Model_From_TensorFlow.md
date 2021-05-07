@@ -35,11 +35,11 @@ Detailed information on how to convert models from the <a href="https://github.c
 |VGG-16| [vgg_16_2016_08_28.tar.gz](http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz)| [103.94,116.78,123.68] | 1 |
 |VGG-19| [vgg_19_2016_08_28.tar.gz](http://download.tensorflow.org/models/vgg_19_2016_08_28.tar.gz)| [103.94,116.78,123.68] | 1 |
 
-**Supported Frozen Topologies from TensorFlow Object Detection Models Zoo**
+**Supported Pre-Trained Topologies from TensorFlow 1 Object Detection Models Zoo**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md">Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
-| Model Name| TensorFlow Object Detection API Models (Frozen)|
+| Model Name| TensorFlow 1 Object Detection API Models|
 | :------------- | -----:|
 |SSD MobileNet V1 COCO\*| [ssd_mobilenet_v1_coco_2018_01_28.tar.gz](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2018_01_28.tar.gz)|
 |SSD MobileNet V1 0.75 Depth COCO|  [ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03.tar.gz](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_0.75_depth_300x300_coco14_sync_2018_07_03.tar.gz)|
@@ -67,6 +67,43 @@ Detailed information on how to convert models from the <a href="https://github.c
 |Faster R-CNN Inception ResNet V2 Open Images\*|  [faster_rcnn_inception_resnet_v2_atrous_oid_2018_01_28.tar.gz](http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_oid_2018_01_28.tar.gz)|
 |Faster R-CNN Inception ResNet V2 Low Proposals Open Images\*|  [faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz](http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz)|
 |Faster R-CNN ResNet 101 AVA v2.1\*|  [faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz](http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz)|
+
+**Supported Pre-Trained Topologies from TensorFlow 2 Object Detection Models Zoo**
+
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
+
+| Model Name| TensorFlow 2 Object Detection API Models|
+| :------------- | -----:|
+| EfficientDet D0 512x512 |  [efficientdet_d0_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d0_coco17_tpu-32.tar.gz)|
+| EfficientDet D1 640x640 |  [efficientdet_d1_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d1_coco17_tpu-32.tar.gz)|
+| EfficientDet D2 768x768 |  [efficientdet_d2_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d2_coco17_tpu-32.tar.gz)|
+| EfficientDet D3 896x896 |  [efficientdet_d3_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d3_coco17_tpu-32.tar.gz)|
+| EfficientDet D4 1024x1024 |  [efficientdet_d4_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d4_coco17_tpu-32.tar.gz)|
+| EfficientDet D5 1280x1280 |  [efficientdet_d5_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d5_coco17_tpu-32.tar.gz)|
+| EfficientDet D6 1280x1280 |  [efficientdet_d6_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d6_coco17_tpu-32.tar.gz)|
+| EfficientDet D7 1536x1536 |  [efficientdet_d7_coco17_tpu-32.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d7_coco17_tpu-32.tar.gz)|
+| SSD MobileNet v2 320x320 |  [ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz)|
+| SSD MobileNet V1 FPN 640x640 |  [ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8.tar.gz)|
+| SSD MobileNet V2 FPNLite 320x320 |  [ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz)|
+| SSD MobileNet V2 FPNLite 640x640 |  [ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8.tar.gz)|
+| SSD ResNet50 V1 FPN 640x640 (RetinaNet50) |  [ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz)|
+| SSD ResNet50 V1 FPN 1024x1024 (RetinaNet50) |  [ssd_resnet50_v1_fpn_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_1024x1024_coco17_tpu-8.tar.gz)|
+| SSD ResNet101 V1 FPN 640x640 (RetinaNet101) |  [ssd_resnet101_v1_fpn_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet101_v1_fpn_640x640_coco17_tpu-8.tar.gz)|
+| SSD ResNet101 V1 FPN 1024x1024 (RetinaNet101) |  [ssd_resnet101_v1_fpn_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet101_v1_fpn_1024x1024_coco17_tpu-8.tar.gz)|
+| SSD ResNet152 V1 FPN 640x640 (RetinaNet152) |  [ssd_resnet152_v1_fpn_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet152_v1_fpn_640x640_coco17_tpu-8.tar.gz)|
+| SSD ResNet152 V1 FPN 1024x1024 (RetinaNet152) |  [ssd_resnet152_v1_fpn_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet152_v1_fpn_1024x1024_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet50 V1 640x640 |  [faster_rcnn_resnet50_v1_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet50_v1_640x640_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet50 V1 1024x1024 |  [faster_rcnn_resnet50_v1_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet50_v1_1024x1024_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet50 V1 800x1333 |  [faster_rcnn_resnet50_v1_800x1333_coco17_gpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet50_v1_800x1333_coco17_gpu-8.tar.gz)|
+| Faster R-CNN ResNet101 V1 640x640 |  [faster_rcnn_resnet101_v1_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet101_v1_640x640_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet101 V1 1024x1024 |  [faster_rcnn_resnet101_v1_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet101_v1_1024x1024_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet101 V1 800x1333 |  [faster_rcnn_resnet101_v1_800x1333_coco17_gpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet101_v1_800x1333_coco17_gpu-8.tar.gz)|
+| Faster R-CNN ResNet152 V1 640x640 |  [faster_rcnn_resnet152_v1_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet152_v1_640x640_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet152 V1 1024x1024 |  [faster_rcnn_resnet152_v1_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet152_v1_1024x1024_coco17_tpu-8.tar.gz)|
+| Faster R-CNN ResNet152 V1 800x1333 |  [faster_rcnn_resnet152_v1_800x1333_coco17_gpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet152_v1_800x1333_coco17_gpu-8.tar.gz)|
+| Faster R-CNN Inception ResNet V2 640x640 |  [faster_rcnn_inception_resnet_v2_640x640_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_inception_resnet_v2_640x640_coco17_tpu-8.tar.gz)|
+| Faster R-CNN Inception ResNet V2 1024x1024 |  [faster_rcnn_inception_resnet_v2_1024x1024_coco17_tpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_inception_resnet_v2_1024x1024_coco17_tpu-8.tar.gz)|
+| Mask R-CNN Inception ResNet V2 1024x1024 |  [mask_rcnn_inception_resnet_v2_1024x1024_coco17_gpu-8.tar.gz](http://download.tensorflow.org/models/object_detection/tf2/20200711/mask_rcnn_inception_resnet_v2_1024x1024_coco17_gpu-8.tar.gz)|
 
 **Supported Frozen Quantized Topologies**
 

@@ -148,7 +148,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
             }
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -180,6 +180,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     {ngraph::element::u16, ngraph::element::i32},
                     {ngraph::element::u32, ngraph::element::i32},
                     {ngraph::element::boolean, ngraph::element::u8},
+                    {ngraph::element::i4, ngraph::element::i8},
+                    {ngraph::element::u4, ngraph::element::u8},
             };
 
             for (auto& precision : convert_precision_list) {

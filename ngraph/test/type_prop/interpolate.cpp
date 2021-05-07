@@ -198,3 +198,28 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(out_shape));
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
+
+TEST(type_prop, interpolate_v4_interval_logic)
+{
+    auto image = std::make_shared<op::Parameter>(
+        element::f32, PartialShape{2, 2, Dimension(12, 800), Dimension(0, -1), Dimension(24, -1)});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{3});
+    auto scales = op::Constant::create<float>(element::f32, Shape{3}, {0.5f, 0.25f, 0.125f});
+    auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
+
+    const auto out_shape = PartialShape{2, 2, Dimension(6, 400), Dimension(0, -1), Dimension(3, -1)};
+
+    InterpolateAttrs attrs;
+    attrs.mode = InterpolateMode::nearest;
+    attrs.shape_calculation_mode = ShapeCalcMode::scales;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
+    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.antialias = false;
+    attrs.pads_begin = {0, 0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0, 0};
+    attrs.cube_coeff = -0.75;
+    auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
+
+    EXPECT_EQ(interp->get_element_type(), element::f32);
+    ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(out_shape));
+}

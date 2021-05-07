@@ -1,18 +1,6 @@
-"""
- Copyright (c) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import unittest
 from argparse import Namespace
 
@@ -83,7 +71,7 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertEqual(len(fq_nodes), 1, error_message.format('before', len(fq_nodes)))
         fake_quantize = fq_nodes[0]
 
-        CompressQuantizeWeights.quantize_data(fake_quantize, original_type)
+        CompressQuantizeWeights.quantize_data(fake_quantize, original_type, np.int8, "signed")
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
@@ -124,7 +112,7 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertEqual(len(cast_nodes), 1, error_message.format('Convert', 'before', len(cast_nodes)))
         cast_nodes[0]['need_shape_inference'] = True
 
-        CompressQuantizeWeights.dequantize_data(fq_nodes[0], original_type)
+        CompressQuantizeWeights.dequantize_data(fq_nodes[0], original_type, np.int8)
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')

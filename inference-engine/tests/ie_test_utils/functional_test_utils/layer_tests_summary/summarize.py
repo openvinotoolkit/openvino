@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import xml.etree.ElementTree as ET
 from jinja2 import Environment, FileSystemLoader
 import argparse
@@ -95,7 +98,6 @@ verified_operations = [
     'TopK-1',
     'TopK-3'
 ]
-
 pass_rate_avg = dict()
 general_pass_rate = dict()
 general_test_count = dict()
@@ -160,20 +162,6 @@ for device in root.find("results"):
     general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
     general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
 
-    if "Constant-0" in root.find("results"):
-        general_test_count[device.tag] -=  (
-            int(results[device.tag]["Constant-0"]["passed"]) + int(results[device.tag]["Constant-0"]["failed"]) +
-            int(results[device.tag]["Constant-0"]["crashed"]) + int(results[device.tag]["Constant-0"]["skipped"]))
-    if "Parameter-0" in root.find("results"):
-        general_test_count[device.tag] -= (
-                int(results[device.tag]["Parameter-0"]["passed"]) + int(results[device.tag]["Parameter-0"]["failed"]) +
-                int(results[device.tag]["Parameter-0"]["crashed"]) + int(results[device.tag]["Parameter-0"]["skipped"]))
-    if "Result-0" in root.find("results"):
-        general_test_count[device.tag] -= (
-                int(results[device.tag]["Result-0"]["passed"]) + int(results[device.tag]["Result-0"]["failed"]) +
-                int(results[device.tag]["Result-0"]["crashed"]) + int(results[device.tag]["Result-0"]["skipped"]))
-
-
 devices = results.keys()
 
 file_loader = FileSystemLoader('template')
@@ -182,7 +170,6 @@ template = env.get_template('report_template.html')
 
 res = template.render(ordered_ops=ordered_ops, devices=devices, results=results, timestamp=timestamp,
                       general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
-                      general_test_count=general_test_count,
                       verified_operations=verified_operations)
 
 with open(os.path.join(args.out, "report.html"), "w") as f:

@@ -143,6 +143,10 @@ else()
     find_package(InferenceEngine 2.1 REQUIRED)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
+    add_subdirectory(common/utils)
+endif()
+
 # format reader must be added after find_package(InferenceEngine) to get
 # exactly the same OpenCV_DIR path which was used for the InferenceEngine build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")

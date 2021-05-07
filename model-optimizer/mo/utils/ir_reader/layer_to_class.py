@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
@@ -169,7 +156,14 @@ def propagate_const_values(op: Node):
 
     op['shape'] = out_data_node.shape
     # Reshape data node value for correct shape
-    op['value'] = np.reshape(value, op.shape)
+    if op['element_type'] in ['u4', 'i4']:
+        # Packed data types are custom from numpy perspective.
+        # Shape from the IR is incompatible with numpy value we store.
+        op['value'] = value
+        op['force_type'] = op['element_type'].upper()
+        op['force_shape'] = op.shape.copy()
+    else:
+        op['value'] = np.reshape(value, op.shape)
 
 
 def groupconv_to_conv(op: Node):

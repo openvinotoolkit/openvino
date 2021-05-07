@@ -9,7 +9,6 @@ add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
 
@@ -30,7 +29,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    attributes.cpp
     bfloat16.cpp
     build_graph.cpp
     builder_autobroadcast.cpp
@@ -62,6 +60,7 @@ set(SRC
     op.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
+    op_eval/clamp.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -113,6 +112,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -200,6 +200,56 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    visitors/partial_shape.cpp
+    visitors/user_op.cpp
+    visitors/value_map.cpp
+    visitors/op/broadcast.cpp
+    visitors/op/bucketize.cpp
+    visitors/op/constant.cpp
+    visitors/op/cum_sum.cpp
+    visitors/op/detection_output.cpp
+    visitors/op/elu.cpp
+    visitors/op/extractimagepatches.cpp
+    visitors/op/fake_quantize.cpp
+    visitors/op/grn.cpp
+    visitors/op/group_conv.cpp
+    visitors/op/interpolate.cpp
+    visitors/op/logical_xor.cpp
+    visitors/op/lrn.cpp
+    visitors/op/lstm_cell.cpp
+    visitors/op/lstm_sequence.cpp
+    visitors/op/matmul.cpp
+    visitors/op/max_pool.cpp
+    visitors/op/mod.cpp
+    visitors/op/mvn.cpp
+    visitors/op/non_max_suppression.cpp
+    visitors/op/normalize_l2.cpp
+    visitors/op/one_hot.cpp
+    visitors/op/pad.cpp
+    visitors/op/prior_box.cpp
+    visitors/op/proposal.cpp
+    visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_logical_and.cpp
+    visitors/op/reduce_logical_or.cpp
+    visitors/op/reduce_max.cpp
+    visitors/op/reduce_mean.cpp
+    visitors/op/reduce_min.cpp
+    visitors/op/reduce_prod.cpp
+    visitors/op/reduce_sum.cpp
+    visitors/op/region_yolo.cpp
+    visitors/op/reorg_yolo.cpp
+    visitors/op/reshape.cpp
+    visitors/op/reverse.cpp
+    visitors/op/reverse_sequence.cpp
+    visitors/op/rnn_cell.cpp
+    visitors/op/roi_pooling.cpp
+    visitors/op/shuffle_channels.cpp
+    visitors/op/softmax.cpp
+    visitors/op/space_to_depth.cpp
+    visitors/op/split.cpp
+    visitors/op/squared_difference.cpp
+    visitors/op/strided_slice.cpp
+    visitors/op/topk.cpp
     uint4.cpp
     util.cpp
 )
@@ -264,6 +314,7 @@ set(MULTI_TEST_SRC
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
+    backend/clamp.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -404,13 +455,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        openvino::pp
-                                        ngraph
                                         ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -445,7 +491,6 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

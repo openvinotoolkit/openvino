@@ -11,7 +11,6 @@ file(GLOB SRCS
 add_executable(${TARGET_NAME} ${SRCS})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${IE_MAIN_SOURCE_DIR}/samples/common
     ${IE_MAIN_SOURCE_DIR}/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
@@ -27,6 +26,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
     gflags
+    ie_samples_utils
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES

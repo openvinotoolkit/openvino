@@ -63,10 +63,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
-        auto multiplyParent = multiply->get_input_node_shared_ptr(multiplyBranch.first);
-        auto constParent = multiply->get_input_node_shared_ptr(multiplyBranch.first == 0 ? 1 : 0);
-        auto multiplyParentParent = multiplyParent->get_input_node_shared_ptr(multiplyBranch.second);
-        auto multiplyParentConst = multiplyParent->get_input_node_shared_ptr(multiplyBranch.second == 0 ? 1 : 0);
+        auto multiplyParent = multiply->get_input_source_output(multiplyBranch.first);
+        auto constParent = multiply->get_input_source_output(multiplyBranch.first == 0 ? 1 : 0);
+        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second);
+        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
@@ -78,7 +78,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                     fold<opset1::Convert>(constParent, element::f32)),
                 element::f32).get());
 
-        NetworkHelper::copyInfo(multiplyParent, newMultiply);
+        NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
 
         if (!FakeQuantizeDequantization::checkElementwise(newMultiply)) {
@@ -118,7 +118,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
-        std::vector<Output<Node>> inputs{ {}, {} };
+        OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             dequantizationFullPath.subtract == nullptr ?

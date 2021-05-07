@@ -44,15 +44,6 @@ bool op::PriorBoxClusteredIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("step", step);
     visitor.on_attribute("step_w", m_attrs.step_widths);
     visitor.on_attribute("step_h", m_attrs.step_heights);
-    if (step != 0) {
-        // deserialization: if step_w/h is 0 replace it with step
-        if (m_attrs.step_widths == 0) {
-            m_attrs.step_widths = step;
-        }
-        if (m_attrs.step_heights == 0) {
-            m_attrs.step_heights = step;
-        }
-    }
     visitor.on_attribute("width", m_attrs.widths);
     visitor.on_attribute("height", m_attrs.heights);
     visitor.on_attribute("clip", m_attrs.clip);

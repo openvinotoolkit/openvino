@@ -95,6 +95,8 @@ public:
     MockExecutableNetwork() {}
     MOCK_METHOD1(ExportImpl, void(std::ostream& networkModel));
     MOCK_METHOD0(CreateInferRequest, IInferRequest::Ptr());
+    MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
+    MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
 };
 
 //------------------------------------------------------
@@ -267,14 +269,20 @@ private:
                 WillByDefault(Return("mock"));
 
         ON_CALL(plugin, ImportNetworkImpl(_, _, _)).
-                WillByDefault(Invoke([&](std::istream &, RemoteContext::Ptr,
+                WillByDefault(Invoke([&](std::istream &istr, RemoteContext::Ptr,
                                          const std::map<std::string, std::string> &) {
-            return ExecutableNetwork(std::make_shared<MockIExecutableNetwork>());
+            auto mock = std::make_shared<MockIExecutableNetwork>();
+            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            return ExecutableNetwork(mock);
         }));
 
         ON_CALL(plugin, ImportNetworkImpl(_, _)).
-                WillByDefault(Invoke([&](std::istream &, const std::map<std::string, std::string> &) {
-            return ExecutableNetwork(std::make_shared<MockIExecutableNetwork>());
+                WillByDefault(Invoke([&](std::istream &istr, const std::map<std::string, std::string> &) {
+            auto mock = std::make_shared<MockIExecutableNetwork>();
+            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            return ExecutableNetwork(mock);
         }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _)).
@@ -305,6 +313,11 @@ private:
             }
             return res;
         }));
+
+        EXPECT_CALL(*net, GetInputsInfo()).Times(AnyNumber())
+                .WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber())
+                .WillRepeatedly(Return(ConstOutputsDataMap{}));
     }
 };
 
@@ -348,7 +361,10 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         int a;
         s >> a;
         EXPECT_EQ(customNumber, a);
-        return ExecutableNetwork(std::make_shared<MockIExecutableNetwork>());
+        auto mock = std::make_shared<MockIExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        return ExecutableNetwork(mock);
     }));
 
     ON_CALL(*mockPlugin, ImportNetworkImpl(_, _)).
@@ -356,7 +372,10 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         int a;
         s >> a;
         EXPECT_EQ(customNumber, a);
-        return ExecutableNetwork(std::make_shared<MockIExecutableNetwork>());
+        auto mock = std::make_shared<MockIExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        return ExecutableNetwork(mock);
     }));
 
     ON_CALL(*net, ExportImpl(_)).WillByDefault(Invoke([&] (std::ostream& s) {
@@ -916,11 +935,34 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
     }
 }
 
-TEST_P(CachingTest, LoadHeteroWithCorrectConfig) {
-    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
-    // TODO: test also HETERO with 1 plugin but different architectures, e.g. "HETERO:mock.1,mock.51"
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
+    // Hetero supports Import/Export, but mock plugin does not
     deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.1,mock.2");
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Hetero plugin
+    }
+    for (int i = 0; i < 2; i++) {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, LoadHetero_OneDevice) {
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock");
     if (m_remoteContext) {
         return; // skip the remote Context test for Hetero plugin
     }
@@ -934,6 +976,8 @@ TEST_P(CachingTest, LoadHeteroWithCorrectConfig) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });
+        // Ensure that only 1 blob (for Hetero) is created
+        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
     }
 
     {
@@ -943,6 +987,185 @@ TEST_P(CachingTest, LoadHeteroWithCorrectConfig) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(1);
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO;
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Hetero plugin
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, CommonTestUtils::DEVICE_HETERO);
+            m_testFunction(ie);
+        });
+        // Ensure that only 1 blob (for Hetero) is created
+        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
+    }
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, CommonTestUtils::DEVICE_HETERO);
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, LoadHetero_MultiArchs) {
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    int customNumber = 1234;
+    ON_CALL(*mockPlugin, ImportNetworkImpl(_, _)).
+            WillByDefault(Invoke([&](std::istream &s, const std::map<std::string, std::string> &) {
+        int a;
+        s >> a;
+        EXPECT_EQ(customNumber, a);
+        auto mock = std::make_shared<MockIExecutableNetwork>();
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        return ExecutableNetwork(mock);
+    }));
+
+    ON_CALL(*net, ExportImpl(_)).WillByDefault(Invoke([&] (std::ostream& s) {
+        s << customNumber;
+    }));
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber()).WillRepeatedly(
+            Invoke([&](const CNNNetwork &network, const std::map<std::string, std::string> &config) {
+                QueryNetworkResult res;
+                auto function = network.getFunction();
+                EXPECT_TRUE(function);
+
+                auto id = config.at("DEVICE_ID");
+                bool supportsRelu = std::stoi(id) < 10;
+
+                for (auto &&node : function->get_ops()) {
+                    std::string nodeType = node->get_type_name();
+                    if ((nodeType == "Relu" && supportsRelu) ||
+                            (nodeType != "Relu" && !supportsRelu)) {
+                        res.supportedLayersMap.emplace(node->get_friendly_name(), deviceName + "." + id);
+                    }
+                }
+                return res;
+            }));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
+            .WillRepeatedly(Invoke([&](const std::string &, const std::map<std::string, Parameter> &options) {
+                auto id = options.at("DEVICE_ID").as<std::string>();
+                if (std::stoi(id) < 10) {
+                    return "mock_first_architecture";
+                } else {
+                    return "mock_another_architecture";
+                }
+            }));
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.1,mock.51");
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Hetero plugin
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(AtLeast(2)); // for .1 and for .51
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(AtLeast(2)); // for .1 and for .51
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+        // Ensure that only 1 blob (for Hetero) is created
+        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
+    }
+
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.2,mock.52");
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(AtLeast(2)); // for .2 and for .52
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.53,mock.3");
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(AtLeast(1));
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(AtLeast(1));
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
+            .WillRepeatedly(Invoke([&](const std::string &, const std::map<std::string, Parameter> &options) {
+                auto id = options.at("DEVICE_ID").as<std::string>();
+                if (std::stoi(id) < 10) {
+                    return "mock_first_architecture";
+                } else {
+                    return "mock_another_architecture";
+                }
+            }));
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO;
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Hetero plugin
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            m_testFunction(ie);
+        });
+    }
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, CommonTestUtils::DEVICE_HETERO);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });

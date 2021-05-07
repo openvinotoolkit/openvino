@@ -4,6 +4,9 @@
 
 #include <fstream>
 #include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
 
 #include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -11,210 +14,13 @@
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
 #include <common_test_utils/file_utils.hpp>
+#include <thread>
 
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 
 namespace LayerTestsUtils {
-
-bool isReported = false;
-bool extendReport = true;
-
-Summary *Summary::p_instance = nullptr;
-SummaryDestroyer Summary::destroyer;
-
-SummaryDestroyer::~SummaryDestroyer() {
-    delete p_instance;
-}
-
-void SummaryDestroyer::initialize(Summary *p) {
-    p_instance = p;
-}
-
-Summary &Summary::getInstance() {
-    if (!p_instance) {
-        p_instance = new Summary();
-        destroyer.initialize(p_instance);
-    }
-    return *p_instance;
-}
-
-void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status) {
-    auto it = opsStats.find(op);
-    if (it != opsStats.end()) {
-        auto &passrate = it->second;
-        switch (status) {
-            case PassRate::PASSED:
-                passrate.passed++;
-                passrate.crashed--;
-                break;
-            case PassRate::FAILED:
-                passrate.failed++;
-                passrate.crashed--;
-                break;
-            case PassRate::SKIPPED:
-                passrate.skipped++;
-                break;
-            case PassRate::CRASHED:
-                passrate.crashed++;
-                break;
-        }
-    } else {
-        switch (status) {
-            case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0, 0);
-                break;
-            case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0, 0);
-                break;
-            case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1, 0);
-                break;
-            case PassRate::CRASHED:
-                opsStats[op] = PassRate(0, 0, 0, 1);
-                break;
-        }
-    }
-}
-
-std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
-    pugi::xml_document doc;
-
-    std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
-
-    pugi::xml_node root;
-    doc.load_file(CommonTestUtils::REPORT_FILENAME);
-    root = doc.child("report");
-
-    pugi::xml_node resultsNode = root.child("results");
-    pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
-    std::map<std::string, PassRate> oldOpsStat;
-    for (auto &child : currentDeviceNode.children()) {
-        std::string entry = child.name();
-        auto p = std::stoi(child.attribute("passed").value());
-        auto f = std::stoi(child.attribute("failed").value());
-        auto s = std::stoi(child.attribute("skipped").value());
-        auto c = std::stoi(child.attribute("crashed").value());
-        PassRate obj(p, f, s, c);
-        oldOpsStat.insert({entry, obj});
-    }
-    return oldOpsStat;
-}
-
-void TestEnvironment::saveReport() {
-    if (isReported) {
-        return;
-    }
-    std::vector<ngraph::OpSet> opsets;
-    opsets.push_back(ngraph::get_opset1());
-    opsets.push_back(ngraph::get_opset2());
-    opsets.push_back(ngraph::get_opset3());
-    opsets.push_back(ngraph::get_opset4());
-    opsets.push_back(ngraph::get_opset5());
-    opsets.push_back(ngraph::get_opset6());
-    opsets.push_back(ngraph::get_opset7());
-    std::set<ngraph::NodeTypeInfo> opsInfo;
-    for (const auto &opset : opsets) {
-        const auto &type_info_set = opset.get_type_info_set();
-        opsInfo.insert(type_info_set.begin(), type_info_set.end());
-    }
-
-    auto &summary = Summary::getInstance();
-    auto stats = summary.getOPsStats();
-
-    pugi::xml_document doc;
-
-    std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
-
-    time_t rawtime;
-    struct tm *timeinfo;
-    char timeNow[80];
-
-    time(&rawtime);
-    // cpplint require to use localtime_r instead which is not available in C++14
-    timeinfo = localtime(&rawtime); // NOLINT
-
-    strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
-
-    pugi::xml_node root;
-    if (file) {
-        doc.load_file(CommonTestUtils::REPORT_FILENAME);
-        root = doc.child("report");
-        //Ugly but shorter than to write predicate for find_atrribute() to update existing one
-        root.remove_attribute("timestamp");
-        root.append_attribute("timestamp").set_value(timeNow);
-
-        root.remove_child("ops_list");
-        root.child("results").remove_child(summary.deviceName.c_str());
-    } else {
-        root = doc.append_child("report");
-        root.append_attribute("timestamp").set_value(timeNow);
-        root.append_child("results");
-    }
-
-    pugi::xml_node opsNode = root.append_child("ops_list");
-    for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + std::to_string(op.version);
-        pugi::xml_node entry = opsNode.append_child(name.c_str());
-        (void)entry;
-    }
-
-    pugi::xml_node resultsNode = root.child("results");
-    pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
-    std::unordered_set<std::string> opList;
-    for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
-        opList.insert(name);
-        pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
-        entry.append_attribute("passed").set_value(it.second.passed);
-        entry.append_attribute("failed").set_value(it.second.failed);
-        entry.append_attribute("skipped").set_value(it.second.skipped);
-        entry.append_attribute("crashed").set_value(it.second.crashed);
-        entry.append_attribute("passrate").set_value(it.second.getPassrate());
-    }
-
-    if (extendReport && file) {
-        auto opStataFromReport = summary.getOpStatisticFromReport();
-        for (auto& item : opStataFromReport) {
-            pugi::xml_node entry;
-            if (opList.find(item.first) == opList.end()) {
-                entry = currentDeviceNode.append_child(item.first.c_str());
-                entry.append_attribute("passed").set_value(item.second.passed);
-                entry.append_attribute("failed").set_value(item.second.failed);
-                entry.append_attribute("skipped").set_value(item.second.skipped);
-                entry.append_attribute("crashed").set_value(item.second.crashed);
-                entry.append_attribute("passrate").set_value(item.second.getPassrate());
-            } else {
-                entry = currentDeviceNode.child(item.first.c_str());
-                auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
-                auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
-                auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
-                auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
-                PassRate obj(p, f, s, c);
-
-                entry.attribute("passed").set_value(obj.passed);
-                entry.attribute("failed").set_value(obj.failed);
-                entry.attribute("skipped").set_value(obj.skipped);
-                entry.attribute("crashed").set_value(obj.crashed);
-                entry.attribute("passrate").set_value(obj.getPassrate());
-            }
-        }
-    }
-
-    bool result = doc.save_file(CommonTestUtils::REPORT_FILENAME);
-    if (!result) {
-        std::cout << "Failed to write report to " << CommonTestUtils::REPORT_FILENAME << "!" << std::endl;
-    } else {
-        isReported = true;
-    }
-}
-
-void TestEnvironment::TearDown() {
-    saveReport();
-}
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
     core = PluginCache::get().ie(targetDevice);
@@ -223,46 +29,20 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 void LayerTestsCommon::Run() {
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
-    auto reportStatus = [this, &s](PassRate::Statuses status) {
-        if (function){
-            for (const auto &op : function->get_ordered_ops()) {
-                if (ngraph::is_type<ngraph::op::Parameter>(op) ||
-                    ngraph::is_type<ngraph::op::Constant>(op) ||
-                    ngraph::is_type<ngraph::op::Result>(op)) {
-                    continue;
-                } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
-                    s.updateOPsStats(op->get_type_info(), status);
-                    auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
-                    auto ti_body = ti->get_function();
-                    for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                        s.updateOPsStats(ti_op->get_type_info(), status);
-                    }
-                } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
-                    s.updateOPsStats(op->get_type_info(), status);
-                    auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
-                    auto loop_body = loop->get_function();
-                    for (const auto &loop_op : loop_body->get_ordered_ops()) {
-                        s.updateOPsStats(loop_op->get_type_info(), status);
-                    }
-                } else {
-                    s.updateOPsStats(op->get_type_info(), status);
-                }
-            }
-        }
-    };
 
     auto crashHandler = [](int errCode) {
-        TestEnvironment::saveReport();
+        auto &s = Summary::getInstance();
+        s.saveReport();
         std::cout << "Unexpected application crash!" << std::endl;
         std::abort();
     };
     signal(SIGSEGV, crashHandler);
 
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        reportStatus(PassRate::Statuses::SKIPPED);
+        s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     } else {
-        reportStatus(PassRate::Statuses::CRASHED);
+        s.updateOPsStats(function, PassRate::Statuses::CRASHED);
     }
 
     try {
@@ -270,16 +50,16 @@ void LayerTestsCommon::Run() {
         GenerateInputs();
         Infer();
         Validate();
-        reportStatus(PassRate::Statuses::PASSED);
+        s.updateOPsStats(function, PassRate::Statuses::PASSED);
     }
     catch (const std::runtime_error &re) {
-        reportStatus(PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch (const std::exception &ex) {
-        reportStatus(PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        reportStatus(PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }

@@ -455,6 +455,67 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
                                                              }),
                                                              op::PadMode::SYMMETRIC}));
 
+NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_symmetric_padding)
+{
+    const auto params_to_large = Params<float>{test::NDArray<float, 2>({
+                                                   {1, 2},
+                                                   {4, 5},
+                                               }),
+                                               test::NDArray<int64_t, 1>({0, 3}),
+                                               test::NDArray<int64_t, 1>({0, 0}),
+                                               test::NDArray<float, 2>({
+                                                   {0, 0, 0, 0, 0},
+                                                   {0, 0, 0, 0, 0},
+                                               }),
+                                               op::PadMode::SYMMETRIC};
+
+    EXPECT_ANY_THROW(PadBackendTest::execute_test(params_to_large));
+
+    const auto params_ok = Params<float>{test::NDArray<float, 2>({
+                                             {1, 2},
+                                             {4, 5},
+                                         }),
+                                         test::NDArray<int64_t, 1>({0, 2}),
+                                         test::NDArray<int64_t, 1>({0, 0}),
+                                         test::NDArray<float, 2>({
+                                             {2, 1, 1, 2},
+                                             {5, 4, 4, 5},
+                                         }),
+                                         op::PadMode::SYMMETRIC};
+
+    EXPECT_NO_THROW(PadBackendTest::execute_test(params_ok));
+}
+NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_reflect_padding)
+{
+    const auto params_to_large = Params<float>{test::NDArray<float, 2>({
+                                                   {1, 2},
+                                                   {4, 5},
+                                               }),
+                                               test::NDArray<int64_t, 1>({0, 2}),
+                                               test::NDArray<int64_t, 1>({0, 0}),
+                                               test::NDArray<float, 2>({
+                                                   {0, 0, 0, 0},
+                                                   {0, 0, 0, 0},
+                                               }),
+                                               op::PadMode::REFLECT};
+
+    EXPECT_ANY_THROW(PadBackendTest::execute_test(params_to_large));
+
+    const auto params_ok = Params<float>{test::NDArray<float, 2>({
+                                             {1, 2},
+                                             {4, 5},
+                                         }),
+                                         test::NDArray<int64_t, 1>({0, 1}),
+                                         test::NDArray<int64_t, 1>({0, 0}),
+                                         test::NDArray<float, 2>({
+                                             {2, 1, 2},
+                                             {5, 4, 5},
+                                         }),
+                                         op::PadMode::REFLECT};
+
+    EXPECT_NO_THROW(PadBackendTest::execute_test(params_ok));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 {
     const Shape data_shape{6};
@@ -862,7 +923,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
         std::vector<float>({4, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_multi_reflect)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_pad_reflect_1d_multi_reflect)
 {
     const Shape data_shape{3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);

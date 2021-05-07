@@ -61,7 +61,7 @@ inline void createFile(const std::string& filename, const std::string& content) 
 
 inline void removeFile(const std::string& path) {
     if (!path.empty()) {
-        remove(path.c_str());
+        std::remove(path.c_str());
     }
 }
 

@@ -17,8 +17,7 @@ namespace ngraph
         namespace v6
         {
             /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
-            /// https://github.com/openvinotoolkit/training_extensions (see
-            /// pytorch_toolkit/instance_segmentation/segmentoly/rcnn/roi_feature_extractor.py).
+            /// is TopK operation applied to probabilities of input ROIs.
             class NGRAPH_API ExperimentalDetectronTopKROIs : public Op
             {
             public:

@@ -39,8 +39,6 @@ namespace ngraph
 
                                 if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                                 {
-                                    NGRAPH_SUPPRESS_DEPRECATED_START
-
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]
                                     const int split_parts = 2 * 3;
@@ -66,7 +64,6 @@ namespace ngraph
                                                          split_bias.at(2),
                                                          split_bias.at(5)},
                                             1);
-                                    NGRAPH_SUPPRESS_DEPRECATED_END
                                 }
                                 else
                                 {
