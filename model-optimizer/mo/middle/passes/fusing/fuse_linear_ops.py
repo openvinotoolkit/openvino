@@ -107,7 +107,6 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         w_mul = node.copy_node({'name': mul_name, 'in_ports_count': len(node.in_ports()),
                                 'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
-        w_const = weights_port.get_source()
 
         r"""
         In this transformation we remove Mul or Div node (node) that goes after fuse_node and
@@ -132,11 +131,11 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
         w_mul.out_port(0).connect(weights_port)
 
-        # As fuse_node is convolution it is important to keep 'permutation' and 'input_permutation' attributes
+        # As fusing is applied to convolutions it is important to keep 'permutation' and 'input_permutation' attributes
         # which were obtained from original model. These attributes are stored on the incoming edge to the operation
         # node and during the reconnection they are moved to the new connection. But during reconnection in this
         # transformation these attributes are moved to the previous node. So we need manually set them at the
-        # incoming edge to convolution.
+        # incoming edge to fuse_node.
         in_edge = w_mul.in_edge(tensor_port.idx)
         if 'permutation' in in_edge:
             fuse_node.in_edge(weights_port.idx)['permutation'] = in_edge['permutation']
