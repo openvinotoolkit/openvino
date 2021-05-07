@@ -22,11 +22,9 @@
 #include "regression_config.hpp"
 
 #include "net_model.hpp"
-#include "segmentation_matcher.hpp"
 #include "custom_matcher.hpp"
 #include "raw_matcher.hpp"
 #include "classification_matcher.hpp"
-#include "object_detection_matcher.hpp"
 #include "optimized_network_matcher.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
@@ -642,20 +640,8 @@ public:
         return selector;
     }
 
-    ModelSelector<SegmentationMatcher> segmentationResultsFor(const std::string &fileName) {
-        return ModelSelector<SegmentationMatcher>(config).And(fileName);
-    }
     ModelSelector<RawMatcher> rawResultsFor(const std::string &fileName) {
         return ModelSelector<RawMatcher>(config).And(fileName);
-    }
-    ModelSelector<ObjectDetectionMatcher> objectDetectionResultsFor(const std::string &fileName) {
-        return ModelSelector<ObjectDetectionMatcher>(config).And(fileName);
-    }
-    ModelSelector<ObjectDetectionMatcher> objectDetectionResults() {
-        return ModelSelector<ObjectDetectionMatcher>(config);
-    }
-    ModelSelector<ObjectDetectionMatcher> objectDetectionResultsFor(const vector<std::string> &filesNamesVector) {
-        return ModelSelector<ObjectDetectionMatcher>(config).And(filesNamesVector);
     }
 };
 
