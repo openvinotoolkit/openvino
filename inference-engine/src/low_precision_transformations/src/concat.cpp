@@ -414,7 +414,13 @@ void ConcatTransformation::addDequantizationLayers(
                         const std::string originalName = layer->get_friendly_name();
                         const std::string newName = layer->get_friendly_name() + LayerTransformation::originalLayerPostfix;
                         layer->set_friendly_name(newName);
-                        source->set_friendly_name(originalName);
+
+                        // Split & VariadicSplit have other naming rules
+                        if (is_type<opset1::Split>(layer) || is_type<opset1::VariadicSplit>(layer)) {
+                            source->set_friendly_name(originalName + "." + std::to_string(i));
+                        } else {
+                            source->set_friendly_name(originalName);
+                        }
                         subgraph.layers[layer->get_friendly_name()] = layer;
                     }
                 }

@@ -60,7 +60,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49752,
                    xfail_issue_49753,
                    xfail_issue_49754,
-                   xfail_issue_52463)
+                   xfail_issue_52463,
+                   xfail_issue_51993)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -383,6 +384,8 @@ tests_expected_to_fail = [
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
+    (xfail_issue_51993,
+     "OnnxBackendNodeModelTest.test_prelu_broadcast_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:
