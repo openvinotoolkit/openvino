@@ -123,7 +123,7 @@ protected:
         // performance counters
         expectedPrecisions["Matmul_0"] = "BF16";
         expectedPrecisions["Mul_1"] = "BF16";
-        expectedPrecisions["Add_1"] = "FP32";
+        expectedPrecisions["Add_1"] = "BF16";
         expectedPrecisions["Relu_1"] = "ndef";
         expectedPrecisions["Conc_1"] = "BF16";
         expectedPrecisions["Matmul_1"] = "BF16";
@@ -131,6 +131,8 @@ protected:
 };
 
 TEST_P(Gather_x2_add_mul_relu_concat_matmul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
