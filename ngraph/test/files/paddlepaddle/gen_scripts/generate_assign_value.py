@@ -9,7 +9,7 @@ def pdpd_assign_value(name, test_x):
     with pdpd.static.program_guard(main_program, startup_program):
         node_x = pdpd.static.data(name='x', shape=test_x.shape, dtype=test_x.dtype)
         const_value = pdpd.assign(test_x, output=None)
-        result = pdpd.add(node_x, const_value);
+        result = pdpd.cast(pdpd.add(node_x, const_value), dtype=np.float32)
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -30,6 +30,14 @@ def compare():
         {
             "name": "assign_value_fp32",
             "input": np.ones([1, 1, 4, 4]).astype(np.float32)
+        },
+        {
+            "name": "assign_value_int32",
+            "input": np.ones([1, 1, 4, 4]).astype(np.int32)
+        },
+        {
+            "name": "assign_value_int64",
+            "input": np.ones([1, 1, 4, 4]).astype(np.int64)
         }
     ]
     for test in test_cases:

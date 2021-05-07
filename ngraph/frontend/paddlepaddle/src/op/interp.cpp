@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <ngraph/opsets/opset6.hpp>
 #include "interp.hpp"
@@ -27,14 +15,15 @@ calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
                                        const std::vector<float>& scale,
                                        Output<ngraph::Node>& scales)
 {
+    PDPD_ASSERT(scale.size() > 0);
     if (scale.size() == 1)
         scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, 1, scale[0], scale[0]});
     else if (scale.size() == 2)
         scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, 1, scale[0], scale[1]});
     else if (scale.size() == 3)
         scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, scale[0], scale[1], scale[2]});
-    else if (scale.size() == 4)
-        scales = opset6::Constant::create<float>(element::f32, Shape{4}, std::vector<float>(scale.begin(), scale.end()));
+    else
+        scales = opset6::Constant::create<float>(element::f32, Shape{scale.size()}, std::vector<float>(scale.begin(), scale.end()));
     const auto shape_of_data = std::make_shared<opset6::Convert>(
             std::make_shared<opset6::ShapeOf>(data), scales.get_element_type());
     const auto multiply =
@@ -73,7 +62,7 @@ extract_out_sizes(const Output<ngraph::Node>& data, const std::vector<int64_t>& 
     auto hw_node = opset6::Constant::create<int64_t>(element::i64, Shape{2}, out_sizes);
     return std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_node}, 0);
 }
-
+//TODO extract duplicate code in nearest & bilinear
 NamedOutputs nearest_interp_v2 (const NodeContext& node) {
     auto x = node.get_ng_input("X");
 

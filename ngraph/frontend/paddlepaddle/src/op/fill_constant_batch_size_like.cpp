@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <ngraph/opsets/opset6.hpp>
 #include "fill_constant_batch_size_like.hpp"
@@ -24,8 +12,9 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs fill_constant_batch_size_like (const NodeContext& node) {
-    auto input_dim_idx = node.get_attribute<int32_t>("input_dim_idx");
-    auto output_dim_idx = node.get_attribute<int32_t>("output_dim_idx");
+    //TODO to Support other data types other than FP32
+    auto input_dim_idx = node.get_attribute<int32_t>("input_dim_idx", 0);
+    auto output_dim_idx = node.get_attribute<int32_t>("output_dim_idx", 0);
     auto value = node.get_attribute<float>("value");
     auto shapes = node.get_attribute<std::vector<int32_t> >("shape");
     auto input = node.get_ng_input("Input");

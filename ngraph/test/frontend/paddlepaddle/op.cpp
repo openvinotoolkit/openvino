@@ -49,7 +49,7 @@ static const std::string& trim_space(std::string& str) //trim leading and tailin
 {
     //leading
     auto it = str.begin();
-    for (; it != str.end() && isspace(*it); it++);                 
+    for (; it != str.end() && isspace(*it); it++);
     auto d = std::distance(str.begin(), it);
     str.erase(0,d);
 
@@ -129,19 +129,22 @@ namespace fuzzyOp {
         const auto parameters = function->get_parameters();
         for (size_t i = 0; i < parameters.size(); i++) {
             // read input npy file
-            std::string datafile = modelfolder+"/input"+std::to_string((parameters.size()-1)-i)+".npy"; 
-
+            std::string datafile = modelfolder+"/input"+std::to_string((parameters.size()-1)-i)+".npy";
+            fprintf(stderr, "*****2121%s\n" ,datafile.c_str());// std::cerr << datafile << std::endl;
             auto dtype = get_npy_dtype(datafile);
             if (dtype == "<f4")
             {
                 std::vector<float> data_in;
                 load_from_npy(datafile, data_in);
                 test_case.add_input(data_in);                
-            } else if (dtype == "<i4")
-            {
+            } else if (dtype == "<i4") {
                 std::vector<int32_t> data_in;
-                load_from_npy(datafile, data_in); 
-                test_case.add_input(data_in);                  
+                load_from_npy(datafile, data_in);
+                test_case.add_input(data_in);
+            } else if (dtype == "<i8") {
+                    std::vector<int64_t> data_in;
+                    load_from_npy(datafile, data_in);
+                    test_case.add_input(data_in);
             } else {
                 throw std::runtime_error("not supported dtype in" + dtype);
             }                                              
@@ -151,24 +154,27 @@ namespace fuzzyOp {
         for (size_t i = 0; i < results.size(); i++) {
             // read expected output npy file
             std::string datafile = modelfolder+"/output"+std::to_string(i)+".npy";
-
+            std::cerr << results.size() << datafile << std::endl;
             auto dtype = get_npy_dtype(datafile);
             if (dtype == "<f4")
             {
-                std::vector<float> data_in;
-                load_from_npy(datafile, data_in);
-                test_case.add_expected_output(data_in);                    
-            } else if (dtype == "<i4")
-            {
-                std::vector<int32_t> data_in;
-                load_from_npy(datafile, data_in); 
-                test_case.add_expected_output(data_in);         
+                std::vector<float> expected_results;
+                load_from_npy(datafile, expected_results);
+                test_case.add_expected_output(expected_results);
+            } else if (dtype == "<i4") {
+                std::vector<int32_t> expected_results;
+                load_from_npy(datafile, expected_results);
+                test_case.add_expected_output(expected_results);
+            } else if (dtype == "<i8") {
+                std::vector<int64_t> expected_results;
+                load_from_npy(datafile, expected_results);
+                test_case.add_expected_output(expected_results);
             } else {
                 throw std::runtime_error("not supported dtype out "+ dtype);
             }          
         }
             
-        test_case.run_with_tolerance_as_fp(1e-4);
+        test_case.run_with_tolerance_as_fp();
         // test_case.run();
     }
 

@@ -12,10 +12,7 @@ using namespace ngraph::frontend;
 std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam> &obj) {
     std::string fe, path, fileName;
     std::tie(fe, path, fileName) = obj.param;
-    //std::cout <<" *** " << fe << " *** " << path << " *** " << fileName << " *** " << std::endl;
-    // need to replace special characters to create valid test case name
-    fileName = std::regex_replace(fileName, std::regex("[/\\.]"), "_");
-    return fe + "_" + fileName;
+    return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 
 void FrontEndBasicTest::SetUp() {
