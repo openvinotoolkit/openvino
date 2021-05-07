@@ -672,6 +672,7 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         IE_THROW(NotImplemented) << errorMessage;
     }
 
+    const ngraph::Shape& inDataShape = op->input_value(0).get_shape();
     if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
@@ -681,7 +682,7 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         }
 
         acrossChannels_ = false;
-        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
+        const auto& inDataShapeSize = inDataShape.size();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             acrossChannels_ = true;
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
@@ -690,36 +691,36 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         epsMode_ = INSIDE_SQRT;
         acrossChannels_ = mvnOp->get_across_channels();
     }
-    SizeVector inShape = getParentEdgeAt(0)->getDims().ToSizeVector();
-    transformTo5DCase(inShape);
+
+    transformTo5DCase(inDataShape);
 }
 
-void MKLDNNMVNNode::transformTo5DCase(const SizeVector& dims) {
-    switch (dims.size()) {
-        // for 1 and 2 rank, if across_channels is true, adjust shape to fully vectorize under unified 5d procedure.
+void MKLDNNMVNNode::transformTo5DCase(const ngraph::Shape& shape) {
+    switch (shape.size()) {
+        // for 1 and 2 rank, if acrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
         // otherwise there are not enough data in spatial dimension to process in one kernel.
         case 1 :  // C
-            if (across_channels) {
-                shape5D = std::make_tuple(1, 1, 1, 1, dims[0]);
-                across_channels = false;
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
+                acrossChannels_ = false;
                 break;
             } else {
-                shape5D = std::make_tuple(1, dims[0], 1, 1, 1);
+                shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
                 break;
             }
         case 2 :  // NC
-            if (across_channels) {
-                shape5D = std::make_tuple(1, dims[0], 1, dims[1], 1);
-                across_channels = false;
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
+                acrossChannels_ = false;
                 break;
             } else {
-                shape5D = std::make_tuple(dims[0], dims[1], 1, 1, 1);
+                shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
                 break;
             }
-        case 3 : { shape5D = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
-        case 4 : { shape5D = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
-        case 5 : { shape5D = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
-        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << dims.size(); }
+        case 3 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
+        case 4 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
+        case 5 : { shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
+        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
     }
 }
 
