@@ -10,7 +10,6 @@
 
 #include <ngraph/opsets/opset2.hpp>
 
-#include <legacy/ie_layers.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
@@ -19,7 +18,9 @@
 
 #include <string>
 #include <vector>
-#include <math.h>
+#include <memory>
+#include <algorithm>
+#include <cmath>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -375,7 +376,7 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    runtimePrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    runtimePrecision = getOriginalInputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
         if (runtimePrecision == Precision::BF16)

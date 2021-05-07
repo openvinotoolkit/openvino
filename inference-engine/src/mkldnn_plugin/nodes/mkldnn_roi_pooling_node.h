@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
+#include <ie_common.h>
+
 #include <string>
 #include <memory>
 #include <vector>
