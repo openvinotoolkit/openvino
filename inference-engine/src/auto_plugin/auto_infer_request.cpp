@@ -14,14 +14,6 @@ AutoInferRequest::AutoInferRequest(const InputsDataMap&   networkInputs,
                                    const InferRequest&    inferRequest)
     : IInferRequestInternal(networkInputs, networkOutputs)
     , _inferRequest(inferRequest) {
-    if (_inferRequest) {
-        for (const auto &it : _networkInputs)
-            _inputs[it.first] = _inferRequest.GetBlob(it.first);
-        for (const auto &it : _networkOutputs)
-            _outputs[it.first] = _inferRequest.GetBlob(it.first);
-        return;
-    }
-    IE_THROW(NotAllocated);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequest::GetPerformanceCounts() const {
@@ -30,20 +22,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequ
 
 void AutoInferRequest::InferImpl() {
     _inferRequest.Infer();
-}
-
-void AutoInferRequest::StartAsyncImpl() {
-    _inferRequest.StartAsync();
-}
-
-StatusCode AutoInferRequest::Wait(int64_t millis_timeout) {
-    return _inferRequest.Wait(millis_timeout);
-}
-
-void AutoInferRequest::SetCallback(Callback callback) {
-    _inferRequest.SetCompletionCallback([callback](){
-        callback(nullptr);
-    });
 }
 
 void AutoInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) {

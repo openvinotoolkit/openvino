@@ -33,7 +33,6 @@ public:
                           const bool                                                            needPerfCounters = false);
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
