@@ -139,13 +139,29 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, options);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
         if (i == 0) {
-            cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER", "true"));
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET", "true"));
+            } else {
+                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE", "true"));
+            }
         } else if (i == 1) {
-            cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+             if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_MXNET", "true"));
+             } else {
+                cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_CAFFE", "true"));
+             }
         } else if (i == 2) {
-            cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET", "true"));
+            } else {
+                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE", "true"));
+            }
         } else {
-            cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_MXNET", "true"));
+            } else {
+                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE", "true"));
+            }
         }
 
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);

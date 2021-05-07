@@ -17,7 +17,7 @@ const float nmsThreshold = 0.5f;
 const float confidenceThreshold = 0.3f;
 const std::vector<bool> clipAfterNms = {true, false};
 const std::vector<bool> clipBeforeNms = {true, false};
-const std::vector<bool> decreaseLabelId = {false};//{true, false};
+const std::vector<bool> decreaseLabelId = {true, false};
 const float objectnessScore = 0.4f;
 const std::vector<size_t> numberBatch = {1, 2};
 
