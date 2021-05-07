@@ -11,7 +11,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, convert_op)
+TEST(attributes, convert_op_v0)
 {
     using Convert = op::v0::Convert;
 
@@ -21,7 +21,12 @@ TEST(attributes, convert_op)
 
     const auto convert = std::make_shared<Convert>(data, destination_type);
     NodeBuilder builder(convert);
-    auto g_convert = as_type_ptr<Convert>(builder.create());
 
+    // attribute count
+    const auto expected_attr_count = 1;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+    // destination_type attribute
+    const auto g_convert = as_type_ptr<Convert>(builder.create());
     EXPECT_EQ(g_convert->get_destination_type(), convert->get_destination_type());
 }
