@@ -26,8 +26,8 @@ class ReverseInputChannelsTest(unittest.TestCase):
                 out_node = node.out_node(0)
                 self.assertTrue(out_node['fw_tensor_debug_info'] == ['fw_name', 0])
             else:
-                if 0 in node.out_nodes():
-                    out_node = node.out_node(0)
+                for idx in node.out_nodes():
+                    out_node = node.out_node(idx)
                     self.assertFalse('fw_tensor_debug_info' in out_node)
 
     def set_graph_attrs(self, graph: Graph, parameter_node_names: list):
