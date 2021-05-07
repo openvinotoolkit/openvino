@@ -21,138 +21,130 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+namespace
+{
+    template <typename T_IN, typename T_OUT>
+    void ConvertTest(const std::vector<T_IN>& input,
+                     const Shape& input_shape,
+                     const ngraph::element::Type& input_type,
+                     const std::vector<T_OUT>& expected_output,
+                     const ngraph::element::Type& expected_output_type)
+    {
+        const auto in = make_shared<op::Parameter>(input_type, input_shape);
+        const auto convert = make_shared<op::Convert>(in, expected_output_type);
+        const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{in});
+
+        auto test_case = test::TestCase<TestEngine>(f);
+        test_case.add_input(input);
+        test_case.add_expected_output(expected_output);
+
+        test_case.run();
+    }
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_int32_float32)
 {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::f32), ParameterVector{A});
+    const std::vector<int32_t> input{281, 2, 3, 4};
+    const Shape input_shape{2, 2};
+    const element::Type input_type = ngraph::element::i32;
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    const std::vector<float> expected_output{281.0f, 2.0f, 3.0f, 4.0f};
+    const element::Type expected_output_type = ngraph::element::f32;
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape);
-    copy_data(a, vector<int32_t>{281, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{281, 2, 3, 4}), read_vector<float>(result)));
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_uint16_float32)
 {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::u16, shape);
-    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::f32), ParameterVector{A});
+    const std::vector<uint16_t> input{1, 2, 3, 4};
+    const Shape input_shape{2, 2};
+    const element::Type input_type = ngraph::element::u16;
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    const std::vector<float> expected_output{1.0f, 2.0f, 3.0f, 4.0f};
+    const element::Type expected_output_type = ngraph::element::f32;
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::u16, shape);
-    copy_data(a, vector<uint16_t>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1, 2, 3, 4}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_int32_bool)
 {
-    Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::Convert>(A, element::boolean), ParameterVector{A});
+    const int32_t lowest = std::numeric_limits<int32_t>::lowest();
+    const int32_t max = std::numeric_limits<int32_t>::max();
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    const std::vector<int32_t> input{0, 12, 23, 0, lowest, max};
+    const Shape input_shape{2, 3};
+    const element::Type input_type = ngraph::element::i32;
 
-    int32_t lowest = std::numeric_limits<int32_t>::lowest();
-    int32_t max = std::numeric_limits<int32_t>::max();
+    const std::vector<char> expected_output{0, 1, 1, 0, 1, 1};
+    const element::Type expected_output_type = ngraph::element::boolean;
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape);
-    copy_data(a, vector<int32_t>{0, 12, 23, 0, lowest, max});
-    auto result = backend->create_tensor(element::boolean, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<char>{0, 1, 1, 0, 1, 1}), read_vector<char>(result));
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bool)
 {
-    Shape shape{3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::Convert>(A, element::boolean), ParameterVector{A});
+    const float lowest = std::numeric_limits<float>::lowest();
+    const float max = std::numeric_limits<float>::max();
+    const float min = std::numeric_limits<float>::min();
+    const float pos_inf = std::numeric_limits<float>::infinity();
+    const float neg_inf = -std::numeric_limits<float>::infinity();
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    const std::vector<float> input{0.f, 1.5745f, 0.12352f, 0.f, lowest, max, min, pos_inf, neg_inf};
+    const Shape input_shape{3, 3};
+    const element::Type input_type = ngraph::element::f32;
 
-    float lowest = std::numeric_limits<float>::lowest();
-    float max = std::numeric_limits<float>::max();
-    float min = std::numeric_limits<float>::min();
-    float pos_inf = std::numeric_limits<float>::infinity();
-    float neg_inf = -std::numeric_limits<float>::infinity();
+    const std::vector<char> expected_output{0, 1, 1, 0, 1, 1, 1, 1, 1};
+    const element::Type expected_output_type = ngraph::element::boolean;
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{0.f, 1.5745f, 0.12352f, 0.f, lowest, max, min, pos_inf, neg_inf});
-    auto result = backend->create_tensor(element::boolean, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<char>{0, 1, 1, 0, 1, 1, 1, 1, 1}), read_vector<char>(result));
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bf16)
 {
-    const vector<float> a_data = {
+    const std::vector<float> input{
         0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f};
+    const Shape input_shape{1, 1, 3, 5};
+    const element::Type input_type = ngraph::element::f32;
 
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 5});
-    const auto convert = make_shared<op::Convert>(A, element::bf16);
-    const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
+    const std::vector<bfloat16> expected_output(std::begin(input), std::end(input));
+    const element::Type expected_output_type = ngraph::element::bf16;
 
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>(a_data);
-    test_case.add_expected_output<bfloat16>(
-        std::vector<bfloat16>(std::begin(a_data), std::end(a_data)));
-
-    test_case.run();
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_float32)
 {
-    const vector<bfloat16> a_data = {
+    const std::vector<bfloat16> input{
         0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5};
+    const Shape input_shape{1, 1, 3, 5};
+    const element::Type input_type = ngraph::element::bf16;
 
-    const auto A = make_shared<op::Parameter>(element::bf16, Shape{1, 1, 3, 5});
-    const auto convert = make_shared<op::Convert>(A, element::f32);
-    const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{A});
+    const std::vector<float> expected_output(std::begin(input), std::end(input));
+    const element::Type expected_output_type = ngraph::element::f32;
 
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<bfloat16>(a_data);
-    test_case.add_expected_output<float>(std::vector<float>(std::begin(a_data), std::end(a_data)));
-
-    test_case.run();
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_fp16_float32)
 {
-    std::vector<float> f32vec = {-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
-    std::vector<float16> f16vec(std::begin(f32vec), std::end(f32vec));
-    std::vector<float> result(f32vec.size());
-    runtime::reference::convert(f16vec.data(), result.data(), f32vec.size());
-    EXPECT_EQ(result, f32vec);
+    const std::vector<float16> input{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
+    const Shape input_shape{3, 3};
+    const element::Type input_type = ngraph::element::f16;
+
+    const std::vector<float> expected_output{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
+    const element::Type expected_output_type = ngraph::element::f32;
+
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_uint8_fp16)
 {
-    std::vector<uint8_t> u8vec = {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142};
-    std::vector<float16> f16vec(std::begin(u8vec), std::end(u8vec));
-    std::vector<float16> result(u8vec.size());
-    runtime::reference::convert(u8vec.data(), result.data(), u8vec.size());
-    EXPECT_EQ(result, f16vec);
+    const std::vector<uint8_t> input{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142};
+    const Shape input_shape{11};
+    const element::Type input_type = ngraph::element::u8;
+
+    const std::vector<float16> expected_output{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142};
+    const element::Type expected_output_type = ngraph::element::f16;
+
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }

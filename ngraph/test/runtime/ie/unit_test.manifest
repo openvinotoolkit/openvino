@@ -51,6 +51,8 @@ onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
+IE_CPU.convert_fp16_float32
+IE_CPU.convert_uint8_fp16
 
 # data [<name>] doesn't exist
 convert_float32_bool
