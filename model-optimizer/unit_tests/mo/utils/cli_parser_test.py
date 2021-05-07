@@ -904,34 +904,43 @@ class TransformChecker(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(parse_transform(""), [])
 
-    def test_single_pass(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_single_pass(self, available_transformations):
+        available_transformations.return_value = {"LowLatency": None}
         self.assertEqual(parse_transform("LowLatency"), [("LowLatency", {})])
 
-    def test_single_pass_with_args(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_single_pass_with_args(self, available_transformations):
+        available_transformations.return_value = {"LowLatency": None}
         self.assertEqual(parse_transform("LowLatency[num_iterations=2]"),
                          [("LowLatency", {"num_iterations": 2})])
 
-    def test_single_pass_with_multiple_args(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_single_pass_with_multiple_args(self, available_transformations):
+        available_transformations.return_value = {"LowLatency": None}
         self.assertEqual(parse_transform("LowLatency[num_iterations=2;dummy_attr=3.14]"),
                          [("LowLatency", {"num_iterations": 2, "dummy_attr": 3.14})])
 
-    def test_multiple_passes_with_args(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_multiple_passes_with_args(self, available_transformations):
+        available_transformations.return_value = {"DummyPass": None, "LowLatency": None}
         self.assertEqual(parse_transform("LowLatency[num_iterations=2],DummyPass[type=ReLU]"),
                          [("LowLatency", {"num_iterations": 2}),
                           ("DummyPass", {"type": "ReLU"})])
 
-    def test_multiple_passes_with_args2(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_multiple_passes_with_args2(self, available_transformations):
+        available_transformations.return_value = {"DummyPass1": None, "DummyPass2": None, "LowLatency": None}
         self.assertEqual(parse_transform("LowLatency[num_iterations=2,3,4.15],DummyPass1,DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
                          [("LowLatency",  {"num_iterations": [2,3,4.15]}),
                           ("DummyPass1",  {}),
                           ("DummyPass2",  {"types": ["ReLU", "PReLU"], "values": [1,2,3]})])
 
-    def test_multiple_passes_no_args(self):
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_multiple_passes_no_args(self, available_transformations):
+        available_transformations.return_value = {"DummyPass": None, "LowLatency2": None}
         self.assertEqual(parse_transform("DummyPass,LowLatency2"),
                          [("DummyPass", {}), ("LowLatency2", {})])
-
-    def test_single_pass_neg(self):
-        self.assertRaises(Error, parse_transform, "LowLatency!")
 
     def test_single_pass_neg(self):
         self.assertRaises(Error, parse_transform, "LowLatency!")

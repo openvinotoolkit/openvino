@@ -1150,7 +1150,7 @@ def detect_value_type(value: str):
     return values[0] if len(values) == 1 else values
 
 
-def parse_transform(transform: str, ie_is_available: bool) -> list:
+def parse_transform(transform: str, ie_is_available=True) -> list:
     transforms = []
 
     if len(transform) == 0:
