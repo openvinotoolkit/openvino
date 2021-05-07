@@ -58,6 +58,12 @@ def test_load_network(device):
     assert isinstance(exec_net, ExecutableNetwork)
 
 
+def test_load_network_from_file(device):
+    ie = IECore()
+    exec_net = ie.load_network(test_net_xml, device)
+    assert isinstance(exec_net, ExecutableNetwork)
+
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_load_network_wrong_device():
     ie = IECore()

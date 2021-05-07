@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,11 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     auto op_activations = op->get_activations();
     if (!op_activations.empty()) {
         if (op_activations.size() != 3)
-            THROW_IE_EXCEPTION << "Wrong number of activations for LSTMCell op " << op->get_friendly_name();
+            IE_THROW() << "Wrong number of activations for LSTMCell op " << op->get_friendly_name();
         for (int i = 0; i < 3; i++) {
             auto af = GetActivationFunc(op_activations[i]);
             if (af == cldnn::activation_func::none)
-                THROW_IE_EXCEPTION << "Wrong or unsupported activation type " << op_activations[i]
+                IE_THROW() << "Wrong or unsupported activation type " << op_activations[i]
                 << " for LSTMCell op " << op->get_friendly_name();
             activations[i] = af;
         }
@@ -53,7 +53,7 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     auto op_b = op->get_activations_beta();
     if (!op_a.empty()) {
         if (op_a.size() != 3 || op_b.size() != 3)
-            THROW_IE_EXCEPTION << "Wrong number of activation parameters for LSTMCell op " << op->get_friendly_name();
+            IE_THROW() << "Wrong number of activation parameters for LSTMCell op " << op->get_friendly_name();
         for (int i = 0; i < 3; i++) {
             cldnn::activation_additional_params params = { op_a[i], op_b[i] };
             activation_params.push_back(cldnn::activation_additional_params(params));
@@ -80,7 +80,7 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell
         if (in_dims0.size() != 2 ||
             op->get_input_shape(1).size() != 2 ||
             op->get_input_shape(2).size() != 2)
-            THROW_IE_EXCEPTION << "Wrong input shapes for LSTMCell op " << op->get_friendly_name();
+            IE_THROW() << "Wrong input shapes for LSTMCell op " << op->get_friendly_name();
 
         lstm_input_size = in_dims0.back();
         lstm_batch_size = in_dims0.at(in_dims0.size()-2);
@@ -186,7 +186,7 @@ void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTM
         if (in_dims0.size() != 3 ||
             op->get_input_shape(1).size() != 3 ||
             op->get_input_shape(2).size() != 3)
-            THROW_IE_EXCEPTION << "Wrong input shapes for LSTMSequence op " << op->get_friendly_name();
+            IE_THROW() << "Wrong input shapes for LSTMSequence op " << op->get_friendly_name();
 
         lstm_input_size = in_dims0.back();
         lstm_sequence_len = in_dims0.at(in_dims0.size() - 2);

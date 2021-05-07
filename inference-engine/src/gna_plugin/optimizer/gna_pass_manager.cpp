@@ -1340,7 +1340,7 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
     auto weightsElements = blob->size();
     auto weightsBytes = blob->byteSize();
     if (weightsElements == 0) {
-        THROW_IE_EXCEPTION << "Blob size is 0";
+        IE_THROW() << "Blob size is 0";
     }
 
     auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), { TileTo });

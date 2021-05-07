@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ MKLDNNPadNode::MKLDNNPadNode(const InferenceEngine::CNNLayerPtr& layer, const mk
 void MKLDNNPadNode::getSupportedDescriptors() {
     auto* padLayer = dynamic_cast<PadLayer*>(getCnnLayer().get());
     if (padLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert Pad layer.";
+        IE_THROW() << "Cannot convert Pad layer.";
 
     padsBegin = padLayer->GetParamAsUInts("pads_begin");
     padsEnd = padLayer->GetParamAsUInts("pads_end");
@@ -32,7 +32,7 @@ void MKLDNNPadNode::getSupportedDescriptors() {
     SizeVector srcDims = padLayer->insData[0].lock()->getTensorDesc().getDims();
     SizeVector dstDims = padLayer->outData[0]->getTensorDesc().getDims();
     if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
-        THROW_IE_EXCEPTION << padLayer->name << " Incorrect number of input/output dimensions!";
+        IE_THROW() << padLayer->name << " Incorrect number of input/output dimensions!";
 
     std::string pad_mode = padLayer->GetParamAsString("pad_mode");
     if (pad_mode == "constant") {
@@ -44,23 +44,23 @@ void MKLDNNPadNode::getSupportedDescriptors() {
         padMode = REFLECT;
         for (size_t i = 0; i < srcDims.size(); i++) {
             if ((srcDims[i] - 1) < padsBegin[i] || (srcDims[i] - 1) < padsEnd[i])
-                THROW_IE_EXCEPTION << padLayer->name << " Incorrect padsBegin or padsEnd for 'reflect' pad mode";
+                IE_THROW() << padLayer->name << " Incorrect padsBegin or padsEnd for 'reflect' pad mode";
         }
     } else if (pad_mode == "symmetric") {
         padMode = SYMMETRIC;
         for (size_t i = 0; i < srcDims.size(); i++) {
             if (srcDims[i] < padsBegin[i] || srcDims[i] < padsEnd[i])
-                THROW_IE_EXCEPTION << padLayer->name << " Incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+                IE_THROW() << padLayer->name << " Incorrect padsBegin or padsEnd for 'symmetric' pad mode";
         }
     } else {
-        THROW_IE_EXCEPTION << padLayer->name
+        IE_THROW() << padLayer->name
                            << " Incorrect pad_mode. Only constants|edge|reflect|symmetric modes are supported!";
     }
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
@@ -122,11 +122,11 @@ void MKLDNNPadNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory for Pad " << getName() << " didn't allocate.";
+        IE_THROW() << "Destination memory for Pad " << getName() << " didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory for Pad " << getName() << " didn't allocate.";
+        IE_THROW() << "Input memory for Pad " << getName() << " didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
+        IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
     params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
 
@@ -254,7 +254,7 @@ void MKLDNNPadNode::padConstant() {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
     InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),

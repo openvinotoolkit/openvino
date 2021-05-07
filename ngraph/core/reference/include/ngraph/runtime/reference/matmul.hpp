@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -21,16 +9,9 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/shape_util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-using namespace std;
 
 namespace ngraph
 {
@@ -38,6 +19,53 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace details
+            {
+                template <typename T>
+                void dot(const T* arg0,
+                         const T* arg1,
+                         T* out,
+                         const Shape& arg0_shape,
+                         const Shape& arg1_shape,
+                         const Shape& out_shape)
+                {
+                    std::fill(out, out + shape_size(out_shape), T{0});
+                    const size_t arg0_rank = arg0_shape.size();
+                    const size_t arg1_rank = arg1_shape.size();
+
+                    // 2D inputs shapes are interpreted as {I, K} x {K, J}
+                    // If first input is 1D tensor of shape {K}, it is interpreted as {1, K}
+                    // If second input is 1D tensor of shape {K}, it is interpreted as {K, 1}
+                    const size_t I_dim = arg0_rank == 1 ? 1 : arg0_shape[arg0_rank - 2];
+                    const size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
+                    const size_t K_dim =
+                        arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
+
+                    for (size_t i = 0; i < I_dim; ++i)
+                    {
+                        for (size_t k = 0; k < K_dim; ++k)
+                        {
+                            const size_t a_idx = i * K_dim + k;
+                            for (size_t j = 0; j < J_dim; ++j)
+                            {
+                                const size_t b_idx = k * J_dim + j;
+                                const size_t out_idx = i * J_dim + j;
+                                out[out_idx] += arg0[a_idx] * arg1[b_idx];
+                            }
+                        }
+                    }
+                }
+
+                std::vector<size_t> get_transpose_order(const Shape& input_shape)
+                {
+                    size_t rank = input_shape.size();
+                    NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
+                    std::vector<size_t> axes_order(rank);
+                    std::iota(axes_order.begin(), axes_order.end(), 0);
+                    std::swap(axes_order[rank - 1], axes_order[rank - 2]);
+                    return axes_order;
+                }
+            }
             /// \brief Reference kernel for matmul computation.
             ///
             /// \tparam T Type of input and output tensors.
@@ -70,89 +98,59 @@ namespace ngraph
                 //    and perform broadcast if applicable
                 // 4) Perform dot on the args or updated args and return result
 
-                size_t arg0_rank = arg0_shape.size();
-                size_t arg1_rank = arg1_shape.size();
-                size_t out_rank = out_shape.size();
-
-                // vector vars to hold pontential intermediate transpose,
-                // broadcast result
-                vector<T> arg0_transpose_vec;
-                vector<T> arg1_transpose_vec;
-                vector<T> arg0_broadcast_vec;
-                vector<T> arg1_broadcast_vec;
-
                 // pointers to updated inputs
-                const T* arg0_update = arg0;
-                const T* arg1_update = arg1;
+                const T* arg0_data = arg0;
+                const T* arg1_data = arg1;
+
+                // vectors to hold pontential intermediate transpose,
+                // broadcast result
+                std::vector<T> arg0_new_data;
+                std::vector<T> arg1_new_data;
 
                 // vars for updated inputs shapes
-                Shape wip_arg0_shape = arg0_shape;
-                Shape wip_arg1_shape = arg1_shape;
+                Shape arg0_shape_tmp = arg0_shape;
+                Shape arg1_shape_tmp = arg1_shape;
 
-                auto get_transpose_order = [](const Shape& input_shape) {
-                    size_t rank = input_shape.size();
-                    NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
-                    vector<size_t> axes_order(rank);
-                    iota(axes_order.begin(), axes_order.end(), 0);
-                    swap(axes_order[rank - 1], axes_order[rank - 2]);
-                    return AxisVector{begin(axes_order), end(axes_order)};
-                };
-
-                auto get_broadcast_axes = [](const Shape& marker_shape, const Shape& target_shape) {
-                    NGRAPH_CHECK(marker_shape.size() == target_shape.size(),
-                                 "Incompatible input shapes");
-                    AxisSet broadcast_axes;
-                    for (size_t i = 0; i < marker_shape.size(); i++)
-                    {
-                        if (marker_shape[i] == 1 && target_shape[i] != 1)
-                        {
-                            broadcast_axes.insert(i);
-                        }
-                    }
-                    return broadcast_axes;
-                };
+                size_t arg0_rank = arg0_shape.size();
+                size_t arg1_rank = arg1_shape.size();
+                const size_t out_rank = out_shape.size();
 
                 // Perform transpose if requested
                 if (transpose_arg0 && arg0_rank > 1)
                 {
-                    arg0_transpose_vec.reserve(shape_size(arg0_shape));
-                    auto axis_vector = get_transpose_order(arg0_shape);
-                    swap(wip_arg0_shape[arg0_rank - 1], wip_arg0_shape[arg0_rank - 2]);
-                    opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
-                                        reinterpret_cast<char*>(arg0_transpose_vec.data()),
+                    std::vector<T> tmp(shape_size(arg0_shape));
+                    auto axis_vector = details::get_transpose_order(arg0_shape);
+                    std::swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg0_data),
+                                        reinterpret_cast<char*>(tmp.data()),
                                         arg0_shape,
                                         axis_vector,
-                                        wip_arg0_shape,
+                                        arg0_shape_tmp,
                                         sizeof(T));
-
-                    arg0_update = arg0_transpose_vec.data();
+                    arg0_new_data.swap(tmp);
+                    arg0_data = arg0_new_data.data();
                 }
 
                 if (transpose_arg1 && arg1_rank > 1)
                 {
-                    arg1_transpose_vec.reserve(shape_size(arg1_shape));
-                    auto axis_vector = get_transpose_order(arg1_shape);
-                    swap(wip_arg1_shape[arg1_rank - 1], wip_arg1_shape[arg1_rank - 2]);
-                    opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
-                                        reinterpret_cast<char*>(arg1_transpose_vec.data()),
+                    std::vector<T> tmp(shape_size(arg1_shape));
+                    auto axis_vector = details::get_transpose_order(arg1_shape);
+                    std::swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg1_data),
+                                        reinterpret_cast<char*>(tmp.data()),
                                         arg1_shape,
                                         axis_vector,
-                                        wip_arg1_shape,
+                                        arg1_shape_tmp,
                                         sizeof(T));
-
-                    arg1_update = arg1_transpose_vec.data();
+                    arg1_new_data.swap(tmp);
+                    arg1_data = arg1_new_data.data();
                 }
 
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
-                    dot(arg0_update,
-                        arg1_update,
-                        out,
-                        wip_arg0_shape,
-                        wip_arg1_shape,
-                        out_shape,
-                        1);
+                    details::dot(
+                        arg0_data, arg1_data, out, arg0_shape_tmp, arg1_shape_tmp, out_shape);
                     return;
                 }
 
@@ -163,80 +161,73 @@ namespace ngraph
 
                 if (arg0_rank > 2 && arg1_rank > 2)
                 {
-                    const auto& broadcast_shapes = builder::get_numpy_broadcast_shapes(
-                        {Shape{begin(wip_arg0_shape), next(end(wip_arg0_shape), -2)},
-                         Shape{begin(wip_arg1_shape), next(end(wip_arg1_shape), -2)}});
-
-                    Shape arg0_br_target_shape = broadcast_shapes.first;
-                    Shape arg1_br_target_shape = broadcast_shapes.first;
-                    Shape arg0_br_marker_shape = broadcast_shapes.second.at(0);
-                    Shape arg1_br_marker_shape = broadcast_shapes.second.at(1);
+                    // Align input batches to the output shape
+                    Shape arg0_br_target_shape(out_shape.begin(), out_shape.end() - 2);
+                    Shape arg1_br_target_shape(out_shape.begin(), out_shape.end() - 2);
 
                     arg0_br_target_shape.insert(
-                        end(arg0_br_target_shape),
-                        next(begin(wip_arg0_shape), wip_arg0_shape.size() - 2),
-                        end(wip_arg0_shape));
+                        end(arg0_br_target_shape), end(arg0_shape_tmp) - 2, end(arg0_shape_tmp));
                     arg1_br_target_shape.insert(
-                        end(arg1_br_target_shape),
-                        next(begin(wip_arg1_shape), wip_arg1_shape.size() - 2),
-                        end(wip_arg1_shape));
+                        end(arg1_br_target_shape), end(arg1_shape_tmp) - 2, end(arg1_shape_tmp));
 
-                    arg0_br_marker_shape.insert(
-                        end(arg0_br_marker_shape),
-                        next(begin(wip_arg0_shape), wip_arg0_shape.size() - 2),
-                        end(wip_arg0_shape));
-                    arg1_br_marker_shape.insert(
-                        end(arg1_br_marker_shape),
-                        next(begin(wip_arg1_shape), wip_arg1_shape.size() - 2),
-                        end(wip_arg1_shape));
-
-                    if (arg0_br_target_shape != wip_arg0_shape)
+                    std::vector<size_t> broadcast_axes(out_shape.size() - 2);
+                    std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+                    if (!broadcast_axes.empty())
                     {
-                        auto broadcast_axes =
-                            get_broadcast_axes(arg0_br_marker_shape, arg0_br_target_shape);
-                        if (!broadcast_axes.empty())
+                        // Usual rules of the broadcasting are applied for batch dimensions.
+                        // If ranks of input arguments are different,
+                        // the smaller tensor is unsqueezed from the left side of the shape
+                        // by necessary number of axes to make both shapes of the same rank.
+                        // Broadcast all batches (last two dimensions represent matrix),
+                        // expand dim with value 1 to bigger dim if dimensions are not equal.
+                        if (arg0_br_target_shape != arg0_shape_tmp)
                         {
-                            arg0_broadcast_vec.reserve(shape_size(arg0_br_target_shape));
-                            broadcast(reinterpret_cast<const char*>(arg0_update),
-                                      reinterpret_cast<char*>(arg0_broadcast_vec.data()),
-                                      wip_arg0_shape,
+                            std::vector<T> tmp(shape_size(arg0_br_target_shape));
+                            broadcast(reinterpret_cast<const char*>(arg0_data),
+                                      reinterpret_cast<char*>(tmp.data()),
+                                      arg0_shape_tmp,
                                       arg0_br_target_shape,
                                       broadcast_axes,
                                       sizeof(T));
 
-                            arg0_update = arg0_broadcast_vec.data();
-                            wip_arg0_shape = arg0_br_target_shape;
-                            arg0_rank = wip_arg0_shape.size();
+                            arg0_shape_tmp = arg0_br_target_shape;
+                            arg0_rank = arg0_shape_tmp.size();
+                            arg0_new_data.swap(tmp);
+                            arg0_data = arg0_new_data.data();
                         }
-                    }
 
-                    if (arg1_br_target_shape != wip_arg1_shape)
-                    {
-                        auto broadcast_axes =
-                            get_broadcast_axes(arg1_br_marker_shape, arg1_br_target_shape);
-                        if (!broadcast_axes.empty())
+                        if (arg1_br_target_shape != arg1_shape_tmp)
                         {
-                            arg1_broadcast_vec.reserve(shape_size(arg1_br_target_shape));
-                            broadcast(reinterpret_cast<const char*>(arg1_update),
-                                      reinterpret_cast<char*>(arg1_broadcast_vec.data()),
-                                      wip_arg1_shape,
+                            std::vector<T> tmp(shape_size(arg1_br_target_shape));
+                            broadcast(reinterpret_cast<const char*>(arg1_data),
+                                      reinterpret_cast<char*>(tmp.data()),
+                                      arg1_shape_tmp,
                                       arg1_br_target_shape,
                                       broadcast_axes,
                                       sizeof(T));
-
-                            arg1_update = arg1_broadcast_vec.data();
-                            wip_arg1_shape = arg1_br_target_shape;
-                            arg1_rank = wip_arg1_shape.size();
+                            arg1_shape_tmp = arg1_br_target_shape;
+                            arg1_rank = arg1_shape_tmp.size();
+                            arg1_new_data.swap(tmp);
+                            arg1_data = arg1_new_data.data();
                         }
                     }
                 }
 
                 // Perform batched dot
-
-                size_t output_batch_size = 1;
+                const Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{arg0_shape_tmp[arg0_rank - 2],
+                                                                     arg0_shape_tmp[arg0_rank - 1]}
+                                                             : arg0_shape_tmp;
+                const Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{arg1_shape_tmp[arg1_rank - 2],
+                                                                     arg1_shape_tmp[arg1_rank - 1]}
+                                                             : arg1_shape_tmp;
+                const Shape dot_output_shape =
+                    (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1)
+                        ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
+                        : Shape{out_shape[out_rank - 1]};
 
                 // Calculate number of batches
-                if (out_rank < 3)
+                size_t output_batch_size = 1;
+                if (out_rank <= 2)
                 {
                     // Output is {batch_size, dot_result}, i.e.,
                     // arg 0 shape {2}, arg1 shape {3, 2, 1}, output shape {3, 1}
@@ -244,38 +235,24 @@ namespace ngraph
                 }
                 else
                 {
-                    for (size_t i = 0; i < (out_rank - 2); i++)
+                    for (size_t i = 0; i < (out_rank - dot_output_shape.size()); i++)
                     {
                         output_batch_size *= out_shape[i];
                     }
                 }
-
-                Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{wip_arg0_shape[arg0_rank - 2],
-                                                               wip_arg0_shape[arg0_rank - 1]}
-                                                       : wip_arg0_shape;
-                Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{wip_arg1_shape[arg1_rank - 2],
-                                                               wip_arg1_shape[arg1_rank - 1]}
-                                                       : wip_arg1_shape;
-                Shape dot_output_shape =
-                    (out_rank > 2) ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
-                                   : Shape{out_shape[out_rank - 1]};
-
                 const size_t arg0_offset = (arg0_rank > 2) ? shape_size(dot_arg0_shape) : 0;
                 const size_t arg1_offset = (arg1_rank > 2) ? shape_size(dot_arg1_shape) : 0;
                 const size_t output_offset = shape_size(dot_output_shape);
                 for (size_t i = 0; i < output_batch_size; i++)
                 {
-                    dot(arg0_update + i * arg0_offset,
-                        arg1_update + i * arg1_offset,
-                        out + i * output_offset,
-                        dot_arg0_shape,
-                        dot_arg1_shape,
-                        dot_output_shape,
-                        1);
+                    details::dot(arg0_data + i * arg0_offset,
+                                 arg1_data + i * arg1_offset,
+                                 out + i * output_offset,
+                                 dot_arg0_shape,
+                                 dot_arg1_shape,
+                                 dot_output_shape);
                 }
             }
         }
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

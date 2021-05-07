@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,7 +194,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
             lastOperation = std::make_shared<ngraph::opset1::Multiply>(lastOperation, constant);
         }
     } else {
-        THROW_IE_EXCEPTION << "unknown operation type " << operation;
+        IE_THROW() << "unknown operation type " << operation;
     }
 
     if (!dequantizationAfter.empty()) {

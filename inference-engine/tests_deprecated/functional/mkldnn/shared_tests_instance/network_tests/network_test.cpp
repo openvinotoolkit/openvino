@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TEST_P(ModelTransformationsTest, LPT) {}
 static void checkLayerInputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
     CNNLayerPtr layer = getLayer(network, layerName);
     if (layer == nullptr) {
-        THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
+        IE_THROW() << "layer '" << layerName << "' was not found";
     }
     for (size_t index = 0ul; index < layer->insData.size(); ++index) {
         if ((inputIndex != -1) && (index != inputIndex)) {
@@ -133,7 +133,7 @@ std::map<std::string, ModelParams> modelParams = {
 
     const auto it = modelParams.find(modelName);
     if (it == modelParams.end()) {
-        THROW_IE_EXCEPTION << "parameters for model '" << modelName << "' were not found";
+        IE_THROW() << "parameters for model '" << modelName << "' were not found";
     }
     return it->second;
 }

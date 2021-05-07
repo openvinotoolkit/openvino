@@ -18,8 +18,91 @@ parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
 parser.add_argument("--out", help=out_help, default="")
 args = parser.parse_args()
 
+verified_operations = [
+    'Abs-0',
+    'Acos-0',
+    'Add-1',
+    'Asin-0',
+    'Assign-6',
+    'AvgPool-1',
+    'BatchNormInference-5',
+    'BinaryConvolution-1',
+    'Broadcast-1',
+    'Broadcast-3',
+    'Bucketize-3',
+    'CTCGreedyDecoder-0',
+    'CTCGreedyDecoderSeqLen-6',
+    'Concat-0',
+    'ConvertLike-1',
+    'Convolution-1',
+    'DetectionOutput-0',
+    'Divide-1',
+    'ExperimentalDetectronDetectionOutput-6',
+    'ExperimentalDetectronGenerateProposalsSingleImage-6',
+    'ExperimentalDetectronPriorGridGenerator-6',
+    'ExperimentalDetectronROIFeatureExtractor-6',
+    'ExperimentalDetectronTopKROIs-6',
+    'GRUSequence-5',
+    'Gather-1',
+    'GatherElements-6',
+    'GatherND-5',
+    'Gelu-7',
+    'GroupConvolution-1',
+    'GroupConvolutionBackpropData-1',
+    'GRUSequence-5',
+    'HSigmoid-5',
+    'HSwish-4',
+    'HardSigmoid-0',
+    'Interpolate-4',
+    'LRN-0',
+    'LSTMCell-4',
+    'LSTMSequence-5',
+    'LogSoftmax-5',
+    'Loop-5',
+    'MVN-6',
+    'MaxPool-1',
+    'Mish-4',
+    'Multiply-1',
+    'NonMaxSuppression-4',
+    'NonMaxSuppression-5',
+    'PSROIPooling-0',
+    'Proposal-0',
+    'Proposal-4',
+    'RNNSequence-4',
+    'ROIAlign-3',
+    'ROIPooling-0',
+    'Range-0',
+    'Range-4',
+    'ReadValue-6',
+    'ReduceL1-4',
+    'ReduceL2-4',
+    'ReduceMean-1',
+    'RegionYOLO-0',
+    'Relu-0',
+    'ReorgYOLO-0',
+    'GRUSequence-5',
+    'Round-5',
+    'ShapeOf-0',
+    'ShapeOf-3',
+    'Sigmoid-0',
+    'Sin-0',
+    'SoftPlus-4',
+    'Softmax-1',
+    'StridedSlice-1',
+    'Substract-1',
+    'Swish-4',
+    'Tile-0',
+    'TopK-1',
+    'TopK-3'
+]
 
-def merge_xmls(xmls):
+pass_rate_avg = dict()
+general_pass_rate = dict()
+general_test_count = dict()
+general_passed_tests = dict()
+
+
+def merge_xmls(xmls: list):
     if len(xmls) == 1:
         return xmls[0]
     summary = ET.Element("report")
@@ -62,8 +145,34 @@ ordered_ops = sorted(ops)
 results = {}
 for device in root.find("results"):
     results[device.tag] = {op.tag: op.attrib for op in device}
+    pass_rate_avg[device.tag] = 0
+    general_test_count[device.tag] = 0
+    general_passed_tests[device.tag] = 0
     for op in results[device.tag]:
-        results[device.tag][op]["passrate"] = round(float(results[device.tag][op]["passrate"]), 1)
+        pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
+        results[device.tag][op]["passrate"] = pass_rate
+        pass_rate_avg[device.tag] += pass_rate
+        general_test_count[device.tag] += (int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +
+                               int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
+        general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
+    pass_rate_avg[device.tag] /= len(results[device.tag])
+    pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
+    general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
+    general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+
+    if "Constant-0" in root.find("results"):
+        general_test_count[device.tag] -=  (
+            int(results[device.tag]["Constant-0"]["passed"]) + int(results[device.tag]["Constant-0"]["failed"]) +
+            int(results[device.tag]["Constant-0"]["crashed"]) + int(results[device.tag]["Constant-0"]["skipped"]))
+    if "Parameter-0" in root.find("results"):
+        general_test_count[device.tag] -= (
+                int(results[device.tag]["Parameter-0"]["passed"]) + int(results[device.tag]["Parameter-0"]["failed"]) +
+                int(results[device.tag]["Parameter-0"]["crashed"]) + int(results[device.tag]["Parameter-0"]["skipped"]))
+    if "Result-0" in root.find("results"):
+        general_test_count[device.tag] -= (
+                int(results[device.tag]["Result-0"]["passed"]) + int(results[device.tag]["Result-0"]["failed"]) +
+                int(results[device.tag]["Result-0"]["crashed"]) + int(results[device.tag]["Result-0"]["skipped"]))
+
 
 devices = results.keys()
 
@@ -71,7 +180,10 @@ file_loader = FileSystemLoader('template')
 env = Environment(loader=file_loader)
 template = env.get_template('report_template.html')
 
-res = template.render(ordered_ops=ordered_ops, devices=devices, results=results, timestamp=timestamp)
+res = template.render(ordered_ops=ordered_ops, devices=devices, results=results, timestamp=timestamp,
+                      general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
+                      general_test_count=general_test_count,
+                      verified_operations=verified_operations)
 
 with open(os.path.join(args.out, "report.html"), "w") as f:
     f.write(res)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,8 +42,9 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
         LoadNetwork();
 
         std::cout << "Infer(): " << j << std::flush;
-
-        GenerateInputs();
+        if (j == 0) {
+            GenerateInputs();
+        }
         Infer();
         Validate();
     }

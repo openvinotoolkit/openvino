@@ -1,6 +1,7 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <algorithm>
@@ -57,7 +58,7 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
             return layer;
         ++i;
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Layer " << layerName << " not found in network";
+    IE_THROW(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>

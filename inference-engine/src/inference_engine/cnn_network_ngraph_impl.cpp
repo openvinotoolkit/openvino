@@ -88,7 +88,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
     for (const auto& dim : dims) {
         if (!dim)
-            THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
+            IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
     // TODO: works correctly for static rank only, fix it
@@ -156,7 +156,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     const ICNNNetwork& iNetwork = network;
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
-        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
+        IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
@@ -430,7 +430,7 @@ CNNNetworkNGraphImpl::reshape(const InputPartialShapes & inputShapes) {
         for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
             const auto &outName = parameter->get_friendly_name();
             if (opName.find(outName) != opName.end()) {
-                THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
+                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
             }
             opName.insert(outName);
             createDataForResult(parameter, outName, _data[outName]);

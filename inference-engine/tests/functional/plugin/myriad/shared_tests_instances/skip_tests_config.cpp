@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,5 +35,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 48183
         R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
+        // TODO: Issue 51472
+        ".*CachingSupportCase.*_batch2_.*",
     };
 }

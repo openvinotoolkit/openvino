@@ -1,25 +1,14 @@
-﻿// Copyright (c) 2016-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "permute_kernel_tile_8x8_4x4.h"
 #include "kernel_selector_utils.h"
+#include "common_tools.h"
 #include <string>
 #include <functional>
 #include <cmath>
 
-#define CEIL_DIV(A, B) ((A + B - 1)/(B))
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
@@ -128,7 +117,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("N_VECTORS_IN_TILE", tile_size / vector_width));
     jit.AddConstant(MakeJitConstant("LWS", total_lws));
-    jit.AddConstant(MakeJitConstant("NFEATURE_TILES", CEIL_DIV(params.inputs[0].Feature().v, tile_size)));
+    jit.AddConstant(MakeJitConstant("NFEATURE_TILES", CeilDiv(params.inputs[0].Feature().v, tile_size)));
 
     std::string normal_tile_cond = "true";
     std::string x_remainder_cond = "true";
@@ -137,7 +126,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     if (params.inputs[0].X().v % tile_size) {
         jit.AddConstant(MakeJitConstant("X_REMAINDER_ITEM", params.inputs[0].X().v / tile_size));
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", params.inputs[0].X().v % tile_size));
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CEIL_DIV(params.inputs[0].X().v % tile_size, vector_width)));
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
         normal_tile_cond += " && (x < X_REMAINDER_ITEM)";
         x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
         f_remainder_cond += " && (x < X_REMAINDER_ITEM)";
@@ -145,7 +134,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     if (params.inputs[0].Feature().v % tile_size) {
         jit.AddConstant(MakeJitConstant("F_REMAINDER_ITEM", params.inputs[0].Feature().v / tile_size));
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", params.inputs[0].Feature().v % tile_size));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CEIL_DIV(params.inputs[0].Feature().v % tile_size, vector_width)));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Feature().v % tile_size, vector_width)));
         normal_tile_cond += " && (f < F_REMAINDER_ITEM)";
         x_remainder_cond += " && (f < F_REMAINDER_ITEM)";
         f_remainder_cond += " && (f == F_REMAINDER_ITEM)";
@@ -176,7 +165,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
-    size_t elem_size = sizeof(params.output.GetDType());
+    size_t elem_size = params.output.ElementSize();
     size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     size_t max_num_work_items = std::min((size_t)256, (size_t)max_local_mem_size / (elem_size * tile_size * tile_size));
 
@@ -205,13 +194,13 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
     size_t tile_size = GetTileSize(params);
     switch (in.GetLayout()) {
         case DataLayout::bfyx:
-            dispatchData.gws = {CEIL_DIV(in.X().v , tile_size), in.Y().v, CEIL_DIV(in.Feature().v, tile_size) * in.Batch().v};
+            dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
             break;
         case DataLayout::bfzyx:
-            dispatchData.gws = {CEIL_DIV(in.X().v , tile_size), in.Y().v * in.Z().v, CEIL_DIV(in.Feature().v, tile_size) * in.Batch().v};
+            dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v * in.Z().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
             break;
         case DataLayout::bfwzyx:
-            dispatchData.gws = {CEIL_DIV(in.X().v , tile_size), in.Y().v * in.Z().v * in.W().v, CEIL_DIV(in.Feature().v, tile_size) * in.Batch().v};
+            dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v * in.Z().v * in.W().v, CeilDiv(in.Feature().v, tile_size) * in.Batch().v};
             break;
         default:
             throw std::runtime_error("Unsupported combination\n");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ std::vector<CNNLayerPtr> CNNNetSortTopologically(const CNNNetwork& network) {
         false);
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 
     std::reverse(std::begin(stackOfVisited), std::end(stackOfVisited));

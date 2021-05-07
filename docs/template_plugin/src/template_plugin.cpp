@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 
     auto function = network.getFunction();
     if (function == nullptr) {
-        THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
+        IE_THROW() << "TEMPLATE plugin can compile only IR v10 networks";
     }
 
     return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
@@ -111,7 +111,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     auto function = network.getFunction();
     if (function == nullptr) {
-         THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
+         IE_THROW() << "Template Plugin supports only ngraph cnn network representation";
     }
 
     // 1. First of all we should store initial input operation set
@@ -191,7 +191,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 // ! [plugin:add_extension]
 
@@ -254,7 +254,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         using uint = unsigned int;
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
     } else  {
-        THROW_IE_EXCEPTION << "Unsupported device metric: " << name;
+        IE_THROW() << "Unsupported device metric: " << name;
     }
 }
 // ! [plugin:get_metric]

@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <utility>
 #include <algorithm>
@@ -149,7 +148,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
@@ -161,13 +160,13 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
         default : {
-            THROW_IE_EXCEPTION << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+            IE_THROW() << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
         }
     }
 }

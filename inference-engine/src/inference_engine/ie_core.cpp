@@ -353,7 +353,7 @@ public:
 
         auto parse_result = ParseXml(xmlConfigFile.c_str());
         if (!parse_result.error_msg.empty()) {
-            THROW_IE_EXCEPTION << parse_result.error_msg;
+            IE_THROW() << parse_result.error_msg;
         }
 
         pugi::xml_document& xmlDoc = *parse_result.xml;
@@ -367,7 +367,7 @@ public:
             FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
             if (deviceName.find('.') != std::string::npos) {
-                THROW_IE_EXCEPTION << "Device name must not contain dot '.' symbol";
+                IE_THROW() << "Device name must not contain dot '.' symbol";
             }
 
             // append IR library path for default IE plugins
@@ -434,7 +434,7 @@ public:
                                   const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
-            THROW_IE_EXCEPTION << "Remote context is null";
+            IE_THROW() << "Remote context is null";
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -545,7 +545,7 @@ public:
         // HETERO case
         {
             if (deviceName.find("HETERO:") == 0) {
-                THROW_IE_EXCEPTION
+                IE_THROW()
                     << "You can get specific metrics with the GetMetric only for the HETERO itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
@@ -554,7 +554,7 @@ public:
         // MULTI case
         {
             if (deviceName.find("MULTI:") == 0) {
-                THROW_IE_EXCEPTION
+                IE_THROW()
                     << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
@@ -580,7 +580,7 @@ public:
 
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
-            THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         // Plugin is in registry, but not created, let's create
@@ -621,7 +621,7 @@ public:
 
                 plugins[deviceName] = plugin;
             } catch (const Exception& ex) {
-                THROW_IE_EXCEPTION << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
+                IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
                                    << "\n"
                                    << "Please, check your environment\n"
                                    << ex.what() << "\n";
@@ -639,7 +639,7 @@ public:
         std::lock_guard<std::mutex> lock(pluginsMutex);
         auto it = plugins.find(deviceName);
         if (it == plugins.end()) {
-            THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         plugins.erase(deviceName);
@@ -654,11 +654,11 @@ public:
 
         auto it = pluginRegistry.find(deviceName);
         if (it != pluginRegistry.end()) {
-            THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\"  is already registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the InferenceEngine";
         }
 
         if (deviceName.find('.') != std::string::npos) {
-            THROW_IE_EXCEPTION << "Device name must not contain dot '.' symbol";
+            IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
         // append IR library path for default IE plugins
@@ -717,7 +717,7 @@ public:
         }
 
         if (!configIsSet && !deviceName.empty()) {
-            THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         // set config for already created plugins
@@ -740,7 +740,7 @@ public:
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
-                THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
+                IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
             opsetNames.insert(it.first);
         }
 
@@ -844,10 +844,10 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::str
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
+        IE_THROW() << "HETERO device does not support remote context";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
+        IE_THROW() << "MULTI device does not support remote context";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, params);
@@ -856,10 +856,10 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
+        IE_THROW() << "HETERO device does not support remote context";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
+        IE_THROW() << "MULTI device does not support remote context";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
@@ -868,11 +868,11 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
     if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION
+        IE_THROW()
             << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
     }
     if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION
+        IE_THROW()
             << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
     }
 
@@ -889,10 +889,10 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
 
     // TODO: remove once NotImplemented exception is deprecated and not used
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support ImportNetwork";
+        IE_THROW() << "HETERO device does not support ImportNetwork";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support ImportNetwork";
+        IE_THROW() << "MULTI device does not support ImportNetwork";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -910,7 +910,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
-        THROW_IE_EXCEPTION << "Remote context is null";
+        IE_THROW() << "Remote context is null";
     }
 
     std::string deviceName_ = context->getDeviceName();
@@ -929,19 +929,19 @@ QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::stri
 void Core::SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
-        THROW_IE_EXCEPTION << "SetConfig is supported only for HETERO itself (without devices). "
+        IE_THROW() << "SetConfig is supported only for HETERO itself (without devices). "
                                 "You can configure the devices with SetConfig before creating the HETERO on top.";
     }
 
     // MULTI case
     if (deviceName.find("MULTI:") == 0) {
-        THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
+        IE_THROW() << "SetConfig is supported only for MULTI itself (without devices). "
                                 "You can configure the devices with SetConfig before creating the MULTI on top.";
     }
 
     // GPU.0, FPGA.1 cases
     if (deviceName.find(".") != std::string::npos) {
-        THROW_IE_EXCEPTION << "SetConfig is supported only for device family itself (without particular device .#). "
+        IE_THROW() << "SetConfig is supported only for device family itself (without particular device .#). "
                                 "You can pass .# as a particular device instance to QueryNetwork, LoadNetwork, ImportNetwork only";
     }
 
@@ -957,7 +957,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            THROW_IE_EXCEPTION
+            IE_THROW()
                 << "You can only GetConfig of the HETERO itself (without devices). "
                    "GetConfig is also possible for the individual devices before creating the HETERO on top.";
         }
@@ -965,7 +965,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            THROW_IE_EXCEPTION
+            IE_THROW()
                 << "You can only GetConfig of the MULTI itself (without devices). "
                    "GetConfig is also possible for the individual devices before creating the MULTI on top.";
         }
@@ -996,10 +996,10 @@ std::vector<std::string> Core::GetAvailableDevices() const {
         } catch (Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName
+            IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                                << " device and call GetMetric: " << ex.what();
         } catch (...) {
-            THROW_IE_EXCEPTION << "Unknown exception is thrown while trying to create the " << deviceName
+            IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
                                << " device and call GetMetric";
         }
 

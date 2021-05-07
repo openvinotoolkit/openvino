@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -567,7 +567,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
     std::shared_ptr<ngraph::Function> f(nullptr);
     std::string expected_friendly_name;
     {
-        auto c = opset4::Constant::create(type_from, Shape{}, {value});
+        auto c = std::make_shared<opset4::Constant>(type_from, Shape{}, &value);
         expected_friendly_name = c->get_friendly_name();
         f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
 
@@ -608,7 +608,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64MaxToI32) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64ToI32) {
-    constant_convert_test(element::Type_t::u64, element::Type_t::i32, 42, 42);
+    constant_convert_test<uint64_t, int32_t>(element::Type_t::u64, element::Type_t::i32, 42, 42);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MinToI32) {
@@ -629,4 +629,153 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, true, 1);
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, false, 0);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i8, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u8, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8_2) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8_96) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 242);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI32) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i32, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU32) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u32, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI16) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i16, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU16) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u16, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 171, 65522);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI64) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i64, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU64) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u64, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    uint8_t value = 171;
+    std::string expected_friendly_name;
+    {
+        auto c = std::make_shared<opset4::Constant>(element::Type_t::u1, Shape{2}, &value);
+        expected_friendly_name = c->get_friendly_name();
+        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(element::Type_t::u1, element::Type_t::u8);
+        manager.run_passes(f);
+    }
+    auto ops = f->get_ordered_ops();
+    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    ASSERT_NE(c, nullptr);
+    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
+
+    auto* actual = reinterpret_cast<const uint8_t*>(c->get_data_ptr());
+    ASSERT_EQ(1, actual[0]);
+    ASSERT_EQ(0, actual[1]);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    uint8_t value = 171;
+    std::string expected_friendly_name;
+    {
+        auto c = std::make_shared<opset4::Constant>(element::Type_t::u1, Shape{2}, &value);
+        expected_friendly_name = c->get_friendly_name();
+        f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(element::Type_t::u1, element::Type_t::u4);
+        manager.run_passes(f);
+    }
+    auto ops = f->get_ordered_ops();
+    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    ASSERT_NE(c, nullptr);
+    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
+
+    auto actual = reinterpret_cast<const uint8_t*>(c->get_data_ptr())[0];
+    ASSERT_EQ(16, actual);
 }

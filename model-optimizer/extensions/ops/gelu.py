@@ -35,6 +35,6 @@ class GeLUOP(Op):
 
     def backend_attrs(self):
         if self.get_opset() == 'opset7':
-            return ['approximation']
+            return ['approximation_mode']
         else:
             return []

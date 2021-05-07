@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1029,24 +1029,37 @@ int main(int argc, char *argv[]) {
                             continue;
                         }
 
+                        ptrInputBlobs.clear();
                         if (FLAGS_iname.empty()) {
-                            size_t num_files = FLAGS_iname.empty() ? numInputArkFiles : ptrInputBlobs.size();
-                            for (size_t i = 0; i < num_files; ++i) {
-                                MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
-                                if (!minput) {
-                                    slog::err << "We expect ptrInputBlobs[" << i
-                                              << "] to be inherited from MemoryBlob, " <<
-                                              "but in fact we were not able to cast input blob to MemoryBlob"
-                                              << slog::endl;
-                                    return 1;
-                                }
-                                // locked memory holder should be alive all time while access to its buffer happens
-                                auto minputHolder = minput->wmap();
-
-                                std::memcpy(minputHolder.as<void *>(),
-                                            inputFrame[i],
-                                            minput->byteSize());
+                            for (auto &input : cInputInfo) {
+                                ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
                             }
+                        } else {
+                            std::vector<std::string> inputNameBlobs = ParseBlobName(FLAGS_iname);
+                            for (const auto& input : inputNameBlobs) {
+                                Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(input);
+                                if (!blob) {
+                                    std::string errMessage("No blob with name : " + input);
+                                    throw std::logic_error(errMessage);
+                                }
+                                ptrInputBlobs.push_back(blob);
+                            }
+                        }
+
+                        for (size_t i = 0; i < numInputArkFiles; ++i) {
+                            MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
+                            if (!minput) {
+                                std::string errMessage("We expect ptrInputBlobs[" + std::to_string(i) +
+                                          "] to be inherited from MemoryBlob, " +
+                                          "but in fact we were not able to cast input blob to MemoryBlob");
+                                throw std::logic_error(errMessage);
+                            }
+                            // locked memory holder should be alive all time while access to its buffer happens
+                            auto minputHolder = minput->wmap();
+
+                            std::memcpy(minputHolder.as<void *>(),
+                                        inputFrame[i],
+                                        minput->byteSize());
                         }
 
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);

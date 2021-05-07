@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine:
             for (const auto & input : node->insData) {
                 auto locked_input = input.lock();
                 if (!locked_input) {
-                    THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                    IE_THROW() << "insData for " << node->name << " is not valid.";
                 }
                 if (auto next_node = getCreatorLayer(locked_input).lock()) {
                     if (!used.count(next_node->name)) {

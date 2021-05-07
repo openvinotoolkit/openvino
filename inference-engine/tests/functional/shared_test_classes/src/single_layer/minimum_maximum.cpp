@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ namespace LayerTestsDefinitions {
         ngraph::helpers::MinMaxOpType opType;
         std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetDevice) = this->GetParam();
         if (inputShapes.size() != 2) {
-            THROW_IE_EXCEPTION << "Unsupported inputs number for Minimum/Maximum operaton";
+            IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});

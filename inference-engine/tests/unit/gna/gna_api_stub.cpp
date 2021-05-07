@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #define INTEL_GNA_DLLEXPORT 1
 
 #if GNA_LIB_VER == 1

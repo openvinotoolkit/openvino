@@ -1,6 +1,7 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "compilation_context.hpp"
 
 #include <sys/types.h>
@@ -193,7 +194,7 @@ std::istream& operator >> (std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead) << "Error reading compiled blob header";
+        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
     }
 
     pugi::xml_node compiledBlobNode = document.document_element();

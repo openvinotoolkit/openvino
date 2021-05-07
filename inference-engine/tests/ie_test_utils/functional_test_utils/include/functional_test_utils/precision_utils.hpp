@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
         case InferenceEngine::Precision::MIXED:
         case InferenceEngine::Precision::CUSTOM:
         default:
-            THROW_IE_EXCEPTION << "Incorrect precision!";
+            IE_THROW() << "Incorrect precision!";
     }
 }
 

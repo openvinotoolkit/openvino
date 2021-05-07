@@ -35,7 +35,9 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
             'out_max_val' : 0,
 
             # Set attribute to trigger ArgMax replacer in case do not keep the dimension
-            'keepdims': keepdims
+            'keepdims': keepdims,
+
+            'remove_values_output': True
         }
 
         ArgMaxOp.update_node_stat(node, attrs)

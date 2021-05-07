@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,12 @@ void MKLDNNTileNode::getSupportedDescriptors() {
     auto * tileLayer = dynamic_cast<TileLayer*>(getCnnLayer().get());
 
     if (tileLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert tile layer.";
+        IE_THROW() << "Cannot convert tile layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     axis = tileLayer->axis;
     tiles = tileLayer->tiles;
@@ -39,7 +39,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     if (precision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
         precision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
         precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-        THROW_IE_EXCEPTION << "Layer Tile has unsupported input precision: " << precision;
+        IE_THROW() << "Layer Tile has unsupported input precision: " << precision;
     }
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
@@ -63,13 +63,13 @@ void MKLDNNTileNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
