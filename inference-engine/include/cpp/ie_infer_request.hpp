@@ -36,8 +36,8 @@ class INFERENCE_ENGINE_API_CLASS(InferRequest) {
     std::shared_ptr<IInferRequestInternal>          _impl;
     std::shared_ptr<details::SharedObjectLoader>    _so;
 
-    explicit InferRequest(const std::shared_ptr<IInferRequestInternal>&         impl,
-                          const std::shared_ptr<details::SharedObjectLoader>&   so);
+    InferRequest(const std::shared_ptr<IInferRequestInternal>&         impl,
+                 const std::shared_ptr<details::SharedObjectLoader>&   so);
 
     friend class ExecutableNetwork;
 
