@@ -55,8 +55,8 @@ namespace ngraph {
                 std::shared_ptr<ngraph::Node>
                 extract_out_sizes(const Output<ngraph::Node> &data, const std::vector<int64_t> &out_sizes) {
                     const auto shape_of_x = std::make_shared<opset6::ShapeOf>(data);
-                    auto shape_begin = opset6::Constant::create(element::Type_t::i64, {1}, {0});
-                    auto shape_end = opset6::Constant::create(element::Type_t::i64, Shape{1}, {2});
+                    auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
+                    auto shape_end = opset6::Constant::create(element::i64, Shape{1}, {2});
                     auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x, shape_begin, shape_end,
                                                                           std::vector<int64_t>{0},
                                                                           std::vector<int64_t>{0});
@@ -90,8 +90,8 @@ namespace ngraph {
                         attrs.shape_calculation_mode = ShapeCalcMode::sizes;
                         auto hw_shape = node.get_ng_input("OutSize");
                         const auto shape_of_x = std::make_shared<opset6::ShapeOf>(x);
-                        auto shape_begin = opset6::Constant::create(element::Type_t::i64, {1}, {0});
-                        auto shape_end = opset6::Constant::create(element::Type_t::i64, Shape{1}, {2});
+                        auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
+                        auto shape_end = opset6::Constant::create(element::i64, Shape{1}, {2});
                         auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x, shape_begin, shape_end,
                                                                               std::vector<int64_t>{0},
                                                                               std::vector<int64_t>{0});
