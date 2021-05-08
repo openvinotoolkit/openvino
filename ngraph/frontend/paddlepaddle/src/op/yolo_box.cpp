@@ -18,6 +18,7 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     auto data = node_context.get_ng_input("X");
     auto image_size = node_context.get_ng_input("ImgSize");
 
+    // TODO: add dynamic shape support - CVS-55264
     auto input_shape = data.get_partial_shape();
     uint32_t input_height = input_shape[2].get_length();
     uint32_t input_width = input_shape[3].get_length();   
@@ -86,8 +87,7 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     std::shared_ptr<ngraph::Node> node_box_x_sigmoid = std::make_shared<Sigmoid>(node_box_x);
     std::shared_ptr<ngraph::Node> node_box_y_sigmoid = std::make_shared<Sigmoid>(node_box_y);
 
-    if (scale_x_y != default_scale) { //FIXME: float compare
-        // TODO
+    if (std::fabs(scale_x_y - default_scale) > 1e-6) { //float not-equal
         float bias_x_y = -0.5 * (scale_x_y - 1.0);
 
         auto scale_x_y_node = Constant::create<float>(f32, {1}, {scale_x_y});
