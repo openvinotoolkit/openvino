@@ -14,7 +14,9 @@ namespace op {
 NamedOutputs slice (const NodeContext& node) {
     auto data = node.get_ng_input("Input");
     auto axes = node.get_attribute<std::vector<int32_t>>("axes");
+    // TODO: support tensor type CVS-55266
     auto starts = node.get_attribute<std::vector<int32_t>>("starts");
+    // TODO: support tensor type CVS-55266
     auto ends = node.get_attribute<std::vector<int32_t>>("ends");
     auto data_rank = data.get_partial_shape().rank();
     size_t shape_size = data_rank.get_length();
@@ -22,8 +24,8 @@ NamedOutputs slice (const NodeContext& node) {
     std::vector<int32_t> fixedEnds(shape_size, INT_MAX);
 
     int n = 0;
-    for (size_t &&i : axes) {
-        PDPD_ASSERT(i < shape_size, "slice: axes must be less than the X rank.");
+    for (auto i : axes) {
+        PDPD_ASSERT(i < (int32_t)shape_size, "slice: axes must be less than the X rank.");
         fixedStarts[i] = starts[n];
         fixedEnds[i] = ends[n];
         n++;
