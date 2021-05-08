@@ -53,7 +53,7 @@ def main():
         'class_num': 2,
         'conf_thresh': 0.5,
         'downsample_ratio': 32,
-        'clip_bbox': False, #There is bug in Paddle2ONN where clip_bbox is always ignored.
+        'clip_bbox': True, #There is bug in Paddle2ONN where clip_bbox is always ignored.
         'scale_x_y': 1.0
     }
 
