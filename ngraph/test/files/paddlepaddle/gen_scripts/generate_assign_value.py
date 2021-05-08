@@ -29,20 +29,20 @@ def pdpd_assign_value(name, test_x):
 
 
 def compare():
-    x = np.ones([1, 1, 4, 4]).astype(np.float32)
+
     test_cases = [
-        # {
-        #     "name": "assign_value_fp32",
-        #     "input": np.ones([1, 1, 4, 4]).astype(np.float32)
-        # },
-        # {
-        #     "name": "assign_value_int32",
-        #     "input": np.ones([1, 1, 4, 4]).astype(np.int32)
-        # },
-        # {
-        #     "name": "assign_value_int64",
-        #     "input": np.ones([1, 1, 4, 4]).astype(np.int64)
-        # },
+        {
+            "name": "assign_value_fp32",
+            "input": np.ones([1, 1, 4, 4]).astype(np.float32)
+        },
+        {
+            "name": "assign_value_int32",
+            "input": np.ones([1, 1, 4, 4]).astype(np.int32)
+        },
+        {
+            "name": "assign_value_int64",
+            "input": np.ones([1, 1, 4, 4]).astype(np.int64)
+        },
         {
             "name": "assign_value_boolean",
             "input": np.array([False, True, False])
