@@ -333,7 +333,7 @@ KERNEL (detection_output_stage_1_caffe_opt)(
     const int classId = get_global_id(1);
     const int workItemId = get_global_id(2);
     const int localClassId = get_local_id(1);
-    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 8];
+    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 4];
 
     //printf("detection_output_stage_1 |  global_id={batchId[0:%3d]classId[1:%3d]workItemId[2:%3d]} local_id={[0:%zd]localClassId[1:%3d][2:%zd]}\n",
     //        batchId, classId, workItemId, get_local_id(0), localClassId, get_local_id(2));
@@ -428,6 +428,59 @@ KERNEL (detection_output_stage_1_mxnet)(
     }
 }
 #endif /* IS_FIRST_ITER_MXNET */
+
+#ifdef IS_FIRST_ITER_MXNET_OPT
+KERNEL (detection_output_stage_1_mxnet_opt)(
+    __global uchar *buffer1,
+    __global int *buffer3)
+{
+    const int batchId = get_global_id(0);
+    const int workItemId = get_global_id(2);
+    __local int __range[LOCAL_WORK_NUM * 4];
+
+    //printf("detection_output_stage_1_mxnet | global_id={batchId[0:%d][1:%d]workItemId[2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]}\n", batchId, get_global_id(1), workItemId, get_local_id(0), get_local_id(1), get_local_id(2));
+
+    const int scoresInfoNum = buffer3[batchId];
+    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer1[batchId * BUFFER_STRIDE];
+
+    if (workItemId == 0 && scoresInfoNum > 1) {
+        __range[0] = 0;
+        __range[1] = scoresInfoNum - 1;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    int range_step = 2;
+    const int first_id = workItemId * 2;
+    for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
+        if (scoresInfoNum > 1 && workItemId <= i) {
+            const int begin_id = __range[first_id];
+            const int end_id = __range[first_id + 1];
+            const int second_id = first_id + range_step;
+            if (begin_id < end_id) {
+                const int pivot = FUNC_CALL(partition)(scoresList, begin_id, end_id, true);
+                __range[first_id     ] = begin_id;
+                __range[first_id + 1 ] = max(pivot - 1, begin_id);
+                __range[second_id    ] = min(pivot + 1, end_id);
+                __range[second_id + 1] = end_id;
+            } else {
+                __range[second_id    ] = 0;
+                __range[second_id + 1] = 0;
+            }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (scoresInfoNum > 1) {
+        const int begin_id = __range[first_id];
+        const int end_id = __range[first_id + 1];
+        if (begin_id < end_id) {
+            FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (workItemId == 0 && (TOP_K != -1 && TOP_K < scoresInfoNum)) {
+        buffer3[batchId] = TOP_K;
+    }
+}
+#endif /* IS_FIRST_ITER_MXNET_OPT */
 
 #ifdef IS_SECOND_ITER_CAFFE
 KERNEL (detection_output_stage_2_caffe)(

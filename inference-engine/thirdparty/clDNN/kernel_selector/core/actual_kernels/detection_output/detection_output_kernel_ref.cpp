@@ -102,13 +102,15 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     auto num_classes = detectOutParams.num_classes;
 
     if (idx == 1) {
+        const size_t kSplitNum = 4;
         if (detectOutParams.decrease_label_id) {
-            dispatchData.gws = { 1, 1, 1};
-            dispatchData.lws = { 1, 1, 1};
+            // dispatchData.gws = { 1, 1, 1};
+            // dispatchData.lws = { 1, 1, 1};
+            dispatchData.gws = {input.Batch().v, 1, kSplitNum};
+            dispatchData.lws = {1, 1, kSplitNum};
         } else {
             // dispatchData.gws = { 1, 1, 1};
             // dispatchData.lws = { 1, 1, 1};
-            const size_t kSplitNum = 4;
             dispatchData.gws = {input.Batch().v, num_classes, kSplitNum};
             const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, kClassSize, kSplitNum};
@@ -117,7 +119,6 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
         dispatchData.gws = { 1, 1, 1};
         dispatchData.lws = { 1, 1, 1};
     }
-
     // printf("idx[%d] gws: { %zd, %zd, %zd }\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
     // printf("idx[%d] lws: { %zd, %zd, %zd }\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
 
@@ -169,7 +170,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     size_t buffer2_size = num_of_images * num_classes * buffer_stride;
     size_t buffer3_size = num_of_images * num_classes * buffer_stride;
     size_t buffer4_size = num_of_images * num_classes * 4;
-    //printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
+    // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
     //        buffer_stride, buffer1_size, buffer2_size, buffer4_size);
 
     kd.internalBufferSizes.push_back(buffer1_size);
@@ -191,7 +192,10 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
             }
         } else if (i == 1) {
              if (detectOutParams.detectOutParams.decrease_label_id) {
-                cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_MXNET", "true"));
+                // cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_MXNET", "true"));
+                cldnnJit.AddConstants({MakeJitConstant("IS_FIRST_ITER_MXNET_OPT", "true"),
+                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
              } else {
                 // cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_CAFFE", "true"));
                 cldnnJit.AddConstants({MakeJitConstant("IS_FIRST_ITER_CAFFE_OPT", "true"),
