@@ -70,11 +70,56 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     return jit;
 }
 
+int GetPartitionStep(int localWorkItemNum) {
+    int step_size = 0;
+    for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
+        step_size++;
+    }
+    return step_size;
+}
+
+size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t lws_max = info.maxWorkGroupSize;
+    const size_t optimal_lws_values[] = {8, 7, 6, 5, 4, 2, 1};
+    size_t total_lws = gws[0] * gws[2];
+    size_t localClassSize = 1;
+
+    auto rest_lws = lws_max / total_lws;
+    size_t lws_idx = 0;
+    while (rest_lws < optimal_lws_values[lws_idx]) lws_idx++;
+    while (gws[1] % optimal_lws_values[lws_idx]) lws_idx++;
+
+    localClassSize = optimal_lws_values[lws_idx];
+    total_lws *= optimal_lws_values[lws_idx];
+
+    return localClassSize;
+}
+
 DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params, int idx) {
     DetectionOutputKernelRef::DispatchData dispatchData;
+    const auto& input = params.inputs[0];
+    const auto& detectOutParams = params.detectOutParams;
+    auto num_classes = detectOutParams.num_classes;
 
-    dispatchData.gws = { 1, 1, 1};
-    dispatchData.lws = { 1, 1, 1};
+    if (idx == 1) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = { 1, 1, 1};
+            dispatchData.lws = { 1, 1, 1};
+        } else {
+            // dispatchData.gws = { 1, 1, 1};
+            // dispatchData.lws = { 1, 1, 1};
+            const size_t kSplitNum = 4;
+            dispatchData.gws = {input.Batch().v, num_classes, kSplitNum};
+            const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
+            dispatchData.lws = {1, kClassSize, kSplitNum};
+        }
+    } else {
+        dispatchData.gws = { 1, 1, 1};
+        dispatchData.lws = { 1, 1, 1};
+    }
+
+    // printf("idx[%d] gws: { %zd, %zd, %zd }\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
+    // printf("idx[%d] lws: { %zd, %zd, %zd }\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
 
     return dispatchData;
 }
@@ -116,7 +161,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto loc_feature_num = detectOutParams.inputs[0].Feature().v;
     auto num_classes = detectOutParams.detectOutParams.num_classes;
     auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
-    auto num_prior_boxes = (loc_feature_num / (num_of_images * num_loc_classes * prior_box_size));
+    auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
 
     constexpr size_t buffer_bytes = 16; // bboxes[xmin, ymin, xmax, ymax], scores[batchId, classId, boxId, score]
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
@@ -124,8 +169,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     size_t buffer2_size = num_of_images * num_classes * buffer_stride;
     size_t buffer3_size = num_of_images * num_classes * buffer_stride;
     size_t buffer4_size = num_of_images * num_classes * 4;
-    // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
-    //         buffer_stride, buffer1_size, buffer2_size, buffer4_size);
+    //printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
+    //        buffer_stride, buffer1_size, buffer2_size, buffer4_size);
 
     kd.internalBufferSizes.push_back(buffer1_size);
     kd.internalBufferSizes.push_back(buffer2_size);
@@ -148,7 +193,11 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
              if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_MXNET", "true"));
              } else {
-                cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_CAFFE", "true"));
+                // cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_CAFFE", "true"));
+                cldnnJit.AddConstants({MakeJitConstant("IS_FIRST_ITER_CAFFE_OPT", "true"),
+                                       MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
+                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
              }
         } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {

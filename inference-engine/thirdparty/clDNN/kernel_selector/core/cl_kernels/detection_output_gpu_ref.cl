@@ -217,7 +217,15 @@ KERNEL (detection_output_stage_0_caffe)(
         //for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         //{
         //    int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
-        //    printf("buffer3[%d] = [%3d]\n", scores_size_offset, buffer3[scores_size_offset]);
+        //    int acc_num = buffer3[scores_size_offset];
+        //    int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
+        //    printf("detection_output_stage_0_caffe | acc_num[%d]\n", acc_num);
+        //    for (uint idx_prior = 0; idx_prior < acc_num; idx_prior++)
+        //    {
+        //        SCORES_INFO score_info;
+        //        score_info = scoresList[scores_offset + idx_prior];
+        //        printf("detection_output_stage_0_caffe | scoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", scores_offset + idx_prior, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
+        //    }
         //}
     }
 }
@@ -315,6 +323,84 @@ KERNEL (detection_output_stage_1_caffe)(
     }
 }
 #endif /* IS_FIRST_ITER_CAFFE */
+
+#ifdef IS_FIRST_ITER_CAFFE_OPT
+KERNEL (detection_output_stage_1_caffe_opt)(
+    __global uchar *buffer1,
+    __global int *buffer3)
+{
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    const int workItemId = get_global_id(2);
+    const int localClassId = get_local_id(1);
+    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 8];
+
+    //printf("detection_output_stage_1 |  global_id={batchId[0:%3d]classId[1:%3d]workItemId[2:%3d]} local_id={[0:%zd]localClassId[1:%3d][2:%zd]}\n",
+    //        batchId, classId, workItemId, get_local_id(0), localClassId, get_local_id(2));
+
+    const int scoresInfoNum = buffer3[batchId * NUM_CLASSES + classId];
+    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+
+    if (classId == BACKGROUND_LABEL_ID) {
+        if (workItemId == 0) {
+            buffer3[batchId * NUM_CLASSES + classId] = 0;
+        }
+    } else {
+        //if (batchId == 0 && classId == 1 && workItemId == 0) {
+        //    printf("detection_output_stage_1 | buffer1 idx=[(batchId(%d) * NUM_CLASSES(%d) + classId(%d)) * BUFFER_STRIDE(%d)]=%d\n",
+        //            batchId, NUM_CLASSES, classId, BUFFER_STRIDE, (batchId * NUM_CLASSES + classId) * BUFFER_STRIDE);
+        //    printf("detection_output_stage_1 | scoresInfoNum[%d] scoresList = { ", scoresInfoNum);
+        //    for (uint idx_score_info = 0; idx_score_info < scoresInfoNum; idx_score_info++)
+        //    {
+        //        SCORES_INFO score_info;
+        //        score_info = scoresList[idx_score_info];
+        //        printf("[%f]", score_info.score);
+        //    }
+        //    printf("}\n");
+        //}
+        if (workItemId == 0 && scoresInfoNum > 1) {
+            __range[localClassId][0] = 0;
+            __range[localClassId][1] = scoresInfoNum - 1;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        int range_step = 2;
+        const int first_id = workItemId * 2;
+        for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
+            if (scoresInfoNum > 1 && workItemId <= i) {
+                const int begin_id = __range[localClassId][first_id];
+                const int end_id = __range[localClassId][first_id + 1];
+                const int second_id = first_id + range_step;
+
+                if (begin_id < end_id) {
+                    const int pivot = FUNC_CALL(partition)(scoresList, begin_id, end_id, true);
+                    __range[localClassId][first_id     ] = begin_id;
+                    __range[localClassId][first_id + 1 ] = max(pivot - 1, begin_id);
+                    __range[localClassId][second_id    ] = min(pivot + 1, end_id);
+                    __range[localClassId][second_id + 1] = end_id;
+                } else {
+                    __range[localClassId][second_id    ] = 0;
+                    __range[localClassId][second_id + 1] = 0;
+                }
+            }
+            barrier(CLK_LOCAL_MEM_FENCE);
+        }
+
+        if (scoresInfoNum > 1) {
+            const int begin_id = __range[localClassId][first_id];
+            const int end_id = __range[localClassId][first_id + 1];
+            if (begin_id < end_id) {
+                FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
+            }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (workItemId == 0 && (TOP_K != -1 && TOP_K < scoresInfoNum)) {
+            buffer3[batchId * NUM_CLASSES + classId] = TOP_K;
+        }
+    }
+}
+#endif /* IS_FIRST_ITER_CAFFE_OPT */
 
 #ifdef IS_FIRST_ITER_MXNET
 KERNEL (detection_output_stage_1_mxnet)(
@@ -594,17 +680,10 @@ KERNEL (detection_output_stage_final_caffe)(
         }
     }
 
-    while (count < NUM_OF_IMAGES * KEEP_TOP_K)
+    if (count < NUM_OF_IMAGES * KEEP_TOP_K)
     {
         output[count * OUTPUT_ROW_SIZE] = -1.f;
-        output[count * OUTPUT_ROW_SIZE + 1] = 0.f;
-        output[count * OUTPUT_ROW_SIZE + 2] = 0.f;
-        output[count * OUTPUT_ROW_SIZE + 3] = 0.f;
-        output[count * OUTPUT_ROW_SIZE + 4] = 0.f;
-        output[count * OUTPUT_ROW_SIZE + 5] = 0.f;
-        output[count * OUTPUT_ROW_SIZE + 6] = 0.f;
-        //printf("[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n");
-        ++count;
+        //printf("[-1.0, , , , , , ]\n");
     }
     //printf("===============================================\n");
 }
