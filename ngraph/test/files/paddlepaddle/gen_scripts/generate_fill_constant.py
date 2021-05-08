@@ -27,6 +27,7 @@ def fill_constant(name : str, shape : list, dtype, value):
 
 def main():
     fill_constant("fill_constant", [2, 3, 4], data_type, 0.03)
+    fill_constant("fill_constant_int32", [2, 3, 4], "int32", 0.03)
 
 if __name__ == "__main__":
     main()

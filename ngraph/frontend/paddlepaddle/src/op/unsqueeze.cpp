@@ -11,6 +11,7 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs unsqueeze (const NodeContext& node) {
+    //TODO to support data type other than int32_t CVS-55168
     auto data = node.get_ng_input("X");
     auto axes = node.get_attribute<std::vector<int32_t>>("axes");
     auto axesNode = ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);

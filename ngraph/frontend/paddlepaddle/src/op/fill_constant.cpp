@@ -15,7 +15,7 @@ namespace ngraph {
 
                     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
                     auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
-                    //TODO to Support Tensor/Tuple Input add more tests for other data types
+                    //TODO to Support Tensor/Tuple Input add more tests for other data types CVS-55262
                     Output<Node> value_node;
                     if(dtype == element::i32) {
                         int32_t  value = node.get_attribute<int32_t>("value");

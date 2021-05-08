@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/argmax.hpp"
 #include "op/assign_value.hpp"
 #include "op/batch_norm.hpp"
 #include "op/cast.hpp"
@@ -38,6 +39,7 @@ namespace ngraph {
 
             std::map<std::string, CreatorFunction> get_supported_ops() {
                 return {
+                        {"arg_max", op::argmax},
                         {"assign_value",                  op::assign_value},
                         {"batch_norm",                    op::batch_norm},
                         {"bilinear_interp_v2",            op::bilinear_interp_v2},

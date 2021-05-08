@@ -130,7 +130,6 @@ namespace fuzzyOp {
         for (size_t i = 0; i < parameters.size(); i++) {
             // read input npy file
             std::string datafile = modelfolder+"/input"+std::to_string((parameters.size()-1)-i)+".npy";
-            fprintf(stderr, "*****2121%s\n" ,datafile.c_str());// std::cerr << datafile << std::endl;
             auto dtype = get_npy_dtype(datafile);
             if (dtype == "<f4")
             {
@@ -154,7 +153,6 @@ namespace fuzzyOp {
         for (size_t i = 0; i < results.size(); i++) {
             // read expected output npy file
             std::string datafile = modelfolder+"/output"+std::to_string(i)+".npy";
-            std::cerr << results.size() << datafile << std::endl;
             auto dtype = get_npy_dtype(datafile);
             if (dtype == "<f4")
             {

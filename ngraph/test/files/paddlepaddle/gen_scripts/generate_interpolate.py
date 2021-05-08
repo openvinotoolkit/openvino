@@ -2,6 +2,7 @@ import numpy as np
 import paddle as pdpd
 from paddle.nn.functional import interpolate
 from save_model import saveModel
+pdpd.enable_static()
 
 def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
     cpu = pdpd.static.cpu_places(1)
@@ -103,9 +104,90 @@ def resize_downsample_nearest():
         print(test['name'])
         print(pdpd_result)
 
+def nearest_upsample_tensor_size():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+    sizes = np.array([8, 8], dtype=np.int32)
+    pdpd.enable_static()
+    test_case = [{'name': 'nearest_upsample_tensor_size', 'align_corners': False, 'align_mode': 0}]
+    for test in test_case:
+        main_program = pdpd.static.Program()
+        startup_program = pdpd.static.Program()
+        with pdpd.static.program_guard(main_program, startup_program):
+            node_x = pdpd.static.data(name='x', shape=data.shape, dtype='float32')
+            node_sizes = pdpd.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                                 mode='nearest', align_corners=test['align_corners'], align_mode=test['align_mode'],
+                                 data_format='NCHW', name=test['name'])
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            cpu = pdpd.static.cpu_places(1)
+            exe = pdpd.static.Executor(cpu[0])
+            exe.run(startup_program)
+            outs = exe.run(
+                feed={'x': data, 'sizes': sizes},
+                fetch_list=out,
+                program=main_program)
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]])
+
+
+def bilinear_upsample_tensor_size():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+    sizes = np.array([8, 8], dtype="int32")
+
+    test_case = [{'name': 'bilinear_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
+
+    for test in test_case:
+        main_program = pdpd.static.Program()
+        startup_program = pdpd.static.Program()
+        with pdpd.static.program_guard(main_program, startup_program):
+            node_x = pdpd.static.data(name='x', shape=data.shape, dtype='float32')
+            node_sizes = pdpd.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                                 mode='bilinear', align_corners=test['align_corners'], align_mode=test['align_mode'],
+                                 data_format='NCHW', name=test['name'])
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            cpu = pdpd.static.cpu_places(1)
+            exe = pdpd.static.Executor(cpu[0])
+            exe.run(startup_program)
+            outs = exe.run(
+                feed={'x': data, 'sizes': sizes},
+                fetch_list=out,
+                program=main_program)
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]])
+
+
+def bilinear_upsample_scales():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+
+    test_case = [{'name': 'bilinear_upsample_scales', 'align_corners': False, 'align_mode': 1, "scales": 2},
+                 {'name': 'bilinear_upsample_scales2', 'align_corners': False, 'align_mode': 1, "scales": [2, 2]}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, None, 2, mode='bilinear', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
+        print(test['name'])
+        print(pdpd_result)
+
 
 if __name__ == "__main__":
-    resize_downsample_bilinear()
-    resize_upsample_bilinear()
-    resize_downsample_nearest()
-    resize_upsample_nearest()
+    # resize_downsample_bilinear()
+    # resize_upsample_bilinear()
+    # resize_downsample_nearest()
+    # resize_upsample_nearest()
+    # nearest_upsample_tensor_size()
+    bilinear_upsample_tensor_size()
+    bilinear_upsample_scales()

@@ -9,7 +9,7 @@ namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
-
+//TODO support other interp such as linear trilinear, bicubic. etc
 NamedOutputs nearest_interp_v2 (const NodeContext& node_context);
 NamedOutputs bilinear_interp_v2 (const NodeContext& node_context);
 

@@ -12,16 +12,16 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs pad3d (const NodeContext& node) {
-    // TODO
+    //TODO support Tesnor/Int input CVS-55169
     auto data = node.get_ng_input("X");
     auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
     auto mode = node.get_attribute<std::string>("mode");
-    auto value = node.get_attribute<float>("value");
+    auto value = node.get_attribute<float>("value", 0.0);
     auto data_format = node.get_attribute<std::string>("data_format");
 
     auto pads_begin = std::vector<int32_t>(5, 0);
     auto pads_end = std::vector<int32_t>(5, 0);
-//    auto value_v = std::vector<float>(1, value);
+
 
     Output<ngraph::Node> values;
     Output<ngraph::Node> padding_begin;
@@ -31,7 +31,7 @@ NamedOutputs pad3d (const NodeContext& node) {
         throw ngraph::ngraph_error("paddings Params size should be 6 in pad3d!");
 
     ngraph::op::PadMode pad_mode;
-
+    //TODO Support Circular mode in future CVS-55169
     if (mode == "constant") {
         pad_mode = ngraph::op::PadMode::CONSTANT;
         values = ngraph::opset6::Constant::create(
@@ -65,15 +65,13 @@ NamedOutputs pad3d (const NodeContext& node) {
     }
 
     padding_begin = ngraph::opset6::Constant::create(
-                        element::i32, ngraph::Shape{5}, pads_begin);
+                        element::i32, ngraph::Shape{pads_begin.size()}, pads_begin);
     padding_end = ngraph::opset6::Constant::create(
-                      element::i32, ngraph::Shape{5}, pads_end);
+                      element::i32, ngraph::Shape{pads_end.size()}, pads_end);
 
     if (mode == "constant")
-//        return {std::make_shared<ngraph::opset6::Pad>(data, padding_begin, padding_end, values, pad_mode)};
         return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Pad>(data, padding_begin, padding_end, values, pad_mode)}, {"Out"});
     else
-//        return {std::make_shared<ngraph::opset6::Pad>(data, padding_begin, padding_end, pad_mode)};
         return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Pad>(data, padding_begin, padding_end, pad_mode)}, {"Out"});
 }
 }

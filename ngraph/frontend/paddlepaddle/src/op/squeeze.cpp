@@ -14,7 +14,6 @@ namespace ngraph {
                 NamedOutputs squeeze (const NodeContext& node) {
                     auto data = node.get_ng_input("X");
                     auto axes = node.get_attribute<std::vector<int32_t>>("axes");
-                    PDPD_ASSERT(data.get_partial_shape().rank().is_static(), "squeeze: X rank must be static!");
 
                     auto shape = data.get_partial_shape().to_shape();
                     for (auto &&i : axes) {
