@@ -23,8 +23,53 @@ using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), permuteKernel(nullptr), supportDynamicBatch(false) {}
+bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto shuffleChannels = std::dynamic_pointer_cast<const ngraph::op::v0::ShuffleChannels>(op);
+        if (!shuffleChannels) {
+            errorMessage = "Only opset1 ShuffleChannels operation is supported";
+            return false;
+        }
+        auto shapeSC = shuffleChannels->get_input_shape(0);
+        auto rankSC = shapeSC.size();
+        auto axisSC = shuffleChannels->get_axis();
+        auto groupSC = shuffleChannels->get_group();
+        if (axisSC < 0)
+            axisSC += rankSC;
+
+        if (axisSC < 0 || axisSC >= rankSC) {
+            errorMessage = "gets incorrect axis number, which should be in range of [-inputRank, inputRank).";
+            return false;
+        }
+
+        if (groupSC == 0 || shapeSC[axisSC] % groupSC) {
+            errorMessage = "gets incorrect group parameter('group' must evenly divide the channel dimension).";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache), permuteKernel_(nullptr), supportDynamicBatch_(false) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+
+    const auto shuffleChannels = std::dynamic_pointer_cast<const ngraph::op::v0::ShuffleChannels>(op);
+    inShape_ = shuffleChannels->get_input_shape(0);
+    dataRank_ = inShape_.size();
+    axis_ = shuffleChannels->get_axis();
+    if (axis_ < 0)
+        axis_ += dataRank_;
+    group_ = shuffleChannels->get_group();
+    groupSize_ = inShape_[axis_] / group_;
+
+    supportDynamicBatch_ = (axis_ != 0);
+}
 
 void MKLDNNShuffleChannelsNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -36,37 +81,16 @@ void MKLDNNShuffleChannelsNode::getSupportedDescriptors() {
     if (getParentEdgeAt(0)->getDims().ndims() != getChildEdgeAt(0)->getDims().ndims()) {
         THROW_SHCH_ERROR << "gets mismatched input/output dimensions.";
     }
-
-    auto *layer = getCnnLayer().get();
-    dataDims = layer->outData[0]->getTensorDesc().getDims();
-    dataRank = dataDims.size();
-
-    axis = layer->GetParamAsInt("axis", 1);
-    if (axis < 0)
-        axis += dataRank;
-
-    if (axis < 0 || axis >= static_cast<int>(dataRank))
-        THROW_SHCH_ERROR << "gets incorrect axis number.";
-    supportDynamicBatch = (axis != 0);
-
-    group = layer->GetParamAsUInt("group", 1);
-    if (group == 0 || dataDims[axis] % group)
-        THROW_SHCH_ERROR << "gets incorrect group parameter('group' parameter must evenly divide the channel dimension).";
-
-    groupSize = dataDims[axis] / group;
 }
 
 void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-
-    auto srcDims = getParentEdgeAt(0)->getDims();
-    int nDims = srcDims.ndims();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = supportDynamicBatch;
+    config.dynBatchSupport = supportDynamicBatch_;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace = -1;
@@ -86,9 +110,9 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<TensorDescCreatorTypes> supportedTypes;
-    if (nDims > 2) {
+    if (dataRank_ > 2) {
         auto canUseBlocked = [=]() {
-            return (axis != 1);
+            return (axis_ != 1);
         };
 
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
@@ -99,7 +123,7 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     }
     supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
     auto creators = TensorDescCreator::getCommonCreators();
-    auto range = TensorDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
+    auto range = TensorDescCreator::makeFilteredRange(creators, dataRank_, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].desc = itr->second->createDesc(precision, getParentEdgeAt(0)->getDims().ToSizeVector());
@@ -122,8 +146,8 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
     const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat();
 
-    int batchRank = axis;
-    int spatialRank = dataRank - axis - 1;
+    int batchRank = axis_;
+    int spatialRank = dataRank_ - axis_ - 1;
 
     // 2 for decomposed axis dim, 1 for composed spatial dim
     int reshapedRank = batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
@@ -134,18 +158,18 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     params.dst_block_order.resize(reshapedRank);
     params.dst_block_dims.resize(reshapedRank);
     params.src_block_dims.resize(reshapedRank);
-    params.supported_dynamic_batch = supportDynamicBatch;
+    params.supported_dynamic_batch = supportDynamicBatch_;
 
     size_t spatialShapeSize = 1;
     if (spatialRank != 0) {
-        for (int i = batchRank + 1; i < dataRank; i++) {
-            spatialShapeSize *= dataDims[i];
+        for (int i = batchRank + 1; i < dataRank_; i++) {
+            spatialShapeSize *= inShape_[i];
         }
     }
 
     auto decomposeAndTranpose = [&](int axis) {
-        params.src_block_dims[axis] = group;
-        params.src_block_dims[axis + 1] = groupSize;
+        params.src_block_dims[axis] = group_;
+        params.src_block_dims[axis + 1] = groupSize_;
         params.order[axis] = axis + 1;
         params.order[axis + 1] = axis;
     };
@@ -153,9 +177,9 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     const int channelDim = 1;
     if (isBlocked) {
         size_t blkSize = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims().back();
-        size_t CB = div_up(dataDims[1], blkSize);
+        size_t CB = div_up(inShape_[1], blkSize);
         SizeVector srcBlockedDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
-        if (axis > channelDim) {  // axis on spatial
+        if (axis_ > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 params.order[i] = i;
                 params.src_block_dims[i] = srcBlockedDims[i];
@@ -167,30 +191,30 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
         } else { // axis on batch
             decomposeAndTranpose(0);
             size_t spatialShapeSize = CB * blkSize;
-            for (int i = 2; i < dataRank; i++) {
-                spatialShapeSize *= dataDims[i];
+            for (int i = 2; i < dataRank_; i++) {
+                spatialShapeSize *= inShape_[i];
             }
             params.order[2] = 2;
             params.src_block_dims[2] = spatialShapeSize;
         }
     } else if (getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
-        if (axis == channelDim) {  // axis on channel
+        if (axis_ == channelDim) {  // axis on channel
             params.order[0] = 0;
-            params.src_block_dims[0] = dataDims[0];
+            params.src_block_dims[0] = inShape_[0];
             params.order[1] = 1;
             params.src_block_dims[1] = spatialShapeSize;
             decomposeAndTranpose(2);
-        } else if (axis > channelDim) {  // axis on spatial
+        } else if (axis_ > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 if (i == 0) {
                     params.order[i] = i;
-                    params.src_block_dims[i] = dataDims[i];
+                    params.src_block_dims[i] = inShape_[i];
                 } else if (i == 1) {
                     params.order[reshapedRank - 1] = reshapedRank - 1;
-                    params.src_block_dims[params.order[reshapedRank - 1]] = dataDims[i];
+                    params.src_block_dims[params.order[reshapedRank - 1]] = inShape_[i];
                 } else if (i > 1) {
                     params.order[i - 1] = i - 1;
-                    params.src_block_dims[i - 1] = dataDims[i];
+                    params.src_block_dims[i - 1] = inShape_[i];
                 }
             }
             decomposeAndTranpose(batchRank - 1);
@@ -206,7 +230,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
         }
     } else {
         for (int i = 0; i < batchRank; i++) {
-            params.src_block_dims[i] = dataDims[i];
+            params.src_block_dims[i] = inShape_[i];
             params.order[i] = i;
         }
 
@@ -222,15 +246,15 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     for (size_t i = 0; i < reshapedRank; i++)
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel_ = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
 void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
     auto srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    if (permuteKernel) {
-        int batch = supportDynamicBatch ? batchToProcess() : dataDims[0];
-        permuteKernel->execute(srcData, dstData, batch);
+    if (permuteKernel_) {
+        int batch = supportDynamicBatch_ ? batchToProcess() : inShape_[0];
+        permuteKernel_->execute(srcData, dstData, batch);
     } else {
         THROW_SHCH_ERROR << "does not initialize permute kernel to execute.";
     }

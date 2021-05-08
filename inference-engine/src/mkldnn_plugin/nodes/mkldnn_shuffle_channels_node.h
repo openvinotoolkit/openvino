@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNShuffleChannelsNode : public MKLDNNNode {
 public:
-    MKLDNNShuffleChannelsNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNShuffleChannelsNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -24,14 +24,16 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    InferenceEngine::SizeVector dataDims;
-    int dataRank;
-    int axis;
-    size_t group;
-    size_t groupSize;
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    std::unique_ptr<PermuteKernel> permuteKernel;
-    bool supportDynamicBatch;
+    ngraph::Shape inShape_;
+    int dataRank_;
+    int axis_;
+    size_t group_;
+    size_t groupSize_;
+
+    std::unique_ptr<PermuteKernel> permuteKernel_;
+    bool supportDynamicBatch_;
 };
 
 }  // namespace MKLDNNPlugin
