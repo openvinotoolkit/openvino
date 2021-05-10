@@ -18,7 +18,6 @@ else()
     set(MODELS_BRANCH "master")
 endif()
 
-
 if (ENABLE_DATA)
     add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/models/src/data")
@@ -199,7 +198,7 @@ if (ENABLE_OPENCV)
 
     set(OPENCV_VERSION "4.5.2")
     set(OPENCV_BUILD "076")
-    set(OPENCV_BUILD_YOCTO "708")
+    set(OPENCV_BUILD_YOCTO "772")
 
     if (AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -219,7 +218,7 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "ee3e5255f381b8de5e6fffe4e43dae8c99035377d0380f9183bd7341f1d0f204")
+                    SHA256 "23c250796ad5fc9db810e1680ccdb32c45dc0e50cace5e0f02b30faf652fe343")
 
             unset(IE_PATH_TO_DEPS)
         endif()
@@ -294,8 +293,6 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-# TODO: remove global CMAKE_MODULE_PATH
-list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)

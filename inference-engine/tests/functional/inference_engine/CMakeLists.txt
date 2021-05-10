@@ -45,6 +45,8 @@ addIeTargetTest(
         IE
 )
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
