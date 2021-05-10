@@ -156,7 +156,7 @@ pip3 install -r requirements_onnx.txt
 These procedures require:
 
 *   Access to GitHub and the ability to use git commands
-*   Microsoft Visual Studio\* 2013 for Win64\*
+*   Microsoft Visual Studio\* 2013 for Win64\* (if using Windows\*)
 *   C/C++
 
 Model Optimizer uses the protobuf library to load trained Caffe models.
