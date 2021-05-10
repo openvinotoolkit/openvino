@@ -61,7 +61,7 @@ public:
         }
     }
 
-    ie::InferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
+    ie::IInferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
         if (_device == nullptr || !_device->isBooted()) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
@@ -73,7 +73,7 @@ public:
                                                     _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
-    ie::IInferRequest::Ptr CreateInferRequest() override {
+    ie::IInferRequestInternal::Ptr CreateInferRequest() override {
         ie::IInferRequest::Ptr asyncRequest;
         if (_device == nullptr || !_device->isBooted()) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
@@ -86,11 +86,8 @@ public:
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
-        auto asyncThreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
+        return std::make_shared<MyriadAsyncInferRequest>(
                 syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
-        asyncRequest.reset(new ie::InferRequestBase(asyncThreadSafeImpl));
-        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-        return asyncRequest;
     }
 
     void Export(std::ostream& model) override {

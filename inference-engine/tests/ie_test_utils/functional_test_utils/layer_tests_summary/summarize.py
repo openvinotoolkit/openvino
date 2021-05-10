@@ -38,6 +38,7 @@ verified_operations = [
     'Concat-0',
     'ConvertLike-1',
     'Convolution-1',
+    'DeformableConvolution-1',
     'DetectionOutput-0',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',

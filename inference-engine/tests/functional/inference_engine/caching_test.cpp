@@ -98,11 +98,12 @@ class MockExecutableNetwork : public ExecutableNetworkInternal {
 public:
     MockExecutableNetwork() {}
     MOCK_METHOD1(ExportImpl, void(std::ostream& networkModel));
-    MOCK_METHOD0(CreateInferRequest, IInferRequest::Ptr());
+    MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
+    MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
 };
 
 //------------------------------------------------------
@@ -251,9 +252,8 @@ public:
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
         EXPECT_CALL(*mock, GetConfig(PluginConfigParams::KEY_PERF_COUNT)).Times(AnyNumber()).WillRepeatedly(Return(Parameter{PluginConfigParams::NO}));
         EXPECT_CALL(*mock, GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))).Times(AnyNumber()).WillRepeatedly(Return(Parameter{1u}));
-        auto ptr = std::make_shared<MockIInferRequest>();
-        EXPECT_CALL(*ptr, SetCompletionCallback(_)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-        EXPECT_CALL(*ptr, SetUserData(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        auto ptr = std::make_shared<MockIInferRequestInternal>();
+        EXPECT_CALL(*ptr, SetCallback(_)).Times(AnyNumber());
         EXPECT_CALL(*mock, CreateInferRequest()).Times(AnyNumber()).WillRepeatedly(Return(ptr));
         return mock;
     }
@@ -345,10 +345,8 @@ private:
         }));
         EXPECT_CALL(*net, CreateInferRequest()).Times(AnyNumber())
                 .WillRepeatedly(Invoke([&]() {
-            std::vector<std::string> res;
-            auto inferReq = std::make_shared<MockIInferRequest>();
-            EXPECT_CALL(*inferReq, SetCompletionCallback(_)).Times(AnyNumber()).WillRepeatedly(Return(OK));
-            EXPECT_CALL(*inferReq, SetUserData(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            auto inferReq = std::make_shared<MockIInferRequestInternal>();
+            EXPECT_CALL(*inferReq, SetCallback(_)).Times(AnyNumber());
             return inferReq;
         }));
     }

@@ -51,7 +51,7 @@ void op::v0::Interpolate::validate_and_infer_types()
     {
         for (auto axis : m_attrs.axes)
         {
-            NGRAPH_CHECK(axis < output_shape.rank().get_length());
+            NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
             output_shape[axis] = Dimension::dynamic();
         }
     }
@@ -213,7 +213,7 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 
     PartialShape padded_input_shape = input_shape;
 
-    for (size_t i = 0; i < input_rank; ++i)
+    for (int64_t i = 0; i < input_rank; ++i)
     {
         if (input_shape[i].is_static())
         {

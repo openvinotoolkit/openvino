@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief The entry point for inference engine deconvolution sample application
- * @file style_transfer_sample/main.cpp
- * @example style_transfer_sample/main.cpp
- */
 #include <vector>
 #include <string>
 #include <memory>
@@ -22,8 +17,13 @@
 
 using namespace InferenceEngine;
 
+/**
+* @brief Checks input args
+* @param argc number of args
+* @param argv list of input arguments
+* @return bool status true(Success) or false(Fail)
+*/
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
@@ -46,10 +46,16 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     return true;
 }
 
+/**
+ * @brief The entry point for inference engine deconvolution sample application
+ * @file style_transfer_sample/main.cpp
+ * @example style_transfer_sample/main.cpp
+ */
 int main(int argc, char *argv[]) {
     try {
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
@@ -60,35 +66,35 @@ int main(int argc, char *argv[]) {
         if (imageNames.empty()) throw std::logic_error("No suitable images were found");
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
 
-        /** Printing device version **/
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
-            // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
+            // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
-            slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
+            slog::info << "Custom Extension loaded: " << FLAGS_l << slog::endl;
         }
-        if (!FLAGS_c.empty()) {
-            // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
+        if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
+            // Config for device plugin custom extension is loaded from an .xml description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, "GPU");
-            slog::info << "GPU Extension loaded: " << FLAGS_c << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files" << slog::endl;
+        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
 
         /** Read network model **/
         CNNNetwork network = ie.ReadNetwork(FLAGS_m);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
+        // --------------------------- Step 3. Configure input & output ---------------------------------------------
 
         // --------------------------- Prepare input blobs -----------------------------------------------------
         slog::info << "Preparing input blobs" << slog::endl;
@@ -150,17 +156,17 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading model to the device ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
         ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create infer request -------------------------------------------------
         slog::info << "Create infer request" << slog::endl;
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         /** Iterate over all the input blobs **/
         for (const auto & item : inputInfo) {
             MemoryBlob::Ptr minput = as<MemoryBlob>(infer_request.GetBlob(item.first));
@@ -194,12 +200,12 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Do inference ---------------------------------------------------------
+        // --------------------------- Step 7. Do inference ---------------------------------------------------------
         slog::info << "Start inference" << slog::endl;
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Process output -------------------------------------------------------
+        // --------------------------- Step 8. Process output -------------------------------------------------------
         MemoryBlob::CPtr moutput = as<MemoryBlob>(infer_request.GetBlob(firstOutputName));
         if (!moutput) {
             throw std::logic_error("We expect output to be inherited from MemoryBlob, "

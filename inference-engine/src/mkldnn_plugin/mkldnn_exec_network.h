@@ -23,11 +23,11 @@ class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
-    InferenceEngine::InferRequestInternal::Ptr
+    InferenceEngine::IInferRequestInternal::Ptr
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
               InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);

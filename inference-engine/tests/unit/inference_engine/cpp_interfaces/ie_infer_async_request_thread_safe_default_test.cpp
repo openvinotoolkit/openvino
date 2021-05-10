@@ -13,7 +13,7 @@
 #include <threading/ie_cpu_streams_executor.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_infer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
 
 using namespace ::testing;
@@ -52,7 +52,7 @@ protected:
     shared_ptr<AsyncInferRequestThreadSafeDefault> testRequest;
     ResponseDesc dsc;
 
-    shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
+    shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     MockTaskExecutor::Ptr mockTaskExecutor;
 
 
@@ -63,7 +63,7 @@ protected:
         InputsDataMap inputsInfo;
         OutputsDataMap outputsInfo;
         mockTaskExecutor = make_shared<MockTaskExecutor>();
-        mockInferRequestInternal = make_shared<MockInferRequestInternal>(inputsInfo, outputsInfo);
+        mockInferRequestInternal = make_shared<MockIInferRequestInternal>(inputsInfo, outputsInfo);
         testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, mockTaskExecutor, mockTaskExecutor);
     }
 };
@@ -87,26 +87,6 @@ TEST_F(InferRequestThreadSafeDefaultTests, canResetBusyStatusIfStartAsyncFails) 
 
     ASSERT_THROW(testRequest->StartAsync(), GeneralError);
     ASSERT_NO_THROW(testRequest->StartAsync());
-    taskExecutor->executeAll();
-}
-
-// GetUserData
-TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetUserData) {
-    auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
-    ASSERT_NO_THROW(testRequest->StartAsync());
-    ASSERT_THROW(testRequest->GetUserData(nullptr), RequestBusy);
-    taskExecutor->executeAll();
-}
-
-// SetUserData
-TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetUserData) {
-    auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
-    ASSERT_NO_THROW(testRequest->StartAsync());
-    ASSERT_THROW(testRequest->SetUserData(nullptr), RequestBusy);
     taskExecutor->executeAll();
 }
 
@@ -175,58 +155,42 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetCompletionCallb
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
-    ASSERT_THROW(testRequest->SetCompletionCallback({}), RequestBusy);
+    ASSERT_THROW(testRequest->SetCallback({}), RequestBusy);
     taskExecutor->executeAll();
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
-    auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
+    auto taskExecutor = std::make_shared<DeferedExecutor>();
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-
-    IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase(testRequest));
-    testRequest->SetPointerToPublicInterface(asyncRequest);
-
-    testRequest->SetCompletionCallback([](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
-        ASSERT_EQ((int) StatusCode::OK, status);
+    std::exception_ptr exceptionPtr;
+    testRequest->SetCallback([&](std::exception_ptr exceptionPtr_) {
+        exceptionPtr = exceptionPtr_;
     });
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).Times(1);
-
     testRequest->StartAsync();
+    taskExecutor->executeAll();
     testRequest->Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    ASSERT_EQ(nullptr, exceptionPtr);
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed) {
-    auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
+    auto taskExecutor = std::make_shared<DeferedExecutor>();
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase(testRequest));
-    testRequest->SetPointerToPublicInterface(asyncRequest);
-
-    bool wasCalled = false;
-    InferRequest cppRequest(asyncRequest);
-    std::function<void(InferRequest, StatusCode)> callback =
-            [&](InferRequest request, StatusCode status) {
-                wasCalled = true;
-                ASSERT_EQ(StatusCode::GENERAL_ERROR, status);
-            };
-    cppRequest.SetCompletionCallback(callback);
+    std::exception_ptr exceptionPtr;
+    testRequest->SetCallback([&](std::exception_ptr exceptionPtr_) {
+        exceptionPtr = exceptionPtr_;
+    });
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
-
     testRequest->StartAsync();
+    taskExecutor->executeAll();
     EXPECT_THROW(testRequest->Wait(IInferRequest::WaitMode::RESULT_READY), std::exception);
-    ASSERT_TRUE(wasCalled);
+    ASSERT_NE(nullptr, exceptionPtr);
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, canCatchExceptionIfAsyncRequestFailedAndNoCallback) {
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase(testRequest));
-    testRequest->SetPointerToPublicInterface(asyncRequest);
-
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
-
     testRequest->StartAsync();
     EXPECT_THROW(testRequest->Wait(IInferRequest::WaitMode::RESULT_READY), std::exception);
 }

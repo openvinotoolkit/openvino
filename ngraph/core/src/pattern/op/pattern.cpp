@@ -60,7 +60,8 @@ namespace ngraph
         {
             return [=](Output<Node> output) -> bool {
                 const auto& shape = output.get_partial_shape();
-                return shape.rank().is_static() && shape.rank().get_length() > pos &&
+                return shape.rank().is_static() &&
+                       shape.rank().get_length() > static_cast<int64_t>(pos) &&
                        shape[pos].is_static();
             };
         }
@@ -70,7 +71,8 @@ namespace ngraph
             return [=](Output<Node> output) -> bool {
                 const auto& shape = output.get_partial_shape();
                 return shape.rank().is_static() &&
-                       shape.rank().get_length() > *std::max_element(dims.begin(), dims.end()) &&
+                       shape.rank().get_length() >
+                           static_cast<int64_t>(*std::max_element(dims.begin(), dims.end())) &&
                        std::all_of(dims.begin(), dims.end(), [&shape](size_t pos) {
                            return shape[pos].is_static();
                        });

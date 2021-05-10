@@ -171,13 +171,18 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             return;
         }
     }
-
+    // adjust filter shape to reuse regular infer_convolution_forward()
+    const auto new_filters_pshape = [&](int groups) {
+        auto new_shape(filters_shape);
+        new_shape[1] *= groups;
+        return new_shape;
+    }(m_group);
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,
                                              Strides(m_strides.size(), 1), // dummy data dilations
                                              m_pads_begin,
                                              m_pads_end,
-                                             filters_shape,
+                                             new_filters_pshape,
                                              m_strides,
                                              m_dilations);
 

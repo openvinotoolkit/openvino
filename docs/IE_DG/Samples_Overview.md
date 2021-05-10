@@ -47,7 +47,7 @@ To run the sample applications, you can use images and videos from the media fil
 
 ## Samples that Support Pre-Trained Models
 
-To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+To run the sample, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 ## Build the Sample Applications
 
@@ -209,7 +209,7 @@ vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -246,4 +246,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Introduction to Inference Engine](inference_engine_intro.md)
+* [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)

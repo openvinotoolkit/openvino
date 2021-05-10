@@ -9,6 +9,14 @@
 
 namespace kernel_selector {
 
+static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output) {
+    if ((input.LogicalSize() == 1) ||
+        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v)) {
+            return true;
+        }
+    return false;
+}
+
 ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -34,7 +42,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 static inline size_t GetBlockSize(const eltwise_params& params) {
     // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        if (params.inputs[i].X().v == 1 && params.inputs[i].LogicalSize() != 1) {
+        if ((params.inputs[i].X().v == 1) && !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
             return 1;
         }
     }
@@ -56,9 +64,9 @@ static inline bool OpHasFeatureBroadcast(const eltwise_params& params, const siz
     for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
         const auto &input = ew.inputs[input_idx];
         if (input.mode == EltwiseInputMode::INPUT_BUFFER) {
-            if (params.inputs[input_idx].LogicalSize() != 1
-                && params.inputs[input_idx].Feature().v == 1
-                && params.output.Feature().v != 1) {
+            if (params.inputs[input_idx].LogicalSize() != 1 &&
+                params.inputs[input_idx].Feature().v == 1 &&
+                params.output.Feature().v != 1) {
                     return true;
                 }
         }
@@ -193,31 +201,45 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+    if (params.broadcast) {
+        bool need_idx_safe = true;
+        for (size_t i = 0; i < params.inputs.size(); i++) {
+            if (IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
+                    need_idx_safe = false;
+                    break;
+            }
+        }
+        if (need_idx_safe)
+            jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+    }
 
     return jit;
 }
 
-bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
+    if (!EltwiseKernelBase::Validate(p, o)) {
         return false;
     }
 
-    const auto& ewParams = static_cast<const eltwise_params&>(params);
+    const auto& params = static_cast<const eltwise_params&>(p);
 
-    const auto& output = ewParams.output;
+    const auto count = params.output.PhysicalSize();
 
-    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16 && GetBlockSize(ewParams) != 1) {
+    if (count % 8 != 0)
+        return false;
+
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
+            !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
             return false;
         }
     }
 
-    auto input0 = ewParams.inputs[0];
+    auto input0 = params.inputs[0];
 
     // Check that padding before features doesn't miss-align the blocks
     auto feature_block_size = 16;
-    if (input0.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
+    if (input0.Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0) {
         return false;
     }
 
@@ -240,10 +262,10 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
         return same;
     };
 
-    for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(ewParams.inputs[i], input0)))
+    for (size_t i = 1; i < params.inputs.size(); i++) {
+        if (params.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(params.inputs[i], input0)))
             return false;
-        if (ewParams.inputs[i].Feature().pad.before % feature_block_size != 0) {
+        if (params.inputs[i].Feature().pad.before % feature_block_size != 0) {
             return false;
         }
     }

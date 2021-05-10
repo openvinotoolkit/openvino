@@ -11,7 +11,7 @@
 
 namespace InferenceEngine {
 
-#define CALL_STATEMENT(...)                                                                        \
+#define EXEC_NET_CALL_STATEMENT(...)                                                                        \
     if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
@@ -32,11 +32,11 @@ ExecutableNetwork::~ExecutableNetwork() {
 }
 
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
-    CALL_STATEMENT(return _impl->GetOutputsInfo());
+    EXEC_NET_CALL_STATEMENT(return _impl->GetOutputsInfo());
 }
 
 ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
-    CALL_STATEMENT(return _impl->GetInputsInfo());
+    EXEC_NET_CALL_STATEMENT(return _impl->GetInputsInfo());
 }
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
@@ -50,19 +50,19 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
-    CALL_STATEMENT(return InferRequest{_impl->CreateInferRequest(), _so});
+    EXEC_NET_CALL_STATEMENT(return InferRequest{_impl->CreateInferRequest(), _so});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
-    CALL_STATEMENT(return std::make_shared<InferRequest>(_impl->CreateInferRequest(), _so));
+    EXEC_NET_CALL_STATEMENT(return std::make_shared<InferRequest>(InferRequest{_impl->CreateInferRequest(), _so}));
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {
-    CALL_STATEMENT(return _impl->Export(modelFileName));
+    EXEC_NET_CALL_STATEMENT(return _impl->Export(modelFileName));
 }
 
 void ExecutableNetwork::Export(std::ostream& networkModel) {
-    CALL_STATEMENT(return _impl->Export(networkModel));
+    EXEC_NET_CALL_STATEMENT(return _impl->Export(networkModel));
 }
 
 ExecutableNetwork::operator IExecutableNetwork::Ptr() {
@@ -71,13 +71,13 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     IE_SUPPRESS_DEPRECATED_START
-    CALL_STATEMENT(return _impl->GetExecGraphInfo());
+    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
 }
 
 IE_SUPPRESS_DEPRECATED_START
 std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
-    CALL_STATEMENT(
+    EXEC_NET_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
             controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
         });
@@ -86,19 +86,19 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
 IE_SUPPRESS_DEPRECATED_END
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-    CALL_STATEMENT(_impl->SetConfig(config));
+    EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    CALL_STATEMENT(return _impl->GetConfig(name));
+    EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    CALL_STATEMENT(return _impl->GetMetric(name));
+    EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
-    CALL_STATEMENT(return _impl->GetContext());
+    EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
 }
 
 bool ExecutableNetwork::operator!() const noexcept {

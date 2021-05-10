@@ -15,14 +15,15 @@
 #include <memory>
 #include <unordered_map>
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
+#include <openvino/itt.hpp>
 
 namespace HeteroPlugin {
 
-class HeteroInferRequest : public InferenceEngine::InferRequestInternal {
+class HeteroInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<HeteroInferRequest> Ptr;
 

@@ -256,7 +256,7 @@ namespace ngraph
         void Graph::set_friendly_names(const Node& onnx_node,
                                        const OutputVector& ng_node_vector) const
         {
-            for (int i = 0; i < ng_node_vector.size(); ++i)
+            for (size_t i = 0; i < ng_node_vector.size(); ++i)
             {
                 // Trailing optional outputs may not be specified in the ONNX model.
                 // Other optional outputs should have name set to an empty string.

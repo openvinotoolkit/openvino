@@ -147,7 +147,10 @@ void BackEnd::serializeConstShapes(const Model& model, const mv_blob_header& blo
             serializeToBlob(data->desc().dims(), shapeLocation.dimsOffset);
         } else if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             auto ioDimsUpperBoundOffset = data->attrs().get<int>("ioDimsUpperBoundOffset");
-            serializeToBlob(data->desc().dims(), ioDimsUpperBoundOffset);
+            auto d = data->desc().dims();
+            if (d.has(Dim::N))
+                d.set(Dim::N, d.get(Dim::N, 1) * data->attrs().getOrDefault<int>("batch", 1));
+            serializeToBlob(d, ioDimsUpperBoundOffset);
         }
 
         if (shapeLocation.stridesLocation == Location::Blob) {

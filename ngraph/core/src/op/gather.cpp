@@ -77,16 +77,16 @@ void op::v1::Gather::validate_and_infer_types()
     {
         std::vector<Dimension> result_dims(params_shape.rank().get_length() +
                                            indices_shape.rank().get_length() - 1);
-        uint64_t i = 0;
+        int64_t i = 0;
         for (; i < axis; i++)
         {
             result_dims[i] = params_shape[i];
         }
-        for (uint64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+        for (int64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = indices_shape[j];
         }
-        for (uint64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
+        for (int64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = params_shape[j];
         }

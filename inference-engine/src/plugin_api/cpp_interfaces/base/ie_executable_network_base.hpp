@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 
 namespace InferenceEngine {
 
@@ -53,7 +54,7 @@ public:
     }
 
     StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
-        TO_STATUS(req = _impl->CreateInferRequest());
+        TO_STATUS(req = std::make_shared<InferRequestBase>(_impl->CreateInferRequest()));
     }
 
     StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {

@@ -431,9 +431,9 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
 
 void Function::add_parameters(const ParameterVector& params)
 {
-    for (int i = 0; i < params.size(); i++)
+    for (size_t i = 0; i < params.size(); i++)
     {
-        for (int j = 0; j < m_parameters.size(); j++)
+        for (size_t j = 0; j < m_parameters.size(); j++)
         {
             NGRAPH_CHECK(params[i] != m_parameters[j],
                          "add_parameters(): Tried to add parameter (index in array ",
