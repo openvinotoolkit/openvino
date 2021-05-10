@@ -28,6 +28,7 @@ const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
 const std::vector<std::vector<size_t >> dilations2D = {{1, 1}, {2, 2}};
+const std::vector<std::vector<size_t >> outputPadding2D = {{}, {1, 1}};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -36,7 +37,8 @@ const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds2D),
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(outputPadding2D)
 );
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -45,7 +47,8 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::ValuesIn(outputPadding2D)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
@@ -99,6 +102,7 @@ const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}, {1, 1, 1}};
 const std::vector<std::vector<size_t >> dilations3D = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<std::vector<size_t >> outputPadding3D = {{}, {1, 1, 1}};
 
 const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),
@@ -107,7 +111,8 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds3D),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(outputPadding3D)
 );
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),
@@ -116,7 +121,8 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::ValuesIn(outputPadding3D)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,

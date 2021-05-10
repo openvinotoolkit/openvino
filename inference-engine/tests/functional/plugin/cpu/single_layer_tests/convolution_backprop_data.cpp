@@ -75,10 +75,10 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
@@ -128,6 +128,7 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1} };
+const std::vector<SizeVector> outPadding2d = { {0, 0}, {1, 1} };
 
 /* ============= Deconvolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -135,6 +136,7 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1} };
+const std::vector<SizeVector> outPadding3d = { {0, 0, 0}, {1, 1, 1} };
 /* ============= */
 
 /* INSTANCES */
@@ -146,7 +148,8 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
     ::testing::ValuesIn(padEnds2d),
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Planar),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(outPadding2d)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -191,7 +194,8 @@ const auto convParams_ExplicitPadding_Planar_3D = ::testing::Combine(
     ::testing::ValuesIn(padEnds3d),
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Planar),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(outPadding3d)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -236,7 +240,8 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
     ::testing::ValuesIn(padEnds2d),
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Blocked),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(outPadding2d)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -281,7 +286,8 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
     ::testing::ValuesIn(padEnds3d),
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Blocked),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(outPadding3d)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -327,7 +333,8 @@ const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::Values(SizeVector({1, 1})),
         ::testing::ValuesIn(numOutChannels_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(outPadding2d)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,

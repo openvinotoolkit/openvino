@@ -16,10 +16,10 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
     std::string targetDevice;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outputShapes, targetDevice) = obj.param;
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -29,6 +29,7 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
     result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
     result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "OP=" << CommonTestUtils::vec2str(outPadding) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -47,10 +48,10 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
