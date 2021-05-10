@@ -32,6 +32,7 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Output shapes
         LayerTestsUtils::TargetDevice   // Device name
 > convBackpropDataLayerTestParamsSet;
 

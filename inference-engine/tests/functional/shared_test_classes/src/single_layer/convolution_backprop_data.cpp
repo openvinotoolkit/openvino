@@ -12,8 +12,9 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
+    InferenceEngine::SizeVector outputShapes;
     std::string targetDevice;
-    std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outputShapes, targetDevice) = obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -22,6 +23,7 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "OS=" << CommonTestUtils::vec2str(outputShapes) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -41,8 +43,9 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
 void ConvolutionBackpropDataLayerTest::SetUp() {
     convBackpropDataSpecificParams convBackpropDataParams;
     std::vector<size_t> inputShape;
+    std::vector<size_t> outputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -54,7 +57,13 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                         padEnd, dilation, padType, convOutChannels));
+                                                        padEnd, dilation, padType, convOutChannels));
+    if (!outputShape.empty()) {
+        auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+        convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
+        ngraph::builder::makeConvolutionBackpropData(paramOuts[0], outShape, ngPrc, kernel, stride, padBegin,
+                                                        padEnd, dilation, padType, convOutChannels));
+    }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
 }

@@ -138,6 +138,20 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           bool addBiases = false,
                                                           const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &outputShape,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<float> &filterWeights = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
         const ngraph::Output<Node>& inputData,
         const bool mergeRepeated);

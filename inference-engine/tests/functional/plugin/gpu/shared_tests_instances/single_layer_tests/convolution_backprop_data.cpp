@@ -17,6 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<size_t> numOutChannels = {1, 5, 16};
+const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
 
 /* ============= 2D ConvolutionBackpropData ============= */
 const std::vector<InferenceEngine::Precision> netPrecisions2D = {
@@ -61,6 +62,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, Convolu
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -73,6 +75,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, Convolutio
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -117,6 +120,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, Convolu
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -129,6 +133,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, Convolutio
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 

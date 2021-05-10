@@ -17,6 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<size_t> numOutChannels = {1, 5, 16};
+const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
 
 /* ============= 2D ConvolutionBackpropData ============= */
 const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30},
@@ -56,6 +57,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, Convolu
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -68,6 +70,23 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, Convolutio
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t >> inputShape2D = {{1, 3, 9, 12}};
+const std::vector<std::vector<size_t >> outputShapes2D = {{6, 6}, {4, 9}};
+
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv2DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShape2D),
+                                ::testing::ValuesIn(outputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -109,6 +128,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, Convolu
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -121,6 +141,23 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, Convolutio
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t >> inputShape3D = {{1, 3, 10, 10, 10}};
+const std::vector<std::vector<size_t >> outputShapes3D = {{8, 8, 8}, {10, 10, 10}};
+
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv3DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShape3D),
+                                ::testing::ValuesIn(outputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 

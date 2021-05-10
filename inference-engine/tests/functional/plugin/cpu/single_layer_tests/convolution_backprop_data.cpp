@@ -64,8 +64,9 @@ protected:
 
         convBackpropDataSpecificParams convParams;
         std::vector<size_t> inputShape;
+        std::vector<size_t> outputShape;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = basicParamsSet;
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
@@ -84,7 +85,13 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), ngPrc, kernel, stride, padBegin,
-            padEnd, dilation, padType, convOutChannels);
+                padEnd, dilation, padType, convOutChannels);
+
+        if (!outputShape.empty()) {
+            auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+            deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), outShape, ngPrc, kernel, stride, padBegin,
+                padEnd, dilation, padType, convOutChannels);
+        }
 
         function = makeNgraphFunction(ngPrc, inputParams, deconvolutionNode, "convolutionBackpropData");
     }
@@ -107,6 +114,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
 
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
+const std::vector<SizeVector> emptyOutputShape = { {} };
 
 /* ============= Deconvolution params (planar layout) ============= */
 const SizeVector numOutChannels_Planar = { 6 };
@@ -151,6 +159,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -167,6 +176,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -194,6 +204,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -210,6 +221,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -237,6 +249,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -253,6 +266,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -280,6 +294,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -296,6 +311,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -324,6 +340,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -340,6 +357,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
         ::testing::ValuesIn(fusingParamsSet),
