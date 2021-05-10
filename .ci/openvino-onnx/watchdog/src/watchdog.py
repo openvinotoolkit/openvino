@@ -114,6 +114,8 @@ class Watchdog:
         for pr in pull_requests:
             try:
                 self._check_pr(pr)
+            except requests.exceptions:
+                log.info("Internal Jenkins issue during retrieve Pull Request")
             except Exception as e:
                 log.exception(str(e))
                 self._queue_message(str(e), message_severity='internal', pr=pr)
