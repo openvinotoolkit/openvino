@@ -42,7 +42,8 @@ namespace
     }
 } // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_int32_float32)
+// destination: f32
+NGRAPH_TEST(${BACKEND_NAME}, convert_i32_to_f32)
 {
     const std::vector<int32_t> input{281, 2, 3, 4};
     const Shape input_shape{2, 2};
@@ -54,7 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_int32_float32)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_uint16_float32)
+NGRAPH_TEST(${BACKEND_NAME}, convert_u16_to_f32)
 {
     const std::vector<uint16_t> input{1, 2, 3, 4};
     const Shape input_shape{2, 2};
@@ -66,7 +67,33 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_uint16_float32)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_int32_bool)
+NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_to_f32)
+{
+    const std::vector<bfloat16> input{
+        0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5};
+    const Shape input_shape{1, 1, 3, 5};
+    const element::Type input_type = ngraph::element::bf16;
+
+    const std::vector<float> expected_output(std::begin(input), std::end(input));
+    const element::Type expected_output_type = ngraph::element::f32;
+
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f16_to_f32)
+{
+    const std::vector<float16> input{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
+    const Shape input_shape{3, 3};
+    const element::Type input_type = ngraph::element::f16;
+
+    const std::vector<float> expected_output{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
+    const element::Type expected_output_type = ngraph::element::f32;
+
+    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+// destination: boolean
+NGRAPH_TEST(${BACKEND_NAME}, convert_i32_to_boolean)
 {
     const int32_t lowest = std::numeric_limits<int32_t>::lowest();
     const int32_t max = std::numeric_limits<int32_t>::max();
@@ -81,7 +108,7 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_int32_bool)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bool)
+NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_boolean)
 {
     const float lowest = std::numeric_limits<float>::lowest();
     const float max = std::numeric_limits<float>::max();
@@ -99,7 +126,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bool)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bf16)
+// destination: bf16
+NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_bf16)
 {
     const std::vector<float> input{
         0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f};
@@ -112,32 +140,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bf16)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_float32)
-{
-    const std::vector<bfloat16> input{
-        0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5};
-    const Shape input_shape{1, 1, 3, 5};
-    const element::Type input_type = ngraph::element::bf16;
-
-    const std::vector<float> expected_output(std::begin(input), std::end(input));
-    const element::Type expected_output_type = ngraph::element::f32;
-
-    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, convert_fp16_float32)
-{
-    const std::vector<float16> input{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
-    const Shape input_shape{3, 3};
-    const element::Type input_type = ngraph::element::f16;
-
-    const std::vector<float> expected_output{-20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5};
-    const element::Type expected_output_type = ngraph::element::f32;
-
-    ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, convert_uint8_fp16)
+// destination: f16
+NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_f16)
 {
     const std::vector<uint8_t> input{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142};
     const Shape input_shape{11};
