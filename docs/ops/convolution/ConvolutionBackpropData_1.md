@@ -12,7 +12,7 @@ ConvolutionBackpropData takes the input tensor, weights tensor and output shape 
 
 ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular [Convolution](Convolution_1.md) operation for detailed description of each attribute.
 
-Output shape when specified as an input `output_shape`, specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[Y_z, Y_y, Y_x]` by input spatial shape `[X_z, X_y, X_x]` in the following way:
+When output shape is specified as an input tensor `output_shape` then it specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[O_z, O_y, O_x]` by input spatial shape `[I_z, I_y, I_x]` in the following way:
 
 ```
 if auto_pads != None:
@@ -117,7 +117,7 @@ else:
 
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
-    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2", output_padding="0,0/>
+    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0"/>
     <input>
         <port id="0">
             <dim>1</dim>
