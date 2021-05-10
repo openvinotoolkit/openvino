@@ -59,6 +59,12 @@ void op::util::ArithmeticReduction::validate_and_infer_types()
     {
         AxisSet reduction_axes;
         const auto reduction_axes_val = axes->cast_vector<int64_t>();
+
+        bool unique_axes_val =
+            std::set<int64_t>(reduction_axes_val.begin(), reduction_axes_val.end()).size() ==
+            reduction_axes_val.size();
+        NODE_VALIDATION_CHECK(this, unique_axes_val, "Axes input must have unique axis values.");
+
         for (auto axis : reduction_axes_val)
         {
             try
