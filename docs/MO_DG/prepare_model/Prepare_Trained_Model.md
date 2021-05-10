@@ -25,7 +25,7 @@ However, if you use a topology with layers that are not recognized by the Model 
 
 ## Model Optimizer Directory Structure
 
-After installation with OpenVINO&trade; toolkit or Intel&reg; Deep Learning Deployment Toolkit, the Model Optimizer folder has the following structure:
+After installation with OpenVINO&trade; toolkit or Intel&reg; Deep Learning Deployment Toolkit, the Model Optimizer folder has the following structure (some directories omitted for clarity):
 ```
 |-- model_optimizer
     |-- extensions
