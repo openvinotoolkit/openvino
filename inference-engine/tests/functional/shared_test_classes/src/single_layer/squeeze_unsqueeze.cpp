@@ -39,14 +39,15 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    std::shared_ptr<ngraph::Node> squeeze;
+    std::shared_ptr<ngraph::Node> op;
 
-    if (!axesVector.empty()) {
-        squeeze = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
+    if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {
+        op = std::make_shared<ngraph::opset1::Squeeze>(params.front());
     } else {
-        squeeze = std::make_shared<ngraph::opset1::Squeeze>(params.front());
+        op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
     }
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(squeeze)};
+
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
 }
 } // namespace LayerTestsDefinitions
