@@ -382,7 +382,7 @@ class Watchdog:
         :type pr:                   github.PullRequest.PullRequest
         """
 
-        @retry(wait_fixed=2000, stop_max_delay=10000)
+        @retry(wait_fixed=20000, stop_max_delay=10000)
         def check_statuses():
             # Retrieve build number for Jenkins build related to this PR
             build_number = self._retrieve_build_number(status.target_url, pr)
@@ -410,10 +410,13 @@ class Watchdog:
             check_statuses()
         except AttributeError:
             self._check_missing_status()
-        except Exception:
-            # Log Watchdog internal error in case any status can't be properly verified
+        except requests.exceptions.ProxyError:
             message = 'Failed to verify status "{}" for PR# {}'.format(status.description, pr.number)
             log.exception(message)
+        except Exception:
+            # Log Watchdog internal error in case any status can't be properly verified
+            message = 'Failed to verify status "{}" for PR# {} due to GitHub issue'.format(status.description, pr.number)
+            log.info(message)
             self._queue_message(message, message_severity='internal', pr=pr)
 
     def _retrieve_build_number(self, url, pr):
