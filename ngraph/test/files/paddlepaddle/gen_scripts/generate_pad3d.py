@@ -48,5 +48,13 @@ def main():
     input_data = np.random.rand(*input_shape).astype(np.float32)
     pad3d("pad3d_test2", input_data, in_dtype, pad, data_format, mode)
 
+    input_shape = (2, 3, 4, 5, 6)
+    pad = [1, 2, 1, 1, 1, 2]
+    mode = "replicate"
+    data_format= 'NDHWC'
+    value = 100
+    input_data = np.random.rand(*input_shape).astype(np.float32)
+    pad3d("pad3d_test3", input_data, in_dtype, pad, data_format, mode)
+
 if __name__ == "__main__":
     main()

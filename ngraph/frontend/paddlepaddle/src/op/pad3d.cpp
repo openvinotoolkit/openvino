@@ -12,12 +12,25 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs pad3d (const NodeContext& node) {
-    //TODO support Tesnor/Int input CVS-55169
     auto data = node.get_ng_input("X");
-    auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
     auto mode = node.get_attribute<std::string>("mode");
     auto value = node.get_attribute<float>("value", 0.0);
     auto data_format = node.get_attribute<std::string>("data_format");
+
+    auto paddings = std::vector<int32_t>(6, 0);
+
+    //TODO: Only functional support Int padding format, further verify in CVS-55169
+    if (node.has_attribute<std::vector<int32_t>>("paddings")) {
+        auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
+        PDPD_ASSERT(paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
+        paddings = paddings_vector;
+    } else if (node.has_attribute<int32_t>("paddings")) {
+        auto padding_int = node.get_attribute<int32_t>("paddings");
+        for (int i = 0; i < 6; i++)
+            paddings[i] = padding_int;
+    } else {
+        throw ngraph::ngraph_error("Unsupported paddings attribute!");
+    }
 
     auto pads_begin = std::vector<int32_t>(5, 0);
     auto pads_end = std::vector<int32_t>(5, 0);
@@ -26,9 +39,6 @@ NamedOutputs pad3d (const NodeContext& node) {
     Output<ngraph::Node> values;
     Output<ngraph::Node> padding_begin;
     Output<ngraph::Node> padding_end;
-
-    if (paddings.size() != 6)
-        throw ngraph::ngraph_error("paddings Params size should be 6 in pad3d!");
 
     ngraph::op::PadMode pad_mode;
     //TODO Support Circular mode in future CVS-55169
