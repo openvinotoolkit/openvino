@@ -129,7 +129,7 @@ struct OperationDescription
                 if (shape2.rank().get_length() < shape1.rank().get_length())
                     return false;
 
-                for (size_t j = 0; j < shape1.rank().get_length(); ++j)
+                for (std::int64_t j = 0; j < shape1.rank().get_length(); ++j)
                 {
                     if (shape1[j].is_dynamic() && !shape2[j].is_dynamic())
                         return true;

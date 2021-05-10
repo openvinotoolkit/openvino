@@ -211,4 +211,8 @@ bool InferRequest::operator!() const noexcept {
 InferRequest::operator bool() const noexcept {
     return !!_impl;
 }
+
+void InferRequest::SetShape(const std::string &name, const SizeVector& dims) {
+    INFER_REQ_CALL_STATEMENT(_impl->SetShape(name.c_str(), dims);)
+}
 }  // namespace InferenceEngine

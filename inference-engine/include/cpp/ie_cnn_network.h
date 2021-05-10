@@ -185,9 +185,7 @@ public:
         return reshape(ICNNNetwork::InputShapes(inputShapes));
     }
 
-    virtual void reshape(const ICNNNetwork::InputPartialShapes& inputShapes) {
-        CALL_STATUS_FNC(reshape, inputShapes);
-    }
+    virtual void reshape(const ICNNNetwork::InputPartialShapes& inputShapes);
 
     /**
      * @brief Serialize network to IR and weights files.

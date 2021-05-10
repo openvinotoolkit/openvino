@@ -230,7 +230,7 @@ public:
         if (partialShape.is_static())
             return dims;
         else
-            THROW_IE_EXCEPTION << "Tried to call getDims for TensorDesc with dynamic shape " << partialShape;
+            IE_THROW() << "Tried to call getDims for TensorDesc with dynamic shape " << partialShape;
     }
     const ngraph::PartialShape& getPartialShape() const {
         return partialShape;
@@ -244,7 +244,7 @@ public:
         if (partialShape.is_static())
             return dims;
         else
-            THROW_IE_EXCEPTION << "Tried to call getDims for TensorDesc with dynamic shape " << partialShape;
+            IE_THROW() << "Tried to call getDims for TensorDesc with dynamic shape " << partialShape;
     }
     /**
      * @brief Sets dimensions

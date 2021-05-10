@@ -105,7 +105,7 @@ public:
      */
     virtual void SetBatch(int batch);
 
-    virtual void SetShape(const char* /*name*/, const SizeVector& /*dims*/) = 0;
+    virtual void SetShape(const std::string &name, const SizeVector& dims);
 
     /**
      * @brief Queries memory states.
@@ -212,6 +212,9 @@ protected:
     InferenceEngine::BlobMap _outputs;  //!< A map of user passed blobs for network outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;        //!< A map of pre-process data per input
     int m_curBatch = -1;  //!< Current batch value used in dynamic batching
+
+    // Shapes that set by real in
+    std::map<std::string, InferenceEngine::SizeVector> m_realShapes;
 
     /**
      * @brief A shared pointer to ExecutableNetworkInternal interface

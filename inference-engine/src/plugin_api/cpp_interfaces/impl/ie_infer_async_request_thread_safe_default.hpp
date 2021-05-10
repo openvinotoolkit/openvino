@@ -348,7 +348,7 @@ protected:
         StartAsync_ThreadUnsafe();
     }
 
-    void SetShape(const char* name, const SizeVector& dims) override {
+    void SetShape(const std::string& name, const SizeVector& dims) override {
         _syncRequest->SetShape(name, dims);
     }
 

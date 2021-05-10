@@ -55,19 +55,20 @@ function(_ie_target_no_deprecation_error)
     endif()
 endfunction()
 
+find_package(ngraph REQUIRED)
 if(TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
+    set_target_properties(inference_engine PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/InferenceEngineTargets.cmake")
     set(InferenceEngine_LIBRARIES IE::inference_engine IE::inference_engine_c_api)
     _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
+    set_target_properties(IE::inference_engine PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
 endif()
 
 # restore PACKAGE_PREFIX_DIR
 set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
-find_package(ngraph REQUIRED)
-set_target_properties(IE::inference_engine PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
 
 check_required_components(InferenceEngine)

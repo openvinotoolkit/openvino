@@ -149,9 +149,7 @@ public:
      */
     void SetBatch(const int batch);
 
-    void SetShape(const std::string &name, const SizeVector& dims) {
-        CALL_STATUS_FNC(SetShape, name.c_str(), dims)
-    }
+    void SetShape(const std::string &name, const SizeVector& dims);
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode
