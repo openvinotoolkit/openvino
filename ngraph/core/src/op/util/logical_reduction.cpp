@@ -54,59 +54,27 @@ void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axe
 void op::util::LogicalReduction::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
-    auto input_shape = get_input_partial_shape(0);
-    auto input_rank = input_shape.rank();
 
-    PartialShape result_shape{PartialShape::dynamic()};
+    const PartialShape& data_shape = get_input_partial_shape(0);
+    const element::Type& data_et = get_input_element_type(0);
+    const PartialShape& axes_shape = get_input_partial_shape(1);
+    const element::Type& axes_et = get_input_element_type(1);
 
-    set_input_is_relevant_to_shape(1);
+    NODE_VALIDATION_CHECK(
+        this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).compatible(element::boolean),
-                          "Input element type must be boolean.");
+                          axes_et.compatible(element::i64) || axes_et.compatible(element::i32),
+                          "Element type of axes input must be either i64 or i32. Got: ",
+                          axes_et);
 
-    set_output_type(0, element::boolean, result_shape);
+    const Rank axes_rank = axes_shape.rank();
+    NODE_VALIDATION_CHECK(this,
+                          axes_rank.compatible(0) || axes_rank.compatible(1),
+                          "Axes input must be a scalar or 1D input. Got: ",
+                          axes_shape);
 
-    if (input_rank.is_dynamic())
-        return;
-
-    if (const auto axes_const = get_constant_from_source(input_value(1)))
-    {
-        AxisSet reduction_axes;
-        auto reduction_axes_val = axes_const->cast_vector<int64_t>();
-        for (auto axis : reduction_axes_val)
-        {
-            try
-            {
-                axis = normalize_axis(this, axis, input_rank);
-            }
-            catch (const ngraph_error&)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      false,
-                                      "Reduction axis (",
-                                      axis,
-                                      ") is out of bounds ",
-                                      "(argument shape: ",
-                                      input_shape,
-                                      ", reduction axes: ",
-                                      reduction_axes,
-                                      ")");
-            }
-            reduction_axes.insert(axis);
-        }
-
-        std::vector<Dimension> dims;
-        for (int64_t i = 0; i < input_rank.get_length(); i++)
-        {
-            if (reduction_axes.count(i) == 0)
-            {
-                dims.push_back(input_shape[i]);
-            }
-        }
-
-        result_shape = PartialShape(dims);
-    }
-
-    set_output_type(0, element::boolean, result_shape);
+    PartialShape result_shape = infer_reduction_output_shape(this, data_shape, axes_shape, false);
+    set_input_is_relevant_to_shape(1);
+    set_output_type(0, data_et, result_shape);
 }
