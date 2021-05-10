@@ -61,6 +61,12 @@ def get_version():
     return C.get_version().decode()
 
 
+def read_network(path_to_xml : str, path_to_bin : str):
+    cdef IENetwork net = IENetwork()
+    net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
+    return net
+
+
 ## This class defines Tensor description
 cdef class TensorDesc:
 

@@ -65,7 +65,8 @@ static void AllocateImplSingle(
                          BlobMap& deviceBlobMap,
                          BlobData& userData,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
-                         const SizeVector& dims) {
+                         const SizeVector& dims,
+                         bool isInputBlob = true) {
     auto userPrecision = userData.second->getTensorDesc().getPrecision();
     auto userLayout = userData.second->getTensorDesc().getLayout();
 
@@ -79,8 +80,14 @@ static void AllocateImplSingle(
     if (InferenceEngine::details::convertPrecision(userPrecision) == networkPrecision) {
         deviceBlob = userBlob;
     } else {
-        deviceBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPrecision), dims, userLayout});
-        deviceBlob->allocate();
+        if (isInputBlob) {
+            // preprocessing converts user input blob to desired device input blob automatically
+            deviceBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPrecision), dims, userLayout});
+            deviceBlob->allocate();
+        } else {
+            // NOTE: this is not supported for output user blobs yet
+            IE_THROW(NotImplemented) << "Template Plugin: does not support setPrecision, setLayout for outputs";
+        }
     }
     deviceBlobMap[userData.first] = deviceBlob;
 }
@@ -89,14 +96,15 @@ template<typename BlobDataMap, typename GetNetworkPrecisionF>
 static void AllocateImpl(const BlobDataMap& userDataMap,
                          BlobMap& userBlobMap,
                          BlobMap& deviceBlobMap,
-                         GetNetworkPrecisionF&& GetNetworkPrecision) {
+                         GetNetworkPrecisionF&& GetNetworkPrecision,
+                         bool isInputBlob = true) {
     for (auto&& userData : userDataMap) {
         if (userData.second->getTensorDesc().getPartialShape().is_dynamic()) {
             // Cannot pre-allocate userBlob for a tensor with unknown dimensions
             continue;
         }
         auto& dims = userData.second->getTensorDesc().getDims();
-        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims);
+        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims, isInputBlob);
     }
 }
 
@@ -108,7 +116,7 @@ void TemplateInferRequest::allocateBlobs() {
     auto&& results = _executableNetwork->_function->get_results();
     AllocateImpl(_networkOutputs, _outputs, _networkOutputBlobs, [&] (const std::string& blobName) {
         return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
-    });
+    }, false);
 }
 
 // ! [infer_request:infer_impl]
@@ -138,7 +146,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
                 default : {
-                    IE_THROW() << "Unsupported precision conversion from "
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
@@ -150,13 +158,13 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
                 default : {
-                    IE_THROW() << "Unsupported precision conversion from "
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
         default : {
-            IE_THROW() << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
         }
     }
 }
