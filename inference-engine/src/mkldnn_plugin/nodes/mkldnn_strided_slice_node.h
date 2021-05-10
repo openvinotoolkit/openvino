@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
-    MKLDNNStridedSliceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNStridedSliceNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -24,6 +24,8 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void stridedSliceV();
