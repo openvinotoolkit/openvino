@@ -76,7 +76,7 @@ namespace ngraph
                 static constexpr int DEFAULT_INDEX = 4;
                 static constexpr int PER_SAMPLE_WEIGHTS = 5;
             };
-        }
+        } // namespace v3
         using v3::EmbeddingSegmentsSum;
-    }
-}
+    } // namespace op
+} // namespace ngraph

@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <inference_engine.hpp>
 #include <map>
 #include <memory>
-#include <string>
-#include <algorithm>
-#include <vector>
-
-#include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
+#include <string>
+#include <vector>
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 
 class CustomReLUImpl : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node) : _node(node) {}
+    explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node): _node(node) {}
 
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
@@ -38,26 +37,22 @@ public:
         for (size_t i = 0; i < shape.size(); i++) {
             order.push_back(i);
         }
-        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                               shape, {shape, order});
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, shape, {shape, order});
         layerConfig.outConfs.push_back(cfg);
         layerConfig.inConfs.push_back(cfg);
         conf.push_back(layerConfig);
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode
-    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         return InferenceEngine::StatusCode::OK;
     }
 
-    InferenceEngine::StatusCode
-    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                                        InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         static bool wasCalled = false;
         if (!wasCalled) {
-            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) + " kernel for the first time (next messages won't be printed)"
-                      << std::endl;
+            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) + " kernel for the first time (next messages won't be printed)" << std::endl;
             wasCalled = true;
         }
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -70,8 +65,8 @@ public:
             auto minputHolder = minput->rmap();
             auto moutputHolder = moutput->wmap();
 
-            auto inputData = minputHolder.as<const float *>();
-            auto outputData = moutputHolder.as<float  *>();
+            auto inputData = minputHolder.as<const float*>();
+            auto outputData = moutputHolder.as<float*>();
             for (size_t j = 0; j < minput->size(); j++) {
                 outputData[j] = inputData[j] < 0 ? 0 : inputData[j];
             }
@@ -83,10 +78,12 @@ private:
     const std::shared_ptr<ngraph::Node> _node;
 };
 
-class CustomReluOp: public ngraph::op::Op {
+class CustomReluOp : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    static constexpr ngraph::NodeTypeInfo type_info {CUSTOM_RELU_TYPE, 0};
+    const ngraph::NodeTypeInfo& get_type_info() const override {
+        return type_info;
+    }
 
     CustomReluOp() = default;
     explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg): Op({arg}) {

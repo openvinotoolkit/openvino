@@ -14,7 +14,6 @@
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
-#include "ie_iexecutable_network.hpp"
 
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"

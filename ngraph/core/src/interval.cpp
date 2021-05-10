@@ -183,4 +183,4 @@ namespace ngraph
         }
         return str << ")";
     }
-}
+} // namespace ngraph

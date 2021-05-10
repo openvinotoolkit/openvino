@@ -12,7 +12,7 @@ from openvino.inference_engine import IECore, StatusCode
 
 
 def parse_args() -> argparse.Namespace:
-    '''Parse and return command line arguments'''
+    """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')

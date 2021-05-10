@@ -45,7 +45,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
             };
-        }
+        } // namespace v3
         using v3::EmbeddingBagPackedSum;
-    }
-}
+    } // namespace op
+} // namespace ngraph

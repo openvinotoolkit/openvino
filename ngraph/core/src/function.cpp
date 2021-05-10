@@ -24,11 +24,11 @@ atomic<size_t> Function::m_next_instance_id(0);
 Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(results)
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(results)
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -36,11 +36,11 @@ Function::Function(const ResultVector& results,
 Function::Function(const OutputVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(results))
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(as_result_vector(results))
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -48,11 +48,11 @@ Function::Function(const OutputVector& results,
 Function::Function(const NodeVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(as_output_vector(results)))
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(as_result_vector(as_output_vector(results)))
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
@@ -68,12 +68,12 @@ Function::Function(const ResultVector& results,
                    const SinkVector& sinks,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(results)
-    , m_sinks(sinks)
-    , m_parameters(parameters)
-    , m_name(name)
+    : m_name(name)
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    , m_results(results)
+    , m_sinks(sinks)
+    , m_parameters(parameters)
 {
     check_all_parameters_registered();
 }
