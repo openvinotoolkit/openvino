@@ -115,6 +115,16 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, kClassSize, kSplitNum};
         }
+    } else if (idx == 2) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {input.Batch().v, 1, 1};
+            // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+            dispatchData.lws = {1, 1, 1};
+        } else {
+            dispatchData.gws = {input.Batch().v, num_classes, 1};
+            // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+            dispatchData.lws = {1, 1, 1};
+        }
     } else {
         dispatchData.gws = { 1, 1, 1};
         dispatchData.lws = { 1, 1, 1};
@@ -205,9 +215,11 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
              }
         } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
-                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET", "true"));
+                //cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET_OPT", "true"));
             } else {
-                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE", "true"));
+                //cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE_OPT", "true"));
             }
         } else {
             if (detectOutParams.detectOutParams.decrease_label_id) {
