@@ -255,6 +255,7 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
     visitors/op/topk.cpp

@@ -76,6 +76,7 @@ VERIFIED_OP_REFERENCES = [
     'SoftPlus-4',
     'Softmax-1',
     'Split-1',
+    'Squeeze-1',
     'StridedSlice-1',
     'Subtract-1',
     'Swish-4',

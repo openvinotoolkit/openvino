@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
 
 typedef std::tuple<
-        ShapeAxesTuple,                 // InputShape, Squeeze indexes
+        ShapeAxesTuple,                 // InputShape (required), Squeeze indexes (if empty treated as non-existent)
         ngraph::helpers::SqueezeOpType, // OpType
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
