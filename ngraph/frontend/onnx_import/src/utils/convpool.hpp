@@ -100,6 +100,16 @@ namespace ngraph
             ///
             ngraph::op::PadType get_auto_pad(const Node& node);
 
+            /// \brief      Reshape group convolution filters to match desired shape:
+            ///             from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]
+            ///             to [GROUPS, C_INPUT, C_OUTPUT, K_D, ..., K_1]
+            ///
+            /// \param[in]  filters     Filter input to reshape
+            /// \param[in]  groups      Number of groups
+            ///
+            /// \return     Reshaped filters input.
+            Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
+                                                      int64_t groups);
         } // namespace convpool
 
     } // namespace  onnx_import
