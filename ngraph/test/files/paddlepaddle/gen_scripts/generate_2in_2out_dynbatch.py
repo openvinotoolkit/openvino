@@ -1,6 +1,9 @@
 import paddle
 from paddle import fluid
 import numpy as np
+import os
+import sys
+
 
 paddle.enable_static()
 
@@ -32,5 +35,5 @@ inp_dict = {'inputX1': inp_blob1, 'inputX2': inp_blob2}
 var = [relu3a, relu3b]
 res_pdpd = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-fluid.io.save_inference_model("../models/2in_2out_dynbatch", list(inp_dict.keys()), var, exe,
+fluid.io.save_inference_model(os.path.join(sys.argv[1], "2in_2out_dynbatch"), list(inp_dict.keys()), var, exe,
                               model_filename="2in_2out_dynbatch.pdmodel", params_filename="2in_2out_dynbatch.pdiparams")

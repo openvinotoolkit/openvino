@@ -27,7 +27,7 @@ void FrontEndPartialShapeTest::SetUp() {
 
 void FrontEndPartialShapeTest::initParamTest() {
     std::tie(m_baseParam, m_partShape) = GetParam();
-    m_partShape.m_modelName = std::string(TEST_FILES) + m_baseParam.m_modelsPath + m_partShape.m_modelName;
+    m_partShape.m_modelName = m_baseParam.m_modelsPath + m_partShape.m_modelName;
     std::cout << "Model: " << m_partShape.m_modelName << std::endl;
 }
 

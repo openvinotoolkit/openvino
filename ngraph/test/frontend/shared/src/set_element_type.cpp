@@ -21,7 +21,7 @@ void FrontEndElementTypeTest::SetUp() {
 
 void FrontEndElementTypeTest::initParamTest() {
     m_param = GetParam();
-    m_param.m_modelName = std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_modelName;
+    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
     std::cout << "Model: " << m_param.m_modelName << std::endl;
 }
 

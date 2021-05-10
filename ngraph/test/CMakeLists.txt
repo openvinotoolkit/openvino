@@ -477,6 +477,8 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
     set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+    set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
+    add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
 endif()
 #-----
 
@@ -564,6 +566,12 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    add_custom_target(pdpd_test_models)
+    add_custom_command(TARGET pdpd_test_models
+            PRE_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_all.py ${TEST_PDPD_MODELS})
+    add_dependencies(unit-test pdpd_test_models)
+
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
 endif()

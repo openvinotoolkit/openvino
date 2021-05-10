@@ -1,12 +1,13 @@
 import paddle
 from paddle import fluid
 import numpy as np
+import sys
+import os
 
 # it's better to use PYTHON_PATH
 # import sys
 # sys.path.append('/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/python_api/python3.6/')
 # from openvino.inference_engine import IECore
-
 
 def create_multi_output_model():
     paddle.enable_static()
@@ -28,7 +29,7 @@ def create_multi_output_model():
     inp_dict = {'x': inp_blob_1}
     res_pdpd = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-    fluid.io.save_inference_model("../models/multi_tensor_split",
+    fluid.io.save_inference_model(os.path.join(sys.argv[1], "multi_tensor_split"),
                                   list(inp_dict.keys()), var, exe,
                                   model_filename="multi_tensor_split.pdmodel",
                                   params_filename="multi_tensor_split.pdiparams")
