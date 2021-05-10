@@ -5,7 +5,10 @@
 set (TARGET_NAME "inference_engine")
 
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    find_package(TBBBIND_2_4)
+    find_package(TBBBIND_2_4 QUIET)
+    if (TBBBIND_2_4_FOUND)
+        message(STATUS "Static tbbbind_2_4 package was found")
+    endif()
 endif()
 
 file (GLOB LIBRARY_SRC
@@ -122,7 +125,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_4_FOUND)

@@ -19,7 +19,6 @@
 #include <limits>
 
 #include <legacy/graph_tools.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <legacy/net_pass.h>
 #include <debug.h>
 #include <gna/gna_config.hpp>
@@ -1520,6 +1519,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         return gnaOperation.Type == Gna2OperationTypeConvolution ?
             kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
     };
+    (void)getOrientation;
 #else
     auto getOrientation = [](intel_nnet_layer_t & layer) {
         return layer.nLayerKind == INTEL_CONVOLUTIONAL ?

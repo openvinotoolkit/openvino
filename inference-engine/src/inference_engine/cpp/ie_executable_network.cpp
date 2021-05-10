@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cpp/ie_executable_network.hpp"
 #include "ie_common.h"
+
+#include "cpp/ie_executable_network.hpp"
+#include "ie_executable_network_base.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/exception2status.hpp"
-#include "cpp_interfaces/base/ie_executable_network_base.hpp"
 
 namespace InferenceEngine {
 
-#define EXEC_NET_CALL_STATEMENT(...)                                                                        \
+#define EXEC_NET_CALL_STATEMENT(...)                                                               \
     if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
@@ -50,6 +50,19 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     this->_impl.swap(newImpl);
 }
 
+ExecutableNetwork::operator IExecutableNetwork::Ptr() {
+    return std::make_shared<ExecutableNetworkBase>(_impl);
+}
+
+std::vector<VariableState> ExecutableNetwork::QueryState() {
+    std::vector<VariableState> controller;
+    EXEC_NET_CALL_STATEMENT(
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(VariableState(state, _so));
+        });
+    return controller;
+}
+
 IE_SUPPRESS_DEPRECATED_END
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
@@ -68,25 +81,9 @@ void ExecutableNetwork::Export(std::ostream& networkModel) {
     EXEC_NET_CALL_STATEMENT(return _impl->Export(networkModel));
 }
 
-ExecutableNetwork::operator IExecutableNetwork::Ptr() {
-    return std::make_shared<ExecutableNetworkBase>(_impl);
-}
-
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
-    IE_SUPPRESS_DEPRECATED_START
     EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
 }
-
-IE_SUPPRESS_DEPRECATED_START
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT(
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
-        });
-    return controller;
-}
-IE_SUPPRESS_DEPRECATED_END
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
     EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
