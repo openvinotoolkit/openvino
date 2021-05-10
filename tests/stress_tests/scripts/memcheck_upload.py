@@ -80,8 +80,8 @@ def info_from_test_config(test_conf):
     test_conf_root = test_conf_obj.getroot()
     records = {}
     for model_rec in test_conf_root.find("models"):
-        model = model_rec.attrib["path"]
-        records[Path(model)] = {
+        model_name = model_rec.attrib["name"]
+        records[model_name] = {
             "framework": model_rec.attrib.get("framework"),
             "source": model_rec.attrib.get("source"),
         }
@@ -235,7 +235,7 @@ def create_memcheck_report(records, db_url, db_collection, output_path):
     """ Create memcheck timeline HTML report for records.
     """
     records.sort(
-        key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
+        key=lambda item: f"{item['status']}{item['device']}{item['model_name']}{item['test_name']}")
     timelines = query_timeline(records, db_url, db_collection)
     import jinja2  # pylint: disable=import-outside-toplevel
     env = jinja2.Environment(

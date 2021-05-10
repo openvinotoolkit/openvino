@@ -12,9 +12,10 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSplitNode : public MKLDNNNode {
 public:
-    MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNSplitNode() override = default;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
@@ -43,6 +44,8 @@ private:
         size_t srcDataStride;
         size_t countStrides;
     } optimizedParams;
+
+    size_t INPUTS_NUM = 2;
 };
 
 }  // namespace MKLDNNPlugin

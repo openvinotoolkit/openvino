@@ -101,7 +101,10 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.name();
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+            selectedType += "BF16";
+        else
+            selectedType += netPrecision.name();
     }
 };
 
@@ -236,6 +239,7 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
         fusingRelu,
         fusingSwish,
+        fusingFakeQuantizePerChannelRelu,
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
@@ -326,7 +330,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512"});
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
@@ -365,7 +368,7 @@ const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
         ::testing::ValuesIn(defaultScales5D));
 
 const auto interpolateCasesNN5D = ::testing::Combine(
-        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(defNearestModes),
