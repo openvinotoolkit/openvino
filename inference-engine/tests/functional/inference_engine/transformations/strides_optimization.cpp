@@ -310,7 +310,7 @@ TEST(TransformationTests, StridesOptimization7) {
 }
 
 // Pl--->Conv(1x1,1x1)->ReLU--->Eltwise-->Conv(1x1,2x2)-->Eltwise-->Conv(1x1, 2x2)
-//                      Const---`                 Const---`
+//                      Const---`                    Pl---`
 // =>
 // Pl--->Conv(1x1,1x4)--->ReLU--->Eltwise---->Conv(1x1,1x1)---->Eltwise---->Conv(1x1, 1x1)
 //      Const--->MaxPool(1x1,4x4)`        Pl--->MaxPool(1x1,2x2)`
