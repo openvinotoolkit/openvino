@@ -60,5 +60,5 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        SqueezeUnsqueezeLayerTest::getTestCaseName);                        
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace
