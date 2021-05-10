@@ -26,14 +26,19 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 void op::Convert::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types);
-    element::Type data_et = get_input_element_type(0);
-    element::Type destination_et = m_destination_type;
-
-    NODE_VALIDATION_CHECK(
-        this, data_et.bitwidth() >= 8, "Input element type '", data_et, "' is not supported.");
+    const element::Type data_et = get_input_element_type(0);
+    const element::Type destination_et = m_destination_type;
 
     NODE_VALIDATION_CHECK(this,
-                          destination_et.bitwidth() >= 8,
+                          data_et != element::u1 && data_et != element::u4 &&
+                              data_et != element::i4,
+                          "Input element type '",
+                          data_et,
+                          "' is not supported.");
+
+    NODE_VALIDATION_CHECK(this,
+                          destination_et != element::u1 && destination_et != element::u4 &&
+                              destination_et != element::i4,
                           "Destination element type '",
                           destination_et,
                           "' is not supported.");
