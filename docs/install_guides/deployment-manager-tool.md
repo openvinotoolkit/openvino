@@ -22,8 +22,7 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
 
 ## Create Deployment Package Using Deployment Manager
 
-There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: <br>
-You can run the Deployment Manager tool in either Interactive or Standard CLI mode.
+There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: you can run the Deployment Manager tool in either interactive or standard CLI mode.
 
 ### Run Interactive Mode
 <details>
@@ -71,7 +70,7 @@ The following options are available:
    ```
 *	`[--output_dir]` — (Optional) Path to the output directory. By default, it set to your home directory.
 
-*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it set to `openvino_deployment_package`.
+*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
 
 *	`[--user_data]` — (Optional) Path to a directory with user data (IRs, models, datasets, etc.) required for inference. By default, it's set to `None`, which means that the user data are already present on the target host machine.
 

@@ -5,11 +5,11 @@
 #include "mkldnn_split_node.h"
 #include "common/cpu_memcpy.h"
 #include "common/tensor_desc_creator.h"
-#include <legacy/ie_layers.h>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <ie_parallel.hpp>
+#include "utils/general_utils.h"
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
@@ -17,23 +17,55 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNSplitNode::MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
+            errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
+            return false;
+        }
+        auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        if (!axisOp) {
+            errorMessage = "Constant expected as the axis input.";
+            return false;
+        }
+        if (op->get_input_size() > 2) {
+            auto splitLengthsOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (!splitLengthsOp) {
+                errorMessage = "Constant expected as the split_lengths input.";
+                return false;
+            }
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+
+    if (ngraph::as_type_ptr<const ngraph::op::v1::Split>(op)) {
+        INPUTS_NUM = 2;
+    } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
+        INPUTS_NUM = 3;
+    }
+
+    auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto axis = axisOp->cast_vector<int64_t>()[0];
+    if (axis < 0) {
+        axis += op->get_input_shape(0).size();
+    }
+    if (axis >= op->get_input_shape(0).size()) {
+        THROW_ERROR << "Split node with name '" << op->get_friendly_name() << "' has invalid value of axis parameter: " << axis;
+    }
+    this->axis = axis;
+}
 
 void MKLDNNSplitNode::getSupportedDescriptors() {
-    auto splitLayer = dynamic_cast<SplitLayer*>(getCnnLayer().get());
-
-    if (splitLayer == nullptr)
-        THROW_ERROR << "can not convert from CNN layer.";
-
-    if (getParentEdges().size() != 1)
-        THROW_ERROR << "has incorrect number of input nodes.";
-    if (getChildEdges().empty())
-        THROW_ERROR << "has incorrect number of output nodes.";
-
-    axis = splitLayer->_axis;
-    if (axis >= getParentEdgeAt(0)->getDims().ndims())
-        THROW_ERROR << "has invalid value of axis parameter.";
 }
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
@@ -41,15 +73,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    if (getCnnLayer()->insData.empty()) {
-        THROW_ERROR << "has an empty input in the CNN layer";
-    }
-
-    auto inpData = getCnnLayer()->insData[0].lock();
-    if (!inpData) {
-        THROW_ERROR << "input data is empty";
-    }
 
     auto srcDims = getParentEdgeAt(0)->getDims();
     auto axis_size = 0;
@@ -72,7 +95,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (dstFirstDims.size() != srcDims.size())
         THROW_ERROR << "sizes of input blob and sum of output blobs are not equal.";
 
-    InferenceEngine::Precision inpPrecision = inpData->getPrecision();
+    InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto axisPrecision = getOriginalInputPrecisionAtPort(1);
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
     bool dynBatchSupport = true;
@@ -111,10 +135,19 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         InferenceEngine::LayerConfig config;
 
         config.dynBatchSupport = dynBatchSupport;
-        config.inConfs.resize(1);
+        config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
         config.inConfs[0].desc = itr->second->createDesc(inpPrecision, srcDims.ToSizeVector());
+        config.inConfs[1].inPlace = -1;
+        config.inConfs[1].constant = true;
+        config.inConfs[1].desc.setDims({1});
+        config.inConfs[1].desc.setPrecision(axisPrecision);
+        if (INPUTS_NUM == 3) {
+            config.inConfs[2].desc = TensorDesc(axisPrecision, SizeVector{outDims.size()}, TensorDesc::getLayoutByDims(SizeVector{outDims.size()}));
+            config.inConfs[2].constant = true;
+        }
+
         config.outConfs.resize(outDims.size());
 
         std::vector<memory::format_tag> outFormats;
@@ -180,10 +213,18 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         InferenceEngine::LayerConfig config;
 
         config.dynBatchSupport = dynBatchSupport;
-        config.inConfs.resize(1);
+        config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
         config.inConfs[0].desc = creatorsMap.at(TensorDescCreatorTypes::nspc)->createDesc(inpPrecision, srcDims.ToSizeVector());
+        config.inConfs[1].inPlace = -1;
+        config.inConfs[1].constant = true;
+        config.inConfs[1].desc.setDims({1});
+        config.inConfs[1].desc.setPrecision(axisPrecision);
+        if (INPUTS_NUM == 3) {
+            config.inConfs[2].desc = TensorDesc(axisPrecision, SizeVector{outDims.size()}, TensorDesc::getLayoutByDims(SizeVector{outDims.size()}));
+            config.inConfs[2].constant = true;
+        }
         config.outConfs.resize(outDims.size());
 
         std::vector<memory::format_tag> outFormats;
@@ -308,13 +349,10 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
                                                                       config.inConfs[i].desc.getBlockingDesc().getOrder()
                                                               });
     }
-    const auto& cnnLayer = getCnnLayer();
-    if (!cnnLayer)
-        THROW_ERROR << "cannot be created without CNNLayer!";
     if (config.outConfs.size() != outDims.size())
         THROW_ERROR << "has invalid config";
     size_t offset = 0;
-    for (size_t i = 0; i < cnnLayer->outData.size(); i++) {
+    for (size_t i = 0; i < outDims.size(); i++) {
         config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
                                                               config.outConfs[i].desc.getDims(), {
                                                                       config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
