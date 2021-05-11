@@ -16,6 +16,7 @@
 #include "api/mutable_data.hpp"
 #include "api/data.hpp"
 #include "api/reorder.hpp"
+#include "api/topology.hpp"
 
 #include <vector>
 #include <algorithm>
@@ -71,6 +72,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     std::vector<cldnn::loop::io_primitive_map> input_primitive_maps;
     std::vector<cldnn::loop::io_primitive_map> output_primitive_maps;
     std::vector<cldnn::loop::backedge_mapping> back_edges;
+    std::map<cldnn::primitive_id, cldnn::primitive_id> reordered_output_ids;
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
@@ -95,8 +97,18 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
             // backedge
             const auto& to = body_inputs.at(mergedInput->m_body_parameter_index);
             const auto& from = body_outputs.at(mergedInput->m_body_value_index);
+
             cldnn::primitive_id to_id = layer_type_name_ID(to);
             cldnn::primitive_id from_id = layer_type_name_ID(from);
+
+            // reset output data type because the data types of the outputs of the
+            // body topology are always FP32 regardless of ngraph data type
+            {
+                const auto from_prim = body_topology.at(from_id);
+                const auto& to_ngraph_type = to->get_element_type();
+                const auto to_cldnn_type = DataTypeFromPrecision(to_ngraph_type);
+                from_prim->output_data_type = to_cldnn_type;
+            }
             back_edges.emplace_back(from_id, to_id);
         }
     }
@@ -154,16 +166,6 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
         }
         const auto& body_output = body_outputs.at(loop_output_desc->m_body_value_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_output);
-
-        // TODO(eunsoo): reorder required?
-        // add additional reorder in case TI output type != body output type
-        const auto& ti_output_type = ti_outputs.at(output_idx).get_element_type();
-        cldnn::primitive_id new_internal_id = internal_id + "_reorder";
-        const auto new_body_output_type = DataTypeFromPrecision(ti_output_type);
-        auto reorderPrim = cldnn::reorder(new_internal_id, internal_id, cldnn::format::any, new_body_output_type);
-        body_topology.add(reorderPrim);
-        UpdateBackedge(back_edges, internal_id, new_internal_id);
-        internal_id = std::move(new_internal_id);
 
         // update primitive_map
         if (const auto& concatOutput =

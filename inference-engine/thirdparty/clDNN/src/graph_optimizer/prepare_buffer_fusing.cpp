@@ -280,6 +280,9 @@ void prepare_buffer_fusing::run(program_impl& p) {
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+                if (node.get_dependency(0).is_type<lstm_elt>()) {
+                    return;
+                }
                 // optimization is available for cropping across depth(features) only
                 // if output padding has defined padding across features already it wouldn't
                 // work because it expect to have zeros in the padded area.

@@ -75,7 +75,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
                 const int max_iteration = node.get_max_iteration();
                 std::vector<memory_impl::ptr> sliced_mems;
                 sliced_mems.reserve(max_iteration);
-                for (int i=0; i < max_iteration; ++i) {
+                for (int j=0; j < max_iteration; ++j) {
                     memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                     sliced_mems.push_back(sliced_mem);
                 }
@@ -118,7 +118,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
                     const int max_iteration = node.get_max_iteration();
                     std::vector<memory_impl::ptr> sliced_mems;
                     sliced_mems.reserve(max_iteration);
-                    for (int i=0; i < max_iteration; ++i) {
+                    for (int j=0; j < max_iteration; ++j) {
                         memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                         sliced_mems.push_back(sliced_mem);
                     }
@@ -317,7 +317,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
             // Copy & Set sliced input memory offset
             for (size_t i = 0; i < instance.concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-                memory_impl::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
+                memory_impl::ptr mem = concatenated_input.get_sliced_mem(static_cast<int>(current_iteration));
                 // set input mem
                 if (current_iteration == 0) {
                     body_network->set_input_data(concatenated_input.sliced_data_id, *mem);
