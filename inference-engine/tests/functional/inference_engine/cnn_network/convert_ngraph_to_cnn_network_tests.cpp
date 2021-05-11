@@ -355,13 +355,7 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesNegative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin, end}, ngraph::ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork nGraphImpl(f);
-    try {
-        InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
-        FAIL() << "InferenceEngine::Exception must be thrown";
-    } catch(InferenceEngine::Exception & e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
-    }
+    ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
