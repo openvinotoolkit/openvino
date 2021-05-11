@@ -337,6 +337,7 @@ set(MULTI_TEST_SRC
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
+    backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
