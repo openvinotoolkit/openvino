@@ -258,6 +258,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     uint4.cpp
