@@ -18,7 +18,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, mod_op)
+TEST(attributes, floor_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::Mod>();
     auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
@@ -27,5 +27,5 @@ TEST(attributes, mod_op)
     NodeBuilder builder(floor);
     auto g_floor = as_type_ptr<opset1::Floor>(builder.create());
 
-    EXPECT_EQ(g_mod->get_autob(), mod->get_autob());
+    EXPECT_EQ(g_floor->get_autob(), floor->get_autob());
 }
