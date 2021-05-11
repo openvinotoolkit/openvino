@@ -74,7 +74,10 @@ public:
     // Remove node by connecting its 0th input with 0th output
     static void removeLayer(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
+    static std::shared_ptr<Node> swapMultiplyAndAdd(
+        std::shared_ptr<opset1::Add> addAfterMultiply,
+        const element::Type dequantizationPrecision,
+        const int multiplyBranch);
 
     static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
 

@@ -209,7 +209,10 @@ void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
     ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
-std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch) {
+std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(
+    std::shared_ptr<opset1::Add> addAfterMultiply,
+    const element::Type dequantizationPrecision,
+    const int multiplyBranch) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
     // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
     const auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
@@ -248,10 +251,17 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         for (size_t i = 0; i < bDivAValues.size(); ++i) {
             const auto bi = bValues[bBroadcasted ? 0 : i];
             const auto ai = aValues[aBroadcasted ? 0 : i];
-            if (bi != 0.f || ai != 0.f) {
-                bDivAValues[i] = bi / ai;
-            } else {
-                bDivAValues[i] = 0.f;
+
+            //TODO: remove exception
+            if (ai == 0.f) {
+                throw std::runtime_error("DIVISION BY ZERO in 'swapMultiplyAndAdd'");
+            }
+
+            bDivAValues[i] = bi == 0.f ? 0.f : bi / ai;
+            if (std::isinf(bDivAValues[i])) {
+                bDivAValues[i] = bDivAValues[i] > 0 ?
+                    DataPrecision::getMaxValue(dequantizationPrecision) :
+                    DataPrecision::getMinValue(dequantizationPrecision);
             }
         }
 

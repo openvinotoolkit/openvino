@@ -119,7 +119,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             return false;
         }
 
-        newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
+        newMultiply = NetworkHelper::swapMultiplyAndAdd(add, deqPrecision, multiplyBranch.first);
         ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
         if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
@@ -214,12 +214,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
 bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
-    if (dequantization1.multiplyHasZeroOrDenormal()) {
+    if (dequantization1.multiplyHasZero()) {
         return false;
     }
 
     const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
-    if (dequantization2.multiplyHasZeroOrDenormal()) {
+    if (dequantization2.multiplyHasZero()) {
         return false;
     }
 

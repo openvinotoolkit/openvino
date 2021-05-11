@@ -55,7 +55,7 @@ public:
         return (precision == element::u8) || (precision == element::i8);
     }
 
-    static float getMinValue(const element::Type precision, const size_t levels) {
+    static float getMinValue(const element::Type precision, const size_t levels = 256) {
         if (precision == element::i8) {
             if (levels == 255) {
                 return static_cast<float>(std::numeric_limits<signed char>::lowest()) + 1.f;
@@ -75,7 +75,7 @@ public:
         }
     }
 
-    static float getMaxValue(const element::Type precision, const size_t levels) {
+    static float getMaxValue(const element::Type precision, const size_t levels = 256) {
         if ((levels != 255ul) && (levels != 256ul)) {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected levels " << levels;
         }
