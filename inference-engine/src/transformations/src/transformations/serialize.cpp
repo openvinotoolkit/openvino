@@ -837,7 +837,16 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
         std::ofstream xml_file(m_xmlPath, std::ios::out);
         NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
-        serializeFunc(xml_file, bin_file);
+        try {
+            serializeFunc(xml_file, bin_file);
+        } catch (const ngraph::CheckFailure& e) {
+            // optimization decission was mad to create .bin file upfront and
+            // write to it directly instead of buffering its conents in memory,
+            // hence we need to delete it here in case of failure
+            std::remove(m_xmlPath.c_str());
+            std::remove(m_binPath.c_str());
+            throw;
+        }
     }
 
     // Return false because we didn't change nGraph Function
