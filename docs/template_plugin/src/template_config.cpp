@@ -28,7 +28,7 @@ Configuration::Configuration(const ConfigMap& config, const Configuration & defa
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = std::stoi(value);
             if (deviceId > 0) {
-                IE_THROW() << "Device ID " << deviceId << " is not supported";
+                IE_THROW(NotImplemented) << "Device ID " << deviceId << " is not supported";
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);

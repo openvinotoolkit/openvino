@@ -184,4 +184,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 
 std::string get_version();
+
+InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
+
 };  // namespace InferenceEnginePython
