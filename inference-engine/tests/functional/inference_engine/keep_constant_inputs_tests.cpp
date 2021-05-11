@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <cpp/ie_cnn_network.h>
 #include <legacy/cnn_network_impl.hpp>  // deprecated API
+#include <legacy/details/ie_cnn_network_iterator.hpp>  // deprecated API
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>

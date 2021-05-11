@@ -7,9 +7,11 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <functional>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "ie_core.hpp"
 #include "ie_plugin_ptr.hpp"
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"

@@ -13,11 +13,9 @@
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
-#include <common_test_utils/common_layers_params.hpp>
 
 #include <gtest/gtest.h>
 #include <thread>
