@@ -213,6 +213,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
+    visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
