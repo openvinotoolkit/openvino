@@ -737,7 +737,7 @@ public:
      * @brief Porvides a list of plugin names in registry; physically such plugins may not be created
      * @return A list of plugin names
      */
-    std::vector<std::string> GetListOfDevicesInRegistry() const {
+    std::vector<std::string> GetListOfDevicesInRegistry() const override {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         std::vector<std::string> listOfDevices;
@@ -1044,6 +1044,10 @@ Parameter Core::GetMetric(const std::string& deviceName, const std::string& name
 
 std::vector<std::string> Core::GetAvailableDevices() const {
     return _impl->GetAvailableDevices();
+}
+
+std::vector<std::string> Core::GetListOfDevicesInRegistry() const {
+    return _impl->GetListOfDevicesInRegistry();
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {

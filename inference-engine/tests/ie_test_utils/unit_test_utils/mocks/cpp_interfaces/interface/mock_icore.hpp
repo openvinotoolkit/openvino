@@ -29,6 +29,7 @@ public:
 
     MOCK_QUALIFIED_METHOD2(GetMetric, const, InferenceEngine::Parameter(const std::string&, const std::string&));
     MOCK_QUALIFIED_METHOD0(GetAvailableDevices, const, std::vector<std::string>());
+    MOCK_QUALIFIED_METHOD0(GetListOfDevicesInRegistry, const, std::vector<std::string>());
 
     ~MockICore() = default;
 };

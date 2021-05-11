@@ -109,6 +109,13 @@ public:
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
+     * @brief Returns device plugin list in registry
+     *
+     * @return A vector of registered device plugins. The devices are defined in plugins.xml
+     */
+    virtual std::vector<std::string> GetListOfDevicesInRegistry() const = 0;
+
+    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;

@@ -244,6 +244,13 @@ public:
     std::vector<std::string> GetAvailableDevices() const;
 
     /**
+     * @brief Returns device plugin list in registry
+     *
+     * @return A vector of registered device plugins. The devices are defined in plugins.xml
+     */
+    std::vector<std::string> GetListOfDevicesInRegistry() const;
+
+    /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
      *
      * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
