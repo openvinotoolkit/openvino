@@ -1203,7 +1203,8 @@ def parse_transform(transform: str, ie_is_available=True) -> list:
             missing_transformations.append(name)
 
     if len(missing_transformations) != 0:
-        raise Error('Following transformations {} are not available.'.format(','.join(missing_transformations)))
+        raise Error('Following transformations ({}) are not available. List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                                                                        ','.join(available_transforms.keys())))
 
     return transforms
 
