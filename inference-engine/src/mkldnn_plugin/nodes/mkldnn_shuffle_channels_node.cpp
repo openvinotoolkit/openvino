@@ -72,15 +72,6 @@ MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngrap
 }
 
 void MKLDNNShuffleChannelsNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    if (getParentEdges().empty() || getChildEdges().empty())
-        THROW_SHCH_ERROR << "gets incorrect number of input/output edges.";
-
-    if (getParentEdgeAt(0)->getDims().ndims() != getChildEdgeAt(0)->getDims().ndims()) {
-        THROW_SHCH_ERROR << "gets mismatched input/output dimensions.";
-    }
 }
 
 void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
@@ -88,15 +79,9 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = supportDynamicBatch_;
-    config.inConfs.resize(1);
-    config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
+    const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8, 16};
+    if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
+        THROW_SHCH_ERROR << "has unsupported precision: " << precision.name();
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_common)) {
@@ -109,26 +94,20 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    std::vector<TensorDescCreatorTypes> supportedTypes;
-    if (dataRank_ > 2) {
-        auto canUseBlocked = [=]() {
-            return (axis_ != 1);
-        };
-
-        supportedTypes.push_back(TensorDescCreatorTypes::nspc);
-        if (canUseBlocked()) {
-            supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
-            supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
-        }
-    }
-    supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
-    auto creators = TensorDescCreator::getCommonCreators();
-    auto range = TensorDescCreator::makeFilteredRange(creators, dataRank_, supportedTypes);
-
-    for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createDesc(precision, getParentEdgeAt(0)->getDims().ToSizeVector());
-        config.outConfs[0].desc = itr->second->createDesc(precision, getChildEdgeAt(0)->getDims().ToSizeVector());
-        supportedPrimitiveDescriptors.emplace_back(config, impl_type, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+    addSupportedPrimDesc({{TensorDescCreatorTypes::nspc, precision}},
+                         {{TensorDescCreatorTypes::nspc, precision}},
+                         impl_type, supportDynamicBatch_);
+    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision}},
+                         {{TensorDescCreatorTypes::ncsp, precision}},
+                         impl_type, supportDynamicBatch_);
+    // canUseBlocked
+    if (axis_ != 1) {
+        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp8c, precision}},
+                             {{TensorDescCreatorTypes::nCsp8c, precision}},
+                             impl_type, supportDynamicBatch_);
+        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp16c, precision}},
+                             {{TensorDescCreatorTypes::nCsp16c, precision}},
+                             impl_type, supportDynamicBatch_);
     }
 }
 
@@ -158,7 +137,6 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     params.dst_block_order.resize(reshapedRank);
     params.dst_block_dims.resize(reshapedRank);
     params.src_block_dims.resize(reshapedRank);
-    params.supported_dynamic_batch = supportDynamicBatch_;
 
     size_t spatialShapeSize = 1;
     if (spatialRank != 0) {
@@ -253,8 +231,10 @@ void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
     auto srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     if (permuteKernel_) {
-        int batch = supportDynamicBatch_ ? batchToProcess() : inShape_[0];
-        permuteKernel_->execute(srcData, dstData, batch);
+        if (supportDynamicBatch_)
+            permuteKernel_->execute(srcData, dstData, batchToProcess());
+        else
+            permuteKernel_->execute(srcData, dstData);
     } else {
         THROW_SHCH_ERROR << "does not initialize permute kernel to execute.";
     }

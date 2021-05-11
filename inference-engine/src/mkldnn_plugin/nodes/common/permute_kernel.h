@@ -17,7 +17,6 @@ struct PermuteParams {
     InferenceEngine::SizeVector dst_block_order;
     InferenceEngine::SizeVector order;
     size_t data_size;
-    bool supported_dynamic_batch = false;
 };
 
 struct jit_permute_config_params {
@@ -27,6 +26,8 @@ struct jit_permute_config_params {
     InferenceEngine::SizeVector dst_strides;
     int n;
     int data_size;
+
+    bool supported_dynamic_batch = false;
 };
 
 struct jit_args_permute {
@@ -54,6 +55,7 @@ class PermuteKernel {
 public:
     PermuteKernel(const PermuteParams& params);
 
+    void execute(const uint8_t* src_data, uint8_t* dst_data);
     void execute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
 private:

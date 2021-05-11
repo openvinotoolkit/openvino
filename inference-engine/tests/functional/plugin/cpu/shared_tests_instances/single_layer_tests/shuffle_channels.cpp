@@ -17,7 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<int> axes = {-4, -3, -2, -1, 0, 1, 2, 3};
-const std::vector<int> groups = {2, 3, 6};
+const std::vector<int> groups = {1, 2, 3, 6};
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
         ::testing::ValuesIn(axes),

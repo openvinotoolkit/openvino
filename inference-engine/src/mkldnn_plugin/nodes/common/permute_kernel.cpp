@@ -210,6 +210,7 @@ void PermuteKernel::prepareParams() {
         sorted_dst_strides.push_back(new_dst_block_strides[batch_pos]);
         sorted_order.push_back(new_dst_block_order[batch_pos]);
         sorted_dst_dims.push_back(new_dst_block_dims[batch_pos]);
+        jcp.supported_dynamic_batch = true;
     }
 
     int n2 = 0;
@@ -274,14 +275,23 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
     referenceExecute(src_data, dst_data, mb);
 }
 
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
+    SizeVector dst_dims = jcp.dst_block_dims;
+    if (permute_kernel) {
+        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        return;
+    }
+
+    referenceExecute(src_data, dst_data, dst_dims[0]);
+}
+
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
     SizeVector dst_dims = jcp.dst_block_dims;
     const SizeVector dst_strides = jcp.dst_strides;
     const SizeVector src_strides = jcp.src_strides;
 
-    if (params.supported_dynamic_batch && dst_dims[0] != mb) {
+    if (dst_dims[0] != mb)
         dst_dims[0] = mb;
-    }
 
     switch (jcp.n) {
         case 1:
@@ -349,7 +359,7 @@ void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data,
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
-    if (params.supported_dynamic_batch && dst_dims[0] != mb)
+    if (dst_dims[0] != mb)
         dst_dims[0] = mb;
 
     size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());

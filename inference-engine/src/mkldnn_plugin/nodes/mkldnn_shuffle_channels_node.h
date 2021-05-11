@@ -26,6 +26,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+private:
     ngraph::Shape inShape_;
     int dataRank_;
     int axis_;

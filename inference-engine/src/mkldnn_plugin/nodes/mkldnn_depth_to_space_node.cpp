@@ -172,7 +172,6 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     params.dst_block_dims.resize(reshapedRank);
     params.src_block_dims.resize(reshapedRank);
     params.src_block_dims[0] = srcDims[0];
-    params.supported_dynamic_batch = true;
 
     // reshaping of src dimensions and creating the permutation order for each layout:
     // new shape: mode = blocks_first [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK]

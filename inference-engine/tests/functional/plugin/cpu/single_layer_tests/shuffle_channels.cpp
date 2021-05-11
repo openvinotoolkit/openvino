@@ -143,12 +143,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-4, -2, 0, 1, 2, 3}),
-        ::testing::ValuesIn(std::vector<int>{2, 4, 8})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 4, 8})
 );
 
 const auto shuffleChannelsParams5D = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-5, -1, 0, 1, 2, 3, 4}),
-        ::testing::ValuesIn(std::vector<int>{2, 3, 6})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
@@ -181,12 +181,12 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerCPUTest,
 
 const auto shuffleChannelsParams4DBlock = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-4, -2, -1, 0, 2, 3}),
-        ::testing::ValuesIn(std::vector<int>{2, 4, 8})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 4, 8})
 );
 
 const auto shuffleChannelsParams5DBlock = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-5, -2, -1, 0, 2, 3, 4}),
-        ::testing::ValuesIn(std::vector<int>{2, 3, 6})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTest,
