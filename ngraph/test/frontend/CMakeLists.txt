@@ -12,3 +12,5 @@ target_include_directories(mock1_ngraph_frontend PRIVATE ".")
 target_include_directories(mock1_ngraph_frontend PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
 target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
 add_dependencies(unit-test mock1_ngraph_frontend)
+
+add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)

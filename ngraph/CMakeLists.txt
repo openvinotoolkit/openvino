@@ -30,6 +30,7 @@ set(FRONTEND_INCLUDE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/frontend/generic/include
 )
 
+# Will be used by frontends to construct frontend-specific source location paths
 set(FRONTEND_BASE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/frontend
 )

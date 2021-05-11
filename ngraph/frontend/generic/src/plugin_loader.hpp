@@ -18,12 +18,13 @@ namespace ngraph
 {
     namespace frontend
     {
-
-        /// Plugin library handle wrapper. On destruction calls internal function which frees library handle
+        /// Plugin library handle wrapper. On destruction calls internal function which frees
+        /// library handle
         class PluginHandle
         {
         public:
-            PluginHandle(std::function<void()> callOnDestruct) : m_callOnDestruct(callOnDestruct)
+            PluginHandle(std::function<void()> callOnDestruct)
+                : m_callOnDestruct(callOnDestruct)
             {
             }
 
@@ -49,16 +50,19 @@ namespace ngraph
 
         struct PluginData
         {
-            PluginData(PluginHandle&& h, FrontEndPluginInfo&& info) : m_libHandle(std::move(h)), m_pluginInfo(info)
+            PluginData(PluginHandle&& h, FrontEndPluginInfo&& info)
+                : m_libHandle(std::move(h))
+                , m_pluginInfo(info)
             {
             }
 
-            PluginHandle m_libHandle; // Shall be destroyed when plugin is not needed anymore to free memory
+            PluginHandle
+                m_libHandle; // Shall be destroyed when plugin is not needed anymore to free memory
             FrontEndPluginInfo m_pluginInfo;
         };
 
         // Searches for available plugins in a specified directory
         std::vector<PluginData> loadPlugins(const std::string& dirName);
 
-    }  // namespace frontend
-}  // namespace ngraph
+    } // namespace frontend
+} // namespace ngraph

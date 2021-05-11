@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/visibility.hpp"
-#include "frontend_manager/frontend_manager_defs.hpp"
 #include "frontend_manager/frontend_manager.hpp"
+#include "frontend_manager/frontend_manager_defs.hpp"
+#include "ngraph/visibility.hpp"
 
-#ifdef mock1_ngraph_frontend_EXPORTS // defined if we are building the plugin DLL (instead of using it)
+// Defined if we are building the plugin DLL (instead of using it)
+#ifdef mock1_ngraph_frontend_EXPORTS
 #define MOCK_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define MOCK_API NGRAPH_HELPER_DLL_IMPORT
@@ -15,7 +16,7 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-class FrontEndMock: public FrontEnd
+class FrontEndMock : public FrontEnd
 {
 };
 
@@ -28,9 +29,8 @@ extern "C" MOCK_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
-    res->m_creator = [](ngraph::frontend::FrontEndCapabilities)
-            {
-                return std::make_shared<FrontEndMock>();
-            };
+    res->m_creator = [](ngraph::frontend::FrontEndCapabilities) {
+        return std::make_shared<FrontEndMock>();
+    };
     return res;
 }

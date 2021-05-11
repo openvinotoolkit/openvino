@@ -3,17 +3,17 @@
 //
 
 #ifdef _WIN32
-    #include <Windows.h>
-    #include <direct.h>
-#else  // _WIN32
-    #include <unistd.h>
-    #include <dirent.h>
-    #include <dlfcn.h>
-#endif  // _WIN32
+#include <Windows.h>
+#include <direct.h>
+#else // _WIN32
+#include <dirent.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#endif // _WIN32
 
 #include <string>
-#include <vector>
 #include <sys/stat.h>
+#include <vector>
 #include "ngraph/file_util.hpp"
 
 #include "plugin_loader.hpp"
@@ -37,25 +37,28 @@ static std::vector<std::string> listFiles(const std::string& path)
     std::vector<std::string> res;
     try
     {
-        ngraph::file_util::iterate_files(path, [&res](const std::string& file, bool is_dir)
-        {
-            if (!is_dir && file.find("_ngraph_frontend") != std::string::npos)
-            {
-#ifdef _WIN32
-                std::string ext = ".dll";
-#elif defined(__APPLE__)
-                std::string ext = ".dylib";
-#else
-                std::string ext = ".so";
-#endif
-                if (file.find(ext) != std::string::npos)
+        ngraph::file_util::iterate_files(
+            path,
+            [&res](const std::string& file, bool is_dir) {
+                if (!is_dir && file.find("_ngraph_frontend") != std::string::npos)
                 {
-                    res.push_back(file);
+#ifdef _WIN32
+                    std::string ext = ".dll";
+#elif defined(__APPLE__)
+                    std::string ext = ".dylib";
+#else
+                    std::string ext = ".so";
+#endif
+                    if (file.find(ext) != std::string::npos)
+                    {
+                        res.push_back(file);
+                    }
                 }
-            }
-        }, false, true);
+            },
+            false,
+            true);
     }
-    catch(...)
+    catch (...)
     {
         // Ignore exceptions
     }
@@ -74,13 +77,12 @@ std::vector<PluginData> ngraph::frontend::loadPlugins(const std::string& dirName
             continue;
         }
 
-        PluginHandle guard([shared_object, file]()
-                           {
-                               // std::cout << "Closing plugin library " << file << std::endl;
-                               DLCLOSE(shared_object);
-                           });
+        PluginHandle guard([shared_object, file]() {
+            // std::cout << "Closing plugin library " << file << std::endl;
+            DLCLOSE(shared_object);
+        });
 
-        auto infoAddr = reinterpret_cast<void *(*)()>(DLSYM(shared_object, "GetAPIVersion"));
+        auto infoAddr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetAPIVersion"));
         if (!infoAddr)
         {
             continue;
@@ -93,13 +95,14 @@ std::vector<PluginData> ngraph::frontend::loadPlugins(const std::string& dirName
             continue;
         }
 
-        auto creatorAddr = reinterpret_cast<void *(*)()>(DLSYM(shared_object, "GetFrontEndData"));
+        auto creatorAddr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetFrontEndData"));
         if (!creatorAddr)
         {
             continue;
         }
 
-        std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo *>(creatorAddr())};
+        std::unique_ptr<FrontEndPluginInfo> fact{
+            reinterpret_cast<FrontEndPluginInfo*>(creatorAddr())};
 
         res.push_back(PluginData(std::move(guard), std::move(*fact)));
     }

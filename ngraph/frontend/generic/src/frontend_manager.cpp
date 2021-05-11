@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/except.hpp>
 #include <ngraph/env_util.hpp>
+#include <ngraph/except.hpp>
 
 #include "frontend_manager/frontend_manager.hpp"
 #include "plugin_loader.hpp"
@@ -12,21 +12,22 @@ namespace ngraph
 {
     namespace frontend
     {
-
-#define FRONT_END_NOT_IMPLEMENTED(NAME) throw std::runtime_error(#NAME " is not implemented for this FrontEnd class")
-#define FRONT_END_ASSERT(EXPRESSION) \
-        { if (!(EXPRESSION)) throw "AssertionFailed"; }
+#define FRONT_END_NOT_IMPLEMENTED(NAME)                                                            \
+    throw std::runtime_error(#NAME " is not implemented for this FrontEnd class")
+#define FRONT_END_ASSERT(EXPRESSION)                                                               \
+    {                                                                                              \
+        if (!(EXPRESSION))                                                                         \
+            throw "AssertionFailed";                                                               \
+    }
 
         //----------- FrontEndManager ---------------------------
         class FrontEndManager::Impl
         {
             std::vector<PluginHandle> m_loadedLibs; // must be a first class member (destroyed last)
             std::map<std::string, FrontEndFactory> m_factories;
+
         public:
-            Impl()
-            {
-                registerPlugins();
-            }
+            Impl() { registerPlugins(); }
 
             ~Impl() = default;
 
@@ -40,12 +41,11 @@ namespace ngraph
             {
                 std::vector<std::string> keys;
 
-                std::transform(m_factories.begin(), m_factories.end(),
-                               std::back_inserter(keys),
-                               [](const std::pair<std::string, FrontEndFactory>& item)
-                               {
-                                   return item.first;
-                               });
+                std::transform(
+                    m_factories.begin(),
+                    m_factories.end(),
+                    std::back_inserter(keys),
+                    [](const std::pair<std::string, FrontEndFactory>& item) { return item.first; });
                 return keys;
             }
 
@@ -62,14 +62,14 @@ namespace ngraph
         private:
             void registerPlugins()
             {
-                auto registerFromDir = [&](const std::string& dir)
-                {
+                auto registerFromDir = [&](const std::string& dir) {
                     if (!dir.empty())
                     {
                         auto plugins = loadPlugins(dir);
                         for (auto& plugin : plugins)
                         {
-                            registerFrontEnd(plugin.m_pluginInfo.m_name, plugin.m_pluginInfo.m_creator);
+                            registerFrontEnd(plugin.m_pluginInfo.m_name,
+                                             plugin.m_pluginInfo.m_creator);
                             m_loadedLibs.push_back(std::move(plugin.m_libHandle));
                         }
                     }
@@ -94,18 +94,21 @@ namespace ngraph
             }
         };
 
-        FrontEndManager::FrontEndManager() : m_impl(new Impl())
+        FrontEndManager::FrontEndManager()
+            : m_impl(new Impl())
         {
         }
 
         FrontEndManager::~FrontEndManager() = default;
 
-        FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework, FrontEndCapabilities fec)
+        FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework,
+                                                         FrontEndCapabilities fec)
         {
             return m_impl->loadByFramework(framework, fec);
         }
 
-        FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path, FrontEndCapabilities fec)
+        FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path,
+                                                     FrontEndCapabilities fec)
         {
             return m_impl->loadByModel(path, fec);
         }
@@ -136,12 +139,13 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(load_from_files);
         }
 
-        InputModel::Ptr FrontEnd::load_from_memory(const void *model) const
+        InputModel::Ptr FrontEnd::load_from_memory(const void* model) const
         {
             FRONT_END_NOT_IMPLEMENTED(load_from_memory);
         }
 
-        InputModel::Ptr FrontEnd::load_from_memory_fragments(const std::vector<const void *>& modelParts) const
+        InputModel::Ptr
+            FrontEnd::load_from_memory_fragments(const std::vector<const void*>& modelParts) const
         {
             FRONT_END_NOT_IMPLEMENTED(load_from_memory_fragments);
         }
@@ -151,7 +155,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(load_from_stream);
         }
 
-        InputModel::Ptr FrontEnd::load_from_streams(const std::vector<std::istream *>& paths) const
+        InputModel::Ptr FrontEnd::load_from_streams(const std::vector<std::istream*>& paths) const
         {
             FRONT_END_NOT_IMPLEMENTED(load_from_streams);
         }
@@ -202,12 +206,16 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
         }
 
-        Place::Ptr InputModel::get_place_by_operation_and_input_port(const std::string& operationName, int inputPortIndex)
+        Place::Ptr
+            InputModel::get_place_by_operation_and_input_port(const std::string& operationName,
+                                                              int inputPortIndex)
         {
             FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_input_port);
         }
 
-        Place::Ptr InputModel::get_place_by_operation_and_output_port(const std::string& operationName, int outputPortIndex)
+        Place::Ptr
+            InputModel::get_place_by_operation_and_output_port(const std::string& operationName,
+                                                               int outputPortIndex)
         {
             FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_output_port);
         }
@@ -237,7 +245,9 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(free_name_for_operation);
         }
 
-        void InputModel::set_name_for_dimension(Place::Ptr place, size_t shapeDimIndex, const std::string& dimName)
+        void InputModel::set_name_for_dimension(Place::Ptr place,
+                                                size_t shapeDimIndex,
+                                                const std::string& dimName)
         {
             FRONT_END_NOT_IMPLEMENTED(set_name_for_dimension);
         }
@@ -247,7 +257,8 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_input);
         }
 
-        void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& newNameOptional)
+        void InputModel::cut_and_add_new_output(Place::Ptr place,
+                                                const std::string& newNameOptional)
         {
             FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_output);
         }
@@ -262,10 +273,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(remove_output);
         }
 
-        void InputModel::remove_input(Place::Ptr place)
-        {
-            FRONT_END_NOT_IMPLEMENTED(remove_input);
-        }
+        void InputModel::remove_input(Place::Ptr place) { FRONT_END_NOT_IMPLEMENTED(remove_input); }
 
         void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs)
         {
@@ -277,8 +285,8 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(override_all_inputs);
         }
 
-        void
-        InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
+        void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs,
+                                          const std::vector<Place::Ptr>& outputs)
         {
             FRONT_END_NOT_IMPLEMENTED(extract_subgraph);
         }
@@ -304,21 +312,20 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(set_element_type);
         }
 
-        void InputModel::set_tensor_value(Place::Ptr place, const void *value)
+        void InputModel::set_tensor_value(Place::Ptr place, const void* value)
         {
             FRONT_END_NOT_IMPLEMENTED(set_tensor_value);
         }
 
-        void InputModel::set_tensor_partial_value(Place::Ptr place, const void *minValue, const void *maxValue)
+        void InputModel::set_tensor_partial_value(Place::Ptr place,
+                                                  const void* minValue,
+                                                  const void* maxValue)
         {
             FRONT_END_NOT_IMPLEMENTED(set_tensor_partial_value);
         }
 
         //----------- Place ---------------------------
-        std::vector<std::string> Place::get_names() const
-        {
-            FRONT_END_NOT_IMPLEMENTED(get_names);
-        }
+        std::vector<std::string> Place::get_names() const { FRONT_END_NOT_IMPLEMENTED(get_names); }
 
         std::vector<Place::Ptr> Place::get_consuming_operations(int outputPortIndex) const
         {
@@ -365,25 +372,13 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(get_consuming_ports);
         }
 
-        bool Place::is_input() const
-        {
-            FRONT_END_NOT_IMPLEMENTED(is_input);
-        }
+        bool Place::is_input() const { FRONT_END_NOT_IMPLEMENTED(is_input); }
 
-        bool Place::is_output() const
-        {
-            FRONT_END_NOT_IMPLEMENTED(is_output);
-        }
+        bool Place::is_output() const { FRONT_END_NOT_IMPLEMENTED(is_output); }
 
-        bool Place::is_equal(Ptr another) const
-        {
-            FRONT_END_NOT_IMPLEMENTED(is_equal);
-        }
+        bool Place::is_equal(Ptr another) const { FRONT_END_NOT_IMPLEMENTED(is_equal); }
 
-        bool Place::is_equal_data(Ptr another) const
-        {
-            FRONT_END_NOT_IMPLEMENTED(is_equal_data);
-        }
+        bool Place::is_equal_data(Ptr another) const { FRONT_END_NOT_IMPLEMENTED(is_equal_data); }
 
         Place::Ptr Place::get_source_tensor(int inputPortIndex) const
         {
