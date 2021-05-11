@@ -102,9 +102,9 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void replace_nodes(program_impl& p);
-    void handle_lstm(program_impl& p);
-    void handle_dynamic_lstm(program_impl& p);
+    void handle_split_node(program_impl& p, std::shared_ptr<program_node> node);
+    void handle_lstm_node(program_impl& p, std::shared_ptr<program_node> node);
+    void handle_dynamic_lstm_node(program_impl& p, std::shared_ptr<program_node> node);
     void set_outputs(program_impl& p);
 };
 
@@ -130,8 +130,6 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void mark_constants(program_impl& p);
-    void mark_data_flow(program_impl& p);
 };
 
 class prepare_buffer_fusing : public base_pass {

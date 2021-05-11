@@ -486,15 +486,14 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program_impl::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
-    if (node.is_type<prior_box>())
-        return;
+    }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->constant) {
+        if (!dep->is_constant()) {
             node.constant = false;
-            break;
+            return;
         }
     }
 }
