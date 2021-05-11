@@ -53,6 +53,7 @@
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+#include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -334,7 +335,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
     // not legacy actually, but it should be the last transformation in the transformation pipeline
     legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
+    legacyManager.register_pass<ngraph::pass::UnrollIf>();
     auto legacyPassConfig = legacyManager.get_pass_config();
     legacyPassConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
