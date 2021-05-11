@@ -14,7 +14,6 @@
 
 #include "ie_blob.h"
 #include "ie_common.h"
-#include "details/ie_no_copy.hpp"
 
 namespace InferenceEngine {
 
@@ -23,7 +22,7 @@ namespace InferenceEngine {
  * @interface IVariableState
  * @brief Manages data for reset operations
  */
-class IVariableState : public details::no_copy {
+class IVariableState {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**

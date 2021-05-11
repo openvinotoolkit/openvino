@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNBroadcastNode : public MKLDNNNode {
 public:
     MKLDNNBroadcastNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNBroadcastNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

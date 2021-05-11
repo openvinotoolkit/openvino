@@ -73,7 +73,6 @@ struct jit_uni_mvn_kernel {
 class MKLDNNMVNNode : public MKLDNNNode {
 public:
     MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMVNNode() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

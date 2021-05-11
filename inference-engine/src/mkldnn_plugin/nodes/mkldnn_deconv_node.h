@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
 public:
     MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDeconvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,

@@ -91,7 +91,6 @@ struct jit_uni_interpolate_kernel {
 class MKLDNNInterpolateNode : public MKLDNNNode {
 public:
     MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNInterpolateNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

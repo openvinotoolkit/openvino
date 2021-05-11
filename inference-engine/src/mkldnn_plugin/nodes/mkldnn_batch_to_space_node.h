@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNBatchToSpaceNode : public MKLDNNNode {
 public:
     MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNBatchToSpaceNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

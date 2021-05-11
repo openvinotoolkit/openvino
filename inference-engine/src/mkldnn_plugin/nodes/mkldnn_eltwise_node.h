@@ -60,7 +60,6 @@ struct jit_uni_eltwise_kernel {
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
     MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNEltwiseNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

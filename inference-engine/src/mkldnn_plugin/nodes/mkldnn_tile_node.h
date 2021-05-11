@@ -13,7 +13,6 @@ namespace MKLDNNPlugin {
 class MKLDNNTileNode : public MKLDNNNode {
 public:
     MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTileNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

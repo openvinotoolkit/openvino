@@ -16,7 +16,6 @@ namespace MKLDNNPlugin {
 class MKLDNNEmbeddingBagPackedSumNode : public MKLDNNNode, public MKLDNNEmbeddingBagSumNode {
 public:
     MKLDNNEmbeddingBagPackedSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNEmbeddingBagPackedSumNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

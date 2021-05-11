@@ -16,7 +16,6 @@ namespace MKLDNNPlugin {
 class MKLDNNOneHotNode : public MKLDNNNode {
 public:
     MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNOneHotNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

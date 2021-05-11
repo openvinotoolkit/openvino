@@ -288,7 +288,7 @@ private:
     }
 };
 
-class MKLDNNNode : public InferenceEngine::details::no_copy {
+class MKLDNNNode {
 public:
     template<typename T, int N>
     struct Tag {};
@@ -326,7 +326,7 @@ public:
     class NodesFactory;
     static NodesFactory & factory();
 
-    ~MKLDNNNode() override = default;
+    virtual ~MKLDNNNode() = default;
 
     void addEdge(const MKLDNNEdgeWeakPtr& edge);
     void removeEdge(const MKLDNNEdgeWeakPtr& edge);

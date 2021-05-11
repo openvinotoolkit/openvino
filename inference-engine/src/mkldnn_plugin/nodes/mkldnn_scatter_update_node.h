@@ -21,7 +21,6 @@ enum class ScatterUpdateMode {
 class MKLDNNScatterUpdateNode : public MKLDNNNode {
 public:
     MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNScatterUpdateNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
