@@ -45,8 +45,8 @@ if(ENABLE_PYTHON)
             DESTINATION python/${PYTHON_VERSION}/openvino/tools
             COMPONENT python_tools_${PYTHON_VERSION})
 
-    install(DIRECTORY benchmark/
-            DESTINATION python/${PYTHON_VERSION}/openvino/tools/benchmark
+    install(DIRECTORY benchmark
+            DESTINATION python/${PYTHON_VERSION}/openvino/tools
             USE_SOURCE_PERMISSIONS
             COMPONENT python_tools_${PYTHON_VERSION})
     
