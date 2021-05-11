@@ -29,6 +29,7 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
+extensions/back/LayoutChangeForEinsum.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
@@ -193,6 +194,7 @@ extensions/front/mxnet/custom_rpn_proposal.py
 extensions/front/mxnet/deformable_conv_ext.py
 extensions/front/mxnet/deformable_psroi_pooling_ext.py
 extensions/front/mxnet/dropout_ext.py
+extensions/front/mxnet/einsum_ext.py
 extensions/front/mxnet/elementwise_ext.py
 extensions/front/mxnet/eltwise_scalar_replacers.py
 extensions/front/mxnet/exp_ext.py
@@ -278,6 +280,7 @@ extensions/front/onnx/dequantize_linear_resolver.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
+extensions/front/onnx/einsum_ext.py
 extensions/front/onnx/elementwise_ext.py
 extensions/front/onnx/expand_ext.py
 extensions/front/onnx/faster_rcnn.json
@@ -404,6 +407,7 @@ extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/efficient_det_support_api_v2.0.json
 extensions/front/tf/efficient_det_support_api_v2.4.json
+extensions/front/tf/einsum_ext.py
 extensions/front/tf/elementwise_ext.py
 extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
@@ -678,6 +682,7 @@ extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
 extensions/ops/dft.py
+extensions/ops/einsum.py
 extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
@@ -1028,6 +1033,7 @@ mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/ctc_greedy_decoder_seq_len_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
+mo/utils/ir_reader/extenders/einsum_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
 mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
