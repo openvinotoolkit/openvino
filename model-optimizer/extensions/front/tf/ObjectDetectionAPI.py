@@ -765,6 +765,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
                 else:  # case 1
                     # change output of the end_node to be produced with the last preprocessing op
                     end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+                    start_node.in_port(0).disconnect()
         else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
             end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 

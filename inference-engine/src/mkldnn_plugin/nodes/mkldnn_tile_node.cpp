@@ -3,43 +3,87 @@
 //
 
 #include "mkldnn_tile_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "common/cpu_memcpy.h"
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNTileNode::MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
+        if (!tile) {
+            errorMessage = "Only opset1 Tile operation is supported";
+            return false;
+        }
+        if (tile->get_input_shape(TILE_INPUT).size() != tile->get_input_shape(TILE_REPEATS)[0]) {
+            errorMessage = "Doesn't support inputs with different ranks";
+            return false;
+        }
+        const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
+        if (repeatsNode == nullptr) {
+            errorMessage = "Only const 'repeats' input is supported";
+            return false;
+        }
+        const auto repeats = repeatsNode->cast_vector<int64_t>();
+        if (std::count_if(repeats.begin(), repeats.end(), [](int64_t x) { return x > 1; }) > 1) {
+            errorMessage = "Doesn't support 'repeats' with more than one specified axis";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "Tile node with name '" + getName() + "'";
+
+        const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
+        const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
+        const auto repeats = repeatsNode->cast_vector<int64_t>();
+        // At this moment CPU plug-in supports tiling only per single axis
+        // This behavoiur is guaranteed by ConvertTileToSeqTiles
+        for (size_t i = 0; i < repeats.size(); i++) {
+            if (repeats[i] > 1) {
+                axis = i;
+                tiles = repeats[i];
+                break;
+            }
+        }
+        noTiling = axis == -1;
+        if (axis >= static_cast<int>(tile->get_input_shape(TILE_INPUT).size()))
+            IE_THROW() << errorPrefix << " has incorrect tiling axis: " << axis;
+        if (tiles < 1 && !noTiling)
+            IE_THROW() << errorPrefix << " has incorrect 'repeats' value: " << tiles;
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNTileNode::getSupportedDescriptors() {
-    auto * tileLayer = dynamic_cast<TileLayer*>(getCnnLayer().get());
-
-    if (tileLayer == nullptr)
-        IE_THROW() << "Cannot convert tile layer.";
-
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+    if (getParentEdges().size() != 2)
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (!getChildEdges().size())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
-
-    axis = tileLayer->axis;
-    tiles = tileLayer->tiles;
+        IE_THROW() << errorPrefix << " has incorrect number of output edges";
 }
 
 void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(TILE_INPUT);
     if (precision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
         precision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
         precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-        IE_THROW() << "Layer Tile has unsupported input precision: " << precision;
+        IE_THROW() << errorPrefix << " has unsupported input precision: " << precision;
     }
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
@@ -48,14 +92,12 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    config.inConfs.resize(1);
+    config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
+    config.inConfs[TILE_INPUT].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_INPUT)->getDims(), inputDataType, fmt);
+    config.inConfs[TILE_REPEATS].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_REPEATS)->getDims(), memory::data_type::s32, memory::format_tag::x);
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), inputDataType, fmt);
+    config.outConfs[0].inPlace = noTiling ? 0 : -1;
     supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
 }
 
@@ -63,16 +105,18 @@ void MKLDNNTileNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << errorPrefix << " can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << errorPrefix << " can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
+    if (noTiling) {
+        return;
+    }
+
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
@@ -118,4 +162,5 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 bool MKLDNNTileNode::created() const {
     return getType() == Tile;
 }
+
 REG_MKLDNN_PRIM_FOR(MKLDNNTileNode, Tile);
