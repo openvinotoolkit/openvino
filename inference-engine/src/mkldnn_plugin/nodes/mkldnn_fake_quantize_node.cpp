@@ -842,7 +842,7 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
             size_t count_not_unit_axis = 0;
-            auto shape = fq->get_input_shape(i);
+            auto shape = getNormalizedDimsBySize(fq->get_input_shape(i), fq->get_input_shape(0).size());
 
             if (ngraph::shape_size(shape) != 1) {
                 size_t not_unit_axis = 0;
