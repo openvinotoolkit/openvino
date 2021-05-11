@@ -324,6 +324,7 @@ namespace ngraph
             REGISTER_OPERATOR("Clip", 11, clip);
             REGISTER_OPERATOR("Concat", 1, concat);
             REGISTER_OPERATOR("Constant", 1, constant);
+            REGISTER_OPERATOR("Constant", 13, constant);
             REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
             REGISTER_OPERATOR("Conv", 1, conv);
             // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
@@ -360,6 +361,7 @@ namespace ngraph
             REGISTER_OPERATOR("Greater", 1, greater);
             REGISTER_OPERATOR("GRU", 1, gru);
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
+            REGISTER_OPERATOR("Hardmax", 13, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
             REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
@@ -438,6 +440,7 @@ namespace ngraph
             // Softmax v7 should be in the 11th opset but,
             // other frameworks(mxnet and onnxruntime) already use for older models.
             REGISTER_OPERATOR("Softmax", 7, softmax);
+            REGISTER_OPERATOR("Softmax", 13, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
