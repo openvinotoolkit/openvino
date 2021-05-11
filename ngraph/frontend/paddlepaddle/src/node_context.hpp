@@ -16,6 +16,7 @@
 
 #pragma once
 #include "decoder.hpp"
+#include <paddlepaddle_frontend/place.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph {
@@ -76,6 +77,9 @@ public:
     }
 
     std::vector<OutPortName> get_output_names() const { return node.get_output_names(); }
+    std::vector<ngraph::element::Type> get_out_port_types(const std::string& port_name) const
+        { return node.get_out_port_types(port_name); }
+    ngraph::element::Type get_out_port_type(const std::string& port_name) const;
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node> &ngraph_node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 };
@@ -108,6 +112,16 @@ template <>
 inline ngraph::element::Type NodeContext::get_attribute (const std::string& name, const ngraph::element::Type& def) const
 { return node.get_dtype(name, def); }
 
+inline ngraph::element::Type NodeContext::get_out_port_type(const std::string& port_name) const
+{
+    auto types = get_out_port_types(port_name);
+    PDPD_ASSERT(types.size() > 0, "Port has no tensors connected.");
+    ngraph::element::Type res = types[0];
+    for (const auto& type : types) {
+        PDPD_ASSERT(type == res, "Port has tensors with different types connected.");
+    }
+    return res;
+}
 
 inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
                                                                const std::vector<OutPortName>& required_pdpd_out_names) const
@@ -122,6 +136,6 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     }
     return named_outputs;
 }
-}
-}
-}
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph
