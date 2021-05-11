@@ -6,6 +6,7 @@ from copy import deepcopy
 
 import networkx as nx
 
+from extensions.ops.parameter import Parameter
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
@@ -274,6 +275,10 @@ valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
 shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
                                           'shape': int64_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
+
+shaped_parameter = lambda name, shape: {**regular_op(name, {'op': 'Parameter', 'shape': shape,
+                                                            'infer': Parameter.infer}),
+                                        **shaped_data(name + '_d', shape)}
 
 result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result',
                                                                      'infer': lambda x: 0}}
