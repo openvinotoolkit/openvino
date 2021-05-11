@@ -30,7 +30,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFile)
     ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_file));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_param.m_modelsPath + m_param.m_file));
     ASSERT_NE(m_inputModel, nullptr);
 
     std::shared_ptr<ngraph::Function> function;
@@ -48,7 +48,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFiles)
 
     auto dir_files = m_param.m_files;
     for (auto& file: dir_files) {
-        file = std::string(TEST_FILES) + m_param.m_modelsPath + file;
+        file = m_param.m_modelsPath + file;
     }
 
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFiles(dir_files));
@@ -67,7 +67,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream)
     ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
-    std::ifstream is(std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_stream, std::ios::in | std::ifstream::binary);
+    std::ifstream is(m_param.m_modelsPath + m_param.m_stream, std::ios::in | std::ifstream::binary);
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromStream(is));
     ASSERT_NE(m_inputModel, nullptr);
 
@@ -87,7 +87,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreams)
     std::vector<std::shared_ptr<std::ifstream>> is_vec;
     std::vector<std::istream*> is_ptr_vec;
     for (auto& file: m_param.m_streams) {
-        is_vec.push_back(std::make_shared<std::ifstream>(std::string(TEST_FILES) + m_param.m_modelsPath + file, std::ios::in | std::ifstream::binary));
+        is_vec.push_back(std::make_shared<std::ifstream>(m_param.m_modelsPath + file, std::ios::in | std::ifstream::binary));
         is_ptr_vec.push_back(is_vec.back().get());
     }
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromStreams(is_ptr_vec));
