@@ -16,16 +16,15 @@
 
 using namespace std;
 using namespace ngraph;
-constexpr NodeTypeInfo op::v0::If::type_info;
+constexpr NodeTypeInfo op::v7::If::type_info;
 
 
-op::v0::If::If()
+op::v7::If::If()
     : If(OutputVector())
 {
 }
 
-op::v0::If::If(const OutputVector& values)
-    : op::util::MultiSubGraphOp(values, 2)
+op::v7::If::If(const OutputVector& values) : op::util::MultiSubGraphOp(values, 2)
 {
     m_bodies.resize(2);
     m_input_descriptions.resize(2);
@@ -33,14 +32,16 @@ op::v0::If::If(const OutputVector& values)
 }
 
 
-op::v0::If::If(const Output<Node>& execution_condition): If() {
+op::v7::If::If(const Output<Node>& execution_condition)
+    : If()
+{
     set_argument(0, execution_condition);
   
 }
 
-bool op::v0::If::visit_attributes(AttributeVisitor& visitor)
+bool op::v7::If::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_If_visit_attributes);
+    NGRAPH_OP_SCOPE(v7_If_visit_attributes);
     if (m_bodies.size() != 2) {
         m_bodies.resize(2);
         m_input_descriptions.resize(2);
@@ -57,19 +58,44 @@ bool op::v0::If::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-ngraph::Rank resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_node, ngraph::Output<ngraph::Node> else_node)
+ngraph::PartialShape resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_node, ngraph::Output<ngraph::Node> else_node)
 {
-    //TODO: Resolve dynamic ranks
-    return ngraph::Rank();
+    auto then_p_shape = then_node.get_partial_shape();
+    auto else_p_shape = else_node.get_partial_shape();
+    auto then_rank = then_p_shape.rank();
+    auto else_rank = else_p_shape.rank();
+    if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length()!=else_rank.get_length()) {
+        return ngraph::PartialShape::dynamic();
+    }
+    std::vector<Dimension> new_dims;
+    for (auto then_it = then_p_shape.cbegin(), else_it = else_p_shape.cbegin();
+         then_it != then_p_shape.cend();
+         then_it++, else_it++)
+    {
+        if ((*then_it).is_dynamic() || (*else_it).is_dynamic()) 
+        {
+            new_dims.push_back(Dimension::dynamic());
+        }else if (*then_it == *else_it)
+        {
+            new_dims.push_back(Dimension(*then_it));
+        }
+        else
+        {
+            auto dim_min = std::min((*then_it).get_min_length(), (*else_it).get_min_length());
+            auto dim_max = std::max((*then_it).get_min_length(), (*else_it).get_min_length());
+            new_dims.push_back(Dimension(dim_min, dim_max));
+        }
+    }
+    return PartialShape(new_dims);
 }
 
-ngraph::Output<Node> op::v0::If::get_output(size_t index)
+ngraph::Output<Node> op::v7::If::get_output(size_t index)
 {
     return ngraph::Output<Node>(shared_from_this(), index);
 }
 
-void op::v0::If::validate_and_infer_type_body(std::shared_ptr<Function> body,
-                                  ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors)
+void op::v7::If::validate_and_infer_type_body(
+    std::shared_ptr<Function> body, ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors)
 {
     for (const auto& input_description : input_descriptors)
     {
@@ -90,9 +116,9 @@ void op::v0::If::validate_and_infer_type_body(std::shared_ptr<Function> body,
     }
     body->validate_nodes_and_infer_types();
 }
-void op::v0::If::validate_and_infer_types()
+void op::v7::If::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v0_If_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v7_If_validate_and_infer_types);
     auto cond_output = inputs().at(0).get_source_output();
 
     auto cond_partial_shape = cond_output.get_partial_shape();
@@ -111,7 +137,6 @@ void op::v0::If::validate_and_infer_types()
         }
     }
     auto cond_type = cond_output.get_element_type();
-    NODE_VALIDATION_CHECK(this, cond_type == ngraph::element::boolean, "Incorrect shape of condition");
     //Trying to get cond as const value
     if (const auto& cond_value = get_constant_from_source(cond_output)) {
         auto val = cond_value->cast_vector<bool>();
@@ -209,20 +234,36 @@ void op::v0::If::validate_and_infer_types()
                 }
                 else
                 {
-                    set_output_type(output_index, then_out_node.get_element_type(),
-                        PartialShape::dynamic(resolve_dynamic_rank(then_out_node, else_out_node)));
+                    std::vector<Dimension> new_dims;
+                    for (auto then_it = then_shape.begin(), else_it = else_shape.begin();
+                        then_it != then_shape.end(); then_it++, else_it++)
+                    {
+                        if (*then_it == *else_it)
+                        {
+                            new_dims.push_back(Dimension(*then_it));
+                        }
+                        else
+                        {
+                            auto dim_min = std::min(*then_it, *else_it);
+                            auto dim_max = std::max(*then_it, *else_it);
+                            new_dims.push_back(Dimension(dim_min, dim_max));
+                        }
+                        
+                    }
+                    set_output_type(
+                        output_index, then_out_node.get_element_type(), PartialShape(new_dims));
                 }
             }
             else
             {
                 set_output_type(output_index, then_out_node.get_element_type(),
-                    PartialShape::dynamic(resolve_dynamic_rank(then_out_node, else_out_node)));
+                    resolve_dynamic_rank(then_out_node, else_out_node));
             }
         }
     }
 }
 
-void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
+void op::v7::If::fill_body(std::shared_ptr<op::v7::If> new_op,
                              size_t branch_index,
                              const OutputVector& new_args) const 
 {
@@ -260,11 +301,10 @@ void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
     }
 }
 
-std::shared_ptr<Node>
-    op::v0::If::clone_with_new_inputs(const OutputVector& new_args) const
+std::shared_ptr<Node> op::v7::If::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_If_clone_with_new_inputs);
-    auto op = make_shared<op::v0::If>(new_args);
+    NGRAPH_OP_SCOPE(v7_If_clone_with_new_inputs);
+    auto op = make_shared<op::v7::If>(new_args);
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
                  "Cannot clone ",
@@ -283,9 +323,9 @@ std::shared_ptr<Node>
     return op;
 }
 
-bool op::v0::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v7::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_If_evaluate);
+    NGRAPH_OP_SCOPE(v7_If_evaluate);
     runtime::reference::if_reference(
         m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
     return true;

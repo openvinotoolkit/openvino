@@ -14,13 +14,13 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
+        namespace v7
         {
             /// \brief  write something
             class NGRAPH_API If : public util::MultiSubGraphOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"If", 0};
+                static constexpr NodeTypeInfo type_info{"If", 7};
                 static constexpr char then_body_index = 0;
                 static constexpr char else_body_index = 1;
 
@@ -52,11 +52,11 @@ namespace ngraph
                 void validate_and_infer_type_body(
                     std::shared_ptr<Function> body,
                     ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
-                void fill_body(std::shared_ptr<op::v0::If> new_op,
+                void fill_body(std::shared_ptr<op::v7::If> new_op,
                                            size_t branch_index,
                                            const OutputVector& new_args) const;
             };
         }
-        using v0::If;
+        using v7::If;
     }
 }

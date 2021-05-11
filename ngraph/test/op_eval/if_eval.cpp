@@ -32,17 +32,17 @@ TEST(op_eval, if_condition_const)
     auto result0 = make_shared<op::Result>(then_op);
     auto then_body = make_shared<ngraph::Function>(OutputVector{result0}, ParameterVector{Xt, Yt});
     auto else_body = make_shared<ngraph::Function>(OutputVector{Xe}, ParameterVector{Xe});
-    auto if_op = make_shared<opset1::If>(OutputVector{cond, X, Y});
+    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
     
-    opset1::If::MultiSubgraphInputDescriptionVector then_inputs = { 
-        make_shared<opset1::If::InvariantInputDescription>(1, 0),
-        make_shared<opset1::If::InvariantInputDescription>(2, 1),
+    op::If::MultiSubgraphInputDescriptionVector then_inputs = { 
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
     }; 
-    opset1::If::MultiSubgraphInputDescriptionVector else_inputs = {
-        make_shared<opset1::If::InvariantInputDescription>(1, 0),
+    op::If::MultiSubgraphInputDescriptionVector else_inputs = {
+        make_shared<op::If::InvariantInputDescription>(1, 0),
     };
-    opset1::If::MultiSubgraphOutputDescriptionVector outputs = {
-        make_shared<opset1::If::BodyOutputDescription>(0, 0)
+    op::If::MultiSubgraphOutputDescriptionVector outputs = {
+        make_shared<op::If::BodyOutputDescription>(0, 0)
     };
     if_op->set_input_descriptions(if_op->then_body_index, then_inputs);
     if_op->set_input_descriptions(if_op->else_body_index, else_inputs);
@@ -97,18 +97,18 @@ TEST(op_eval, if_condition_non_const)
     auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
     auto else_body =
         make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<opset1::If>(OutputVector{cond, X, Y});
+    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
 
-    opset1::If::MultiSubgraphInputDescriptionVector then_inputs = {
-        make_shared<opset1::If::InvariantInputDescription>(1, 0),
-        make_shared<opset1::If::InvariantInputDescription>(2, 1),
+    op::If::MultiSubgraphInputDescriptionVector then_inputs = {
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
     };
-    opset1::If::MultiSubgraphInputDescriptionVector else_inputs = {
-        make_shared<opset1::If::InvariantInputDescription>(1, 0),
-        make_shared<opset1::If::InvariantInputDescription>(2, 1),
+    op::If::MultiSubgraphInputDescriptionVector else_inputs = {
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
     };
-    opset1::If::MultiSubgraphOutputDescriptionVector outputs = {
-        make_shared<opset1::If::BodyOutputDescription>(0, 0)};
+    op::If::MultiSubgraphOutputDescriptionVector outputs = {
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
     if_op->set_input_descriptions(if_op->then_body_index, then_inputs);
     if_op->set_input_descriptions(if_op->else_body_index, else_inputs);
     if_op->set_output_descriptions(if_op->then_body_index, outputs);
@@ -151,13 +151,13 @@ TEST(op_eval, if_free_sample)
     auto then_body =
         make_shared<ngraph::Function>(OutputVector{A}, ParameterVector{});
     auto else_body = make_shared<ngraph::Function>(OutputVector{B}, ParameterVector{});
-    auto if_op = make_shared<opset1::If>(OutputVector{cond});
+    auto if_op = make_shared<op::If>(OutputVector{cond});
     if_op->set_input_descriptions(if_op->then_body_index, {});
     if_op->set_input_descriptions(if_op->else_body_index, {});
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    opset1::If::MultiSubgraphOutputDescriptionVector outputs = {
-        make_shared<opset1::If::BodyOutputDescription>(0, 0)};
+    op::If::MultiSubgraphOutputDescriptionVector outputs = {
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
     if_op->set_output_descriptions(if_op->then_body_index, outputs);
     if_op->set_output_descriptions(if_op->else_body_index, outputs);
     auto fun = make_shared<Function>(OutputVector{if_op}, ParameterVector{cond});
@@ -193,17 +193,17 @@ TEST(op_eval, if_constant_folding)
     auto b_pow = std::make_shared<op::v1::Power>(Xe, Ye);
     auto then_body = make_shared<ngraph::Function>(OutputVector{a_add}, ParameterVector{Xt, Yt});
     auto else_body = make_shared<ngraph::Function>(OutputVector{b_pow}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<opset1::If>(OutputVector{cond, A1, A2, B1, B2});
-    opset1::If::MultiSubgraphInputDescriptionVector then_inputs = {
-        make_shared<opset1::If::InvariantInputDescription>(1, 0),
-        make_shared<opset1::If::InvariantInputDescription>(2, 1),
+    auto if_op = make_shared<op::If>(OutputVector{cond, A1, A2, B1, B2});
+    op::If::MultiSubgraphInputDescriptionVector then_inputs = {
+        make_shared<op::If::InvariantInputDescription>(1, 0),
+        make_shared<op::If::InvariantInputDescription>(2, 1),
     };
-    opset1::If::MultiSubgraphInputDescriptionVector else_inputs = {
-        make_shared<opset1::If::InvariantInputDescription>(3, 0),
-        make_shared<opset1::If::InvariantInputDescription>(4, 1),
+    op::If::MultiSubgraphInputDescriptionVector else_inputs = {
+        make_shared<op::If::InvariantInputDescription>(3, 0),
+        make_shared<op::If::InvariantInputDescription>(4, 1),
     };
-    opset1::If::MultiSubgraphOutputDescriptionVector outputs = {
-        make_shared<opset1::If::BodyOutputDescription>(0, 0)};
+    op::If::MultiSubgraphOutputDescriptionVector outputs = {
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
     if_op->set_input_descriptions(if_op->then_body_index, then_inputs);
     if_op->set_input_descriptions(if_op->else_body_index, else_inputs);
     if_op->set_then_body(then_body);
