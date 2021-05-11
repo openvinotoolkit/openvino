@@ -60,28 +60,6 @@ TEST(type_prop, unsqueeze_incorrect_axes_shape)
     }
 }
 
-TEST(type_prop, unsqueeze_incorrect_axes_type)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
-
-    try
-    {
-        auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
-        FAIL() << "Unsqueeze axes invalid type not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Second input (axes) should have integer type");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
 TEST(type_prop, unsqueeze_empty_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});

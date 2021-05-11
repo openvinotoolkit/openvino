@@ -41,11 +41,6 @@ void op::v0::Unsqueeze::validate_and_infer_types()
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           axes_pshape.rank().get_length());
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
-                          "Second input (axes) should have integer type. Got: ",
-                          get_input_element_type(1));
-
     if (data_rank.is_dynamic() || !axes_constant)
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
