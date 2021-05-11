@@ -52,8 +52,17 @@ void op::util::GatherBase::validate_and_infer_types()
             axis_pshape);
     }
 
-    int64_t batch_dims = get_batch_dims(); // will not be normalized if indices rank is dynamic
-    if (is_axis_set())
+    int64_t batch_dims = m_batch_dims;
+    if (batch_dims < 0 && indices_rank.is_static())
+    {
+        batch_dims += indices_rank.get_length();
+    }
+
+    bool axis_is_set = false;
+    if (get_constant_from_source(input_value(2)))
+        axis_is_set = true;
+
+    if (axis_is_set)
     {
         int64_t axis = get_axis();
 
@@ -61,13 +70,14 @@ void op::util::GatherBase::validate_and_infer_types()
         // indices_rank are static. If at least one of them is negative we cannot check their
         // consistency.
         NODE_VALIDATION_CHECK(this,
-                              batch_dims >= 0 && axis >= 0 && batch_dims <= axis,
+                              batch_dims <= axis || batch_dims < 0 || axis < 0,
                               "The batch_dims <= axis. But instead got: batch_dims = ",
                               batch_dims,
                               ", axis = ",
                               axis);
+
         NODE_VALIDATION_CHECK(this,
-                              axis >= 0 && axis < data_rank.get_max_length(),
+                              axis < data_rank.get_length() || data_rank.is_dynamic(),
                               "The axis must be >= 0 and < data_rank. But instead got axis = ",
                               axis,
                               " data_rank = ",
@@ -108,7 +118,7 @@ void op::util::GatherBase::validate_and_infer_types()
             output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
 
-        if (is_axis_set())
+        if (axis_is_set)
         {
             int64_t axis = get_axis();
             for (; i < axis; i++)
@@ -151,24 +161,6 @@ int64_t op::util::GatherBase::get_axis() const
         }
     }
     return axis;
-}
-
-int64_t op::util::GatherBase::get_batch_dims() const
-{
-    Rank indices_rank = get_input_partial_shape(0).rank();
-    if (m_batch_dims < 0 && indices_rank.is_static())
-        return indices_rank.get_length() + m_batch_dims;
-    else
-        return m_batch_dims;
-}
-
-bool op::util::GatherBase::is_axis_set() const
-{
-    const auto& axis_constant = get_constant_from_source(input_value(2));
-    if (axis_constant)
-        return true;
-    else
-        return false;
 }
 
 namespace gather
@@ -348,7 +340,13 @@ bool op::util::GatherBase::evaluate(const HostTensorVector& outputs,
             axis += input_rank.get_length();
         }
     }
-    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, get_batch_dims());
+
+    int64_t batch_dims = m_batch_dims;
+    const auto& indices_rank = get_input_partial_shape(1).rank();
+    if (batch_dims < 0 && indices_rank.is_static())
+        batch_dims += indices_rank.get_length();
+
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
 bool op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const

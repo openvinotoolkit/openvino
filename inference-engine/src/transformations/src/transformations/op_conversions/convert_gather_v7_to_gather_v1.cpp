@@ -22,8 +22,7 @@ ngraph::pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
         if (!gather_v7_node)
             return false;
 
-        int64_t batch_dims = gather_v7_node->get_batch_dims();
-        if (batch_dims != 0)
+        if (gather_v7_node->get_batch_dims() != 0)
             return false;
 
         auto data_input = gather_v7_node->input_value(0);
