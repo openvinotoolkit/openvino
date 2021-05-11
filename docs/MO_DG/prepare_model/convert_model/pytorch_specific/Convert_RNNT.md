@@ -1,14 +1,14 @@
-# Convert ONNX\* RNN-T Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
+# Convert PyTorch\* RNN-T Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_RNNT}
 
 This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow 
-the steps below to export a PyTorch\* model into ONNX\* before converting it to IR:
+the steps below to export a PyTorch* model into ONNX* before converting it to IR:
 
 **Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository. Make a shallow clone to pull only RNN-T 
 model without full repository. If you already have a full repository, skip this and go to **Step 2**:
 ```bash
 git clone -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
 cd rnnt_for_openvino
-git checkout HEAD speech_recognition/rnnt 
+git checkout 0bbb7a7025e86010cc65cf80b4cafbad72d57693 speech_recognition/rnnt 
 ```
 
 **Step 2**. If you already have a full clone of MLCommons inference repository, create a folder for 
@@ -28,7 +28,7 @@ wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.
 The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as 
 if you were following the steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt.
 
-**Step 4**. Install required python\* packages:
+**Step 4**. Install required python* packages:
 ```bash
 pip3 install torch toml
 ```
@@ -44,6 +44,7 @@ import toml
 import torch
 import sys
 
+
 def load_and_migrate_checkpoint(ckpt_path):
     checkpoint = torch.load(ckpt_path, map_location="cpu")
     migrated_state_dict = {}
@@ -54,14 +55,16 @@ def load_and_migrate_checkpoint(ckpt_path):
     del migrated_state_dict["audio_preprocessor.featurizer.window"]
     return migrated_state_dict
 
-mlcommons_inference_path = './'  # specify relative path for MLCommons inferene
+
+mlcommons_inference_path = '../onnx_specific/'  # specify relative path for MLCommons inferene
 checkpoint_path = 'DistributedDataParallel_1576581068.9962234-epoch-100.pt'
 config_toml = 'speech_recognition/rnnt/pytorch/configs/rnnt.toml'
 config = toml.load(config_toml)
 rnnt_vocab = config['labels']['labels']
-sys.path.insert(0,  mlcommons_inference_path + 'speech_recognition/rnnt/pytorch')
+sys.path.insert(0, mlcommons_inference_path + 'speech_recognition/rnnt/pytorch')
 
 from model_separable_rnnt import RNNT
+
 model = RNNT(config['rnnt'], len(rnnt_vocab) + 1, feature_config=config['input_eval'])
 model.load_state_dict(load_and_migrate_checkpoint(checkpoint_path))
 
@@ -100,5 +103,5 @@ python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "inp
 python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
 Please note that hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves 
-network reshapeability; this means you can change input shapes manually to any value either during conversion or 
-inference.
+network [reshapeability](../../../../IE_DG/ShapeInference.md); this means you can change input shapes manually to any value either during conversion or 
+inference. 
