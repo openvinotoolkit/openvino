@@ -13,7 +13,7 @@ OpenVINO™ toolkit components:
 with pre-trained models for a range of different tasks
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to transform models into
 the Intermediate Representation (IR) format
-* [Post-Training Optimization toolkit](@ref pot_README) to calibrate a model and then execute it in the
+* [Post-training Optimization Tool](@ref pot_README) to calibrate a model and then execute it in the
  INT8 precision
 * [Accuracy Checker](@ref omz_tools_accuracy_checker) to determine the accuracy of a model
 * [Benchmark Tool](@ref openvino_inference_engine_samples_benchmark_app_README) to estimate inference performance on supported devices
