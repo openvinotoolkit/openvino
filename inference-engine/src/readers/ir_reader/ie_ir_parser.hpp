@@ -30,67 +30,67 @@
 
 namespace InferenceEngine {
 
-class IParser {
-public:
-    using Ptr = std::shared_ptr<IParser>;
-    virtual ~IParser() = default;
-    virtual std::shared_ptr<ICNNNetwork> parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
-};
-
-class IRParser {
-public:
-    explicit IRParser(size_t version);
-    IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
-    virtual ~IRParser() = default;
-
-private:
-    IParser::Ptr parser;
-};
-
-class CNNParser : public IParser {
-public:
-    CNNParser() = default;
-    std::shared_ptr<ICNNNetwork> parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) override;
-};
-
-#ifdef IR_READER_V10
-class V10Parser : public IParser {
-public:
-    explicit V10Parser(const std::vector<IExtensionPtr>& exts);
-
-    std::shared_ptr<ICNNNetwork> parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) override;
-
-    struct GenericLayerParams {
-        struct LayerPortData {
-            size_t portId;
-            ngraph::element::Type_t precision;
-            SizeVector dims;
-            std::unordered_set<std::string> names;
-        };
-        size_t layerId;
-        std::string version;
-        std::string name;
-        std::string type;
-        std::vector<LayerPortData> inputPorts;
-        std::vector<LayerPortData> outputPorts;
-
-        size_t getRealInputPortId(size_t id) const;
-
-        size_t getRealOutputPortId(size_t id) const;
+    class IParser {
+    public:
+        using Ptr = std::shared_ptr<IParser>;
+        virtual ~IParser() = default;
+        virtual std::shared_ptr<ICNNNetwork> parse(
+            const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
     };
 
-private:
-    void parsePreProcess(
-        CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
+    class IRParser {
+    public:
+        explicit IRParser(size_t version);
+        IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
+        std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
+        virtual ~IRParser() = default;
 
-    std::unordered_map<std::string, ngraph::OpSet> opsets;
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
-    const std::vector<IExtensionPtr> _exts;
-};
+    private:
+        IParser::Ptr parser;
+    };
+
+    class CNNParser : public IParser {
+    public:
+        CNNParser() = default;
+        std::shared_ptr<ICNNNetwork> parse(
+            const pugi::xml_node& root, const Blob::CPtr& weights) override;
+    };
+
+#ifdef IR_READER_V10
+    class V10Parser : public IParser {
+    public:
+        explicit V10Parser(const std::vector<IExtensionPtr>& exts);
+
+        std::shared_ptr<ICNNNetwork> parse(
+            const pugi::xml_node& root, const Blob::CPtr& weights) override;
+
+        struct GenericLayerParams {
+            struct LayerPortData {
+                size_t portId;
+                ngraph::element::Type_t precision;
+                SizeVector dims;
+                std::unordered_set<std::string> names;
+            };
+            size_t layerId;
+            std::string version;
+            std::string name;
+            std::string type;
+            std::vector<LayerPortData> inputPorts;
+            std::vector<LayerPortData> outputPorts;
+
+            size_t getRealInputPortId(size_t id) const;
+
+            size_t getRealOutputPortId(size_t id) const;
+        };
+
+    private:
+        void parsePreProcess(
+            CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
+
+        std::unordered_map<std::string, ngraph::OpSet> opsets;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
+        const std::vector<IExtensionPtr> _exts;
+    };
 
 #endif  // IR_READER_V10
 

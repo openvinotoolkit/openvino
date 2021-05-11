@@ -13,11 +13,12 @@ namespace ngraph
     {
         namespace reference
         {
-            void if_reference(const std::vector<std::shared_ptr<Function>>& body,
-                      const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
-                      const std::vector<op::util::MultiSubgraphInputDescriptionVector>& input_descs,
-                      const HostTensorVector& out,
-                      const HostTensorVector& args);
+            void if_reference(
+                const std::vector<std::shared_ptr<Function>>& body,
+                const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
+                const std::vector<op::util::MultiSubgraphInputDescriptionVector>& input_descs,
+                const HostTensorVector& out,
+                const HostTensorVector& args);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

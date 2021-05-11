@@ -15,14 +15,14 @@ constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::InvariantInputDescription:
 constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::BodyOutputDescription::type_info;
 
 op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index,
-                                                         uint64_t body_parameter_index)
+                                                              uint64_t body_parameter_index)
     : m_input_index(input_index)
     , m_body_parameter_index(body_parameter_index)
 {
 }
 
 op::util::MultiSubGraphOp::OutputDescription::OutputDescription(uint64_t body_value_index,
-                                                           uint64_t output_index)
+                                                                uint64_t output_index)
     : m_body_value_index(body_value_index)
     , m_output_index(output_index)
 {
@@ -41,7 +41,7 @@ std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
 }
 
 op::util::MultiSubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
-                                                                   uint64_t output_index)
+                                                                        uint64_t output_index)
     : OutputDescription(body_value_index, output_index)
 {
 }
@@ -55,7 +55,6 @@ std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
 op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args)
     : Op(args)
 {
-
 }
 
 op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t bodies_index)
@@ -73,8 +72,6 @@ Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value
     return Input<Node>(this, input_index);
 }
 
-
-
 void op::util::MultiSubGraphOp::reserve_bodies(int num_bodies)
 {
     m_bodies = decltype(m_bodies)(num_bodies);
@@ -88,4 +85,4 @@ namespace ngraph
 
     constexpr DiscreteTypeInfo AttributeAdapter<
         std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>::type_info;
-}
+} // namespace ngraph

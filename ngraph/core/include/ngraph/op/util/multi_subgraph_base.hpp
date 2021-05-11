@@ -13,12 +13,10 @@ namespace ngraph
     {
         namespace util
         {
-            
             /// \brief Abstract base class for sub-graph based ops, i.e ops that have sub-graph
             ///
             class NGRAPH_API MultiSubGraphOp : public Op
             {
-              
             public:
                 NGRAPH_RTTI_DECLARATION;
                 /// \brief Describes a connection between a SubGraphOp input and the body.
@@ -45,7 +43,6 @@ namespace ngraph
                     uint64_t m_body_parameter_index{0};
                 };
 
-
                 /// \brief Describes how a SubGraphOp output is produced from the body.
                 class OutputDescription
                 {
@@ -69,10 +66,6 @@ namespace ngraph
                     uint64_t m_output_index{0};
                 };
 
-                ///
-                /// \brief      Describes a body input initialized from a SubGraphOp input on
-                ///             the first iteration, and invariant thereafter.
-                ///
                 class NGRAPH_API InvariantInputDescription : public InputDescription
                 {
                 public:
@@ -100,19 +93,23 @@ namespace ngraph
                     ///
                     /// \param      body_value_index  A body value that produces the output
                     /// \param      output_index      The SubGraphOp output index
-                    /// \param      iteration         which iteration (typically -1, final) will
-                    ///                               supply the value
                     ///
-                    BodyOutputDescription(uint64_t body_value_index,
-                                          uint64_t output_index);
+                    BodyOutputDescription(uint64_t body_value_index, uint64_t output_index);
                     BodyOutputDescription() = default;
                     std::shared_ptr<OutputDescription> copy() const override;
                 };
-                using MultiSubgraphInputDescriptionPtr = std::shared_ptr<MultiSubGraphOp::InputDescription>;
-                using MultiSubgraphOutputDescriptionPtr = std::shared_ptr<MultiSubGraphOp::OutputDescription>;
-                using MultiSubgraphInputDescriptionVector = std::vector<MultiSubgraphInputDescriptionPtr>;
-                using MultiSubgraphOutputDescriptionVector = std::vector<MultiSubgraphOutputDescriptionPtr>;
-                virtual std::shared_ptr<Function> get_function(int index) { return m_bodies[index]; };
+                using MultiSubgraphInputDescriptionPtr =
+                    std::shared_ptr<MultiSubGraphOp::InputDescription>;
+                using MultiSubgraphOutputDescriptionPtr =
+                    std::shared_ptr<MultiSubGraphOp::OutputDescription>;
+                using MultiSubgraphInputDescriptionVector =
+                    std::vector<MultiSubgraphInputDescriptionPtr>;
+                using MultiSubgraphOutputDescriptionVector =
+                    std::vector<MultiSubgraphOutputDescriptionPtr>;
+                virtual std::shared_ptr<Function> get_function(int index)
+                {
+                    return m_bodies[index];
+                };
                 virtual std::shared_ptr<const Function> get_function(int index) const
                 {
                     return m_bodies[index];
@@ -149,11 +146,12 @@ namespace ngraph
                 {
                     return m_output_descriptions[index];
                 }
-                void set_input_descriptions(int index, MultiSubgraphInputDescriptionVector inputs) 
+                void set_input_descriptions(int index, MultiSubgraphInputDescriptionVector inputs)
                 {
                     m_input_descriptions[index] = inputs;
                 }
-                void set_output_descriptions(int index, MultiSubgraphOutputDescriptionVector outputs)
+                void set_output_descriptions(int index,
+                                             MultiSubgraphOutputDescriptionVector outputs)
                 {
                     m_output_descriptions[index] = outputs;
                 }
@@ -164,9 +162,7 @@ namespace ngraph
                 MultiSubGraphOp& operator=(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp& operator=(MultiSubGraphOp&&) = default;
 
-
             protected:
-
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 
@@ -175,18 +171,20 @@ namespace ngraph
                 explicit MultiSubGraphOp(const OutputVector& args);
 
                 std::vector<std::shared_ptr<Function>> m_bodies;
-                std::vector<MultiSubgraphInputDescriptionVector>
-                    m_input_descriptions;
-                std::vector<MultiSubgraphOutputDescriptionVector>
-                    m_output_descriptions;
+                std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
+                std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
             };
-            using MultiSubgraphInputDescriptionPtr = util::MultiSubGraphOp::MultiSubgraphInputDescriptionPtr;
-            using MultiSubgraphOutputDescriptionPtr = util::MultiSubGraphOp::MultiSubgraphOutputDescriptionPtr;
-            using MultiSubgraphInputDescriptionVector = util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector;
-            using MultiSubgraphOutputDescriptionVector = util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector;
+            using MultiSubgraphInputDescriptionPtr =
+                util::MultiSubGraphOp::MultiSubgraphInputDescriptionPtr;
+            using MultiSubgraphOutputDescriptionPtr =
+                util::MultiSubGraphOp::MultiSubgraphOutputDescriptionPtr;
+            using MultiSubgraphInputDescriptionVector =
+                util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector;
+            using MultiSubgraphOutputDescriptionVector =
+                util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector;
 
-        }
-    }
+        } // namespace util
+    }     // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<
@@ -196,10 +194,10 @@ namespace ngraph
     {
     public:
         AttributeAdapter(
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>& value)
-            : DirectValueAccessor<
-                  std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>(
-                  value)
+            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&
+                value)
+            : DirectValueAccessor<std::vector<
+                  std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>(value)
         {
         }
 
@@ -218,10 +216,10 @@ namespace ngraph
     {
     public:
         AttributeAdapter(
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>& value)
-            : DirectValueAccessor<
-                  std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>(
-                  value)
+            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&
+                value)
+            : DirectValueAccessor<std::vector<
+                  std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>(value)
         {
         }
 
@@ -231,4 +229,4 @@ namespace ngraph
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

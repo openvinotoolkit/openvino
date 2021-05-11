@@ -16,7 +16,8 @@ TEST(type_prop, if_simple_test)
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto cond = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::boolean, ngraph::Shape{1}, true);
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
@@ -25,9 +26,8 @@ TEST(type_prop, if_simple_test)
     auto Xe = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // Body
-    auto then_op = std::make_shared<op::v1::Add>(Xt,Yt);
-    auto then_body =
-        make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
@@ -76,12 +76,11 @@ TEST(type_prop, if_non_const_condition_test)
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
     auto inputs = op::If::MultiSubgraphInputDescriptionVector{
-        make_shared<op::If::InvariantInputDescription>(1,0),
+        make_shared<op::If::InvariantInputDescription>(1, 0),
         make_shared<op::If::InvariantInputDescription>(2, 1),
     };
     auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
-        make_shared<op::If::BodyOutputDescription>(0, 0)
-    };
+        make_shared<op::If::BodyOutputDescription>(0, 0)};
     if_op->set_input_descriptions(if_op->then_body_index, inputs);
     if_op->set_input_descriptions(if_op->else_body_index, inputs);
     if_op->set_output_descriptions(if_op->then_body_index, outputs);
@@ -95,7 +94,6 @@ TEST(type_prop, if_non_const_condition_test)
 
 TEST(type_prop, if_clone_test)
 {
-    // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto cond = make_shared<op::Parameter>(element::boolean, Shape{1});
@@ -111,9 +109,9 @@ TEST(type_prop, if_clone_test)
     // Body
     auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
     auto then_body = make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
-
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
+
     auto if_op = make_shared<op::If>(OutputVector{cond, Xe, Ye});
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -127,8 +125,8 @@ TEST(type_prop, if_clone_test)
     if_op->set_input_descriptions(if_op->else_body_index, inputs);
     if_op->set_output_descriptions(if_op->then_body_index, outputs);
     if_op->set_output_descriptions(if_op->else_body_index, outputs);
-    
 
-    auto new_if = std::dynamic_pointer_cast<op::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
+    auto new_if = std::dynamic_pointer_cast<op::If>(
+        if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
     EXPECT_EQ(true, true);
 }
