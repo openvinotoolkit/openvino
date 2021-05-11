@@ -38,7 +38,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_39659,
                    xfail_issue_39662,
                    xfail_issue_43742,
-                   xfail_issue_44839,
                    xfail_issue_44848,
                    xfail_issue_44851,
                    xfail_issue_44854,
@@ -61,7 +60,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49752,
                    xfail_issue_49753,
                    xfail_issue_49754,
-                   xfail_issue_52463)
+                   xfail_issue_52463,
+                   xfail_issue_51993)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -336,13 +336,6 @@ tests_expected_to_fail = [
     (xfail_issue_43742,
      "OnnxBackendNodeModelTest.test_if_cpu",
      "OnnxBackendNodeModelTest.test_if_seq_cpu"),
-    (xfail_issue_44839,
-     "OnnxBackendNodeModelTest.test_logsoftmax_axis_0_cpu",
-     "OnnxBackendNodeModelTest.test_logsoftmax_axis_1_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_default_axis_cpu",
-     "OnnxBackendNodeModelTest.test_hardmax_axis_0_cpu",
-     "OnnxBackendNodeModelTest.test_hardmax_axis_1_cpu",
-     "OnnxBackendNodeModelTest.test_hardmax_default_axis_cpu",),
     (xfail_issue_44848,
      "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_cpu",
      "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_cpu",),
@@ -391,6 +384,8 @@ tests_expected_to_fail = [
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
+    (xfail_issue_51993,
+     "OnnxBackendNodeModelTest.test_prelu_broadcast_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:
