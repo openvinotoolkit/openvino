@@ -199,6 +199,7 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
 def get_environment_setup(framework):
     """
     Get environment setup such as Python version, TensorFlow version
+    :param framework: framework name
     :return: a dictionary of environment variables
     """
     env_setup = dict()
