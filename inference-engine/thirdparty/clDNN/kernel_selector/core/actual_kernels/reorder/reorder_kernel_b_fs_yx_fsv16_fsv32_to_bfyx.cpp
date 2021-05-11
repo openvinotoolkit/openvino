@@ -20,15 +20,7 @@ ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT32);
 
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableOutputDataType(Datatype::UINT16);
-    k.EnableOutputDataType(Datatype::UINT32);
-    k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::INT16);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
+    k.EnableAllOutputDataType();
 
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
@@ -113,41 +105,12 @@ static inline std::vector<size_t> GetGWS(const reorder_params& params) {
     return gws;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const reorder_params& params, const std::vector<size_t>& gws, const size_t tile_width, const size_t tile_size) {
-    std::vector<size_t> lws{ 1, 1, 1 };
-    std::vector<size_t> dims{ 0, 1, 2 };
-
-    // SLM size: elemsize * tile_width * tile_width * work_items <= 64K
-    const size_t elem_size = params.inputs[0].ElementSize();
-    const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
-    const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
-    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
-
-    for (size_t i = 0; i < dims.size(); ++i) {
-        size_t dim = dims[i];
-        size_t max_divider = static_cast<size_t>(std::sqrt(gws[dim]) + 1);
-        for (size_t divider = 1; divider <= max_divider; ++divider) {
-            if (gws[dim] % divider == 0) {
-                const size_t lws0 = gws[dim] / divider;
-                if (lws0 <= max_num_work_items) {
-                    lws[dim] = std::max(lws[dim], lws0);
-                }
-                if (divider <= max_num_work_items) {
-                    lws[dim] = std::max(lws[dim], divider);
-                }
-            }
-        }
-        max_num_work_items /= lws[dim];
-    }
-
-    return lws;
-}
-
 CommonDispatchData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::SetDefault(const reorder_params& params) const {
     CommonDispatchData dispatchData;
+    const size_t fsv_alignment = GetFsvAlignment(params);
 
     dispatchData.gws = GetGWS(params);
-    dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, DEFAULT_TILE_SIZE, DEFAULT_TILE_SIZE);
+    dispatchData.lws = { fsv_alignment, 1, 1};
     return dispatchData;
 }
 
@@ -202,12 +165,21 @@ bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const 
     const auto& input = params.inputs[0];
     const auto& output = params.output;
 
-    // decreamental-dims is not supported
+    // decreamental-dims are not supported
     if (input.GetDims().size() > output.GetDims().size()) {
         return false;
     }
 
     // padding is not supported
+    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
+        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
+        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
+        input.W().pad.before != 0 || input.W().pad.after != 0 ||
+        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
+        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
+        return false;
+    }
+
     if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
         output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
         output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
@@ -220,7 +192,20 @@ bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const 
     return true;
 }
 
-KernelsPriority ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsPriority(const Params& p, const optional_params& /*options*/) const {
+    const reorder_params& params = static_cast<const reorder_params&>(p);
+    const auto& input = params.inputs[0];
+
+    const size_t f = input.Feature().v;
+    const size_t x = input.X().v;
+
+    const size_t tile_size = GetTileSize(params);
+    const size_t fsv_alignment = GetFsvAlignment(params);
+
+    if (f <= fsv_alignment && x < tile_size) {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    }
+
     return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

@@ -23,24 +23,6 @@ using namespace cldnn;
 using namespace tests;
 using namespace testing;
 
-static int get_input_dim_num(cldnn::format format) {
-    switch (format)
-    {
-    case format::bfyx:
-    case format::b_fs_yx_fsv16:
-    case format::b_fs_yx_fsv32:
-        return 4;
-    case format::bfzyx:
-    case format::b_fs_zyx_fsv16:
-    case format::b_fs_zyx_fsv32:
-        return 5;
-    case format::bfwzyx:
-        return 6;
-    default:
-        return 0;
-    }
-}
-
 static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
@@ -48,12 +30,13 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const auto& engine = get_test_engine();
 
     tensor ts;
-    if (get_input_dim_num(input_format) == 4) {
+    if (input_format.dimension() == 4) {
         ts = { b_in, f_in, x_in, y_in };
     }
-    else if (get_input_dim_num(input_format) == 5) {
+    else if (input_format.dimension() == 5) {
         ts = { b_in, f_in, x_in, y_in, z_in };
-    } else {
+    }
+    else {
         ts = { b_in, f_in, x_in, y_in, z_in, w_in };
     }
 
@@ -119,7 +102,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     auto output_ptr = output.pointer<unsigned char>();
 
     // compare results
-    const size_t output_size = output_ref.get_layout().get_linear_size();
+    const size_t output_size = output_ref_ptr.size();
     for (size_t i = 0; i < output_size; i++)
     {
         EXPECT_EQ(output_ref_ptr[i], output_ptr[i]);
@@ -151,6 +134,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32) {
+    // u-net
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 1, 64, 388, 388);
     // b_fs_yx_fsv16 -> bfyx
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 3, 48 + 1, 16, 3);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32 - 1, 24 - 1, 3);

@@ -16,19 +16,9 @@
 namespace kernel_selector {
 ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::UINT8);
-    k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT64);
 
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
+    k.EnableAllInputDataType();
+    k.EnableAllOutputDataType();
 
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -228,6 +218,15 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
     }
 
     // padding is not supported
+    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
+        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
+        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
+        input.W().pad.before != 0 || input.W().pad.after != 0 ||
+        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
+        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
+        return false;
+    }
+
     if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
         output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
         output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
@@ -240,7 +239,32 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
     return true;
 }
 
-KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& p, const optional_params& /*options*/) const {
+    const reorder_params& params = static_cast<const reorder_params&>(p);
+    const auto& input = params.inputs[0];
+    const auto& output = params.output;
+
+    const size_t b = input.Batch().v;
+    const size_t f = input.Feature().v;
+    const size_t x = input.X().v;
+    const size_t y = input.Y().v;
+    const size_t z = input.Z().v;
+
+    const size_t elem_size = input.ElementSize();
+    const size_t total_data_byte = b * f * x * y * z * elem_size;
+
+    const size_t tile_size = GetTileSize(params);
+    const size_t fsv_alignment = GetFsvAlignment(params);
+
+    if ((f < fsv_alignment && x < tile_size) || total_data_byte < 32000) {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    }
+
+    // At this condition, reorder_data_fast_b1 is faster
+    if (b == 1 && output.Batch().v == 1 && params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && f < 256) {
+        return FORCE_PRIORITY_8;
+    }
+
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector
