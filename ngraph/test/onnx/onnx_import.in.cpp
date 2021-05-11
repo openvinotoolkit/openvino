@@ -4299,3 +4299,64 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_shape_attribute)
     test_case.add_expected_output<int32_t>(Shape{2, 3, 4}, std::vector<int32_t>(24, 5));
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_tensor)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_tensor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 3}, {0.0f, 0.5f, 1.f, 1.5f, 2.f, 2.5f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_bfloat_tensor)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_bfloat_tensor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0.f, 5.f, 10.f, 15.f, 20.f, 25.f});
+    test_case.run();
+}
+
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_scalar)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_scalar.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{}, {0.5f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_array)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_array.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{3}, {0.5f, 1.f, 1.5f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_scalar)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_scalar.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<std::int64_t>(Shape{}, {1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_array)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_array.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<std::int64_t>(Shape{3}, {0, 1, 2});
+    test_case.run();
+}

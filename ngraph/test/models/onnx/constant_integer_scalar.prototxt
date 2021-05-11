@@ -1,0 +1,28 @@
+ir_version: 7
+producer_name: "backend-test"
+graph {
+  node {
+    output: "values"
+    op_type: "Constant"
+    attribute {
+      name: "value_int"
+      i: 1
+      type: INT
+    }
+  }
+  name: "test_constant"
+  output {
+    name: "values"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}
