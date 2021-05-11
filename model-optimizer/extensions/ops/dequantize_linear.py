@@ -16,7 +16,7 @@ class DequantizeLinear(Op):
             'op': self.op,
             'axis': None,
             'version': None,
-            'infer': DequantizeLinear.infer,
+            'infer': copy_shape_infer,
             'out_ports_count': 1,
             'in_ports_count': 3,
         }
@@ -24,7 +24,3 @@ class DequantizeLinear(Op):
 
     def supported_attrs(self):
         return ['axis']
-
-    @staticmethod
-    def infer(node: None):
-        copy_shape_infer(node)
