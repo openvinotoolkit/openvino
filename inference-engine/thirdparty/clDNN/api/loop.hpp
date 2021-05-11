@@ -17,73 +17,40 @@ namespace cldnn {
 /// @{
 /// @addtogroup cpp_primitives Primitives
 /// @{
-
+///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
 /// @details
 /// @n   The body topology for recurrent execution is described in the body
 /// @n   The execution of the body topology iterates through the data in the given axis.
-/// @n\b Output primitive id:
-/// @n   If output is concatenated, output primitive id will be <loop primitive id>:<output primitive id>. e.g. "loop:output"
-/// @n   Otherwise, the output's primitive id will be <loop primitive id>:<output primitive id>_<iteration number>.
-/// @n   e.g. "loop:output_0", "loop:output_1", "loop:output_2", ...
 /// @n\b Example:
 /// \code{.cpp}
-/// // external topology
-/// primitive_id max_iteration_id = "max_iteration";
-/// primitive_id initial_condition_id = "initial_condition";
-/// primitive_id input_id = "input";
-/// primitive_id const_id = "const";
-/// primitive_id output_id = "output";
-///
-/// cldnn:: topology topology;
-/// topology.add<cldnn::data>({ max_iteration_id, ... });
-/// topology.add<cldnn::data>({ initial_condition_id, ... });
-/// topology.add<cldnn::data>({ input_id, ... });
-/// topology.add<cldnn::data>({ const_id, ... });
-///
-///
-/// // set internal body network
-/// primitive_id current_iteration_id = "curr_iter";
-/// primitive_id loop_condition_id = "loop_condition";
-/// primitive_id input_internal_id = "input_internal";
-/// primitive_id const_internal_id = "const_internal";
-/// primitive_id output_internal_id = "output_internal";
-///
-/// cldnn:: topology topology_internal;
-/// // updated by loop operator
-/// topology_internal.add<cldnn::data>({current_iteration_id, ...});
-/// topology_internal.add<cldnn::data>({loop_condition_id, ...});
-/// topology_internal.add<cldnn::data>({input_internal_id, ...});
-/// topology_internal.add<cldnn::data>({const_internal_id, ...});
-///
-/// topology_internal.add(
-///     eltwise(output_internal_id, input_internal_id, const_internal_id, eltwise::add)
-/// )
-///
-/// std::vector<io_primitive_map> primitive_map{
-///     {io_primitive_map::INPUT, input_id, input_internal_id, axis=1}, // iterating through axis 1
-///     {io_primitive_map::INPUT, const_id, const_internal_id},
-///     {io_primitive_map::OUTPUT, output_id, output_internal_id, axis=1}, // will be concatenated by axis 1
-/// };
-///
-/// std::vector<backedge_mapping> backedges {
-///     {output_internal_id, input_internal_id}
-/// };
-///
-/// cldnn::loop loop(
-///     "loop",
-///     {input_id, const_id},
-///     topology_internal,
-///     max_iteration_id,
-///     initial_condition_id,
-///     loop_condition_id,
-///     primitive_map,
-///     backedges
+/// topology body(
+///     data("eltwise_operand", operand_mem),
+///     eltwise("eltwise", "input", "eltwise_operand", eltwise_mode::sum)
 /// );
 ///
-/// topology.add(loop);
-/// // output will be accessble by output_id
+/// std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input") };
+/// std::vector<loop::io_primitive_map> output_primitive_maps { loop::io_primitive_map("loop", "eltwise") };
+///
+/// std::vector<loop::backedge_mapping> back_edges {
+///     loop::backedge_mapping("eltwise", "input")
+/// };
+///
+/// topology topology(
+///     input_layout("input", input_mem.get_layout()),
+///     input_layout("trip_count", trip_count_mem.get_layout()),
+///     input_layout("initial_condition", initial_condition_mem.get_layout()),
+///     mutable_data("num_iteration", num_iteration_mem),
+///     loop("loop", {"input"}, body,
+///             "trip_count", "initial_condition", "num_iteration",
+///             input_primitive_maps, output_primitive_maps, back_edges)
+/// );
+///
+/// network network(engine, topology);
+/// network.set_input_data("input", input_mem);
+/// network.set_input_data("trip_count", trip_count_mem);
+/// network.set_input_data("initial_condition", initial_condition_mem);
 /// \endcode
 
 struct loop : public primitive_base<loop> {
@@ -127,9 +94,6 @@ struct loop : public primitive_base<loop> {
     };
 
     /// @brief Constructs loop primitive.
-    ///
-    /// actual max iteration = min(trip_count, (end-start)/stride)
-    ///
     ///
     /// @param id This primitive id.
     /// @param inputs Input data primitive ids.

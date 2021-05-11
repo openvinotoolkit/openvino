@@ -40,15 +40,15 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
     std::vector<memory_impl::ptr> get_sliced_mem(const primitive_id& internal_id, const loop_inst& instance) {
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
-        for (const auto& iter_info : concatenated_input_mem_mappings) {
-            if (iter_info.sliced_data_id == internal_id) {
-                return iter_info.sliced_mems;
+        for (const auto& mem_mapping : concatenated_input_mem_mappings) {
+            if (mem_mapping.sliced_data_id == internal_id) {
+                return mem_mapping.sliced_mems;
             }
         }
         const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
-        for (const auto& iter_info : concatenated_output_mem_mappings) {
-            if (iter_info.concat_data_id == internal_id) {
-                return iter_info.sliced_mems;
+        for (const auto& mem_mapping : concatenated_output_mem_mappings) {
+            if (mem_mapping.concat_data_id == internal_id) {
+                return mem_mapping.sliced_mems;
             }
         }
         return {}; // not found
@@ -332,10 +332,8 @@ struct loop_gpu : typed_primitive_impl<loop> {
             }
 
             // Set sliced output memory
-            for (size_t i = 0; i < concatenated_output_mem_mappings.size(); ++i) {
-                const auto& concatenated_output = concatenated_output_mem_mappings.at(i);
-                const auto& sliced_output_mem = concatenated_output.sliced_mems.at(current_iteration);
-                concatenated_output.concat_data_prim->set_output_memory(*sliced_output_mem);
+            for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
+                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration);
             }
             if (current_iteration == 0) {
                 body_network->execute(events);

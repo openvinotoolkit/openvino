@@ -407,7 +407,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
             manager.register_pass<ngraph::pass::ConstantFolding>();
-            // manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.run_passes(nGraphFunc);
         }
     }

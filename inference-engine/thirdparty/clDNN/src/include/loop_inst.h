@@ -394,6 +394,11 @@ private:
             }
         }
 
+        void setup_concatenated_output_memory(uint64_t iteration) const {
+            const auto& sliced_output_mem = sliced_mems.at(iteration);
+            concat_data_prim->set_output_memory(*sliced_output_mem);
+        }
+
         memory_impl::ptr get_sliced_mem(int iteration) const {
             const int offset = bytes_initial_offset + bytes_stride * iteration;
             {
@@ -408,14 +413,14 @@ private:
 
         primitive_id concat_data_id;
         primitive_id sliced_data_id;
+        std::shared_ptr<primitive_inst> concat_data_prim;
+        std::shared_ptr<primitive_inst> sliced_data_prim;
         memory_impl::ptr concatenated_mem;
         std::vector<memory_impl::ptr> sliced_mems;
         const int bytes_per_element;
         const int bytes_per_iteration;
         const int bytes_stride;
         const int bytes_initial_offset;
-        std::shared_ptr<primitive_inst> concat_data_prim;
-        std::shared_ptr<primitive_inst> sliced_data_prim;
     };
 
     static layout calc_output_layout(const loop_node& node);

@@ -62,14 +62,14 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), true);
     auto body_topology = *body_program.GetTopology();
 
-    // setup input_mappings/ output_mappings and back_edges
+    // setup input_primitive_maps/ output_primitive_maps and back_edges
     const auto& loop_input_descs = op->get_input_descriptions();
     const auto& loop_output_descs = op->get_output_descriptions();
     const auto& body_inputs = op->get_body()->get_parameters();
     const auto& body_outputs = op->get_body()->get_results();
 
-    std::vector<cldnn::loop::io_primitive_map> input_mappings;
-    std::vector<cldnn::loop::io_primitive_map> output_mappings;
+    std::vector<cldnn::loop::io_primitive_map> input_primitive_maps;
+    std::vector<cldnn::loop::io_primitive_map> output_primitive_maps;
     std::vector<cldnn::loop::backedge_mapping> back_edges;
 
     // set input mapping & back edges
@@ -82,11 +82,11 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
         if (const auto& sliceInfo =
             std::dynamic_pointer_cast<TensorIterator::SliceInputDescription>(loop_input_desc)) {
             // sliced input
-            input_mappings.emplace_back(external_id, internal_id, sliceInfo->m_axis,
+            input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
                 sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
         } else {
             // input without slicing
-            input_mappings.emplace_back(external_id, internal_id);
+            input_primitive_maps.emplace_back(external_id, internal_id);
         }
 
         // set back edges
@@ -169,13 +169,13 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
         if (const auto& concatOutput =
             std::dynamic_pointer_cast<TensorIterator::ConcatOutputDescription>(loop_output_desc)) {
             // output which requires concatenation
-            output_mappings.emplace_back(external_id, internal_id, concatOutput->m_axis,
+            output_primitive_maps.emplace_back(external_id, internal_id, concatOutput->m_axis,
                 concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
         }
         if (const auto& body_desc =
             std::dynamic_pointer_cast<TensorIterator::BodyOutputDescription>(loop_output_desc)) {
             // output which requires no concatenation
-            output_mappings.emplace_back(external_id, internal_id);
+            output_primitive_maps.emplace_back(external_id, internal_id);
         }
     }
 
@@ -186,8 +186,8 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
         trip_count_id,          /* trip_count data in outer network, always same as num_iterations in TI */
         execution_condition_id, /* initial_execution_condition data in outer network, always true in TI */
         num_iteration_id,       /* actual number of iteration data in body network */
-        input_mappings,         /* input mappings connecting outer network and inner network */
-        output_mappings,        /* output mappings connecting outer network and inner network */
+        input_primitive_maps,         /* input mappings connecting outer network and inner network */
+        output_primitive_maps,        /* output mappings connecting outer network and inner network */
         back_edges,             /* back edge mapping */
         num_iterations);        /* max iteration, i.e. length of iteration axis */
 
