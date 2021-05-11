@@ -19,14 +19,16 @@ namespace ngraph
     struct Edge
     {
         Edge() = delete;
-        Edge(const int node_idx, const int port_idx)
+        Edge(const int node_idx, const int port_idx, std::string new_input_name = "")
             : m_node_idx{node_idx}
             , m_port_idx{port_idx}
+            , m_new_input_name{std::move(new_input_name)}
         {
         }
 
         const int m_node_idx;
         const int m_port_idx;
+        const std::string m_new_input_name;
     };
     namespace onnx_editor
     {
@@ -45,6 +47,15 @@ namespace ngraph
         ///            InputEdge(5, 0)
         ///            InputEdge(5, 1)
         ///            InputEdge(5, 2)
+        ///
+        ///        If a new_input_name argument is provided, it is used as a new input name
+        ///        in a place where a graph is cut (if creation of a new input is needed).
+        ///        Otherwise, a new input name is set to:
+        ///            - original name of an input tensor, if the tensor is consumed by only a one
+        ///            node
+        ///            - first output name of an input tensor consumer + "/placeholder_port_" +
+        ///            port_index,
+        ///              if the tensor is consumed by more than one node.
         using InputEdge = Edge<EdgeType::INPUT>;
 
         /// \brief Defines an edge connected to an output of any node in the graph.
@@ -59,6 +70,8 @@ namespace ngraph
         ///        there are 2 possible valid instances of this struct:
         ///            OutputEdge(5, 0)
         ///            OutputEdge(5, 1)
+        ///
+        ///        The optional argument "new_input_name" is ignored for OutputEdge case.
         using OutputEdge = Edge<EdgeType::OUTPUT>;
 
         /// \brief Specifies a single node input by the name or index.
@@ -69,19 +82,25 @@ namespace ngraph
         ///            ----(in_B)---->  | test_node |  ----(out)---->
         ///            ----(in_C)---->  +-----------+
         ///        You can indicate in_B as EditorInput("in_B") or EditorInput(1)
+        ///
+        ///        The optional argument "new_input_name" can be used to set a custom input name
+        ///        which can be created during cutting a graph.
         struct EditorInput
         {
             EditorInput() = delete;
-            EditorInput(std::string input_name)
+            EditorInput(std::string input_name, std::string new_input_name = "")
                 : m_input_name{std::move(input_name)}
+                , m_new_input_name{std::move(new_input_name)}
             {
             }
-            EditorInput(const int input_index)
+            EditorInput(const int input_index, std::string new_input_name = "")
                 : m_input_index{input_index}
+                , m_new_input_name{std::move(new_input_name)}
             {
             }
             const std::string m_input_name = "";
             const int m_input_index = -1;
+            const std::string m_new_input_name = "";
         };
 
         /// \brief Specifies a single node output by the name or index.

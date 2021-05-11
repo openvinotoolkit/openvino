@@ -186,17 +186,6 @@ namespace
                      edge.m_node_idx,
                      ". Cannot append a new graph input to this node.");
 
-        std::string new_input_name;
-        if (input_consumers > 1)
-        {
-            new_input_name =
-                target_node.output(0) + "/placeholder_port_" + std::to_string(edge.m_port_idx);
-        }
-        else
-        {
-            new_input_name = tensor_name;
-        }
-
         // if an edge is connected to an initializer, the initializer is removed and substituted
         // with an input
         if (is_graph_initializer(graph, tensor_name))
@@ -206,6 +195,24 @@ namespace
         }
         else
         {
+            std::string new_input_name;
+            if (!edge.m_new_input_name.empty())
+            {
+                new_input_name = edge.m_new_input_name;
+                NGRAPH_CHECK(!already_exists(graph.input(), new_input_name),
+                             "New custom input name: ",
+                             new_input_name,
+                             " already exist in the graph");
+            }
+            else if (input_consumers > 1)
+            {
+                new_input_name =
+                    target_node.output(0) + "/placeholder_port_" + std::to_string(edge.m_port_idx);
+            }
+            else
+            {
+                new_input_name = tensor_name;
+            }
             auto& new_input = *(graph.add_input());
             // copy the intermediate tensor properties to the newly created input
             new_input.MergeFrom(find_tensor_descriptor(graph, tensor_name));

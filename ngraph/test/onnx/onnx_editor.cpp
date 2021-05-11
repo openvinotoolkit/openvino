@@ -590,6 +590,24 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
+NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{1, 0, "new_name_1"}, InputEdge{6, 0, "new_name_2"}}},
+                              {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -710,6 +728,25 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
     EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_1"}));
 }
 
+NGRAPH_TEST(onnx_editor, subgraph__custom_input_name_already_exist)
+{
+    const auto model_path =
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
+
+    ONNXModelEditor editor{model_path};
+    try
+    {
+        editor.cut_graph_fragment({{InputEdge{1, 0, "conv1/7x7_s2_b_0"}}}, {});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("New custom input name: conv1/7x7_s2_b_0 already exist in the graph") !=
+            std::string::npos);
+    }
+}
+
 // HIGHT LEVEL API TESTS
 // INPUT EDGES TEST
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_name)
@@ -777,6 +814,22 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
     const InputEdge edge2 = editor.find_input_edge(EditorNode{"split_name"}, EditorInput{0});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_port_idx, 0);
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index_custom_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const InputEdge edge = editor.find_input_edge(EditorNode{"relu1_name"}, EditorInput{0, "custom_input_name_1"});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_port_idx, 0);
+    EXPECT_EQ(edge.m_new_input_name, "custom_input_name_1");
+
+    const InputEdge edge2 = editor.find_input_edge(EditorNode{"split_name"}, EditorInput{0, "custom_input_name_2"});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_port_idx, 0);
+    EXPECT_EQ(edge2.m_new_input_name, "custom_input_name_2");
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name)
@@ -1138,6 +1191,28 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
     const auto output_edge_3 = editor.find_output_edge("mul2");
     EXPECT_EQ(output_edge_3.m_node_idx, 3);
     EXPECT_EQ(output_edge_3.m_port_idx, 0);
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_names)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const auto input_edge_1 = editor.find_input_edge(
+                                   EditorNode{EditorOutput{"mul2"}}, EditorInput{1, "new_name_1"});
+    const auto input_edge_2 = editor.find_input_edge(
+                                   EditorNode{EditorOutput{"split2"}}, EditorInput{"add2", "new_name_2"});
+
+    editor.cut_graph_fragment({input_edge_1, input_edge_2}, {});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__use_edge_mapper_with_graph_cutter_custom_names.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers)

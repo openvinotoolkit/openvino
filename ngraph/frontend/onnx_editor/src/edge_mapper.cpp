@@ -156,12 +156,12 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
     }
     if (in.m_input_index != -1) // input index is set
     {
-        return InputEdge{node_index, in.m_input_index};
+        return InputEdge{node_index, in.m_input_index, in.m_new_input_name};
     }
     if (!in.m_input_name.empty())
     {
         const auto input_idx = get_node_input_idx(node_index, in.m_input_name);
-        return InputEdge{node_index, input_idx};
+        return InputEdge{node_index, input_idx, in.m_new_input_name};
     }
     else
     {
