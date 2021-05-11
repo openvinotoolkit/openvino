@@ -3,6 +3,7 @@
 #
 import numpy as np
 from save_model import saveModel
+import sys
 
 def pad3d(name : str, x, in_dtype, pad, data_format, mode, value = 0):
     import paddle as pdpd
@@ -24,7 +25,7 @@ def pad3d(name : str, x, in_dtype, pad, data_format, mode, value = 0):
         outs = exe.run(
         feed={'x': x},
         fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]])
+        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

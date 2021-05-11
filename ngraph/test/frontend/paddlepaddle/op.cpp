@@ -195,7 +195,7 @@ namespace fuzzyOp {
     INSTANTIATE_TEST_CASE_P(FrontendOpTest, PDPDFuzzyOpTest,
                         ::testing::Combine(
                             ::testing::Values(PDPD),
-                            ::testing::Values(PATH_TO_MODELS),
+                            ::testing::Values(std::string(TEST_PDPD_MODELS)),
                             ::testing::ValuesIn(get_models())),                                                                
                             PDPDFuzzyOpTest::getTestCaseName);                                                 
 

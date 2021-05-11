@@ -3,6 +3,7 @@
 #
 import numpy as np
 from save_model import saveModel
+import sys
 
 def yolo_box(name : str, x, img_size, attrs : dict):
     import paddle as pdpd
@@ -32,7 +33,8 @@ def yolo_box(name : str, x, img_size, attrs : dict):
         
         # Save inputs in order of ngraph function, to facilite Fuzzy test, 
         # which accepts inputs and outputs in this order as well. 
-        saveModel(name, exe, feedkeys=['x', 'img_size'], fetchlist=[boxes, scores], inputs=[x, img_size], outputs=outs)
+        saveModel(name, exe, feedkeys=['x', 'img_size'], fetchlist=[boxes, scores],
+                  inputs=[x, img_size], outputs=outs, target_dir=sys.argv[1])
 
     return outs
 

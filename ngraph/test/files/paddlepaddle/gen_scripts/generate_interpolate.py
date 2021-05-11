@@ -2,7 +2,9 @@ import numpy as np
 import paddle as pdpd
 from paddle.nn.functional import interpolate
 from save_model import saveModel
+import sys
 pdpd.enable_static()
+
 
 def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
     cpu = pdpd.static.cpu_places(1)
@@ -14,9 +16,11 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with pdpd.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x], outputs=[outs[0]])
+        saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs
+
 
 def pdpd_interpolate(x, sizes=None, scale_factor=None, mode='nearest', align_corners=True,
                      align_mode=0, data_format='NCHW', name=None):
@@ -131,7 +135,7 @@ def nearest_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]])
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def bilinear_upsample_tensor_size():
@@ -162,7 +166,7 @@ def bilinear_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]])
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def bilinear_upsample_scales():
@@ -184,10 +188,10 @@ def bilinear_upsample_scales():
 
 
 if __name__ == "__main__":
-    # resize_downsample_bilinear()
-    # resize_upsample_bilinear()
-    # resize_downsample_nearest()
-    # resize_upsample_nearest()
-    # nearest_upsample_tensor_size()
+    resize_downsample_bilinear()
+    resize_upsample_bilinear()
+    resize_downsample_nearest()
+    resize_upsample_nearest()
+    nearest_upsample_tensor_size()
     bilinear_upsample_tensor_size()
     bilinear_upsample_scales()

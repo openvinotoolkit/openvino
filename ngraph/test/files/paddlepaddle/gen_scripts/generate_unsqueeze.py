@@ -4,6 +4,7 @@
 import numpy as np
 from save_model import saveModel
 import paddle as pdpd
+import sys
 
 data_type = 'float32'
 
@@ -23,7 +24,7 @@ def unsqueeze(name : str, x, axes : list):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]])
+        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

@@ -4,7 +4,7 @@
 import numpy as np
 from save_model import saveModel
 import paddle as pdpd
-
+import sys
 data_type = 'float32'
 
 def fill_constant(name : str, shape : list, dtype, value):
@@ -21,7 +21,7 @@ def fill_constant(name : str, shape : list, dtype, value):
         outs = exe.run(
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]])
+        saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

@@ -3,6 +3,7 @@
 #
 import numpy as np
 from save_model import saveModel
+import sys
 
 def split(name : str, x, attrs : dict):
     import paddle as pdpd
@@ -23,7 +24,7 @@ def split(name : str, x, attrs : dict):
         print("outputs: ", type(outs),len(outs))
         print("out: ", type(out), len(out))          
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs)
+        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 
