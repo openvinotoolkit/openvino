@@ -440,10 +440,9 @@ namespace InferenceEngine {
                 auto& xml_input = input.second;
                 int64_t ti_input_index = XMLParseUtils::GetInt64Attr(xml_input, "external_port_id");
                 size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
-                const auto input_index = up_io_map.inputs.at(body_parameter_index);
                 inputs.push_back(
                     std::make_shared<ngraph::op::util::MultiSubGraphOp::InvariantInputDescription>(
-                        ti_input_index, input_index));
+                        ti_input_index, body_parameter_index));
             }
             return inputs;
         }
