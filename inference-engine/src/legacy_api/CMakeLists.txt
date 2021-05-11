@@ -34,8 +34,6 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
-
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
@@ -50,6 +48,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
+
 add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library
@@ -60,8 +60,6 @@ add_library(${TARGET_NAME} SHARED
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
-
-set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine inference_engine_snippets
                                      PRIVATE pugixml openvino::itt

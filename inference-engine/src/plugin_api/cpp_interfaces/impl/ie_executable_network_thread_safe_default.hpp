@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"

@@ -4,45 +4,68 @@
 
 #include "base.hpp"
 #include "ie_parallel.hpp"
+#include <ngraph/op/ctc_greedy_decoder.hpp>
+#include <nodes/common/tensor_desc_creator.h>
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class CTCGreedyDecoderImpl: public ExtLayerBase {
 public:
-    explicit CTCGreedyDecoderImpl(const CNNLayer* layer) : mergeRepeated_(true) {
-        std::string errPrefix = "CTCGreedyDecoder layer with name '" + layer->name + "' ";
-        if (layer->insData.size() != 2)
-            IE_THROW() << errPrefix << "has invalid number of input edges: " << layer->insData.size();
-        if (layer->outData.size() != 1)
-            IE_THROW() << errPrefix << "has invalid number of outputs edges: " << layer->outData.size();
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+        try {
+            auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+            if (!greedyDecOp) {
+                errorMessage = "Node is not an instance of the CTCGreedyDecoder operation from operation set v0.";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
 
-        auto inData = layer->insData[DATA_INDEX].lock();
-        auto sequenceLenData = layer->insData[SEQUENCE_LENGTH_INDEX].lock();
-        if (!inData || !sequenceLenData)
-            IE_THROW() << errPrefix << "has nullable inputs.";
-        if (inData->getTensorDesc().getDims()[0] != sequenceLenData->getTensorDesc().getDims()[0] &&
-                inData->getTensorDesc().getDims()[1] != sequenceLenData->getTensorDesc().getDims()[1])
-            IE_THROW() << errPrefix << "has invalid input shapes.";
-        if (inData->getTensorDesc().getPrecision() != Precision::FP32 &&
-                inData->getTensorDesc().getPrecision() != Precision::BF16)
-            IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inData->getTensorDesc().getPrecision();
-        if (sequenceLenData->getTensorDesc().getPrecision() != Precision::FP32 &&
-                inData->getTensorDesc().getPrecision() != Precision::BF16)
-            IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << sequenceLenData->getTensorDesc().getPrecision();
+        return true;
+    }
 
-        std::vector<DataConfigurator> inputConfigs{{ConfLayout::PLN, Precision::FP32}, {ConfLayout::PLN, Precision::FP32}};
-        std::vector<DataConfigurator> outputConfigs{{ConfLayout::PLN, Precision::FP32}};
-        addConfig(layer, inputConfigs, outputConfigs);
+    explicit CTCGreedyDecoderImpl(const std::shared_ptr<ngraph::Node>& op) : mergeRepeated_(true) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-        if (layer->CheckParamPresence("ctc_merge_repeated")) {
-            mergeRepeated_ = layer->GetParamAsBool("ctc_merge_repeated");
-        } else if (layer->CheckParamPresence("merge_repeated")) {
-            mergeRepeated_ = layer->GetParamAsBool("merge_repeated", true);
+            std::string errPrefix = "CTCGreedyDecoder layer with name '" + op->get_friendly_name() + "' ";
+            if (op->get_input_size() != 2)
+                IE_THROW() << errPrefix << "has invalid number of input edges: " << op->get_input_size();
+            if (op->get_output_size() != 1)
+                IE_THROW() << errPrefix << "has invalid number of outputs edges: " << op->get_output_size();
+
+            if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0] &&
+                    op->get_input_shape(DATA_INDEX)[1] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[1])
+                IE_THROW() << errPrefix << "has invalid input shapes.";
+
+            Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(DATA_INDEX));
+            if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
+                IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
+
+            Precision seqLenPrecision = details::convertPrecision(op->get_input_element_type(SEQUENCE_LENGTH_INDEX));
+            if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
+                IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
+
+            auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+            mergeRepeated_ = greedyDecOp->get_ctc_merge_repeated();
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
         }
     }
 

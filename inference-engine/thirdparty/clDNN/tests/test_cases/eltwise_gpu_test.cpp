@@ -41,6 +41,8 @@ T eltwise_execute(cldnn::eltwise_mode mode, T x, T y) {
         return std::pow((float)x, (float)y);
     case eltwise_mode::mod:
         return std::fmod((float)x, (float)y);
+    case eltwise_mode::eq:
+        return (float)((float)x == (float)y);
     default:
         return (T)0;
     }
@@ -3540,6 +3542,7 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST6  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST8  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
 };
@@ -3619,4 +3622,5 @@ INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_layout,
                             eltwise_layout_test_params{CASE_ELTWISE_TEST6},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST7},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST8},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST9},
                         }), );

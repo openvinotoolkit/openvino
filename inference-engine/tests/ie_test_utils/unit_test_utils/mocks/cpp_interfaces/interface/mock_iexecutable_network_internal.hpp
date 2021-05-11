@@ -11,7 +11,6 @@
 #include <gmock/gmock.h>
 
 #include "ie_input_info.hpp"
-#include "ie_icnn_network.hpp"
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
