@@ -4,9 +4,8 @@
 
 #include "jit_eltwise_emitters.hpp"
 #include <cpu/x64/jit_uni_eltwise.hpp>
-#include "legacy/ie_layers.h"
-
 #include <ngraph/opsets/opset1.hpp>
+#include <nodes/mkldnn_eltwise_node.h>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -1305,15 +1304,16 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
 
     prepare_table();
 }
+
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(node->getCnnLayer().get());
-    if (powerLayer == nullptr)
-        IE_THROW() << "Cannot convert power layer.";
-
-    power = powerLayer->power;
-    scale = powerLayer->scale;
-    shift = powerLayer->offset;
+    const MKLDNNEltwiseNode *powerNode = dynamic_cast<const MKLDNNEltwiseNode *>(node);
+    if (powerNode == nullptr) {
+        IE_THROW() << "Can't cast to MKLDNNEltwiseNode";
+    }
+    power = powerNode->getAlpha();
+    scale = powerNode->getBeta();
+    shift = powerNode->getGamma();
 
     prepare_table();
 }

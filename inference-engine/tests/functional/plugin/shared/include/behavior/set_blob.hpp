@@ -19,6 +19,7 @@ enum class setType {
 std::ostream& operator<<(std::ostream & os, setType type);
 
 using SetBlobParams = std::tuple<InferenceEngine::Precision,   // precision in CNNNetwork
+                                 InferenceEngine::Precision,   // precision in ngraph
                                  setType,                      // type for which blob is set
                                  std::string>;                 // Device name
 
@@ -31,7 +32,7 @@ protected:
     void SetUp() override;
 
 private:
-    InferenceEngine::Precision precision;
+    InferenceEngine::Precision precNet;
     setType type;
 };
 

@@ -26,6 +26,14 @@ typedef std::tuple<
     std::vector<size_t>                 // Input shape
 > removePermutationsPassParams;
 
+typedef std::tuple<
+    InferenceEngine::Precision,         // Network Precision
+    std::string,                        // Target Device
+    std::map<std::string, std::string>, // Configuration
+    std::vector<size_t>,                // Input shape
+    bool                                // with activation
+> removePermutationsWithPoolPassParams;
+
 namespace LayerTestsDefinitions {
 
 class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<removePermutationsPassParams>,
@@ -137,15 +145,16 @@ protected:
     }
 };
 
-class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<removePermutationsPassParams>,
+class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<removePermutationsWithPoolPassParams>,
                                              public LayerTestsUtils::LayerTestsCommon {
     public:
-        static std::string getTestCaseName(testing::TestParamInfo<removePermutationsPassParams> obj) {
+        static std::string getTestCaseName(testing::TestParamInfo<removePermutationsWithPoolPassParams> obj) {
             InferenceEngine::Precision netPrecision;
             std::string targetDevice;
             std::map<std::string, std::string> configuration;
             std::vector<size_t> inputShape;
-            std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
+            bool withActivation;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -154,14 +163,14 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
                 result << "_configItem=" << configItem.first << "_" << configItem.second;
             }
             result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+            result << "_withActivation=" << withActivation;
             return result.str();
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
@@ -176,8 +185,6 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             //          |
             //      Permute (order: [0, 3, 1, 2])
             //          |
-            //        Relu
-            //          |
             //      Convolution
             //          |
             //       Pooling
@@ -189,7 +196,8 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             //      Reshape
             InferenceEngine::Precision netPrecision;
             std::vector<size_t> inputShape;
-            std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
+            bool withActivation;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
@@ -200,14 +208,12 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            auto relu1 = std::make_shared<ngraph::opset3::Relu>(permute1);
-
             size_t num_out_channels = 12;
             size_t kernal_size = 8;
             auto kernal_shape = (inputShape[1] == 1 ? std::vector<size_t>{1, kernal_size} : std::vector<size_t>{kernal_size, 1});
             std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[3] * kernal_size,
                                                                                         -0.2f, 0.2f);
-            auto conv1 = ngraph::builder::makeConvolution(relu1, ngPrc, kernal_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
+            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, kernal_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
                 ngraph::op::PadType::VALID, num_out_channels, false, filter_weights);
             auto pool_kernal_shape = (inputShape[1] == 1 ? std::vector<size_t>{1, 2} : std::vector<size_t>{2, 1});
             auto pool = ngraph::builder::makePooling(conv1, pool_kernal_shape, {0, 0}, {0, 0}, pool_kernal_shape, ngraph::op::RoundingType::FLOOR,
@@ -215,9 +221,14 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
 
             size_t out_width = ((inputShape[2] - kernal_shape[1]) + 1) / pool_kernal_shape[1];
             size_t out_height = ((inputShape[1] - kernal_shape[0]) + 1) / pool_kernal_shape[0];
-            auto relu2 = std::make_shared<ngraph::opset3::Relu>(pool);
 
-            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(relu2,
+            auto pool_output = pool;
+            if (withActivation) {
+                auto relu2 = std::make_shared<ngraph::opset3::Relu>(pool);
+                pool_output = relu2;
+            }
+
+            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(pool_output,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
 
             std::vector<size_t> outFormShapes = { 1, out_width * out_height * num_out_channels };
@@ -250,10 +261,9 @@ class RemovePermutationsWithTwoConvTest : public testing::WithParamInterface<rem
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
@@ -338,10 +348,9 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         }
 
     protected:
-        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+        InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
-            auto precision = info.getPrecision();
 
             auto* rawBlobDataPtr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
@@ -483,8 +492,9 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
-            ::testing::ValuesIn(inputShapes)),
-        RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
+            ::testing::ValuesIn(inputShapes),
+            ::testing::ValuesIn(std::vector<bool>{false, true})), // with activation
+        RemovePermutationsWithPoolAndActTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsWithTwoConvTest,
         ::testing::Combine(
@@ -492,7 +502,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(inputShapes)),
-        RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
+        RemovePermutationsWithTwoConvTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsWithEltwiseTest,
         ::testing::Combine(
@@ -500,7 +510,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(inputShapes)),
-        RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
+        RemovePermutationsWithEltwiseTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
 
