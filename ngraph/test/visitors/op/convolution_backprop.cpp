@@ -31,6 +31,11 @@ TEST(attributes, convolution_backprop_op)
         data, filters, strides, pads_begin, pads_end, dilations, op::PadType::VALID);
     NodeBuilder builder(convolution);
     auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+
+    // attribute count
+    const auto expected_attr_count = 6;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
     EXPECT_EQ(g_convolution->get_pads_begin(), convolution->get_pads_begin());
     EXPECT_EQ(g_convolution->get_pads_end(), convolution->get_pads_end());
@@ -63,6 +68,10 @@ TEST(attributes, convolution_backprop_output_shape_output_padding)
                                                                           output_padding);
     NodeBuilder builder(convolution);
     const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+
+    // attribute count
+    const auto expected_attr_count = 6;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
     EXPECT_EQ(g_convolution->get_pads_begin(), convolution->get_pads_begin());
