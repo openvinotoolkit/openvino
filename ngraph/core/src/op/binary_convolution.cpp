@@ -71,7 +71,7 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                           data_batch_et);
 
     // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API
-    // (#49517)
+    // (#52715)
 
     Rank result_ps_rank;
     NODE_VALIDATION_CHECK(

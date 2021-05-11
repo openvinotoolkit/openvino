@@ -16,7 +16,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v1::DeformableConvolution::type_info;
 
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
-                                                     const Output<Node>& deformable_values,
+                                                     const Output<Node>& offsets,
                                                      const Output<Node>& filters,
                                                      const Strides& strides,
                                                      const CoordinateDiff& pads_begin,
@@ -25,7 +25,7 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const PadType& auto_pad,
                                                      const int64_t group,
                                                      const int64_t deformable_group)
-    : Op({arg, deformable_values, filters})
+    : Op({arg, offsets, filters})
     , m_strides(strides)
     , m_dilations(dilations)
     , m_pads_begin(pads_begin)
@@ -54,21 +54,21 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_DeformableConvolution_validate_and_infer_types);
     const PartialShape& data_batch_pshape = get_input_partial_shape(0);
-    const PartialShape& deformable_values_pshape = get_input_partial_shape(1);
+    const PartialShape& offsets_pshape = get_input_partial_shape(1);
     const PartialShape& filters_pshape = get_input_partial_shape(2);
 
     element::Type data_batch_et = get_input_element_type(0);
-    element::Type deformable_values_et = get_input_element_type(1);
+    element::Type offsets_et = get_input_element_type(1);
     element::Type filters_et = get_input_element_type(2);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, data_batch_et, deformable_values_et) &&
+                          element::Type::merge(result_et, data_batch_et, offsets_et) &&
                               element::Type::merge(result_et, result_et, filters_et),
                           "Element types of inputs do not match. Got: data batch (",
                           data_batch_et,
-                          "), deformable values (",
-                          deformable_values_et,
+                          "), offsets (",
+                          offsets_et,
                           ") and filters (",
                           filters_et,
                           ")");
@@ -81,12 +81,12 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
     Rank result_ps_rank{};
     NODE_VALIDATION_CHECK(
         this,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), deformable_values_pshape.rank()) &&
+        Rank::merge(result_ps_rank, data_batch_pshape.rank(), offsets_pshape.rank()) &&
             Rank::merge(result_ps_rank, result_ps_rank, filters_pshape.rank()),
         "Ranks of inputs do not match. Got: data batch shape ",
         data_batch_pshape,
-        ", deformable values shape ",
-        deformable_values_pshape,
+        ", offsets shape ",
+        offsets_pshape,
         ", filters shape ",
         filters_pshape);
 
@@ -101,22 +101,21 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                           "Attribute 'deformable group' must be any value starting from 1. Got: ",
                           m_deformable_group);
 
-    if (deformable_values_pshape.rank().is_static())
+    if (offsets_pshape.rank().is_static())
     {
-        if (deformable_values_pshape[1].is_static())
+        if (offsets_pshape[1].is_static())
         {
             if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() &&
                 filters_pshape[3].is_static())
             {
-                auto deformable_channels = m_deformable_group * filters_pshape[2].get_length() *
-                                           filters_pshape[3].get_length() * 2;
+                auto offsets_channels = m_deformable_group * filters_pshape[2].get_length() *
+                                        filters_pshape[3].get_length() * 2;
                 NODE_VALIDATION_CHECK(this,
-                                      deformable_values_pshape[1].get_length() ==
-                                          deformable_channels,
-                                      "The channels dimension of deformable values input is not "
+                                      offsets_pshape[1].get_length() == offsets_channels,
+                                      "The channels dimension of offsets input is not "
                                       "compatible with filters and 'deformable group' attribute. "
-                                      "Deformable values input shape: ",
-                                      deformable_values_pshape,
+                                      "Offsets input shape: ",
+                                      offsets_pshape,
                                       ", deformable 'group' attribute value: ",
                                       m_deformable_group,
                                       ", filters shape: ",
@@ -124,17 +123,16 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             }
             else
             {
-                // At least we can check if deformable channels is evenly divisible by deformable
+                // At least we can check if offsets channels is evenly divisible by deformable
                 // group attribute
-                NODE_VALIDATION_CHECK(
-                    this,
-                    deformable_values_pshape[1].get_length() % m_deformable_group == 0,
-                    "The channels dimension of deformable values input must be "
-                    "evenly divisible by the 'deformable group' value along the "
-                    "channels axis. Deformable values input shape: ",
-                    deformable_values_pshape,
-                    ", 'deformable group' attribute value: ",
-                    m_deformable_group);
+                NODE_VALIDATION_CHECK(this,
+                                      offsets_pshape[1].get_length() % m_deformable_group == 0,
+                                      "The channels dimension of offsets input must be "
+                                      "evenly divisible by the 'deformable group' value along the "
+                                      "channels axis. Offsets input shape: ",
+                                      offsets_pshape,
+                                      ", 'deformable group' attribute value: ",
+                                      m_deformable_group);
             }
         }
 
@@ -142,9 +140,9 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
         {
             NODE_VALIDATION_CHECK(
                 this,
-                deformable_values_pshape[0].compatible(data_batch_pshape[0]),
-                "Data batch and deformable values batch dimension must be same value. Got: ",
-                deformable_values_pshape[0],
+                offsets_pshape[0].compatible(data_batch_pshape[0]),
+                "Data batch and offsets batch dimension must be same value. Got: ",
+                offsets_pshape[0],
                 " and ",
                 data_batch_pshape[0]);
         }
@@ -193,7 +191,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                                                             m_pads_begin,
                                                             m_pads_end);
 
-    if (result_shape.rank().is_static() && deformable_values_pshape.rank().is_static())
+    if (result_shape.rank().is_static() && offsets_pshape.rank().is_static())
     {
         PartialShape result_spatial_shape = [&result_shape]() {
             vector<Dimension> result_spatial_dims{result_shape};
@@ -201,24 +199,23 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             return PartialShape{result_spatial_dims};
         }();
 
-        PartialShape deformable_values_spatial_shape = [&deformable_values_pshape]() {
-            vector<Dimension> deformable_values_spatial_dims{deformable_values_pshape};
-            deformable_values_spatial_dims.erase(deformable_values_spatial_dims.begin(),
-                                                 deformable_values_spatial_dims.begin() + 2);
-            return PartialShape{deformable_values_spatial_dims};
+        PartialShape offsets_spatial_shape = [&offsets_pshape]() {
+            vector<Dimension> offsets_spatial_dims{offsets_pshape};
+            offsets_spatial_dims.erase(offsets_spatial_dims.begin(),
+                                       offsets_spatial_dims.begin() + 2);
+            return PartialShape{offsets_spatial_dims};
         }();
 
-        NODE_VALIDATION_CHECK(
-            this,
-            deformable_values_spatial_shape.compatible(result_spatial_shape),
-            "Spatial dimensions of deformable values and output must be equal. Got: ",
-            deformable_values_spatial_shape,
-            " and ",
-            result_spatial_shape);
+        NODE_VALIDATION_CHECK(this,
+                              offsets_spatial_shape.compatible(result_spatial_shape),
+                              "Spatial dimensions of offsets and output must be equal. Got: ",
+                              offsets_spatial_shape,
+                              " and ",
+                              result_spatial_shape);
 
         if (result_shape[0].is_dynamic())
         {
-            result_shape[0] = deformable_values_pshape[0]; // batch size
+            result_shape[0] = offsets_pshape[0]; // batch size
         }
     }
     set_output_type(0, result_et, result_shape);

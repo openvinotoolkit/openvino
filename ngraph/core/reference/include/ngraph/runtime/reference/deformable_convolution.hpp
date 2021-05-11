@@ -22,8 +22,8 @@ namespace ngraph
                                                                    const Strides& dilations,
                                                                    const CoordinateDiff& pads_begin,
                                                                    const CoordinateDiff& pads_end,
-                                                                   const int64_t& groups,
-                                                                   const int64_t& deformable_groups)
+                                                                   const int64_t groups,
+                                                                   const int64_t deformable_groups)
                 {
                     // this implementation supports 2D deformable convolutions
                     NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
@@ -57,11 +57,10 @@ namespace ngraph
                                                   std::end(out_shape)};
 
                     NGRAPH_CHECK(o_shape[1] == deformable_groups * shape_size(f_spatial_shape) * 2,
-                                 "The channels dimension of deformable values input is not "
+                                 "The channels dimension of offsets input is not "
                                  "compatible with filters and 'deformable group' attribute");
-                    NGRAPH_CHECK(
-                        out_spatial_shape == o_spatial_shape,
-                        "Spatial dimensions of output and deformable values must be equal");
+                    NGRAPH_CHECK(out_spatial_shape == o_spatial_shape,
+                                 "Spatial dimensions of output and offsets values must be equal");
                 }
 
                 inline Shape shape_reduce(const Shape& s) { return Shape(++s.begin(), s.end()); }
