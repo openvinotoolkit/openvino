@@ -259,7 +259,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
-    # Remove temporary ie_is_available key form argv no to have it in IR
+    # Remove temporary ie_is_available key from argv no to have it in IR
     ie_is_available = argv.ie_is_available
     del argv.ie_is_available
 
