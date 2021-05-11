@@ -40,7 +40,9 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
     auto var = make_shared<op::Parameter>(et, ch_shape);
     auto batch_norm = make_shared<TypeParam>(data_batch, gamma, beta, mean, var, epsilon);
 
+    const auto expected_attr_count = 1;
     NodeBuilder builder(batch_norm);
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     auto g_batch_norm = as_type_ptr<TypeParam>(builder.create());
     EXPECT_EQ(g_batch_norm->get_eps_value(), batch_norm->get_eps_value());
 }
