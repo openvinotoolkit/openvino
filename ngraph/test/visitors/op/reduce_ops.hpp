@@ -46,16 +46,3 @@ TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
 REGISTER_TYPED_TEST_CASE_P(
     ReduceOpsAttrTest,
     reduce_ops);
-
-using Types = ::testing::Types<
-    op::v1::ReduceLogicalAnd,
-    op::v1::ReduceLogicalOr,
-    op::v1::ReduceMax,
-    op::v1::ReduceMean,
-    op::v1::ReduceMin,
-    op::v1::ReduceProd,
-    op::v1::ReduceSum,
-    op::v4::ReduceL1,
-    op::v4::ReduceL2>;
-
-INSTANTIATE_TYPED_TEST_CASE_P(attributes, ReduceOpsAttrTest, Types);
