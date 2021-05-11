@@ -88,7 +88,8 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         this->postamble();
 
         load_emitter->emit_data();
-        store_emitter->emit_data();
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
+            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
     }
 
 private:
