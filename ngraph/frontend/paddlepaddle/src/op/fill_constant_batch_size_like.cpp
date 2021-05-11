@@ -12,7 +12,7 @@ namespace pdpd {
 namespace op {
 
 NamedOutputs fill_constant_batch_size_like (const NodeContext& node) {
-    //TODO to Support other data types other than FP32 CVS-55263
+    //TODO to Support other data types other than FP32 #55263
     auto input_dim_idx = node.get_attribute<int32_t>("input_dim_idx", 0);
     auto output_dim_idx = node.get_attribute<int32_t>("output_dim_idx", 0);
     auto value = node.get_attribute<float>("value");

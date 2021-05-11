@@ -19,7 +19,7 @@ NamedOutputs pad3d (const NodeContext& node) {
 
     auto paddings = std::vector<int32_t>(6, 0);
 
-    //TODO: Only functional support Int padding format, further verify in CVS-55169
+    //TODO: Only functional support Int padding format, further verify in #55169
     if (node.has_attribute<std::vector<int32_t>>("paddings")) {
         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
         PDPD_ASSERT(paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
@@ -41,7 +41,7 @@ NamedOutputs pad3d (const NodeContext& node) {
     Output<ngraph::Node> padding_end;
 
     ngraph::op::PadMode pad_mode;
-    //TODO Support Circular mode in future CVS-55169
+    //TODO Support Circular mode in future #55169
     if (mode == "constant") {
         pad_mode = ngraph::op::PadMode::CONSTANT;
         values = ngraph::opset6::Constant::create(

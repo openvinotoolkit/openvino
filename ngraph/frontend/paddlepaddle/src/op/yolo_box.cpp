@@ -18,7 +18,7 @@ NamedOutputs yolo_box (const NodeContext& node_context) {
     auto data = node_context.get_ng_input("X");
     auto image_size = node_context.get_ng_input("ImgSize");
 
-    // TODO: add dynamic shape support - CVS-55264
+    // TODO: add dynamic shape support - #55264
     auto input_shape = data.get_partial_shape();
     uint32_t input_height = input_shape[2].get_length();
     uint32_t input_width = input_shape[3].get_length();   

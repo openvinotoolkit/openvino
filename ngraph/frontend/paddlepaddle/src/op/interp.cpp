@@ -65,7 +65,7 @@ namespace ngraph {
                 }
 
 
-                //TODO support different data_layout CVS-55170
+                //TODO support different data_layout #55170
 
                 NamedOutputs
                 interpolate(const NodeContext &node, const ngraph::opset6::Interpolate::InterpolateMode &mode) {

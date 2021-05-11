@@ -14,9 +14,9 @@ namespace op {
 NamedOutputs slice (const NodeContext& node) {
     auto data = node.get_ng_input("Input");
     auto axes = node.get_attribute<std::vector<int32_t>>("axes");
-    // TODO: support tensor type CVS-55266
+    // TODO: support tensor type #55266
     auto starts = node.get_attribute<std::vector<int32_t>>("starts");
-    // TODO: support tensor type CVS-55266
+    // TODO: support tensor type #55266
     auto ends = node.get_attribute<std::vector<int32_t>>("ends");
     auto data_rank = data.get_partial_shape().rank();
     size_t shape_size = data_rank.get_length();
