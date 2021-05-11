@@ -37,21 +37,22 @@ bool FakeQuantizeDequantization::empty() const {
     return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
 }
 
-bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {
+bool FakeQuantizeDequantization::multiplyHasZero() const {
     if (multiply == nullptr) {
         return false;
     }
 
-    std::shared_ptr<opset1::Constant> multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
-    if (multiplyConstant == nullptr) {
-        multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
-    }
-    if (multiplyConstant == nullptr) {
+    const auto values = multiplyConstant->cast_vector<float>();
+    return std::any_of(values.begin(), values.end(), [](const float value) { return value == 0.f; });
+}
+
+bool FakeQuantizeDequantization::multiplyHasDenormal() const {
+    if (multiply == nullptr) {
         return false;
     }
 
-    auto const values = multiplyConstant->cast_vector<float>();
-    return std::any_of(values.begin(), values.end(), [](const float value) { return (value == 0.f) || (std::abs(value) < 1.e-32); });
+    const auto values = multiplyConstant->cast_vector<float>();
+    return std::any_of(values.begin(), values.end(), [](const float value) { return std::abs(value) < 1.e-32; });
 }
 
 bool FakeQuantizeDequantization::isShared() const {

@@ -29,7 +29,8 @@ public:
         const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant);
 
     bool empty() const;
-    bool multiplyHasZeroOrDenormal() const;
+    bool multiplyHasZero() const;
+    bool multiplyHasDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
 
