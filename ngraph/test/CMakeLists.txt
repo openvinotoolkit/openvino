@@ -578,7 +578,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
                         ${GEN_SCRIPT}
                         ${TEST_PDPD_MODELS}
                         ${OUT_DONE_FILE}
-                DEPENDS ${GEN_SCRIPT}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                 )
     endforeach()
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
