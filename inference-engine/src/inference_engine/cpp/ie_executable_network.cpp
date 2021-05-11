@@ -74,11 +74,11 @@ InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {
-    EXEC_NET_CALL_STATEMENT(return _impl->Export(modelFileName));
+    EXEC_NET_CALL_STATEMENT(_impl->Export(modelFileName));
 }
 
 void ExecutableNetwork::Export(std::ostream& networkModel) {
-    EXEC_NET_CALL_STATEMENT(return _impl->Export(networkModel));
+    EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
