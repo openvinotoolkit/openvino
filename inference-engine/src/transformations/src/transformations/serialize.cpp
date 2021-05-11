@@ -843,6 +843,8 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
             // optimization decission was mad to create .bin file upfront and
             // write to it directly instead of buffering its conents in memory,
             // hence we need to delete it here in case of failure
+            xml_file.close();
+            bin_file.close();
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
             throw;
