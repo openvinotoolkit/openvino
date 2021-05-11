@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNSelectNode : public MKLDNNNode {
 public:
     MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSelectNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
