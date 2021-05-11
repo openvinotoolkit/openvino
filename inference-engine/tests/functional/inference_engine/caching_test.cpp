@@ -25,7 +25,6 @@
 #include "common_test_utils/test_constants.hpp"
 
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "functional_test_utils/network_utils.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"

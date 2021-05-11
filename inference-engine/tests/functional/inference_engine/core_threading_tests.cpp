@@ -146,7 +146,6 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
 // tested function: ReadNetwork, AddExtension
 TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
     auto network = ie.ReadNetwork(modelName, weightsName);
 
     runParallel([&] () {

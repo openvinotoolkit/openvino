@@ -4,7 +4,6 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
-#include <legacy/ie_util_internal.hpp>
 #include <common_test_utils/xml_net_builder/xml_filler.hpp>
 #include "ngraph_reader_tests.hpp"
 
