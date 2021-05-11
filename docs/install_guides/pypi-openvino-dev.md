@@ -15,12 +15,13 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 | [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_README.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
 
+The Developer Package also installs the RunTime Package as a dependency. 
+
 **The Runtime Package Includes the Following Components Installed by Dependency:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Inference Engine](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-
 
 ## System Requirements
 
@@ -32,7 +33,7 @@ The table below lists the supported operating systems and Python* versions requi
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
 |   Red Hat* Enterprise Linux* 8.2, 64-bit                     | 3.6, 3.7                                            |
 |   CentOS* 7.4, 64-bit                                        | 3.6, 3.7                                            |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
+|   macOS* 10.15.x                                             | 3.6, 3.7, 3.8                                       |
 |   Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions       | 3.6, 3.7, 3.8                  |
 |   Windows Server* 2016 or higher                             | 3.6, 3.7, 3.8                |
 

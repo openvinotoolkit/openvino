@@ -4,12 +4,12 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 Intel® Distribution of OpenVINO™ Toolkit provides the following packages available for installation through the PyPI repository:
 
-* Runtime package with the Inference Engine inside: [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/).
-* Developers package that includes the runtime package as a dependency, Model Optimizer, Accuracy Checker and Post-Training Optimization Tool: [https://pypi.org/project/openvino-dev](https://pypi.org/project/openvino-dev).
+* Runtime package with the Inference Engine inside: [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/)
+* Developer package that includes the runtime package as a dependency, Model Optimizer, Accuracy Checker and Post-Training Optimization Tool: [https://pypi.org/project/openvino-dev](https://pypi.org/project/openvino-dev)
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
-- [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
+- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
+- [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
