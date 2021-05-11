@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
     MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPoolingNode() override = default;
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
