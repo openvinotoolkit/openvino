@@ -75,7 +75,15 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     ${PUGI}
                     ${NGRAPH_LIBRARIES}
+                    ${EXPORT_DEPENDENCIES}
     )
+
+    # USE_STATIC_IE is passed
+    if(ARGN)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+    else()
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
+    endif()
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
@@ -109,11 +117,6 @@ function(add_common_utils ADD_TARGET_NAME)
         )
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
-
-    target_link_libraries(${ADD_TARGET_NAME}
-        PUBLIC
-            ${EXPORT_DEPENDENCIES}
-        )
 endfunction()
 
 add_common_utils(${TARGET_NAME})
