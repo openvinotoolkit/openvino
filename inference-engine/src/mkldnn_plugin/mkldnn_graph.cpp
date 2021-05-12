@@ -262,33 +262,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphNodes.push_back(outNode);
     }
 
-    // We set all non const data paths precision to BF16 in case enforceBF16 flag is switched on.
-    if (config.enforceBF16) {
-        bool isQuantizedModel = false;
-        for (auto& node : graphNodes) {
-            if (node->getType() == FakeQuantize)
-                isQuantizedModel = true;
-        }
-
-        // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
-        // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-        if (implication(isQuantizedModel, config.manualEnforceBF16)) {
-            for (auto &node : graphNodes) {
-                if (node->getType() != Input && node->getType() != Output) {
-                    for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                        auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                        if (!(parent->getType() == Input && parent->isConstant()) && node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                            node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
-                    }
-
-                    for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                        if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                            node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
-                    }
-                }
-            }
-        }
-    }
+    if (config.enforceBF16)
+        EnforceBF16();
 
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
@@ -1201,6 +1176,35 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     return true;
 }
 
+// Set all non const data paths precision to BF16
+void MKLDNNGraph::EnforceBF16() {
+    bool isQuantizedModel = false;
+    for (auto& node : graphNodes) {
+        if (node->getType() == FakeQuantize)
+            isQuantizedModel = true;
+    }
+
+    // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
+    // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
+    if (implication(isQuantizedModel, config.manualEnforceBF16)) {
+        for (auto &node : graphNodes) {
+            if (node->getType() != Input && node->getType() != Output) {
+                for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                    auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                    if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
+                        !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                        node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                        node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+                }
+
+                for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                    if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                        node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+                }
+            }
+        }
+    }
+}
 
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
