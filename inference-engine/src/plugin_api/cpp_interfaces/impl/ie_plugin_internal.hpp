@@ -72,8 +72,8 @@ public:
         return impl;
     }
 
-    ExecutableNetwork LoadNetworkFromFile(const std::string& modelPath,
-                                          const std::map<std::string, std::string>& config) override {
+    ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                  const std::map<std::string, std::string>& config) override {
         auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
         return GetCore()->LoadNetwork(cnnNet, GetName(), config);
     }

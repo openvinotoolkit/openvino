@@ -511,7 +511,7 @@ public:
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else {
-            res = plugin.LoadNetworkFromFile(modelPath, parsed._config);
+            res = plugin.LoadNetwork(modelPath, parsed._config);
         }
         return res;
     }
