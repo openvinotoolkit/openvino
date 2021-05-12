@@ -11,9 +11,10 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
+#include "ie_api.h"
 #include "ie_blob.h"
-#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 
@@ -28,15 +29,15 @@ class IVariableStateInternal;
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
     std::shared_ptr<IVariableStateInternal> _impl = nullptr;
-    details::SharedObjectLoader::Ptr _so = nullptr;
+    std::shared_ptr<details::SharedObjectLoader> _so = nullptr;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
      */
-    explicit VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
-                           const details::SharedObjectLoader::Ptr& so = {});
+    VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
+                  const std::shared_ptr<details::SharedObjectLoader>& so);
 
     friend class InferRequest;
     friend class ExecutableNetwork;
