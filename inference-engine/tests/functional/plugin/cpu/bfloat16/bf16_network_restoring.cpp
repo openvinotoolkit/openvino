@@ -195,6 +195,8 @@ protected:
 };
 
 TEST_P(BF16NetworkRestore1, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
