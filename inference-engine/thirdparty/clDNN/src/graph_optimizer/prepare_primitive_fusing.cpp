@@ -355,6 +355,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
 
+    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -520,7 +521,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 // find original dependency of current_node using fusing_history
                 // and check the number of users of it.
                 // If the node has multiple users it's not fusible.
-                if (input_data.has_fused_primitives()) {
+                if (!supports_immad && input_data.has_fused_primitives()) {
                     size_t num_original_dependencies = 0;
                     auto iter = fusing_history.find(current_node_id);
                     if (iter != fusing_history.end()) {
@@ -872,7 +873,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool merge_allowed = true;
             // If fused node is not convolution and fused node has multiple users,
             //  follow the legacy checking rule
-            if (fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
+            if (!supports_immad && fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
                 // Allowed new pattern: Elt1, Act, Elt2, Elt3, Elt4 are fused to Conv1
                 // * Conv1 -> Eltw1(Add) -> Act(Clamp) -> Eltw2(Mul) -> Eltw3(Mul) -> Eltw4(Add) -> Conv2
                 // *   \–----------------------------------->/                          \---------> Eltw5(Div)
