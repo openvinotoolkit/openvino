@@ -6,6 +6,9 @@
 
 #include "program_impl.h"
 #include "layout_optimizer.h"
+#include "split_inst.h"
+#include "lstm_inst.h"
+#include "lstm_dynamic_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -102,9 +105,9 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void handle_split_node(program_impl& p, std::shared_ptr<program_node> node);
-    void handle_lstm_node(program_impl& p, std::shared_ptr<program_node> node);
-    void handle_dynamic_lstm_node(program_impl& p, std::shared_ptr<program_node> node);
+    void handle_split_node(program_impl& p, split_node& node);
+    void handle_lstm_node(program_impl& p, lstm_node& node);
+    void handle_dynamic_lstm_node(program_impl& p, lstm_dynamic_node& node);
     void set_outputs(program_impl& p);
 };
 
