@@ -7,6 +7,7 @@
 #include <mkldnn_extension_utils.h>
 #include "mkldnn_memory_node.hpp"
 #include "common/cpu_memcpy.h"
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -14,8 +15,34 @@ using namespace InferenceEngine;
 
 std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
 
-MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) , MKLDNNMemoryNode(layer) {
+MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
+    if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
+        _id = assignOp->get_variable_id();
+    } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+        _id = readValueOp->get_variable_id();
+    }
+}
+
+bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                ngraph::op::v3::Assign::type_info,
+                ngraph::op::v6::Assign::type_info)) {
+            errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) , MKLDNNMemoryNode(op) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerOutput(this);
     }
@@ -31,7 +58,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
@@ -50,8 +77,26 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
+bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                ngraph::op::v3::ReadValue::type_info,
+                ngraph::op::v6::ReadValue::type_info)) {
+            errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNInputNode(op, eng, cache), MKLDNNMemoryNode(op), dataStore(new MKLDNNMemory{eng}) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
     }

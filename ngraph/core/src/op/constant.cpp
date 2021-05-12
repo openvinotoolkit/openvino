@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ngraph/validation_util.hpp>
+#include <sstream>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -17,7 +18,7 @@ using namespace ngraph;
 using namespace std;
 
 template <typename T>
-string to_cpp_string(T value)
+static inline string to_cpp_string(T value)
 {
     string rc;
     if (std::isnan(value))
@@ -63,122 +64,31 @@ op::Constant::Constant(const element::Type& type,
 
     constructor_validate_and_infer_types();
 
+    using Type_t = element::Type_t;
+
     if (values.size() == 1 && shape_size(m_shape) != 1)
     {
         // broadcast single value
         switch (m_element_type)
         {
-        case element::Type_t::boolean:
-        {
-            bool value = stoi(values[0]) != 0;
-            auto target = get_data_ptr_nc<element::Type_t::boolean>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::bf16:
-        {
-            bfloat16 value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::bf16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f16:
-        {
-            float16 value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f32:
-        {
-            float value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f64:
-        {
-            double value = parse_string<double>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i8:
-        {
-            int8_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i8>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i16:
-        {
-            int16_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i32:
-        {
-            int32_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i64:
-        {
-            int64_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u8:
-        {
-            uint8_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u8>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u16:
-        {
-            uint16_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u32:
-        {
-            uint32_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u64:
-        {
-            uint64_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::undefined:
-        {
-            throw std::runtime_error("deserialize unsupported type undefined");
-        }
-        case element::Type_t::dynamic:
-        {
-            throw std::runtime_error("deserialize unsupported type dynamic");
-        }
-        case element::Type_t::i4:
-        {
-            throw std::runtime_error("deserialize unsupported type i4");
-        }
-        case element::Type_t::u4:
-        {
-            throw std::runtime_error("deserialize unsupported type u4");
-        }
-        case element::Type_t::u1:
-        {
-            throw std::runtime_error("deserialize unsupported type u1");
-        }
+        case Type_t::boolean: fill_data<Type_t::boolean>(stoi(values[0])); break;
+        case Type_t::bf16: fill_data<Type_t::bf16>(parse_string<float>(values[0])); break;
+        case Type_t::f16: fill_data<Type_t::f16>(parse_string<float>(values[0])); break;
+        case Type_t::f32: fill_data<Type_t::f32>(parse_string<float>(values[0])); break;
+        case Type_t::f64: fill_data<Type_t::f64>(parse_string<double>(values[0])); break;
+        case Type_t::i4: fill_data<Type_t::i4>(parse_string<int64_t>(values[0])); break;
+        case Type_t::i8: fill_data<Type_t::i8>(parse_string<int64_t>(values[0])); break;
+        case Type_t::i16: fill_data<Type_t::i16>(parse_string<int64_t>(values[0])); break;
+        case Type_t::i32: fill_data<Type_t::i32>(parse_string<int64_t>(values[0])); break;
+        case Type_t::i64: fill_data<Type_t::i64>(parse_string<int64_t>(values[0])); break;
+        case Type_t::u1: fill_data<Type_t::u1>(stoi(values[0])); break;
+        case Type_t::u4: fill_data<Type_t::u4>(parse_string<uint64_t>(values[0])); break;
+        case Type_t::u8: fill_data<Type_t::u8>(parse_string<uint64_t>(values[0])); break;
+        case Type_t::u16: fill_data<Type_t::u16>(parse_string<uint64_t>(values[0])); break;
+        case Type_t::u32: fill_data<Type_t::u32>(parse_string<uint64_t>(values[0])); break;
+        case Type_t::u64: fill_data<Type_t::u64>(parse_string<uint64_t>(values[0])); break;
+        case Type_t::undefined: throw std::runtime_error("deserialize unsupported type undefined");
+        case Type_t::dynamic: throw std::runtime_error("deserialize unsupported type dynamic");
         }
         m_all_elements_bitwise_identical = true;
     }
@@ -186,110 +96,24 @@ op::Constant::Constant(const element::Type& type,
     {
         switch (m_element_type)
         {
-        case element::Type_t::boolean:
-        {
-            vector<uint8_t> value = parse_string<uint8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::boolean>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::bf16:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::bf16>();
-            for (size_t i = 0; i < value.size(); i++)
-            {
-                target[i] = value[i];
-            }
-            break;
-        }
-        case element::Type_t::f16:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f16>();
-            for (size_t i = 0; i < value.size(); i++)
-            {
-                target[i] = value[i];
-            }
-            break;
-        }
-        case element::Type_t::f32:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::f64:
-        {
-            vector<double> value = parse_string<double>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i8:
-        {
-            vector<int8_t> value = parse_string<int8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i8>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i16:
-        {
-            vector<int16_t> value = parse_string<int16_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i16>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i32:
-        {
-            vector<int32_t> value = parse_string<int32_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i64:
-        {
-            vector<int64_t> value = parse_string<int64_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u8:
-        {
-            vector<uint8_t> value = parse_string<uint8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u8>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u16:
-        {
-            vector<uint16_t> value = parse_string<uint16_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u16>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u32:
-        {
-            vector<uint32_t> value = parse_string<uint32_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u64:
-        {
-            vector<uint64_t> value = parse_string<uint64_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::undefined:
-            throw std::runtime_error("deserialize unsupported type undefined");
-        case element::Type_t::dynamic:
-            throw std::runtime_error("deserialize unsupported type dynamic");
-        case element::Type_t::i4: throw std::runtime_error("deserialize unsupported type i4");
-        case element::Type_t::u4: throw std::runtime_error("deserialize unsupported type u4");
-        case element::Type_t::u1: throw std::runtime_error("deserialize unsupported type u1");
+        case Type_t::boolean: write_buffer<Type_t::boolean>(parse_string<uint8_t>(values)); break;
+        case Type_t::bf16: write_buffer<Type_t::bf16>(parse_string<float>(values)); break;
+        case Type_t::f16: write_buffer<Type_t::f16>(parse_string<float>(values)); break;
+        case Type_t::f32: write_buffer<Type_t::f32>(parse_string<float>(values)); break;
+        case Type_t::f64: write_buffer<Type_t::f64>(parse_string<double>(values)); break;
+        case Type_t::i4: write_buffer<Type_t::i4>(parse_string<int8_t>(values)); break;
+        case Type_t::i8: write_buffer<Type_t::i8>(parse_string<int8_t>(values)); break;
+        case Type_t::i16: write_buffer<Type_t::i16>(parse_string<int16_t>(values)); break;
+        case Type_t::i32: write_buffer<Type_t::i32>(parse_string<int32_t>(values)); break;
+        case Type_t::i64: write_buffer<Type_t::i64>(parse_string<int64_t>(values)); break;
+        case Type_t::u1: write_buffer<Type_t::u1>(parse_string<uint8_t>(values)); break;
+        case Type_t::u4: write_buffer<Type_t::u4>(parse_string<uint8_t>(values)); break;
+        case Type_t::u8: write_buffer<Type_t::u8>(parse_string<uint8_t>(values)); break;
+        case Type_t::u16: write_buffer<Type_t::u16>(parse_string<uint16_t>(values)); break;
+        case Type_t::u32: write_buffer<Type_t::u32>(parse_string<uint32_t>(values)); break;
+        case Type_t::u64: write_buffer<Type_t::u64>(parse_string<uint64_t>(values)); break;
+        case Type_t::undefined: throw std::runtime_error("deserialize unsupported type undefined");
+        case Type_t::dynamic: throw std::runtime_error("deserialize unsupported type dynamic");
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
@@ -305,8 +129,7 @@ op::Constant::Constant(const element::Type& type, const Shape& shape)
 
 void op::Constant::allocate_buffer()
 {
-    m_data = make_shared<runtime::AlignedBuffer>(shape_size(m_shape) * m_element_type.size(),
-                                                 host_alignment());
+    m_data = make_shared<runtime::AlignedBuffer>(mem_size(), host_alignment());
     std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
@@ -338,45 +161,31 @@ string op::Constant::convert_value_to_string(size_t index) const
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
+    using Type_t = element::Type_t;
     switch (get_element_type())
     {
-    case element::Type_t::boolean: rc = to_string(get_data_ptr<char>()[index]); break;
-    case element::Type_t::bf16:
-        rc = to_cpp_string(static_cast<float>(get_data_ptr<bfloat16>()[index]));
+    case Type_t::boolean: rc = to_string(get_element_value<Type_t::boolean>(index)); break;
+    case Type_t::bf16:
+        rc = to_cpp_string(static_cast<float>(get_element_value<Type_t::bf16>(index)));
         break;
-    case element::Type_t::f16:
-        rc = to_cpp_string(static_cast<float>(get_data_ptr<float16>()[index]));
+    case Type_t::f16:
+        rc = to_cpp_string(static_cast<float>(get_element_value<Type_t::f16>(index)));
         break;
-    case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
-    case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
-    case element::Type_t::i4:
-    {
-        uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
-        int8_t data = i4data;
-        if ((i4data >> 3) & 0b1)
-        {
-            // negative number
-            data = (i4data & 0x7) | 0xF0;
-        }
-        rc = to_string(data);
-        break;
-    }
-    case element::Type_t::u4:
-        rc = to_string((get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F);
-        break;
-    case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
-    case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
-    case element::Type_t::i32: rc = to_string(get_data_ptr<int32_t>()[index]); break;
-    case element::Type_t::i64: rc = to_string(get_data_ptr<int64_t>()[index]); break;
-    case element::Type_t::u1:
-        rc = to_string((get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
-        break;
-    case element::Type_t::u8: rc = to_string(get_data_ptr<uint8_t>()[index]); break;
-    case element::Type_t::u16: rc = to_string(get_data_ptr<uint16_t>()[index]); break;
-    case element::Type_t::u32: rc = to_string(get_data_ptr<uint32_t>()[index]); break;
-    case element::Type_t::u64: rc = to_string(get_data_ptr<uint64_t>()[index]); break;
-    case element::Type_t::undefined: throw runtime_error("unsupported type");
-    case element::Type_t::dynamic: throw runtime_error("unsupported type");
+    case Type_t::f32: rc = to_cpp_string(get_element_value<Type_t::f32>(index)); break;
+    case Type_t::f64: rc = to_cpp_string(get_element_value<Type_t::f64>(index)); break;
+    case Type_t::i4: rc = to_string(get_element_value<Type_t::i4>(index)); break;
+    case Type_t::i8: rc = to_string(get_element_value<Type_t::i8>(index)); break;
+    case Type_t::i16: rc = to_string(get_element_value<Type_t::i16>(index)); break;
+    case Type_t::i32: rc = to_string(get_element_value<Type_t::i32>(index)); break;
+    case Type_t::i64: rc = to_string(get_element_value<Type_t::i64>(index)); break;
+    case Type_t::u1: rc = to_string(get_element_value<Type_t::u1>(index)); break;
+    case Type_t::u4: rc = to_string(get_element_value<Type_t::u4>(index)); break;
+    case Type_t::u8: rc = to_string(get_element_value<Type_t::u8>(index)); break;
+    case Type_t::u16: rc = to_string(get_element_value<Type_t::u16>(index)); break;
+    case Type_t::u32: rc = to_string(get_element_value<Type_t::u32>(index)); break;
+    case Type_t::u64: rc = to_string(get_element_value<Type_t::u64>(index)); break;
+    case Type_t::undefined: throw runtime_error("unsupported type");
+    case Type_t::dynamic: throw runtime_error("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
@@ -425,6 +234,12 @@ vector<string> op::Constant::get_value_strings() const
             rc.push_back(to_cpp_string(value));
         }
         break;
+    case element::Type_t::i4:
+        for (auto value : cast_vector<int8_t>())
+        {
+            rc.push_back(to_string(value));
+        }
+        break;
     case element::Type_t::i8:
         for (int value : get_vector<int8_t>())
         {
@@ -445,6 +260,13 @@ vector<string> op::Constant::get_value_strings() const
         break;
     case element::Type_t::i64:
         for (int64_t value : get_vector<int64_t>())
+        {
+            rc.push_back(to_string(value));
+        }
+        break;
+    case element::Type_t::u1:
+    case element::Type_t::u4:
+        for (auto value : cast_vector<uint8_t>())
         {
             rc.push_back(to_string(value));
         }
@@ -473,9 +295,6 @@ vector<string> op::Constant::get_value_strings() const
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u1:
-    case element::Type_t::i4:
-    case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
     }
@@ -676,27 +495,4 @@ bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
 bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
 {
     return evaluate(outputs, {});
-}
-
-//
-// We have to open up namespace blocks here to work around a problem with gcc:
-//
-// https://stackoverflow.com/questions/25594644/warning-specialization-of-template-in-different-namespace
-//
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            template <>
-            void Constant::write_to_buffer<string>(const element::Type& /* target_type */,
-                                                   const Shape& /* target_shape */,
-                                                   const vector<string>& /* source */,
-                                                   void* /* target */,
-                                                   size_t /* target_element_count */)
-            {
-            }
-        }
-    }
 }

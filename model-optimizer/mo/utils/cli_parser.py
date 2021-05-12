@@ -325,6 +325,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
+    common_group.add_argument('--legacy_ir_generation',
+                              help='Use legacy IR serialization engine',
+                              action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -428,12 +431,12 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'extensions', 'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',

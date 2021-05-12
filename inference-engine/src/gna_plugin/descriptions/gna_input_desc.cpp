@@ -18,7 +18,11 @@ size_t InputDesc::minBytesRequiredForStoreInput(CNNLayerPtr layer) {
     auto quantized = getInjectedData<QuantizedLayerParams>(layer);
     size_t precision_bytes;
     if (quantized) {
-        precision_bytes = 2;
+        if (quantized->lowPrecision) {
+            precision_bytes = 1;
+        } else {
+            precision_bytes = 2;
+        }
     } else {
         precision_bytes = 4;
     }

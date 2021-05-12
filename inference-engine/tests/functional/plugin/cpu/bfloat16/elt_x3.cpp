@@ -184,6 +184,8 @@ protected:
 };
 
 TEST_P(Elt_x3, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

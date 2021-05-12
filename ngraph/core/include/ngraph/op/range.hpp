@@ -46,7 +46,7 @@ namespace ngraph
             private:
                 element::Type m_output_type;
             };
-        }
+        } // namespace v4
         namespace v0
         {
             /// \brief Range operation, analogous to `range()` in Python.
@@ -78,7 +78,7 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        }
+        } // namespace v0
         using v0::Range;
-    }
-}
+    } // namespace op
+} // namespace ngraph

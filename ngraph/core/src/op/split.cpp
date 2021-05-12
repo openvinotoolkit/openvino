@@ -36,28 +36,29 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 void op::v1::Split::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
-    const auto data_ps = input_value(0).get_partial_shape();
-    const auto axis_ps = input_value(1).get_partial_shape();
-    const auto axis_et = input_value(1).get_element_type();
-
-    if (axis_ps.rank().is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              axis_ps.rank().get_length() == 0,
-                              "The 'axis' input is expected to be a scalar. Got: ",
-                              axis_ps);
-    }
+    const PartialShape& data_ps = get_input_partial_shape(0);
+    const PartialShape& axis_ps = get_input_partial_shape(1);
+    const element::Type& axis_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(
-        this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
+        this, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
+
+    NODE_VALIDATION_CHECK(this,
+                          axis_et.is_integral_number(),
+                          "Element type of 'axis' input must be integer. Got: ",
+                          axis_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          m_num_splits > 0,
+                          "Attribute 'num_splits' must be greater than zero. Got: ",
+                          m_num_splits);
 
     PartialShape each_output_shape{data_ps};
+    const Rank data_rank = data_ps.rank();
     const auto axis_input = get_constant_from_source(input_value(1));
-    if (axis_input && data_ps.rank().is_static())
+    if (axis_input && data_rank.is_static())
     {
         auto axis = axis_input->cast_vector<int64_t>()[0];
-
-        const auto data_rank = get_input_partial_shape(0).rank();
         axis = ngraph::normalize_axis(this, axis, data_rank);
 
         if (data_ps[axis].is_static())
@@ -66,16 +67,34 @@ void op::v1::Split::validate_and_infer_types()
 
             NODE_VALIDATION_CHECK(this,
                                   dimension_at_axis % m_num_splits == 0,
-                                  "The input tensor's dimension pointed by the 'axis' parameter: ",
+                                  "Dimension of data input shape along 'axis': ",
                                   dimension_at_axis,
-                                  " has to be a multiple of the 'num_splits' attribute value: ",
+                                  " must be evenly divisible by 'num_splits' attribute value: ",
                                   m_num_splits);
 
             each_output_shape[axis] = dimension_at_axis / m_num_splits;
         }
         else
         {
-            each_output_shape[axis] = Dimension::dynamic();
+            const auto dim_interval_at_axis = data_ps[axis].get_interval();
+            NODE_VALIDATION_CHECK(
+                this,
+                dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(m_num_splits),
+                "The interval maximum of the dimension for data input shape along 'axis' must be "
+                "greater or equal to 'num_splits' attribute. Got: ",
+                dim_interval_at_axis,
+                " and ",
+                m_num_splits);
+
+            auto dim_interval_at_axis_min =
+                static_cast<int64_t>(dim_interval_at_axis.get_min_val() * (1.0f / m_num_splits));
+            auto dim_interval_at_axis_max = dim_interval_at_axis.get_max_val();
+            if (dim_interval_at_axis.has_upper_bound())
+            {
+                dim_interval_at_axis_max =
+                    static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / m_num_splits));
+            }
+            each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
         }
     }
     else
@@ -137,11 +156,13 @@ namespace split
         evaluate(data_tensor, outputs, axis, num_splits);
         return true;
     }
-}
+} // namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Split_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, m_num_splits) &&
+                 validate_host_tensor_vector(inputs, 2));
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     return split::evaluate_split(data, axis, outputs, m_num_splits, this);

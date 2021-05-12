@@ -10,17 +10,9 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::ArithmeticReduction::ArithmeticReduction() {}
+NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
-op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
-                                                   const AxisSet& reduction_axes)
-    : Op({arg,
-          op::Constant::create(
-              element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
-              ->output(0)})
-{
-    add_provenance_group_member(input_value(1).get_node_shared_ptr());
-}
+op::util::ArithmeticReduction::ArithmeticReduction() {}
 
 op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
                                                    const Output<Node>& reduction_axes)
@@ -90,7 +82,7 @@ void op::util::ArithmeticReduction::validate_and_infer_types()
         }
 
         std::vector<Dimension> dims;
-        for (size_t i = 0; i < input_rank.get_length(); i++)
+        for (int64_t i = 0; i < input_rank.get_length(); i++)
         {
             if (reduction_axes.count(i) == 0)
             {

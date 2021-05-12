@@ -16,7 +16,6 @@
 #include <string>
 #include <limits>
 
-#include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
@@ -48,13 +47,13 @@ static inline void parsePluginName(std::istream& networkModel) {
  */
 class InferencePluginInternal : public IInferencePlugin {
 public:
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+    IExecutableNetworkInternal::Ptr LoadNetwork(const CNNNetwork& network,
                                   const std::map<std::string, std::string>& config) override {
         return LoadNetwork(network, config, nullptr);
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
-                                  RemoteContext::Ptr context) override {
+    IExecutableNetworkInternal::Ptr LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
+                                                RemoteContext::Ptr context) override {
         InputsDataMap networkInputs = network.getInputsInfo(), networkInputsCloned;
         OutputsDataMap networkOutputs = network.getOutputsInfo(), networkOutputsCloned;
         copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
@@ -70,26 +69,25 @@ public:
         impl->setNetworkOutputs(networkOutputsCloned);
         impl->SetPointerToPlugin(shared_from_this());
 
-        auto executableNetwork = make_executable_network(impl);
-        return ExecutableNetwork(executableNetwork);
+        return impl;
     }
 
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(const std::string& modelFileName,
+                                                  const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
         IE_THROW(NotImplemented);
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                  const std::map<std::string, std::string>& config) override {
         parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, config);
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                  const RemoteContext::Ptr& context,
+                                                  const std::map<std::string, std::string>& config) override {
         parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, context, config);
     }
@@ -184,8 +182,8 @@ protected:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                const std::map<std::string, std::string>& config) {
+    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
+                                                             const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)config;
         IE_THROW(NotImplemented);
@@ -199,9 +197,9 @@ protected:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                const RemoteContext::Ptr& context,
-                                                const std::map<std::string, std::string>& config) {
+    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
+                                                             const RemoteContext::Ptr& context,
+                                                             const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)context;
         (void)config;

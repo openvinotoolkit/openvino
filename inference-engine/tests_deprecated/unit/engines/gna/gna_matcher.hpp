@@ -18,7 +18,6 @@
 #include <legacy/graph_tools.hpp>
 #include <ngraph/function.hpp>
 #include <ie_precision.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_blob.h>
 #include <ie_plugin_config.hpp>
 #include <cpp/ie_cnn_network.h>

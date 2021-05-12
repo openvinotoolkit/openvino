@@ -239,7 +239,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermed
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
-    const FakeQuantizeOnData& fqOnData2) {
+    const FakeQuantizeOnData& fqOnData2,
+    const bool addConvolution) {
     size_t numSplit = 2;
     size_t splitedAxis = 1;
 
@@ -272,24 +273,28 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermed
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
         ngraph::OutputVector{ fakeQuantize1->output(0), intermediateOp->output(0) }, splitedAxis);
-    concat->set_friendly_name("concat");
+    concat->set_friendly_name("output_1");
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
 
-    auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
-    auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        intermediateOp->output(1),
-        weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
-    convolution->set_friendly_name("convolution");
+    Output<Node> lastOutput = intermediateOp->output(1);
+    if (addConvolution) {
+        auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
+        auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+            intermediateOp->output(1),
+            weights,
+            ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::Strides{ 1, 1 });
+        lastOutput = convolution->output(0);
+    }
+    lastOutput.get_node_shared_ptr()->set_friendly_name("output_2");
 
     ngraph::ResultVector results{
         std::make_shared<ngraph::opset1::Result>(concat),
-        std::make_shared<ngraph::opset1::Result>(convolution),
+        std::make_shared<ngraph::opset1::Result>(lastOutput),
     };
 
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
@@ -485,12 +490,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
 
-std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
+std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
@@ -545,7 +550,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecis
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
@@ -752,7 +757,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
     const ngraph::element::Type precisionAfterOperation,
-    const DequantizationOperations& dequantizationAfter) {
+    const DequantizationOperations& dequantizationAfter,
+    const std::int64_t& axis) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input1->set_friendly_name("input1");
 
@@ -775,7 +781,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
         parent2 = makeDequantization(parent2, dequantization2);
     }
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1);
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
@@ -963,6 +969,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     const DequantizationOperations& dequantizationBefore1,
     const DequantizationOperations& dequantizationBefore2,
     const ngraph::element::Type precisionAfterOperation,
+    const bool addConvolution,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2) {
     size_t numSplit = 2;
@@ -989,6 +996,13 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(3),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(3)));
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(4),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(4)));
+
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);
     const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
@@ -997,7 +1011,6 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
 
     const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
     intermediateOp = std::make_shared<ngraph::opset1::Split>(deqBefore2, constant, numSplit);
-
     intermediateOp->set_friendly_name("intermediate");
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
@@ -1009,23 +1022,30 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
 
     const auto lastDequantization1 = makeDequantization(concat, dequantizationOperations1);
     const auto lastDequantization2 = makeDequantization(intermediateOp->output(1), dequantizationOperations2);
+    lastDequantization1->set_friendly_name("output_1");
 
-    auto weights = ngraph::opset1::Constant::create(
-        precision,
-        ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
+    Output<Node> lastOutput = lastDequantization2;
+    if (addConvolution) {
+        auto weights = ngraph::opset1::Constant::create(
+            precision,
+            ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
 
-    auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        lastDequantization2,
-        weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
-    convolution->set_friendly_name("convolution");
+        auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+            lastDequantization2,
+            weights,
+            ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::Strides{ 1, 1 });
+        convolution->set_friendly_name("output_2");
+        lastOutput = convolution->output(0);
+    } else {
+        lastOutput.get_node_shared_ptr()->set_friendly_name("output_2.1");
+    }
 
     ngraph::ResultVector results{
         std::make_shared<ngraph::opset1::Result>(lastDequantization1),
-        std::make_shared<ngraph::opset1::Result>(convolution)
+        std::make_shared<ngraph::opset1::Result>(lastOutput)
     };
 
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
@@ -1239,12 +1259,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }
 
-std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPrecisionOnChilds(
+std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const bool multiChannel,
@@ -1320,7 +1340,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPreci
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },
-        "ConcatWithDifferentChildsTransformation");
+        "ConcatWithDifferentChildrenTransformation");
 
     return function;
 }

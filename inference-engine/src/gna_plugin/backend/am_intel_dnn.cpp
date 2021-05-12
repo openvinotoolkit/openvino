@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <cmath>
+#include <iostream>
 #include <set>
 #include <string>
 #include <algorithm>
@@ -824,20 +825,38 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     std::ofstream out_bfile((out_file_name.str() + "_biases.txt").c_str(), std::ios::out);
 
                     if (num_bytes_per_weight == 1) {
-                        int8_t *ptr_weight = reinterpret_cast<int8_t *>(component[i].op.affine.ptr_weights);
-                        gna_compound_bias_t *ptr_bias = reinterpret_cast<gna_compound_bias_t *>(component[i].op.affine.ptr_biases);
+                        if (num_bytes_per_bias != 1) {
+                            int8_t* ptr_weight = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_weights);
+                            gna_compound_bias_t* ptr_bias = reinterpret_cast<gna_compound_bias_t*>(component[i].op.affine.ptr_biases);
 #ifdef DUMP_WB
-                        for (uint32_t row = 0; row < num_weight_rows; row++) {
-                            for (uint32_t col = 0; col < num_weight_columns; col++) {
-                                if (logging_precision == kDnnFloat) {
-                                    float val =
-                                        static_cast<float>(ptr_weight[row * num_weight_columns + col]) * ptr_bias[row].multiplier
+                            for (uint32_t row = 0; row < num_weight_rows; row++) {
+                                for (uint32_t col = 0; col < num_weight_columns; col++) {
+                                    if (logging_precision == kDnnFloat) {
+                                        float val =
+                                            static_cast<float>(ptr_weight[row * num_weight_columns + col]) * ptr_bias[row].multiplier
                                             / weight_scale_factor;
-                                    out_wfile << std::setprecision(4) << val << " ";
-                                } else {
-                                    out_wfile <<  int((int8_t) ptr_weight[row * num_weight_columns + col]) << " ";
+                                        out_wfile << std::setprecision(4) << val << " ";
+                                    } else {
+                                        out_wfile << int((int8_t)ptr_weight[row * num_weight_columns + col]) << " ";
+                                    }
+                                    out_wfile << "\n";
                                 }
-                                out_wfile << "\n";
+                            }
+#endif
+                        } else {
+                            int8_t* ptr_weight = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_weights);
+#ifdef DUMP_WB
+                            for (uint32_t row = 0; row < num_weight_rows; row++) {
+                                for (uint32_t col = 0; col < num_weight_columns; col++) {
+                                    if (logging_precision == kDnnFloat) {
+                                        float val =
+                                            static_cast<float>(ptr_weight[row * num_weight_columns + col]) / weight_scale_factor;
+                                        out_wfile << std::setprecision(4) << val << " ";
+                                    } else {
+                                        out_wfile << int((int8_t)ptr_weight[row * num_weight_columns + col]) << " ";
+                                    }
+                                    out_wfile << "\n";
+                                }
                             }
                         }
 #endif
@@ -873,18 +892,31 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     }
                     if (compute_precision_ == kDnnInt) {
                         if (num_bytes_per_weight == 1) {
-                            gna_compound_bias_t
-                                *ptr_biases = reinterpret_cast<gna_compound_bias_t *>(component[i].op.affine.ptr_biases);
+                            if (num_bytes_per_bias != 1) {
+                                gna_compound_bias_t
+                                    * ptr_biases = reinterpret_cast<gna_compound_bias_t*>(component[i].op.affine.ptr_biases);
 #ifdef DUMP_WB
-                            for (uint32_t row = 0; row < num_rows_out; row++) {
-                                if (logging_precision == kDnnInt) {
-                                    out_bfile << std::setw(8) << ptr_biases[row].bias << ", ";
-                                    out_bfile << std::setw(8) << int(ptr_biases[row].multiplier) << "\n";
-                                } else {
-                                    out_bfile << std::setw(8) << ptr_biases[row].bias / output_scale_factor << "\n";
+                                for (uint32_t row = 0; row < num_rows_out; row++) {
+                                    if (logging_precision == kDnnInt) {
+                                        out_bfile << std::setw(8) << ptr_biases[row].bias << ", ";
+                                        out_bfile << std::setw(8) << int(ptr_biases[row].multiplier) << "\n";
+                                    } else {
+                                        out_bfile << std::setw(8) << ptr_biases[row].bias / output_scale_factor << "\n";
+                                    }
                                 }
-                            }
 #endif
+                            } else {
+                                int8_t *ptr_biases = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_biases);
+#ifdef DUMP_WB
+                                for (uint32_t row = 0; row < num_rows_out; row++) {
+                                    if (logging_precision == kDnnInt) {
+                                        out_bfile << std::setw(8) << ptr_biases[row] << "\n";
+                                    } else {
+                                        out_bfile << std::setw(8) << ptr_biases[row] / output_scale_factor << "\n";
+                                    }
+                                }
+#endif
+                            }
                         } else {
                             int32_t *ptr_biases = reinterpret_cast<int32_t *>(component[i].op.affine.ptr_biases);
 #ifdef DUMP_WB
@@ -1704,8 +1736,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 outputTensor.Shape.Dimensions[beginOfHInNHWC + dimHW] =
                                     outputFromPooling(outFromConv, poolWindow->Dimensions[beginOfHInHW + dimHW], poolStride->Dimensions[beginOfHInHW + dimHW]);
                             }
-                            AdvanceOperationIfAllApplied(component, i, gnaOperation);
                         }
+                        AdvanceOperationIfAllApplied(component, i, gnaOperation);
                     }
 #else
                 } else if (pLayer->nLayerKind == INTEL_CONVOLUTIONAL) {
@@ -2102,8 +2134,11 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
                     } else {
                         floatValue = reinterpret_cast<float*>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
                     }
-                } else {
+                } else if (component[i].num_bytes_per_output == 2) {
                     auto value = reinterpret_cast<int16_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
+                    floatValue = static_cast<float>(value);
+                } else {
+                    auto value = reinterpret_cast<int8_t*>(component[i].ptr_outputs)[k * component[i].num_columns_out + j];
                     floatValue = static_cast<float>(value);
                 }
                 floatValue /= component[i].output_scale_factor;
@@ -2142,10 +2177,14 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
                     } else {
                         floatValue = reinterpret_cast<float *>(component[i].ptr_inputs)[k * component[i].num_columns_in + j];
                     }
-                } else {
+                } else if (component[i].num_bytes_per_input == 2) {
                     auto value = reinterpret_cast<int16_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in+ j];
                     floatValue = static_cast<float>(value);
+                } else {
+                    auto value = reinterpret_cast<int8_t*>(component[i].ptr_inputs)[k * component[i].num_columns_in + j];
+                    floatValue = static_cast<float>(value);
                 }
+
                 in_file << std::setw(8) << floatValue / input_scale_factor << "\n";
             }
         }

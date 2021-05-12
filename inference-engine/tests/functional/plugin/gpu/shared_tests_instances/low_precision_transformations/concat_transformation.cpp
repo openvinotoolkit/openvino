@@ -31,7 +31,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
-    }
+    },
+    // FQ with unexpected quantizationLevels
+    {
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,

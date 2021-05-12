@@ -96,9 +96,12 @@ void MatMulWithConstantTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<2>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
-
-    EXPECT_EQ(actualType, params.expectedKernelType);
+    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    auto expectedPrecision = params.expectedKernelType;
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        expectedPrecision = "FP16";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {

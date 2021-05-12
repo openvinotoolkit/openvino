@@ -703,6 +703,39 @@ TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
     ASSERT_EQ(layer1->insData[0].lock(), getData("data1"));
 }
 
+TEST_F(AdvancedShapeInferTests, canFullTrimConstToMVN) {
+    //
+    //      I2-d2
+    //          \
+    //  I1-d1-Reshape-d3-L2-d4
+    //
+    net = netBuilder
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3, 1, 1}, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3}, IE::Layout::C))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", IE::Precision::I32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "MVN", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::FP32})
+            .linkToData("input1", "data1")
+            .linkToData("input2", "data2")
+            .linkDataTo("data1", "layer1")
+            .linkDataTo("data2", "layer1")
+            .linkToData("layer1", "data3")
+            .linkDataTo("data3", "layer2")
+            .linkToData("layer2", "data4")
+            .addInput("data1")
+            .addInput("data2")
+            .finalize();
+
+    IE::BlobMap refBlobs = initConstLayers({"input1", "input2"});
+    auto layer1 = getLayer("layer1");
+
+    IE::ConstTransformer transformator(net.get());
+    ASSERT_NO_THROW(transformator.fullTrim());
+}
+
 TEST_F(AdvancedShapeInferTests, canReshape) {
     //
     // I2-d2-Shape

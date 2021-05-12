@@ -147,4 +147,4 @@ namespace ngraph
         std::unordered_map<std::shared_ptr<Node>, node_id_t> m_node_id_map;
         std::unordered_map<node_id_t, std::shared_ptr<Node>> m_id_node_map;
     };
-}
+} // namespace ngraph

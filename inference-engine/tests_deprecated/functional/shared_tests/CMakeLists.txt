@@ -21,6 +21,8 @@ file(GLOB SHARED_TESTS_SRC
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "precomp.hpp"

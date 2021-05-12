@@ -10,11 +10,16 @@
 #include <string>
 #include <utility>
 #include <algorithm>
+#include "caseless.hpp"
 #include "ie_parallel.hpp"
+#include "common/tensor_desc_creator.h"
+#include <ngraph/op/detection_output.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 template <typename T>
 static bool SortScorePairDescend(const std::pair<float, T>& pair1,
@@ -24,98 +29,95 @@ static bool SortScorePairDescend(const std::pair<float, T>& pair1,
 
 class DetectionOutputImpl: public ExtLayerBase {
 public:
-    explicit DetectionOutputImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 3 && layer->insData.size() != 5)
-                IE_THROW() << "Incorrect number of input edges for layer " << layer->name;
-            if (layer->outData.empty())
-                IE_THROW() << "Incorrect number of output edges for layer " << layer->name;
+            auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
+            if (!doOp) {
+                errorMessage = "Node is not an instance of the DetectionOutput from the operations set v0.";
+                return false;
+            }
+            if (!details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CENTER_SIZE") &&
+                    !details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
+                errorMessage = "Unsupported code_type attribute.";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            _num_classes = layer->GetParamAsInt("num_classes");
-            _background_label_id = layer->GetParamAsInt("background_label_id", 0);
-            _top_k = layer->GetParamAsInt("top_k", -1);
-            _variance_encoded_in_target = layer->GetParamAsBool("variance_encoded_in_target", false);
-            _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
-            _nms_threshold = layer->GetParamAsFloat("nms_threshold");
-            _confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
-            _share_location = layer->GetParamAsBool("share_location", true);
-            _clip_before_nms = layer->GetParamAsBool("clip_before_nms", false) ||
-                               layer->GetParamAsBool("clip", false);  // for backward compatibility
-            _clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
-            _decrease_label_id = layer->GetParamAsBool("decrease_label_id", false);
-            _normalized = layer->GetParamAsBool("normalized", true);
-            _image_height = layer->GetParamAsInt("input_height", 1);
-            _image_width = layer->GetParamAsInt("input_width", 1);
+    explicit DetectionOutputImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            if (op->get_input_size() != 3 && op->get_input_size() != 5)
+                IE_THROW() <<  "Invalid number of input edges.";
+
+            if (op->get_output_size() != 1)
+                IE_THROW() << "Invalid number of output edges.";
+
+            auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
+            auto attributes = doOp->get_attrs();
+
+            _num_classes = attributes.num_classes;
+            _background_label_id = attributes.background_label_id;
+            _top_k = attributes.top_k;
+            _variance_encoded_in_target = attributes.variance_encoded_in_target;
+            _keep_top_k = attributes.keep_top_k[0];
+            _nms_threshold = attributes.nms_threshold;
+            _confidence_threshold = attributes.confidence_threshold;
+            _share_location = attributes.share_location;
+            _clip_before_nms = attributes.clip_before_nms;
+            _clip_after_nms = attributes.clip_after_nms;
+            _decrease_label_id = attributes.decrease_label_id;
+            _normalized = attributes.normalized;
+            _image_height = attributes.input_height;
+            _image_width = attributes.input_width;
             _prior_size = _normalized ? 4 : 5;
             _offset = _normalized ? 0 : 1;
             _num_loc_classes = _share_location ? 1 : _num_classes;
 
-            with_add_box_pred = layer->insData.size() == 5;
-            _objectness_score = layer->GetParamAsFloat("objectness_score", 0.0f);
+            with_add_box_pred = op->get_input_size() == 5;
+            _objectness_score = attributes.objectness_score;
 
-            std::string code_type_str = layer->GetParamAsString("code_type", "caffe.PriorBoxParameter.CORNER");
-            _code_type = (code_type_str == "caffe.PriorBoxParameter.CENTER_SIZE" ? CodeType::CENTER_SIZE
-                                                                                 : CodeType::CORNER);
+            _code_type = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
+                CodeType::CENTER_SIZE : CodeType::CORNER);
 
-            _num_priors = static_cast<int>(layer->insData[idx_priors].lock()->getDims().back() / _prior_size);
-            _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
+            _num_priors = static_cast<int>(op->get_input_shape(idx_priors).back() / _prior_size);
+            _priors_batches = op->get_input_shape(idx_priors).front() != 1;
 
-            if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
+            if (_num_priors * _num_loc_classes * 4 != static_cast<int>(op->get_input_shape(idx_location)[1]))
                 IE_THROW() << "Number of priors must match number of location predictions ("
                                    << _num_priors * _num_loc_classes * 4 << " vs "
-                                   << layer->insData[idx_location].lock()->getDims()[1] << ")";
+                                   << op->get_input_shape(idx_location)[1] << ")";
 
-            if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
+            if (_num_priors * _num_classes != static_cast<int>(op->get_input_shape(idx_confidence).back()))
                 IE_THROW() << "Number of priors must match number of confidence predictions.";
 
             if (_decrease_label_id && _background_label_id != 0)
                 IE_THROW() << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
-            _num = static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims()[0]);
+            _num = static_cast<int>(op->get_input_shape(idx_confidence)[0]);
 
-            InferenceEngine::SizeVector bboxes_size{static_cast<size_t>(_num),
-                                                    static_cast<size_t>(_num_classes),
-                                                    static_cast<size_t>(_num_priors),
-                                                    4};
-            _decoded_bboxes = InferenceEngine::make_shared_blob<float>({Precision::FP32, bboxes_size, NCHW});
-            _decoded_bboxes->allocate();
+            _decoded_bboxes.resize(_num * _num_classes * _num_priors * 4);
+            _buffer.resize(_num * _num_classes * _num_priors);
+            _indices.resize(_num * _num_classes * _num_priors);
+            _detections_count.resize(_num * _num_classes);
+            _bbox_sizes.resize(_num * _num_classes * _num_priors);
+            _num_priors_actual.resize(_num);
 
-            InferenceEngine::SizeVector buf_size{static_cast<size_t>(_num),
-                                                 static_cast<size_t>(_num_classes),
-                                                 static_cast<size_t>(_num_priors)};
-            _buffer = InferenceEngine::make_shared_blob<int>({Precision::I32, buf_size, {buf_size, {0, 1, 2}}});
-            _buffer->allocate();
+            const auto &confSize = op->get_input_shape(idx_confidence);
+            _reordered_conf.resize(std::accumulate(confSize.begin(), confSize.end(), 1, std::multiplies<size_t>()));
 
-            InferenceEngine::SizeVector indices_size{static_cast<size_t>(_num),
-                                                     static_cast<size_t>(_num_classes),
-                                                     static_cast<size_t>(_num_priors)};
-            _indices = InferenceEngine::make_shared_blob<int>(
-                    {Precision::I32, indices_size, {indices_size, {0, 1, 2}}});
-            _indices->allocate();
-
-            InferenceEngine::SizeVector detections_size{static_cast<size_t>((size_t)(_num) * _num_classes)};
-            _detections_count = InferenceEngine::make_shared_blob<int>({Precision::I32, detections_size, C});
-            _detections_count->allocate();
-
-            const InferenceEngine::SizeVector &conf_size = layer->insData[idx_confidence].lock()->getTensorDesc().getDims();
-            _reordered_conf = InferenceEngine::make_shared_blob<float>({Precision::FP32, conf_size, ANY});
-            _reordered_conf->allocate();
-
-            InferenceEngine::SizeVector decoded_bboxes_size{static_cast<size_t>(_num),
-                                                            static_cast<size_t>(_num_priors),
-                                                            static_cast<size_t>(_num_classes)};
-            _bbox_sizes = InferenceEngine::make_shared_blob<float>(
-                    {Precision::FP32, decoded_bboxes_size, {decoded_bboxes_size, {0, 1, 2}}});
-            _bbox_sizes->allocate();
-
-            InferenceEngine::SizeVector num_priors_actual_size{static_cast<size_t>(_num)};
-            _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::I32, num_priors_actual_size, C});
-            _num_priors_actual->allocate();
-
-            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
-            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+            std::vector<DataConfigurator> inDataConfigurators(op->get_input_size(), {TensorDescCreatorTypes::ncsp, Precision::FP32});
+            addConfig(op, inDataConfigurators,
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
     }
 
@@ -131,13 +133,13 @@ public:
 
         const int N = inputs[idx_confidence]->getTensorDesc().getDims()[0];
 
-        float *decoded_bboxes_data = _decoded_bboxes->buffer().as<float *>();
-        float *reordered_conf_data = _reordered_conf->buffer().as<float *>();
-        float *bbox_sizes_data     = _bbox_sizes->buffer().as<float *>();
-        int *detections_data       = _detections_count->buffer().as<int *>();
-        int *buffer_data           = _buffer->buffer().as<int *>();
-        int *indices_data          = _indices->buffer().as<int *>();
-        int *num_priors_actual     = _num_priors_actual->buffer().as<int *>();
+        float *decoded_bboxes_data = _decoded_bboxes.data();
+        float *reordered_conf_data = _reordered_conf.data();
+        float *bbox_sizes_data     = _bbox_sizes.data();
+        int *detections_data       = _detections_count.data();
+        int *buffer_data           = _buffer.data();
+        int *indices_data          = _indices.data();
+        int *num_priors_actual     = _num_priors_actual.data();
 
         for (int n = 0; n < N; ++n) {
             const float *ppriors = prior_data;
@@ -396,13 +398,13 @@ private:
     void nms_mx(const float *conf_data, const float *bboxes, const float *sizes,
                 int *buffer, int *indices, int *detections, int num_priors_actual);
 
-    InferenceEngine::Blob::Ptr _decoded_bboxes;
-    InferenceEngine::Blob::Ptr _buffer;
-    InferenceEngine::Blob::Ptr _indices;
-    InferenceEngine::Blob::Ptr _detections_count;
-    InferenceEngine::Blob::Ptr _reordered_conf;
-    InferenceEngine::Blob::Ptr _bbox_sizes;
-    InferenceEngine::Blob::Ptr _num_priors_actual;
+    std::vector<float> _decoded_bboxes;
+    std::vector<int> _buffer;
+    std::vector<int> _indices;
+    std::vector<int> _detections_count;
+    std::vector<float> _reordered_conf;
+    std::vector<float> _bbox_sizes;
+    std::vector<int> _num_priors_actual;
 };
 
 struct ConfidenceComparator {

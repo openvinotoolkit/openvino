@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = std::atan(arg[i]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

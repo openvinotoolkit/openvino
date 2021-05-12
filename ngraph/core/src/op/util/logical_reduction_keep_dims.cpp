@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::LogicalReductionKeepDims, "LogicalReductionKeepDims", 1);
+
 op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,
     const ngraph::Output<ngraph::Node>& reduction_axes,
@@ -69,7 +71,7 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
             }
 
             std::vector<Dimension> dims;
-            for (size_t i = 0; i < input_rank.get_length(); i++)
+            for (int64_t i = 0; i < input_rank.get_length(); i++)
             {
                 if (reduction_axes.count(i) == 0)
                 {

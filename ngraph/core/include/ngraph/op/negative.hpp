@@ -31,9 +31,9 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        }
+        } // namespace v0
         using v0::Negative;
-    }
+    } // namespace op
     NGRAPH_API
     std::shared_ptr<Node> operator-(const Output<Node>& arg0);
-}
+} // namespace ngraph

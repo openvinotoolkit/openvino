@@ -35,6 +35,28 @@ namespace ngraph
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
 
+    /// \brief      Validates input shape ranks and infers convolution forward output shape.
+    ///
+    /// \param[in] node              Node with convolution operation.
+    /// \param[in] data_batch_pshape Partial shape of data batch input.
+    /// \param[in] filters_pshape    Partial shape of filters input.
+    /// \param[in] auto_pad          Type of padding.
+    /// \param     strides           Strides.
+    /// \param     dilations         Dilations.
+    /// \param     pads_begin        Pads begin.
+    /// \param     pads_end          Pads end.
+    ///
+    /// \return Partial shape of the output.
+    PartialShape
+        validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const PartialShape& data_batch_pshape,
+                                                            const PartialShape& filters_pshape,
+                                                            const op::PadType auto_pad,
+                                                            Strides& strides,
+                                                            Strides& dilations,
+                                                            CoordinateDiff& pads_begin,
+                                                            CoordinateDiff& pads_end);
+
     NGRAPH_API
     PartialShape infer_convolution_forward(const Node* node,
                                            const PartialShape& data_batch_shape,

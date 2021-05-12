@@ -275,7 +275,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 -	The general affinity “rule of thumb” is to keep computationally-intensive kernels on the accelerator, and "glue" (or helper) kernels on the CPU. Notice that this includes the granularity considerations. For example, running some (custom) activation on the CPU would result in too many conversions.
 
--	It is advised to do <a href="#analyzing-hetero-execution">performance analysis</a> to determine “hotspot” kernels, which should be the first candidates for offloading. At the same time, it is often more efficient to offload some reasonably sized sequence of kernels, rather than individual kernels, to minimize scheduling and other run-time overheads.
+-	It is advised to do <a href="#analyzing-hetero-execution">performance analysis</a> to determine “hotspot” kernels, which should be the first candidates for offloading. At the same time, it is often more efficient to offload some reasonably sized sequence of kernels, rather than individual kernels, to minimize scheduling and other runtime overhead.
 
 -	Notice that GPU can be busy with other tasks (like rendering). Similarly, the CPU can be in charge for the general OS routines and other application threads (see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a>). Also, a high interrupt rate due to many subgraphs can raise the frequency of the one device and drag the frequency of another down.
 
@@ -445,7 +445,7 @@ There are important performance caveats though: for example, the tasks that run 
 
 Also, if the inference is performed on the graphics processing unit (GPU), it can take little gain to do the encoding, for instance, of the resulting video, on the same GPU in parallel, because the device is already busy.
 
-Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
+Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_cpp) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
 
 ## Using Tools <a name="using-tools"></a>
 

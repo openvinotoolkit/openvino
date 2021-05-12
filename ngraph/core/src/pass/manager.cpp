@@ -20,6 +20,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -28,46 +29,20 @@ namespace ngraph
 {
     namespace pass
     {
-        namespace
+        namespace internal
         {
-            class PerfCounters
-            {
-                PerfCounters(PerfCounters const&) = delete;
-                PerfCounters& operator=(PerfCounters const&) = delete;
-
-            public:
-                PerfCounters() = default;
-
-                openvino::itt::handle_t operator[](::ngraph::Node::type_info_t const& type_inf)
-                {
-                    std::lock_guard<std::mutex> guard(m_mutex);
-                    auto it = m_counters.find(&type_inf);
-                    if (it != m_counters.end())
-                        return it->second;
-                    return m_counters[&type_inf] = openvino::itt::handle(type_inf.name);
-                }
-
-            private:
-                using key = ::ngraph::Node::type_info_t const*;
-                using value = openvino::itt::handle_t;
-                using counters_map = std::unordered_map<key, value>;
-
-                std::mutex m_mutex;
-                counters_map m_counters;
-            };
-
             PerfCounters& perf_counters()
             {
                 static PerfCounters counters;
                 return counters;
             }
-        }
-    }
-}
+        } // namespace internal
+    }     // namespace pass
+} // namespace ngraph
 
 pass::Manager::Manager()
-    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
-    , m_pass_config(std::make_shared<PassConfig>())
+    : m_pass_config(std::make_shared<PassConfig>())
+    , m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
 {
 }
 
@@ -97,8 +72,9 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             continue;
         }
 
-        OV_ITT_SCOPED_TASK(itt::domains::nGraphPass_LT,
-                           pass::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE,
+                     itt::domains::nGraphPass_LT,
+                     pass::internal::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 

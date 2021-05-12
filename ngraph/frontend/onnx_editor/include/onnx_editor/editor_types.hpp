@@ -60,5 +60,5 @@ namespace ngraph
         ///            OutputEdge(5, "out1")
         ///            OutputEdge(5, "out2")
         using OutputEdge = Edge<EdgeType::OUTPUT>;
-    }
-}
+    } // namespace onnx_editor
+} // namespace ngraph

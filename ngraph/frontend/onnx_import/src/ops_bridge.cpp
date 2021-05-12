@@ -27,8 +27,10 @@
 #include "op/cast.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
+#include "op/constant_fill.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
 // #include "op/conv_integer.hpp"
@@ -170,7 +172,7 @@ namespace ngraph
                 }
                 return std::end(map);
             }
-        }
+        } // namespace detail
 
         void OperatorsBridge::_register_operator(const std::string& name,
                                                  std::int64_t version,
@@ -314,6 +316,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
             REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -321,12 +324,15 @@ namespace ngraph
             REGISTER_OPERATOR("Clip", 11, clip);
             REGISTER_OPERATOR("Concat", 1, concat);
             REGISTER_OPERATOR("Constant", 1, constant);
+            REGISTER_OPERATOR("Constant", 13, constant);
             REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
             REGISTER_OPERATOR("Conv", 1, conv);
             // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
             REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
+            REGISTER_OPERATOR("Compress", 1, compress);
             REGISTER_OPERATOR("Cos", 1, cos);
             REGISTER_OPERATOR("Cosh", 1, cosh);
+            REGISTER_OPERATOR("ConstantFill", 1, constant_fill);
             REGISTER_OPERATOR("CumSum", 1, cum_sum);
             REGISTER_OPERATOR("DepthToSpace", 1, depth_to_space);
             REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
@@ -355,6 +361,7 @@ namespace ngraph
             REGISTER_OPERATOR("Greater", 1, greater);
             REGISTER_OPERATOR("GRU", 1, gru);
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
+            REGISTER_OPERATOR("Hardmax", 13, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
             REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
@@ -433,6 +440,7 @@ namespace ngraph
             // Softmax v7 should be in the 11th opset but,
             // other frameworks(mxnet and onnxruntime) already use for older models.
             REGISTER_OPERATOR("Softmax", 7, softmax);
+            REGISTER_OPERATOR("Softmax", 13, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);

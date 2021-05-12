@@ -22,5 +22,5 @@ namespace ngraph
             }
             Op(const OutputVector& arguments);
         };
-    }
-}
+    } // namespace op
+} // namespace ngraph

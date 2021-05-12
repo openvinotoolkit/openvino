@@ -14,7 +14,6 @@
 #include <memory>
 #include <map>
 #include <string>
-#include <legacy/cnn_network_impl.hpp>
 #include <unordered_map>
 
 namespace MKLDNNPlugin {
@@ -23,11 +22,11 @@ class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
-    InferenceEngine::InferRequestInternal::Ptr
+    InferenceEngine::IInferRequestInternal::Ptr
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
               InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
@@ -49,7 +48,7 @@ protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
-    InferenceEngine::CNNNetwork                 _clonedNetwork;
+    const InferenceEngine::CNNNetwork           _network;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};

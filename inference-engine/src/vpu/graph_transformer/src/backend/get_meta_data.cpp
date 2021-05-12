@@ -137,7 +137,7 @@ void BackEnd::getMetaData(
 
                 if (it != stageToMetaIndex.end()) {
                     StageMetaInfo& meta = stagesMeta[it->second];
-                    stagesMeta[prIndex].childsNum++;
+                    stagesMeta[prIndex].childrenNum++;
                     meta.parentIndices.push_back(prIndex);
                     meta.inputDims.push_back(dataMeta.desc.getDims());
                     meta.inputPrecisions.push_back(dataMeta.desc.getPrecision());

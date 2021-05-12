@@ -181,7 +181,8 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
     template <>
-    EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get()
+    NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>&
+        EnumNames<op::v3::ROIAlign::PoolingMode>::get()
     {
         static auto enum_names =
             EnumNames<op::v3::ROIAlign::PoolingMode>("op::v3::ROIAlign::PoolingMode",
@@ -285,7 +286,7 @@ namespace roi_alinop
 
         return rc;
     }
-} // namespace
+} // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const

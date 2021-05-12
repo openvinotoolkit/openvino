@@ -21,6 +21,6 @@ namespace ngraph
                     *pout++ = static_cast<Z>(std::atan2(*py++, *px++));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

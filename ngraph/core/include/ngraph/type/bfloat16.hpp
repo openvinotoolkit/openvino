@@ -211,7 +211,7 @@ namespace ngraph
     {
         return *this = *this / other;
     }
-}
+} // namespace ngraph
 
 namespace std
 {
@@ -278,4 +278,4 @@ namespace std
         static constexpr bool tinyness_before = false;
         static constexpr float_round_style round_style = round_to_nearest;
     };
-}
+} // namespace std

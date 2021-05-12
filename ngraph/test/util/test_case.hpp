@@ -25,8 +25,8 @@ namespace ngraph
         {
         public:
             TestCase(const std::shared_ptr<Function>& function)
-                : m_function{function}
-                , m_engine{create_engine<Engine>(function, tct)}
+                : m_engine{create_engine<Engine>(function, tct)}
+                , m_function{function}
             {
             }
 

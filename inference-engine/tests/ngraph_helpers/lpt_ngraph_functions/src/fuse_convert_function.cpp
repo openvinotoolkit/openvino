@@ -54,8 +54,9 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
                 ngraph::Shape(inputShape));
         parent = input1;
     }
-
-    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
+    auto deqStructure = dequantization;
+    deqStructure.multiply.outPrecision = inputPrecision;
+    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, deqStructure);
 
     std::shared_ptr<op::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(
             inputPrecision,
@@ -68,7 +69,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
     // just some non-transparent layer
     const auto power = std::make_shared<opset1::Power>(
         fakeQuantizeOnActivations,
-        std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{2.f}));
+        std::make_shared<opset1::Constant>(inputPrecision, Shape{}, std::vector<float>{2.f}));
 
     const auto add = std::make_shared<opset1::Add>(
         dequantizationOp,

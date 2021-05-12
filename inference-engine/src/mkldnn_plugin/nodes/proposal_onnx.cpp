@@ -15,6 +15,8 @@
 #include <immintrin.h>
 #endif
 #include "ie_parallel.hpp"
+#include <ngraph/op/experimental_detectron_generate_proposals.hpp>
+#include "common/tensor_desc_creator.h"
 
 
 namespace {
@@ -38,6 +40,8 @@ struct Indexer4d {
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 static
 void refine_anchors(const float* deltas, const float* scores, const float* anchors,
@@ -272,7 +276,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 }
 
 
-class ONNXCustomProposalImpl : public ExtLayerBase {
+class ExperimentalDetectronGenerateProposalsSingleImageImpl : public ExtLayerBase {
 private:
     const int INPUT_IM_INFO {0};
     const int INPUT_ANCHORS {1};
@@ -282,33 +286,45 @@ private:
     const int OUTPUT_SCORES {1};
 
 public:
-    explicit ONNXCustomProposalImpl(const CNNLayer *layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 4 || layer->outData.size() != 2)
-                IE_THROW() << "Incorrect number of input/output edges!";
+            auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+            if (!proposalOp) {
+                errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            min_size_ = layer->GetParamAsFloat("min_size");
-            nms_thresh_ = layer->GetParamAsFloat("nms_threshold");
-            pre_nms_topn_ = layer->GetParamAsInt("pre_nms_count");
-            post_nms_topn_ = layer->GetParamAsInt("post_nms_count");
+    explicit ExperimentalDetectronGenerateProposalsSingleImageImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+            auto proposalAttrs = proposalOp->get_attrs();
+
+            min_size_ = proposalAttrs.min_size;
+            nms_thresh_ = proposalAttrs.nms_threshold;
+            pre_nms_topn_ = proposalAttrs.pre_nms_count;
+            post_nms_topn_ = proposalAttrs.post_nms_count;
 
             coordinates_offset = 0.0f;
 
             roi_indices_.resize(post_nms_topn_);
-            addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
-                       DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+            addConfig(op,
+                      {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::FP32},
+                       {TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                      {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
-    }
-
-    void print_shape(const Blob::Ptr& b) {
-        for (size_t i = 0; i < b->getTensorDesc().getDims().size(); ++i) {
-            std::cout << b->getTensorDesc().getDims()[i] << ", ";
-        }
-        std::cout << std::endl;
     }
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
@@ -427,7 +443,7 @@ private:
     std::vector<int> roi_indices_;
 };
 
-REG_FACTORY_FOR(ONNXCustomProposalImpl, ExperimentalDetectronGenerateProposalsSingleImage);
+REG_FACTORY_FOR(ExperimentalDetectronGenerateProposalsSingleImageImpl, ExperimentalDetectronGenerateProposalsSingleImage);
 
 }  // namespace Cpu
 }  // namespace Extensions

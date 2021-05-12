@@ -26,7 +26,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const PadMode& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::PadMode> : public EnumAttributeAdapterBase<op::PadMode>
@@ -69,7 +69,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const PadType& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::PadType> : public EnumAttributeAdapterBase<op::PadType>
@@ -95,7 +95,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const RoundingType& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::RoundingType>
@@ -161,7 +161,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const AutoBroadcastType& type);
-    }
+    } // namespace op
     namespace op
     {
         /// \brief BroadcastType specifies rules used for mapping of input tensor axes to output
@@ -191,7 +191,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const BroadcastType& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::AutoBroadcastType>
@@ -234,7 +234,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const EpsMode& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::EpsMode> : public EnumAttributeAdapterBase<op::EpsMode>
@@ -263,7 +263,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const TopKSortType& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::TopKSortType>
@@ -289,7 +289,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const TopKMode& type);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::TopKMode> : public EnumAttributeAdapterBase<op::TopKMode>
@@ -336,13 +336,15 @@ namespace ngraph
             {
                 return a.m_type == m_type && a.m_axis == m_axis;
             }
+
+            bool operator!=(const AutoBroadcastSpec& a) const { return !(*this == a); }
             static const AutoBroadcastSpec NUMPY;
             static const AutoBroadcastSpec NONE;
 
         private:
             AutoBroadcastType type_from_string(const std::string& type) const;
         };
-    }
+    } // namespace op
 
     template <>
     class AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter
@@ -394,7 +396,7 @@ namespace ngraph
                 return a.m_type == m_type && a.m_axis == m_axis;
             }
         };
-    }
+    } // namespace op
 
     template <>
     class AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter
@@ -427,7 +429,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& s, const RecurrentSequenceDirection& direction);
-    }
+    } // namespace op
 
     template <>
     class NGRAPH_API AttributeAdapter<op::RecurrentSequenceDirection>
@@ -443,4 +445,4 @@ namespace ngraph
             "AttributeAdapter<op::RecurrentSequenceDirection>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

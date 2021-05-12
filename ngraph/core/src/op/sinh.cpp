@@ -63,7 +63,7 @@ namespace sinhop
         }
         return rc;
     }
-}
+} // namespace sinhop
 
 bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

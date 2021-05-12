@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16 // TODO: enable f16 test inference (change ngraph function + fp32 to fp16 replacements)
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {

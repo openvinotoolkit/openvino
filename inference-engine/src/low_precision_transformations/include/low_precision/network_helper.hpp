@@ -21,6 +21,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
+#include "layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -36,6 +37,9 @@ public:
 
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
 
+    // returns true if at least one child is not FQ
+    static bool notAllChildrensAreFQ(const NodeVector& layer);
+
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
@@ -49,6 +53,12 @@ public:
 
     template <typename OperationType>
     static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType> operation, const element::Type& precision);
+
+    // applies constant folding of operation to constant and returns the specified output
+    static std::shared_ptr<opset1::Constant> foldDequantizationConstant(
+        const std::shared_ptr<opset1::Constant>& foldingConstant,
+        const std::shared_ptr<Node>& operation,
+        const size_t outIdx = 0);
 
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
@@ -168,6 +178,7 @@ public:
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
+    static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 

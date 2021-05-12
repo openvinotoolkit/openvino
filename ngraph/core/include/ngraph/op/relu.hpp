@@ -36,7 +36,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
             };
-        }
+        } // namespace v0
         using v0::Relu;
-    }
-}
+    } // namespace op
+} // namespace ngraph

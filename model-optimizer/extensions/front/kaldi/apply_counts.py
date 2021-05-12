@@ -13,7 +13,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 
 def apply_biases_to_last_layer(graph, counts):
-    """
+    r"""
     When user provides counts file, it is a file that contains log-apriory probabilities,
     technically it should be subtracted from the bias of the last layer unless it is a SoftMax.
 

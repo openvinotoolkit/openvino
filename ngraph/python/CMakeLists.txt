@@ -38,10 +38,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-deprecated-register)
+    add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     add_link_options(-stdlib=libc++)
-    add_compile_options(-Wno-unused-value)
+    add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
     add_compile_options(-Wno-error=attributes)

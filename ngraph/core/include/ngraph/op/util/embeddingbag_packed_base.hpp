@@ -49,7 +49,7 @@ namespace ngraph
                 static constexpr int INDICES = 1;
                 static constexpr int PER_SAMPLE_WEIGHTS = 2;
             };
-        }
+        } // namespace util
         using util::EmbeddingBagPackedBase;
-    }
-}
+    } // namespace op
+} // namespace ngraph

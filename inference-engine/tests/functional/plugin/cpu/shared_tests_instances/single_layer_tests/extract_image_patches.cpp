@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,18 +19,11 @@ const std::vector<PadType> autoPads = {PadType::VALID, PadType::SAME_UPPER, PadT
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I8,
     InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::I16,
+    InferenceEngine::Precision::BF16,
     InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::I64
 };
-
-const auto extractImagePatchesParamsSet = ::testing::Combine(
-        ::testing::ValuesIn(inDataShape),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(rates),
-        ::testing::ValuesIn(autoPads)
-);
 
 INSTANTIATE_TEST_CASE_P(smoke_layers_CPU, ExtractImagePatchesTest,
         ::testing::Combine(

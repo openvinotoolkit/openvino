@@ -11,30 +11,51 @@
 #include <vector>
 #include <cassert>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset5.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class LogSoftmaxImpl: public ExtLayerBase {
-public:
-    explicit LogSoftmaxImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+            if (!logSoftMax) {
+                errorMessage = "Only opset5 LogSoftmax operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData.size() != 1)
-                IE_THROW() << layer->name << " Incorrect number of input edges!";
+public:
+    explicit LogSoftmaxImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            SizeVector dims = layer->insData[0].lock()->getTensorDesc().getDims();
+            errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
+            const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            SizeVector dims = op->get_input_shape(0);
             if (!dims.size())
                 dims = SizeVector(1, 1);
-            int axis = layer->GetParamAsInt("axis", -1);
+            int axis = logSoftMax->get_axis();
             if (axis < 0)
                 axis += dims.size();
 
             if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
-                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
+                IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
 
             int j;
             for (j = dims.size() - 1; j >= 0; j--) {
@@ -48,7 +69,8 @@ public:
             for (size_t i = (axis + 1); i < dims.size(); i++)
                 reduced_axis_stride *= dims[i];
 
-            addConfig(layer, { { ConfLayout::PLN, false, 0, Precision::FP32 } }, { { ConfLayout::PLN, false, 0, Precision::FP32 } });
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -103,6 +125,8 @@ private:
     size_t reduced_axis_stride = 1;
     size_t axis_step = 1;
     bool is_last_dim = false;
+
+    std::string errorPrefix;
 };
 
 REG_FACTORY_FOR(LogSoftmaxImpl, LogSoftmax);

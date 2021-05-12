@@ -95,13 +95,15 @@ void PwlApply32(intel_dnn_component_t *component,
                 const uint32_t num_row_end,
                 const uint32_t num_col_start,
                 const uint32_t num_col_end);
-void PwlDesign16(const DnnActivation activation_type,
+void PwlDesign(const DnnActivation activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
-                 const float scale_out);
-void PwlDesignOpt16(const DnnActivation activation_type,
+                 const float scale_out,
+                 const bool low_precision);
+void PwlDesignOpt(const DnnActivation activation_type,
                 std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
                 const float scale_out,
-                const float pwlMaxErrorPercent);
+                const float pwlMaxErrorPercent,
+                const bool low_precision);

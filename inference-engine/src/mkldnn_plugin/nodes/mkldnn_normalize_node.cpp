@@ -4,12 +4,13 @@
 
 #include "mkldnn_normalize_node.h"
 
-#include <legacy/ie_layers_internal.hpp>
 #include <ie_parallel.hpp>
 
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_eltwise_node.h"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+#include <mkldnn_extension_utils.h>
 #include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn_extension_utils.h"
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
@@ -18,6 +19,8 @@
 #include "common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include <mkldnn_selective_build.h>
+
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -152,7 +155,7 @@ private:
     }
 };
 
-// dst = src * modulo_inv * scale
+// dst = src * modulo_inv
 template <cpu_isa_t isa>
 struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
@@ -188,8 +191,6 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_modulo, ptr[reg_params + GET_OFF(modulo)]);
-        mov(reg_weights, ptr[reg_params + GET_OFF(weights)]);
         mov(reg_fused_factor, ptr[reg_params + GET_OFF(fused_factor)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         if (attr_.post_ops_.len() != 0)
@@ -220,10 +221,8 @@ private:
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
-    Xbyak::Reg64 reg_modulo = r10;
-    Xbyak::Reg64 reg_weights = r11;
-    Xbyak::Reg64 reg_fused_factor = r12;
-    Xbyak::Reg64 reg_work_amount = r15;
+    Xbyak::Reg64 reg_fused_factor = r10;
+    Xbyak::Reg64 reg_work_amount = r11;
     Xbyak::Reg64 reg_params = abi_param1;
 
     Reg8 reg_tmp_8 = r14b;
@@ -258,10 +257,6 @@ private:
     inline void normalize_nchw() {
         if (jcp_.across_spatial) {
             uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);  // for channel_shared: false or true.
-        } else {
-            if (!jcp_.channel_shared) {
-                uni_vbroadcastss(vmm_scale, ptr[reg_weights]);
-            }
         }
 
         Xbyak::Label main_loop_label;
@@ -279,16 +274,9 @@ private:
             if (jcp_.across_spatial) {
                 uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
             } else {
-                if (jcp_.channel_shared) {
-                    uni_vmovups(vmm_fused_factor, ptr[reg_fused_factor]);
-                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
-                    add(reg_fused_factor, vlen);
-                } else {
-                    uni_vmovups(vmm_modulo, ptr[reg_modulo]);  // modulo: ld dynamic
-                    uni_vmulps(vmm_val, vmm_val, vmm_modulo);
-                    uni_vmulps(vmm_val, vmm_val, vmm_scale);    // weight: bc once
-                    add(reg_modulo, vlen);
-                }
+                uni_vmovups(vmm_fused_factor, ptr[reg_fused_factor]);
+                uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
+                add(reg_fused_factor, vlen);
             }
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 1);
@@ -313,16 +301,9 @@ private:
             if (jcp_.across_spatial) {
                 uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
             } else {
-                if (jcp_.channel_shared) {
-                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::data_type::f32);
-                    uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
-                    add(reg_fused_factor, step * sizeof(float));
-                } else {
-                    load_scalar(xmm_modulo, ptr[reg_modulo], memory::data_type::f32);
-                    uni_vmulps(xmm_val, xmm_val, xmm_modulo);
-                    uni_vmulps(xmm_val, xmm_val, xmm_scale);
-                    add(reg_modulo, step * sizeof(float));
-                }
+                load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::data_type::f32);
+                uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
+                add(reg_fused_factor, step * sizeof(float));
             }
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 1);  // vector and boradcast
@@ -339,13 +320,7 @@ private:
     }
 
     inline void normalize_nhwc() {
-        if (jcp_.channel_shared) {
-            uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
-        } else {
-            if (!jcp_.across_spatial) {
-                uni_vbroadcastss(vmm_modulo, ptr[reg_modulo]);
-            }
-        }
+        uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -359,20 +334,8 @@ private:
             jl(main_loop_end_label, T_NEAR);
 
             load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
-            if (jcp_.channel_shared) {
-                uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
-            } else {
-                if (jcp_.across_spatial) {
-                    uni_vmovups(vmm_fused_factor, ptr[reg_fused_factor]);
-                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
-                    add(reg_fused_factor, vlen);
-                } else {
-                    uni_vmovups(vmm_scale, ptr[reg_weights]);
-                    uni_vmulps(vmm_val, vmm_val, vmm_scale);
-                    uni_vmulps(vmm_val, vmm_val, vmm_modulo);
-                    add(reg_weights, vlen);
-                }
-            }
+            uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
+
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 0);
                 add(reg_oc_off, vlen);  // out channel offset of fused ops weights in byte
@@ -394,20 +357,8 @@ private:
             jl(tail_loop_end_label, T_NEAR);
 
             load_scalar(xmm_val, ptr[reg_src], jcp_.src_dt);
-            if (jcp_.channel_shared) {
-                uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
-            } else {
-                if (jcp_.across_spatial) {
-                    load_scalar(xmm_fused_factor, ptr[reg_fused_factor], memory::data_type::f32);
-                    uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
-                    add(reg_fused_factor, step * sizeof(float));
-                } else {
-                    load_scalar(xmm_scale, ptr[reg_weights], memory::data_type::f32);
-                    uni_vmulps(xmm_val, xmm_val, xmm_scale);
-                    uni_vmulps(xmm_val, xmm_val, xmm_modulo);
-                    add(reg_weights, step * sizeof(float));
-                }
-            }
+            uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
+
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 0);
                 add(reg_oc_off, step * sizeof(float));
@@ -438,14 +389,7 @@ private:
         bool is_sse42 = (isa == cpu::x64::sse41);
 
         if (jcp_.across_spatial) {
-            if (jcp_.channel_shared) {
-                uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
-            } else {
-                uni_vmovups(vmm_fused_factor, ptr[reg_fused_factor]);
-                if (is_sse42) {
-                    uni_vmovups(vmm_fused_factor2, ptr[reg_fused_factor + simd_w * sizeof(float)]);
-                }
-            }
+            uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
 
             Xbyak::Label norm_loop_label;
             Xbyak::Label norm_loop_end_label;
@@ -466,11 +410,7 @@ private:
                 if (is_sse42) {
                     int sse42_offset = 4;
                     load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    if (jcp_.channel_shared) {
-                        uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
-                    } else {
-                        uni_vmulps(vmm_val, vmm_val, vmm_fused_factor2);  // ld once
-                    }
+                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
                     if (attr_.post_ops_.len() != 0) {
                         add(reg_oc_off, sse42_offset * sizeof(float));
                         apply_post_ops(jcp_.dst_dt, 0);
@@ -486,11 +426,7 @@ private:
             }
             L(norm_loop_end_label);
         } else {  // across_saptail is flase
-            if (jcp_.channel_shared) {
-                uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
-            } else {
-                uni_vbroadcastss(vmm_modulo, ptr[reg_modulo]);
-            }
+            uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
             size_t src_stride = jcp_.w * jcp_.h * blk_size * jcp_.src_data_size;
             size_t dst_stride = jcp_.w * jcp_.h * blk_size * jcp_.dst_data_size;
 
@@ -503,14 +439,7 @@ private:
                 jle(norm_loop_end_label, T_NEAR);
 
                 load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
-                if (jcp_.channel_shared) {
-                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
-                } else {
-                    uni_vmovups(vmm_scale, ptr[reg_weights]);
-                    uni_vmulps(vmm_val, vmm_val, vmm_scale);
-                    uni_vmulps(vmm_val, vmm_val, vmm_modulo);
-                    add(reg_weights, vlen);
-                }
+                uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);
                 if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_dt, 0);
                     add(reg_oc_off, vlen);  // vlen is related isa
@@ -520,14 +449,7 @@ private:
                 if (is_sse42) {
                     int sse42_offset = 4;
                     load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    if (jcp_.channel_shared) {
-                        uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
-                    } else {
-                        uni_vmovups(vmm_scale, ptr[reg_weights]);  // ld dynamic
-                        uni_vmulps(vmm_val, vmm_val, vmm_scale);
-                        uni_vmulps(vmm_val, vmm_val, vmm_modulo);  // bc once
-                        add(reg_weights, vlen);  // 4 * sizeof(float)
-                    }
+                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
                     if (attr_.post_ops_.len() != 0) {
                         apply_post_ops(jcp_.dst_dt, 0);
                         add(reg_oc_off, vlen);  // vlen is related isa
@@ -721,87 +643,94 @@ private:
     }
 };
 
-MKLDNNNormalizeNode::MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), src_data_size(0lu), dst_data_size(0lu), weights_data_size(0lu),
-        input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED), weights_prec(Precision::UNSPECIFIED) {}
-
-void MKLDNNNormalizeNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    std::string errPrefix = "Normalize node with name '" + getName() + "' ";
-    if (getParentEdges().size() != 1)
-        IE_THROW() << errPrefix << " has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().empty())
-        IE_THROW() << errPrefix << " has incorrect number of output edges: " << getChildEdges().size();
-
-    if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
-        IE_THROW() << errPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
-    }
-
-    auto *layer = getCnnLayer().get();
-    if (layer == nullptr)
-        IE_THROW() << errPrefix << " has nullable CnnLayer.";
-    across_spatial = layer->GetParamAsBool("across_spatial", false);
-    channel_shared = layer->GetParamAsBool("channel_shared", false);
-    eps = layer->GetParamAsFloat("eps");
-
-    MemoryBlob::Ptr tweights = as<MemoryBlob>(layer->blobs.at("weights"));
-    if (!tweights) {
-        IE_THROW() << errPrefix << "has not initialized weights or they cannot be casted to MemoryBlob.";
-    }
-
-    auto inData = getCnnLayer()->insData[0].lock();
-    if (inData == nullptr) {
-        IE_THROW() << errPrefix << "has nullable input data.";
-    }
-    const auto& inDims = inData->getDims();
-    if (inDims.size() < 2)
-        IE_THROW() << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
-    const size_t channels = inDims[1];
-    const auto weightsSize = tweights->size();
-    if (weightsSize != channels) {
-        if (weightsSize == 1) {
-            channel_shared = true;
-        } else {
-            IE_THROW() << errPrefix << "has unsupported broadcast type. Channels size: " << channels << "; Weights size: " << weightsSize;
-        }
-    }
-
-    weights_prec = tweights->getTensorDesc().getPrecision();
-    if (weights_prec != Precision::FP32 && weights_prec != Precision::BF16) {
-        // Unknown non supported data type, return an error
-        IE_THROW() << layer->name << "Weights for layer Normalize with name '" << layer->name <<
-            "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
-    }
-
-    TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
-    weights_blob = make_shared_blob<float>(td);
-    weights_blob->allocate();
-    float* dst = weights_blob->wmap();
-    if (weights_prec == Precision::FP32) {
-        float* src = layer->blobs.at("weights")->buffer();
-        cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
-    } else if (weights_prec == Precision::BF16) {
-        short* bf16src = tweights->rmap().as<short*>();
-        cpu_convert(bf16src, dst, Precision::BF16, Precision::FP32, weights_blob->size());
+MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache), src_data_size(0lu), dst_data_size(0lu), input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "NormalizeL2 node with name '" + getName() + "' ";
+        const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
+        eps = norm->get_eps();
+        epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
+        across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
+        // One of the corner cases is when axes is an empty list,
+        // then we divide each input element by itself resulting value 1 for all non-zero elements
+        cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
+bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
+        if (!norm) {
+            errorMessage = "Only opset1 NormalizeL2 operation is supported";
+            return false;
+        }
+        const auto dataDims = norm->get_input_shape(DATA);
+        if (dataDims.size() < 2 && dataDims.size() > 4) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
+            return false;
+        }
+        const auto axesNode = std::dynamic_pointer_cast<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
+        if (!axesNode) {
+            errorMessage = "Supports only constant 'axes' input";
+            return false;
+        }
+
+        const auto isSupportedAxes = [](const std::vector<size_t> &axes, const ngraph::Shape &dataDims) {
+            if (axes.size() == 1 && axes[0] == 1) {
+                return true;
+            } else if (axes.size() == dataDims.size() - 1) {
+                for (size_t i = 0; i < axes.size(); i++) {
+                    if (axes[i] != i + 1)
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        };
+        const auto axes = axesNode->cast_vector<size_t>();
+        if (!isSupportedAxes(axes, dataDims) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+            errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
+            return false;
+        }
+        const auto mode = norm->get_eps_mode();
+        if (mode != ngraph::op::EpsMode::ADD && mode != ngraph::op::EpsMode::MAX) {
+            errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+void MKLDNNNormalizeL2Node::getSupportedDescriptors() {
+    if (!descs.empty())
+        return;
+
+    if (getParentEdges().size() != 2)
+        IE_THROW() << errorPrefix << " has incorrect number of input edges: " << getParentEdges().size();
+    if (getChildEdges().empty())
+        IE_THROW() << errorPrefix << " has incorrect number of output edges: " << getChildEdges().size();
+
+    if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
+        IE_THROW() << errorPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
+    }
+}
+
+void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     setPostOps(attr, true);
 
-    Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-    Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    Precision inputPrecision = getOriginalInputPrecisionAtPort(DATA);
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
 
     if (!fusedWith.empty()) {
-        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-        if (lastFusedLayer) {
-            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
-        }
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
     if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
@@ -811,53 +740,38 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
-    auto isOneOf = [&](InferenceEngine::Precision precision, std::vector<InferenceEngine::Precision> precisions) {
-        for (auto p : precisions) {
-            if (precision == p) {
-                return true;
-            }
-        }
-        return false;
-    };
-    if (!isOneOf(inputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
-        IE_THROW() << "Unsupported input precision. " << getName();
+    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+        IE_THROW() << errorPrefix << "has unsupported input precision. " << getName();
     }
-    if (!isOneOf(outputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
-        IE_THROW() << "Unsupported output precision. " << getName();
-    }
-    if (!isOneOf(weights_prec, {Precision::FP32, Precision::BF16})) {
-        IE_THROW() << "Unsupported wights precision. " << getName();
+    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+        IE_THROW() << errorPrefix << "has unsupported output precision. " << getName();
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-    auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(weights_prec);
 
     input_prec = inputPrecision;
     output_prec = outputPrecision;
     src_data_size = MKLDNNExtensionUtils::sizeOfDataType(inputDataType);
     dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(outputDataType);
-    weights_data_size = MKLDNNExtensionUtils::sizeOfDataType(weightsDataType);
 
-    bool canBeInplace = src_data_size == dst_data_size && getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1;
+    bool canBeInplace = src_data_size == dst_data_size && getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
-    InferenceEngine::LayerConfig config;
+    LayerConfig config;
     config.dynBatchSupport = false;
-    config.inConfs.resize(1);
+    config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[0].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
     auto pushDesc = [&](memory::format_tag format) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA)->getDims(), inputDataType, format);
+        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXES)->getDims(), memory::data_type::s32, memory::format_tag::x);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA)->getDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
     };
 
     // only plain layout support when w/o sse42
-    if (getParentEdgeAt(0)->getDims().ndims() == 4) {
+    if (getParentEdgeAt(DATA)->getDims().ndims() == 4 && !cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
             pushDesc(memory::format_tag::nhwc);
             if (mayiuse(cpu::x64::avx512_common)) {
@@ -869,16 +783,20 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     }
     if (canBeInplace)
         config.inConfs[0].inPlace = 0;
-    pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
+    pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(DATA)->getDims()));
 }
 
-void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
+    return !cornerCase && canFuseSimpleOperation(node);
+}
+
+void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 
@@ -894,65 +812,66 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
     attr.set_post_ops(ops);
 }
 
-void MKLDNNNormalizeNode::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+void MKLDNNNormalizeL2Node::createPrimitive() {
+    auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << errorPrefix << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << errorPrefix << "can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        IE_THROW() << errorPrefix << "has nullable preferable primitive descriptor";
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
-    jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    if (!cornerCase) {
+        auto selectedPD = getSelectedPrimitiveDescriptor();
+        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
+        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
+        jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
+        jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
 
-    jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
-        jcp.is_nchw = true;
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
-        jcp.is_blk = true;
-    } else {
-        jcp.is_nhwc = true;
-    }
+        jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
+        if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+            jcp.is_nchw = true;
+        } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+            jcp.is_blk = true;
+        } else {
+            jcp.is_nhwc = true;
+        }
 
-    jcp.across_spatial = across_spatial;
-    jcp.channel_shared = channel_shared;
-    auto dims = getParentEdgeAt(0)->getDesc().getDims();
-    size_t dims_size = dims.size();
-    jcp.n = (dims_size > 0) ? dims[0] : 1lu;
-    jcp.c = (dims_size > 1) ? dims[1] : 1lu;
-    jcp.h = (dims_size > 2) ? dims[2] : 1lu;
-    jcp.w = (dims_size > 3) ? dims[3] : 1lu;
+        jcp.across_spatial = across_spatial;
+        auto dims = getParentEdgeAt(0)->getDesc().getDims();
+        size_t dims_size = dims.size();
+        jcp.n = (dims_size > 0) ? dims[0] : 1lu;
+        jcp.c = (dims_size > 1) ? dims[1] : 1lu;
+        jcp.h = (dims_size > 2) ? dims[2] : 1lu;
+        jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
-    }
-    if (normalize_kernel)
-        normalize_kernel->create_ker();
+        if (mayiuse(cpu::x64::avx512_common)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+        }
+        if (normalize_kernel)
+            normalize_kernel->create_ker();
 
-    if (normalize_modulo_kernel)
-        normalize_modulo_kernel->create_ker();
+        if (normalize_modulo_kernel)
+            normalize_modulo_kernel->create_ker();
 
-    const auto &p = (*attr.get()).post_ops_;
-    for (int i = 0; i < p.len(); i++) {
-        auto &post_op = p.entry_[i];
-        if (post_op.is_eltwise()) {
-            eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
-                post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
-        } else if (post_op.is_depthwise()) {
-            depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
-                    post_op.depthwise.alg));
+        const auto &p = (*attr.get()).post_ops_;
+        for (int i = 0; i < p.len(); i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
+                    post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
+            } else if (post_op.is_depthwise()) {
+                depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
+                        post_op.depthwise.alg));
+            }
         }
     }
 }
@@ -960,16 +879,16 @@ void MKLDNNNormalizeNode::createPrimitive() {
 namespace {
 
 struct NormalizeContext {
-    MKLDNNNormalizeNode &node;
+    MKLDNNNormalizeL2Node &node;
     const uint8_t *src;
     uint8_t *dst;
-    const InferenceEngine::SizeVector& dims;
+    const SizeVector& dims;
 };
 
 }   // namespace
 
 template<typename T>
-struct MKLDNNNormalizeNode::NormalizeExecute {
+struct MKLDNNNormalizeL2Node::NormalizeExecute {
     using src_t = typename std::tuple_element<0, T>::type;
     using dst_t = typename std::tuple_element<1, T>::type;
 
@@ -980,13 +899,13 @@ struct MKLDNNNormalizeNode::NormalizeExecute {
     }
 };
 
-void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
+    auto &srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto &dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
-    auto dims = getParentEdgeAt(0)->getDesc().getDims();
+    auto dims = getParentEdgeAt(DATA)->getDesc().getDims();
 
     NormalizeContext ctx = {
         *this,
@@ -1009,7 +928,7 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
+void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // elt in vmm
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1024,7 +943,6 @@ void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* 
     size_t H = (dims_size > 2) ? dims[2] : 1lu;
     size_t C = (dims_size > 1) ? dims[1] : 1lu;
     size_t B = (dims_size > 0) ? dims[0] : 1lu;
-    float *weights = weights_blob->buffer().as<float *>();
 
     for (size_t b = 0lu; b < B; b++) {
         const in_data_t *src_data_b = src_data + b * C * H * W;
@@ -1056,17 +974,16 @@ void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* 
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
                 const in_data_t *src_data_bc = src_data_b + ic * H * W;
                 out_data_t *dst_data_bc = dst_data_b + ic * H * W;
-                float fused_weight_modulo = channel_shared ? (weights[0] * modulo_inv) : (weights[ic] * modulo_inv);
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bc;
                 arg.dst = dst_data_bc;
-                arg.fused_factor = static_cast<float*>(&fused_weight_modulo);  // broadcast once
+                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
                 arg.oc_off = ic * sizeof(float);
                 arg.work_amount = static_cast<size_t>(W * H);
                 (*normalize_kernel)(&arg);
@@ -1096,9 +1013,7 @@ void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* 
             });
 
             for (size_t m = 0; m < H * W; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(moduloM[m]) + eps);
-                if (channel_shared)
-                    moduloM[m] = moduloM[m] * weights[0];
+                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
@@ -1108,12 +1023,7 @@ void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* 
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bc;
                 arg.dst = dst_data_bc;
-                if (channel_shared) {
-                    arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
-                } else {
-                    arg.modulo = static_cast<float*>(&moduloM[0]);    // ld dynamic
-                    arg.weights = static_cast<float*>(&weights[ic]);  // bc once
-                }
+                arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
                 arg.oc_off = ic * sizeof(float);
                 arg.work_amount = static_cast<size_t>(W * H);
                 (*normalize_kernel)(&arg);
@@ -1123,13 +1033,12 @@ void MKLDNNNormalizeNode::normalize_nchw(const in_data_t* src_data, out_data_t* 
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
+void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t dims_size = dims.size();
     size_t W = (dims_size > 3) ? dims[3] : 1lu;
     size_t H = (dims_size > 2) ? dims[2] : 1lu;
     size_t C = (dims_size > 1) ? dims[1] : 1lu;
     size_t B = (dims_size > 0) ? dims[0] : 1lu;
-    float *weights = weights_blob->buffer().as<float *>();
 
     for (size_t b = 0lu; b < B; b++) {
         const in_data_t *src_data_b = src_data + b * C * H * W;
@@ -1148,15 +1057,14 @@ void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
                 const in_data_t *src_data_bc = src_data_b + ic * H * W;
                 out_data_t *dst_data_bc = dst_data_b + ic * H * W;
-                float fused_weight_modulo = channel_shared ? (weights[0] * modulo_inv) : (weights[ic] * modulo_inv);
                 for (size_t m = 0; m < W * H; m++) {
-                    float dst_value = src_data_bc[m] * fused_weight_modulo;
+                    float dst_value = src_data_bc[m] * modulo_inv;
                     apply_post_ops_scalar(dst_value, ic);
                     if (output_prec == Precision::U8) {
                         dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
@@ -1180,9 +1088,7 @@ void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data
             });
 
             for (size_t m = 0; m < H * W; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(moduloM[m]) + eps);
-                if (channel_shared)
-                    moduloM[m] = moduloM[m] * weights[0];
+                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
@@ -1190,8 +1096,7 @@ void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data
                 const in_data_t *src_data_bc = src_data_b + ic * H * W;
                 out_data_t *dst_data_bc = dst_data_b + ic * H * W;
                 for (size_t m = 0; m < W * H; m++) {
-                    float dst_value = channel_shared ? src_data_bc[m] * moduloM[m] :
-                                      src_data_bc[m] * moduloM[m] * weights[ic];
+                    float dst_value = src_data_bc[m] * moduloM[m];
                     apply_post_ops_scalar(dst_value, ic);
                     if (output_prec == Precision::U8) {
                         dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
@@ -1205,7 +1110,7 @@ void MKLDNNNormalizeNode::normalize_nchw_ref(const in_data_t* src_data, out_data
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
+void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // elt in vmm
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1220,7 +1125,6 @@ void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* 
     size_t H = (dims_size > 2) ? dims[2] : 1lu;
     size_t C = (dims_size > 1) ? dims[1] : 1lu;
     size_t B = (dims_size > 0) ? dims[0] : 1lu;
-    float *weights = weights_blob->buffer().as<float *>();
 
     for (size_t b = 0lu; b < B; b++) {
         const in_data_t *src_data_b = src_data + b * C * H * W;
@@ -1251,39 +1155,20 @@ void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* 
                 return modulo_kernel + modulo_tail;
             });
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            if (channel_shared) {
-                float fused_weight_modulo = weights[0] * modulo_inv;
-                parallel_for2d(H, W, [&](int ih, int iw) {
-                    const in_data_t *src_data_bhw = src_data_b + ih * C * W + iw * C;
-                    out_data_t *dst_data_bhw = dst_data_b + ih * C * W + iw * C;
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_bhw;
-                    arg.dst = dst_data_bhw;
-                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo);  // bc static
-                    arg.oc_off = 0;
-                    arg.work_amount = static_cast<size_t>(C);
-                    (*normalize_kernel)(&arg);
-                });
-            } else {  // channel_shared=false
-                std::vector<float> fused_weight_modulo(C);
-                for (size_t c = 0; c < C; c++) {
-                    fused_weight_modulo[c] = weights[c] * modulo_inv;
-                }
-                parallel_for2d(H, W, [&](int ih, int iw) {
-                    const in_data_t *src_data_bhw = src_data_b + ih * C * W + iw * C;
-                    out_data_t *dst_data_bhw = dst_data_b + ih * C * W + iw * C;
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_bhw;
-                    arg.dst = dst_data_bhw;
-                    arg.fused_factor = static_cast<float *>(&fused_weight_modulo[0]);  // ld dynamic
-                    arg.oc_off = 0;
-                    arg.work_amount = static_cast<size_t>(C);
-                    (*normalize_kernel)(&arg);
-                });
-            }
+            parallel_for2d(H, W, [&](int ih, int iw) {
+                const in_data_t *src_data_bhw = src_data_b + ih * C * W + iw * C;
+                out_data_t *dst_data_bhw = dst_data_b + ih * C * W + iw * C;
+                auto arg = jit_normalize_call_args();
+                arg.src = src_data_bhw;
+                arg.dst = dst_data_bhw;
+                arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
+                arg.oc_off = 0;
+                arg.work_amount = static_cast<size_t>(C);
+                (*normalize_kernel)(&arg);
+            });
         } else {  // for across_spatial=false
             parallel_for2d(H, W, [&](int ih, int iw) {
                 // modulo
@@ -1305,18 +1190,11 @@ void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* 
                 }
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (modulo + eps);
+                float modulo_inv = 1.0f / (epsApply(modulo));
 
                 // normalize
                 arg.dst = dst_data_bhw;
-                float fused_weight_modulo = 0;
-                if (channel_shared) {
-                    fused_weight_modulo = modulo_inv * weights[0];
-                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo);  // bc static
-                } else {
-                    arg.modulo = static_cast<float*>(&modulo_inv);  // bc static
-                    arg.weights = static_cast<float*>(&weights[0]); // ld dynamic
-                }
+                arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
                 arg.work_amount = C;
                 arg.oc_off = 0;
                 (*normalize_kernel)(&arg);
@@ -1326,7 +1204,7 @@ void MKLDNNNormalizeNode::normalize_nhwc(const in_data_t* src_data, out_data_t* 
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
+void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1341,16 +1219,8 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
     size_t H = (dims_size > 2) ? dims[2] : 1lu;
     size_t C = (dims_size > 1) ? dims[1] : 1lu;
     size_t B = (dims_size > 0) ? dims[0] : 1lu;
-    float *weights = weights_blob->buffer().as<float *>();
 
     size_t CB = div_up(C, blk_size);
-
-    // normalize for tails: data is padding, norm weight is padding, so tails as vector for normalize;
-    // post ops for tails: post-ops params is padding.
-    std::vector<float> weights_padding(CB * blk_size);
-    if (!channel_shared) {
-        cpu_memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
-    }
 
     for (size_t b = 0lu; b < B; b++) {
         const in_data_t *src_data_b = src_data + b * CB * H * W * blk_size;
@@ -1383,39 +1253,20 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            if (channel_shared) {
-                float fused_weight_modulo = weights[0] * modulo_inv;
-                parallel_for2d(CB, H, [&](size_t cb, size_t h) {
-                    const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
-                    out_data_t *dst_data_b_cb_h = dst_data_b + cb * H * W * blk_size + h * W * blk_size;
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_b_cb_h;
-                    arg.dst = dst_data_b_cb_h;
-                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo);  // broadcast once
-                    arg.work_amount = static_cast<size_t>(W);
-                    arg.oc_off = cb * blk_size * sizeof(float);
-                    (*normalize_kernel)(&arg);
-                });
-            } else {
-                std::vector<float> fused_weight_modulo(weights_padding.size(), 0);
-                for (size_t c = 0; c < C; c++) {
-                    fused_weight_modulo[c] = weights_padding[c] * modulo_inv;
-                }
-                parallel_for2d(CB, H, [&](size_t cb, size_t h) {
-                    const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
-                    out_data_t *dst_data_b_cb_h = dst_data_b + cb * H * W * blk_size + h * W * blk_size;
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_b_cb_h;
-                    arg.dst = dst_data_b_cb_h;
-                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo[cb * blk_size]);  // load once
-                    arg.work_amount = static_cast<size_t>(W);
-                    arg.oc_off = cb * blk_size  * sizeof(float);
-                    (*normalize_kernel)(&arg);
-                });
-            }
+            parallel_for2d(CB, H, [&](size_t cb, size_t h) {
+                const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
+                out_data_t *dst_data_b_cb_h = dst_data_b + cb * H * W * blk_size + h * W * blk_size;
+                auto arg = jit_normalize_call_args();
+                arg.src = src_data_b_cb_h;
+                arg.dst = dst_data_b_cb_h;
+                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
+                arg.work_amount = static_cast<size_t>(W);
+                arg.oc_off = cb * blk_size * sizeof(float);
+                (*normalize_kernel)(&arg);
+            });
         } else {  // across_spatial: false
             parallel_for2d(H, W, [&](size_t ih, size_t iw) {
                 // modulo
@@ -1439,18 +1290,11 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
                 }
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (modulo + eps);
+                float modulo_inv = 1.0f / (epsApply(modulo));
 
                 // normalize
                 arg.dst = dst_data_bhw;
-                float fused_weight_modulo = 0;
-                if (channel_shared) {
-                    fused_weight_modulo = weights[0] * modulo_inv;
-                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo);  // broadcast
-                } else {
-                    arg.weights = static_cast<float*>(&weights_padding[0]);  // load
-                    arg.modulo = static_cast<float*>(&modulo_inv);  // broadcast
-                }
+                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast
                 arg.work_amount = CB;
                 arg.oc_off = 0;
                 (*normalize_kernel)(&arg);
@@ -1460,8 +1304,13 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
-    if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
+void MKLDNNNormalizeL2Node::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
+    if (cornerCase) {
+        const auto workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
+        parallel_for(workAmount, [&](size_t i) {
+            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+        });
+    } else if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
         if (jcp.is_nchw) {
             normalize_nchw(src_data, dst_data, dims);
         } else if (jcp.is_nhwc) {
@@ -1469,18 +1318,18 @@ void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data
         } else if (jcp.is_blk) {
             normalize_blk(src_data, dst_data, dims);
         } else {
-            IE_THROW() << "The selected layout is not supported.";
+            IE_THROW() << errorPrefix << "has selected layout which is not supported.";
         }
     } else {
         if (jcp.is_nchw) {
             normalize_nchw_ref(src_data, dst_data, dims);
         } else {
-            IE_THROW() << "Only support plain layout on machine w/o sse42.";
+            IE_THROW() << errorPrefix << "supports only plain layout on machine w/o sse42.";
         }
     }
 }
 
-inline void MKLDNNNormalizeNode::apply_post_ops_scalar(float &dst_value, int index_c) {
+inline void MKLDNNNormalizeL2Node::apply_post_ops_scalar(float &dst_value, int index_c) {
     const auto &p = (*attr.get()).post_ops_;
     int eltwise_inj_idx = 0;
     int depthwise_inj_idx = 0;
@@ -1521,8 +1370,8 @@ inline void MKLDNNNormalizeNode::apply_post_ops_scalar(float &dst_value, int ind
     }
 }
 
-bool MKLDNNNormalizeNode::created() const {
-    return getType() == Normalize;
+bool MKLDNNNormalizeL2Node::created() const {
+    return getType() == NormalizeL2;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNNormalizeNode, Normalize);
+REG_MKLDNN_PRIM_FOR(MKLDNNNormalizeL2Node, NormalizeL2);

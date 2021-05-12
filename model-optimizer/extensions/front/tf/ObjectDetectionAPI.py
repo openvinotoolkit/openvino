@@ -9,7 +9,6 @@ import numpy as np
 from extensions.front.Pack import Pack
 from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.split_normalizer import SqueezeAxis
-from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
 from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
@@ -529,7 +528,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer,
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
                 KerasRNNOutputConcatenation, KerasRNNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -766,6 +765,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
                 else:  # case 1
                     # change output of the end_node to be produced with the last preprocessing op
                     end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+                    start_node.in_port(0).disconnect()
         else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
             end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 

@@ -71,9 +71,9 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
         return false;
     }
 
-    const auto childs = operation->get_output_target_inputs(0);
+    const auto children = operation->get_output_target_inputs(0);
 
-    for (const auto& target : childs) {
+    for (const auto& target : children) {
         const auto convolution = is_type<opset1::Convolution>(target.get_node());
         const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
         if (convolution || groupConvolution) {

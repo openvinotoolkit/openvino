@@ -48,6 +48,6 @@ namespace ngraph
                         sqrt(out[output_transform.index(output_coord)]);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

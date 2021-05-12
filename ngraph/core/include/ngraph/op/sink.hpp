@@ -30,6 +30,6 @@ namespace ngraph
             {
             }
         };
-    }
+    } // namespace op
     using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
-}
+} // namespace ngraph

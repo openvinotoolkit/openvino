@@ -17,4 +17,4 @@ namespace ngraph
         static mutex registry_mutex;
         return registry_mutex;
     }
-}
+} // namespace ngraph

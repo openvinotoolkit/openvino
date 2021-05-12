@@ -74,7 +74,7 @@ namespace ngraph
                 bool m_normalize_variance;
                 AxisSet m_reduction_axes;
             };
-        }
+        } // namespace v0
         using v0::MVN;
 
         NGRAPH_SUPPRESS_DEPRECATED_END

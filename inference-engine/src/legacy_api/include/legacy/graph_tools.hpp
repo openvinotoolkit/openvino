@@ -182,7 +182,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
         if (visitBefore) visit(cnnLayer);
         visited.insert(cnnLayer.get());
 
-        // visit childs
+        // visit children
         for (auto& od : cnnLayer->outData) {
             for (auto nl : getInputTo(od)) {
                 layers.push(nl.second);

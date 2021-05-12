@@ -19,7 +19,7 @@ CENTOS_MINOR=
 RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 INSTALL_DRIVER_VERSION='19.41.14441'
 AVAILABLE_DRIVERS=("19.41.14441" "20.35.17767")
 

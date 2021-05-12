@@ -8,6 +8,7 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.pair cimport pair
 
+
 def CompareNetworks(IENetwork lhs, IENetwork rhs):
     cdef pair[bool, string] c_pair
     c_pair = C.CompareNetworks(lhs.impl, rhs.impl)

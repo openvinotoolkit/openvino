@@ -92,7 +92,7 @@ protected:
         auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,
                                                        spatialScale, spatialBinsX, spatialBinsY, mode);
         psroi->get_rt_info() = getCPUInfo();
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         threshold = 0.001f;
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};

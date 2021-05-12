@@ -82,6 +82,6 @@ namespace ngraph
                 s << ", sha1_digest: " << m_sha1_digest << ")";
                 return s.str();
             }
-        }
-    }
-}
+        } // namespace detail
+    }     // namespace onnx_import
+} // namespace ngraph

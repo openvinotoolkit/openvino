@@ -126,6 +126,8 @@ protected:
 };
 
 TEST_P(Elt_max, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

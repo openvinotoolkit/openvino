@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = std::max<T>(0.0f, std::min<T>(1.0f, alpha * arg[i] + beta));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

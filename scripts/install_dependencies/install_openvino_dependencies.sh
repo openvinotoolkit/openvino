@@ -59,7 +59,7 @@ if [ -n "$selftest" ] ; then
             echo "||"
             echo "|| Test $image / '$opt'"
             echo "||"
-            SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+            SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
             docker run -it --rm \
                 --volume ${SCRIPT_DIR}:/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
@@ -184,6 +184,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libopenexr24
         libtag-extras1
         python3-gi
+        python3-gi-cairo
         python3-gst-1.0
         vainfo
     )

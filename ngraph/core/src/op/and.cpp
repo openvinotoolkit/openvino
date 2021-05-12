@@ -71,7 +71,7 @@ namespace logand
         }
         return rc;
     }
-}
+} // namespace logand
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const

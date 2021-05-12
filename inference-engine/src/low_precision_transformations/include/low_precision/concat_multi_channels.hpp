@@ -27,12 +27,9 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 private:
+    // Go through the parent elements of the layer and fill dequantization collection
+    // with Dq operations that should be inserted before the layer.
     void fillDequantization(
-        std::shared_ptr<ngraph::Node> layer,
-        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
-        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate) const;
-
-    void fillQuantization(
         const std::shared_ptr<ngraph::Node> layer,
         const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
         std::vector<FakeQuantizeDequantization>& dequantization) const;
@@ -45,8 +42,6 @@ private:
         const std::shared_ptr<ngraph::Node> operation,
         const FakeQuantizeDequantization& dequantization,
         const size_t sourceOutputIdx);
-
-    static FakeQuantizeDequantization broadcastDequantiationConstant(const FakeQuantizeDequantization& deq);
 
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
 };

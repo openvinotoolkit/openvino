@@ -3,6 +3,9 @@
 //
 
 #include "base.hpp"
+#include <ngraph/op/gather_tree.hpp>
+#include <nodes/common/tensor_desc_creator.h>
+#include <utils/general_utils.h>
 
 #include <cmath>
 #include <limits>
@@ -17,45 +20,71 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class GatherTreeImpl: public ExtLayerBase {
 public:
-    explicit GatherTreeImpl(const CNNLayer* layer) {
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges.";
+            auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v1::GatherTree>(op);
+            if (!gatherElementsOp) {
+                errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
+                return false;
+            }
 
-            if (layer->insData.size() != 4)
-                IE_THROW() << layer->name << " Incorrect number of input edges.";
-            if (layer->outData.size() != 1)
-                IE_THROW() << layer->name << " Incorrect number of output edges.";
-
-            precision = layer->insData[GATHER_TREE_STEP_IDX].lock()->getTensorDesc().getPrecision();
-            if (precision != Precision::FP32 && precision != Precision::I32)
-                precision = Precision::FP32;
-
-            if (layer->insData[GATHER_TREE_PARENT_IDX].lock()->getTensorDesc().getPrecision() != precision ||
-                layer->insData[GATHER_TREE_MAX_SEQ_LEN].lock()->getTensorDesc().getPrecision() != precision ||
-                layer->insData[GATHER_TREE_END_TOKEN].lock()->getTensorDesc().getPrecision() != precision ||
-                layer->outData[0]->getTensorDesc().getPrecision() != precision)
-                IE_THROW() << layer->name << " Incorrect input/output data tensor precision. Should be the same.";
-
-            if (layer->insData[GATHER_TREE_STEP_IDX].lock()->getTensorDesc().getDims().size() != 3)
-                IE_THROW() << layer->name << " step_idx vector should be 3 dimension";
-            if (layer->insData[GATHER_TREE_PARENT_IDX].lock()->getTensorDesc().getDims().size() != 3)
-                IE_THROW() << layer->name << " parent_idx vector should be 3 dimension";
-            if (layer->insData[GATHER_TREE_MAX_SEQ_LEN].lock()->getTensorDesc().getDims().size() != 1)
-                IE_THROW() << layer->name << " max_seq_len vector should be 1 dimension";
-            if (layer->insData[GATHER_TREE_END_TOKEN].lock()->getTensorDesc().getDims().size() != 1)
-                IE_THROW() << layer->name << " end_token should be 1 dimension";
-
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision),
-                               DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision) },
-                             { DataConfigurator(ConfLayout::PLN, precision) });
-        } catch (InferenceEngine::Exception &ex) {
-            errorMsg = ex.what();
+            auto precision = op->get_input_element_type(GATHER_TREE_STEP_IDX);
+            if (!MKLDNNPlugin::one_of(precision, ngraph::element::f32, ngraph::element::i32))
+                precision = ngraph::element::f32;
+            if (op->get_input_element_type(GATHER_TREE_PARENT_IDX) != precision ||
+                    op->get_input_element_type(GATHER_TREE_MAX_SEQ_LEN) != precision ||
+                    op->get_input_element_type(GATHER_TREE_END_TOKEN) != precision ||
+                    op->get_output_element_type(0) != precision) {
+                errorMessage = "Node has incorrect input/output data precision. Must be the same.";
+                return false;
+            }
+        } catch (...) {
+            return false;
         }
+
+        return true;
     }
 
+    explicit GatherTreeImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            std::string errorPrefix = std::string("Node GatherTree with name '") + op->get_friendly_name() + "'";
+            if (op->get_input_size() != 4)
+                IE_THROW() << errorPrefix << " has incorrect number of input edges.";
+            if (op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of output edges.";
+
+            precision = details::convertPrecision(op->get_input_element_type(GATHER_TREE_STEP_IDX));
+            if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
+                precision = Precision::FP32;
+
+            if (op->get_input_shape(GATHER_TREE_STEP_IDX).size() != 3)
+                IE_THROW() << errorPrefix << " step_idx vector should be 3 dimension";
+            if (op->get_input_shape(GATHER_TREE_PARENT_IDX).size() != 3)
+                IE_THROW() << errorPrefix << " parent_idx vector should be 3 dimension";
+            if (op->get_input_shape(GATHER_TREE_MAX_SEQ_LEN).size() != 1)
+                IE_THROW() << errorPrefix << " max_seq_len vector should be 1 dimension";
+            if (op->get_input_shape(GATHER_TREE_END_TOKEN).size() != 0)
+                IE_THROW() << errorPrefix << " end_token should be 1 dimension";
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, precision},
+                           {TensorDescCreatorTypes::ncsp, precision},
+                           {TensorDescCreatorTypes::ncsp, precision},
+                           {TensorDescCreatorTypes::ncsp, precision}},
+                          {{TensorDescCreatorTypes::ncsp, precision}});
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
+        }
+    }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
         if (precision == Precision::FP32)
@@ -140,10 +169,10 @@ public:
     }
 
 private:
-    const size_t GATHER_TREE_STEP_IDX = 0;
-    const size_t GATHER_TREE_PARENT_IDX = 1;
-    const size_t GATHER_TREE_MAX_SEQ_LEN = 2;
-    const size_t GATHER_TREE_END_TOKEN = 3;
+    static const size_t GATHER_TREE_STEP_IDX = 0;
+    static const size_t GATHER_TREE_PARENT_IDX = 1;
+    static const size_t GATHER_TREE_MAX_SEQ_LEN = 2;
+    static const size_t GATHER_TREE_END_TOKEN = 3;
 
     InferenceEngine::Precision precision;
 };

@@ -51,8 +51,8 @@ namespace LayerTestsDefinitions {
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), feat_map_shape[0] - 1,
-                                               height, width, 1.0f, is_roi_max_mode);
+                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
+                                                                                 height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
             }

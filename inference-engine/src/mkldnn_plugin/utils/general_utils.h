@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cassert>
+#include <inference_engine.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -39,5 +40,34 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
+    std::string desc = ex.what();
+    IE_SUPPRESS_DEPRECATED_START
+    if (ex.getStatus() != 0) {
+        size_t pos = desc.find("]");
+        if (pos != std::string::npos) {
+            if (desc.size() == pos + 1) {
+                desc.erase(0, pos + 1);
+            } else {
+                desc.erase(0, pos + 2);
+            }
+        }
+    }
+    IE_SUPPRESS_DEPRECATED_END
+
+    return desc;
+}
+
+template<typename T>
+std::string vec2str(const std::vector<T> &vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return std::string("()");
+}
 
 }  // namespace MKLDNNPlugin

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <string>
 #include <map>
+#include <string>
 
-static std::map<std::string, std::string> parseConfig(const std::string &configName, char comment = '#') {
+static std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#') {
     std::map<std::string, std::string> config = {};
 
     std::ifstream file(configName);

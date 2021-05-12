@@ -81,7 +81,7 @@ if not "%DEPENDENCY_URL%"=="" (
 	if not exist "%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\%DEPENDENCY_FILE%" (
 		mkdir "%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\%DEPENDENCY_FILE%"
 		for /L %%a in (1,1,10) do (
-			powershell -command "iwr -outf '%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\_%DEPENDENCY_FILE%' %DEPENDENCY_URL%"
+			powershell -command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iwr -outf '%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\_%DEPENDENCY_FILE%' %DEPENDENCY_URL%"
 			call "C:\Program Files\7-Zip\7z.exe" x -y %DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\_%DEPENDENCY_FILE% -o%DL_SDK_TEMP%\test_dependencies\%DEPENDENCY%\%DEPENDENCY_FILE%
 			if !ERRORLEVEL! equ 0 goto :DownloadFileContinue
 			timeout /T 15

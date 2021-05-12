@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::ReduceMean::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceMean, "ReduceMean", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMean::ReduceMean(const Output<Node>& arg,
                                const Output<Node>& reduction_axes,
@@ -62,7 +62,7 @@ namespace mean
         }
         return rc;
     }
-}
+} // namespace mean
 
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const

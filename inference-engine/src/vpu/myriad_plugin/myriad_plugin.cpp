@@ -135,7 +135,7 @@ IE_SUPPRESS_DEPRECATED_START
 IE_SUPPRESS_DEPRECATED_END
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         std::istream& model,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
@@ -148,10 +148,10 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
 
-    return make_executable_network(executableNetwork);
+    return executableNetwork;
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);

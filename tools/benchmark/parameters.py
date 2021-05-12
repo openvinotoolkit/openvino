@@ -84,13 +84,18 @@ def parse_args():
                            'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
-    args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.')
+    args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
+                      help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
+                           '\'true\'  - enable  bfloat16 regardless of platform support. '
+                           '\'false\' - disable bfloat16 regardless of platform support.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
-    args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
-                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')'
+    args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
+                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
+                           'threads->(NUMA)nodes (\'NUMA\'), '
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
+                           'or completely disable (\'NO\')' 
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')

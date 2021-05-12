@@ -11,7 +11,8 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
@@ -34,7 +35,8 @@ else()
     list(APPEND InferenceEngine_LIBRARIES IE::commonTestUtils)
 endif()
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
@@ -47,3 +49,5 @@ add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

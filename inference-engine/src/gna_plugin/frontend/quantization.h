@@ -13,6 +13,8 @@
 
 #define MAX_OUT_MULTIPLIER 230
 #define MAX_VAL_1B_WEIGHT 127
+#define MAX_VAL_1B_FEAT 64
+#define MAX_VAL_1B_BIAS 127
 #define MAX_VAL_2B_WEIGHT 16384
 #define MAX_VAL_2B_FEAT 16384
 #define MAX_VAL_4B_BIAS 1073741824
@@ -45,6 +47,7 @@ struct QuantizationCallback {
 
 template class QuantizationCallback<int16_t, int32_t>;
 template class QuantizationCallback<int8_t, gna_compound_bias_t>;
+template class QuantizationCallback<int8_t, int8_t>;
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements);
 float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements);

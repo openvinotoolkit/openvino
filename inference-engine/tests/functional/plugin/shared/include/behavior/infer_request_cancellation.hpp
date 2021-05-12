@@ -45,7 +45,7 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
 
     ASSERT_NO_THROW(req.Cancel());
     try {
-        req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     } catch (const InferenceEngine::InferCancelled&) {
         SUCCEED();
     }
@@ -64,13 +64,13 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
     ASSERT_NO_THROW(req.StartAsync());
     ASSERT_NO_THROW(req.Cancel());
     try {
-        req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     } catch (const InferenceEngine::InferCancelled&) {
         SUCCEED();
     }
 
     ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 
 TEST_P(CancellationTests, canCancelBeforeAsyncRequest) {
@@ -100,7 +100,7 @@ TEST_P(CancellationTests, canCancelInferRequest) {
 
     auto infer = std::async(std::launch::async, [&req]{ req.Infer(); });
 
-    const auto statusOnly = InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY;
+    const auto statusOnly = InferenceEngine::InferRequest::WaitMode::STATUS_ONLY;
     while (req.Wait(statusOnly) == InferenceEngine::StatusCode::INFER_NOT_STARTED) {
     }
 

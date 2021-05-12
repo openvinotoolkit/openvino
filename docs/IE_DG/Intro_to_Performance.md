@@ -14,7 +14,7 @@ You can find more information, including preferred data types for specific devic
 
 ## Lowering Inference Precision
 Default optimization is used for CPU and implies that inference is made with lower precision if it is possible on a given platform to reach better performance with acceptable range of accuracy.
-This approach is used for CPU device if platform supports the AVX512_BF16 instruction. In this case, a regular float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation and inference is provided with bfloat16 layers usage.
+This approach can be used for CPU devices where the platform supports the AVX512_BF16 instruction. In this case, a regular float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation and inference is provided with bfloat16 layers usage.
 Below is the example command line to disable this feature on the CPU device with the AVX512_BF16 instruction and execute regular float32.
 ```
 $ benchmark_app -m <model.xml> -enforcebf16=false
@@ -29,7 +29,7 @@ Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README
 ## Using Async API
 To gain better performance on accelerators, such as VPU, the Inference Engine uses the asynchronous approach (see
 [Integrating Inference Engine in Your Application (current API)](Integrate_with_customer_application_new_API.md)).
-The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_ssd_async_README).
+The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_cpp).
 Since the pipe-lining relies on the availability of the parallel slack, running multiple inference requests in parallel is essential.
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which enables running a number of inference requests in parallel. Specifying different number of request produces different throughput measurements.
 

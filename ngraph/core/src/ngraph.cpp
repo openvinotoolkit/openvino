@@ -21,4 +21,4 @@ namespace ngraph
         string version = NGRAPH_VERSION_NUMBER;
         ngraph::parse_version_string(version, major, minor, patch, extra);
     }
-}
+} // namespace ngraph

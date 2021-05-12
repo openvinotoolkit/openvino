@@ -12,126 +12,111 @@
 #include <utility>
 #include <queue>
 #include "ie_parallel.hpp"
+#include <ngraph_ops/nms_ie_internal.hpp>
+#include "utils/general_utils.h"
+#include <ie_ngraph_utils.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using namespace MKLDNNPlugin;
+
 class NonMaxSuppressionImpl: public ExtLayerBase {
 public:
-    explicit NonMaxSuppressionImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            logPrefix = "NMS layer with name '" + layer->name + "' ";
-            if (layer->insData.size() < 2 || layer->insData.size() > 6)
-                IE_THROW() << logPrefix << "has incorrect number of input edges: " << layer->insData.size();
+            const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op);
+            if (!nms) {
+                errorMessage = "Only internal NonMaxSuppression operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->outData.size() < 1 || layer->outData.size() > 3)
-                IE_THROW() << logPrefix << "has incorrect number of output edges: " << layer->outData.size();
-
-            // TODO: remove legacy attribute presentation after migration on opset1
-            if (layer->CheckParamPresence("center_point_box")) {
-                bool center_point_box = layer->GetParamAsBool("center_point_box", false);
-                boxEncodingType = center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
-            } else if (layer->CheckParamPresence("box_encoding")) {
-                std::string boxEncAttr = layer->GetParamAsString("box_encoding", "corner");
-                if (boxEncAttr == "corner") {
-                    boxEncodingType = boxEncoding::CORNER;
-                } else if (boxEncAttr == "center") {
-                    boxEncodingType = boxEncoding::CENTER;
-                } else {
-                    IE_THROW() << logPrefix << "has unsupported 'box_encoding' attribute: " << boxEncAttr;
-                }
+    explicit NonMaxSuppressionImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
             }
 
-            sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
+            errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
+            const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op);
+
+            if (nms->get_input_size() < 2 || nms->get_input_size() > 6)
+                IE_THROW() << errorPrefix << "has incorrect number of input edges: " << nms->get_input_size();
+
+            if (nms->get_output_size() < 1 || nms->get_output_size() > 3)
+                IE_THROW() << errorPrefix << "has incorrect number of output edges: " << nms->get_output_size();
+
+            boxEncodingType = nms->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
+
+            sort_result_descending = nms->m_sort_result_descending;
 
             const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
             const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
-            auto boxesDataPtr = layer->insData[NMS_BOXES].lock();
-            if (boxesDataPtr == nullptr) {
-                IE_THROW() << logPrefix << "has nullable 'boxes' input";
-            }
-            checkPrecision(boxesDataPtr, supportedFloatPrecision, "boxes", inType);
-            const SizeVector &boxes_dims = boxesDataPtr->getTensorDesc().getDims();
+            checkPrecision(op->get_input_element_type(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
+            const SizeVector &boxes_dims = op->get_input_shape(NMS_BOXES);
             num_batches = boxes_dims[0];
             num_boxes = boxes_dims[1];
             if (boxes_dims.size() != 3)
-                IE_THROW() << logPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+                IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
             if (boxes_dims[2] != 4)
-                IE_THROW() << logPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+                IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
-
-            auto scoresDataPtr = layer->insData[NMS_SCORES].lock();
-            if (scoresDataPtr == nullptr) {
-                IE_THROW() << logPrefix << "has nullable 'scores' input";
-            }
-            checkPrecision(scoresDataPtr, supportedFloatPrecision, "scores", inType);
-            const SizeVector &scores_dims = scoresDataPtr->getTensorDesc().getDims();
+            checkPrecision(op->get_input_element_type(NMS_SCORES), supportedFloatPrecision, "scores", inType);
+            const SizeVector &scores_dims = op->get_input_shape(NMS_SCORES);
             num_classes = scores_dims[1];
             if (scores_dims.size() != 3)
-                IE_THROW() << logPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+                IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 
             if (num_batches != scores_dims[0])
-                IE_THROW() << logPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
+                IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
             if (num_boxes != scores_dims[2])
-                IE_THROW() << logPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
+                IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
             numFiltBox.resize(num_batches);
             for (size_t i = 0; i < numFiltBox.size(); i++)
                 numFiltBox[i].resize(num_classes);
 
-            if (layer->insData.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
-                const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8, Precision::I8, Precision::U16, Precision::I32,
-                                                                   Precision::U32, Precision::I64, Precision::U64};
-                check1DInput(layer->insData[NMS_MAXOUTPUTBOXESPERCLASS], supportedPrecision, "max_output_boxes_per_class");
+            const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8, Precision::I8, Precision::U16, Precision::I32,
+                                                               Precision::U32, Precision::I64, Precision::U64};
+            check1DInput(op, supportedPrecision, "max_output_boxes_per_class", NMS_MAXOUTPUTBOXESPERCLASS);
+            check1DInput(op, supportedFloatPrecision, "iou_threshold", NMS_IOUTHRESHOLD);
+            check1DInput(op, supportedFloatPrecision, "score_threshold", NMS_SCORETHRESHOLD);
+
+            if (op->get_input_size() > NMS_SOFTNMSSIGMA) {
+                check1DInput(op, supportedFloatPrecision, "soft_nms_sigma", NMS_SOFTNMSSIGMA);
             }
 
-            if (layer->insData.size() > NMS_IOUTHRESHOLD) {
-                check1DInput(layer->insData[NMS_IOUTHRESHOLD], supportedFloatPrecision, "iou_threshold");
-            }
-
-            if (layer->insData.size() > NMS_SCORETHRESHOLD) {
-                check1DInput(layer->insData[NMS_SCORETHRESHOLD], supportedFloatPrecision, "score_threshold");
-            }
-
-            if (layer->insData.size() > NMS_SOFTNMSSIGMA) {
-                check1DInput(layer->insData[NMS_SOFTNMSSIGMA], supportedFloatPrecision, "soft_nms_sigma");
-            }
-
-            checkOutput(layer->outData[NMS_SELECTEDINDICES], supportedIntOutputPrecision, "selected_indices");
-
-            if (layer->outData.size() > NMS_SELECTEDSCORES) {
-                checkOutput(layer->outData[NMS_SELECTEDSCORES], supportedFloatPrecision, "selected_scores");
-            }
-
-            if (layer->outData.size() > NMS_VALIDOUTPUTS) {
-                checkPrecision(layer->outData[NMS_VALIDOUTPUTS], supportedIntOutputPrecision, "valid_outputs", outType);
-                const SizeVector &valid_outputs_dims = layer->outData[NMS_VALIDOUTPUTS]->getTensorDesc().getDims();
-                if (valid_outputs_dims.size() != 1)
-                    IE_THROW() << logPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
-                if (valid_outputs_dims[0] != 1)
-                    IE_THROW() << logPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[1];
-            }
+            checkOutput(op, supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
+            checkOutput(op, supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
+            checkPrecision(op->get_input_element_type(NMS_VALIDOUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+            const SizeVector &valid_outputs_dims = op->get_input_shape(NMS_VALIDOUTPUTS);
+            if (valid_outputs_dims.size() != 1)
+                IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
+            if (valid_outputs_dims[0] != 1)
+                IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[1];
 
             LayerConfig config;
-            for (size_t i = 0; i < layer->insData.size(); i++) {
+            for (size_t i = 0; i < op->get_input_size(); i++) {
                 DataConfig inConfig;
 
                 Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
-                auto validDataPtr = layer->insData[i].lock();
-                if (validDataPtr == nullptr) {
-                    IE_THROW() << logPrefix << "has nullable " << i << "th input";
-                }
-                const SizeVector& inDims = validDataPtr->getTensorDesc().getDims();
+                const SizeVector& inDims = op->get_input_shape(i);
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
                 config.inConfs.push_back(inConfig);
             }
-            for (size_t i = 0; i < layer->outData.size(); i++) {
+            for (size_t i = 0; i < op->get_output_size(); i++) {
                 DataConfig outConfig;
 
                 Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
-                const SizeVector& outDims = layer->outData[i]->getTensorDesc().getDims();
+                const SizeVector& outDims = op->get_output_shape(i);
                 outConfig.desc = TensorDesc(outPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
                 config.outConfs.push_back(outConfig);
             }
@@ -439,44 +424,40 @@ private:
     float soft_nms_sigma = 0.0f;
     float scale = 1.f;
 
+    std::string errorPrefix;
+
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
-    std::string logPrefix;
 
-    void checkPrecision(const DataPtr &dataPtr, const std::vector<Precision> precList, const std::string name, const std::string type) {
-        const TensorDesc &tensorDesc = dataPtr->getTensorDesc();
-        if (std::find(precList.begin(), precList.end(), tensorDesc.getPrecision()) == precList.end())
-            IE_THROW() << logPrefix << " has unsupported '" << name << "' " << type << " precision: " << tensorDesc.getPrecision();
+    void checkPrecision(const ngraph::element::Type &ngPrec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+        const auto prec = details::convertPrecision(ngPrec);
+        if (std::find(precList.begin(), precList.end(), prec) == precList.end())
+            IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
     }
 
-    void check1DInput(const DataWeakPtr &dataPtr, const std::vector<Precision> precList, const std::string name) {
-        auto lockDataPtr = dataPtr.lock();
-        if (lockDataPtr == nullptr) {
-            IE_THROW() << logPrefix << "has nullable '" << name << "' input";
-        }
+    void check1DInput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port) {
+        checkPrecision(op->get_input_element_type(port), precList, name, inType);
 
-        checkPrecision(lockDataPtr, precList, name, inType);
-
-        const SizeVector &dims = lockDataPtr->getTensorDesc().getDims();
+        const SizeVector &dims = op->get_input_shape(port);
         if (dims.size() != 0 && dims.size() != 1)
-            IE_THROW() << logPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
+            IE_THROW() << errorPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
         if (dims.size() == 1)
             if (dims[0] != 1)
-                IE_THROW() << logPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
+                IE_THROW() << errorPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
     }
 
-    void checkOutput(const DataPtr &dataPtr, const std::vector<Precision> precList, const std::string name) {
-        checkPrecision(dataPtr, precList, name, outType);
+    void checkOutput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port) {
+        checkPrecision(op->get_output_element_type(port), precList, name, outType);
 
-        const SizeVector &dims = dataPtr->getTensorDesc().getDims();
+        const SizeVector &dims = op->get_output_shape(port);
         if (dims.size() != 2)
-            IE_THROW() << logPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
+            IE_THROW() << errorPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
         if (dims[1] != 3)
-            IE_THROW() << logPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << dims[1];
+            IE_THROW() << errorPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << dims[1];
     }
 };
 
-REG_FACTORY_FOR(NonMaxSuppressionImpl, NonMaxSuppression);
+REG_FACTORY_FOR(NonMaxSuppressionImpl, NonMaxSuppressionIEInternal);
 
 }  // namespace Cpu
 }  // namespace Extensions

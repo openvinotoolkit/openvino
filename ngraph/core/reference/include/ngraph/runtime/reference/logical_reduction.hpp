@@ -64,6 +64,6 @@ namespace ngraph
                         arg[input_transform.index(input_coord)];
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

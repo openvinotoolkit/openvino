@@ -56,9 +56,9 @@ namespace ngraph
                 float m_eps;
                 EpsMode m_eps_mode;
             };
-        }
+        } // namespace v0
         using v0::NormalizeL2;
-    }
-}
+    } // namespace op
+} // namespace ngraph
 
 NGRAPH_SUPPRESS_DEPRECATED_END

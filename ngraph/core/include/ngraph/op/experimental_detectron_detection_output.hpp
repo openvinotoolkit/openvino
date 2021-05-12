@@ -72,6 +72,6 @@ namespace ngraph
             private:
                 Attributes m_attrs;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

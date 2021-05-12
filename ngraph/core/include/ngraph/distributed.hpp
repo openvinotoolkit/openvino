@@ -26,7 +26,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& out, const Type& obj);
-    }
+    } // namespace reduction
 
     template <>
     class NGRAPH_API AttributeAdapter<reduction::Type>
@@ -41,4 +41,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<reduction::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

@@ -17,7 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 4, 30, 30},
+        {1, 4, 6, 6},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
@@ -71,15 +71,15 @@ const std::vector<double> cubeCoefs = {
 };
 
 const std::vector<std::vector<int64_t>> defaultAxes = {
-    {2, 3}
+    {0, 1, 2, 3}
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-    {40, 40},
+    {1, 4, 8, 8},
 };
 
 const std::vector<std::vector<float>> defaultScales = {
-    {1.333333f, 1.333333f}
+    {1.f, 1.f, 1.333333f, 1.333333f}
 };
 
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
@@ -131,11 +131,11 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testi
     InterpolateLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> targetShapesTailTest = {
-        {1, 4, 10, 41},  // 10 * 41 is not multipler of 4, cover tail process code path
+        {1, 4, 2, 11},  // cover down sample and tails process code path
 };
 
 const std::vector<std::vector<float>> defaultScalesTailTest = {
-    {0.333333f, 1.366666f}
+    {1.f, 1.f, 0.333333f, 1.833333f}
 };
 
 const auto interpolateCasesWithoutNearestTail = ::testing::Combine(
@@ -162,7 +162,7 @@ const auto interpolateCasesTail = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScalesTailTest));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_2, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearestTail,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -174,7 +174,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_2, InterpolateLayerTest, ::testi
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_2, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesTail,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

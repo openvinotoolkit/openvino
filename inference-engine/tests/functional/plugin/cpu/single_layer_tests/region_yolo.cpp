@@ -67,7 +67,7 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
         auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);

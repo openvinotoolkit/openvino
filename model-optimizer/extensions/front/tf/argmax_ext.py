@@ -16,6 +16,6 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         ArgMaxOp.update_node_stat(node, {'out_max_val': 0, 'top_k': 1, 'axis': None,
                                          'dim_attrs': ['axis'], 'keepdims': 0, 'remove_values_output': True,
-                                         'output_type': tf_dtype_extractor(node.pb.attr['out_type'].type, np.int64),
+                                         'output_type': tf_dtype_extractor(node.pb.attr['output_type'].type, np.int64),
                                          })
         return cls.enabled

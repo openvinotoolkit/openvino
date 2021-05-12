@@ -6,7 +6,6 @@
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
-
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 

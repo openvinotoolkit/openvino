@@ -62,14 +62,14 @@ AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref)
 
 bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

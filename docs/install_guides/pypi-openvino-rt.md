@@ -8,7 +8,7 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
+The Intel® Distribution of OpenVINO™ toolkit\*:
 - Enables CNN-based deep learning inference on the edge
 - Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
@@ -20,24 +20,28 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | [Inference Engine](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_inference_engine_intro.html)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
 ## System Requirements
+The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
 
-The table below lists the supported operating systems and Python* versions required to run the installation.
+The table below lists supported operating systems and Python* versions required to run the installation.
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Red Hat* Enterprise Linux* 8.2, 64-bit                     | 3.6, 3.7                                            |
-|   CentOS* 7.4, 64-bit                                        | 3.6, 3.7                                            |
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
+|   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
-|   Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions       | 3.6, 3.7, 3.8                  |
-|   Windows Server* 2016 or higher                             | 3.6, 3.7, 3.8                |
+|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 ## Install the Runtime Package
 
-### Step 1. Set Up Python Virtual Environment
+### Step 1. Install External Software Dependencies
+
+On Windows* OS you are required to install [Microsoft* Visual C++ Redistributable Package (x64)](https://visualstudio.microsoft.com/downloads/#microsoft-visual-c-redistributable-for-visual-studio-2019) to be able to run OpenVINO™ applications.
+
+### Step 2. Set Up Python Virtual Environment
 
 To avoid dependency conflicts, use a virtual environment. Skip this
    step only if you do want to install all dependencies globally.
@@ -45,13 +49,13 @@ To avoid dependency conflicts, use a virtual environment. Skip this
 Create virtual environment:
 ```sh
 python -m pip install --user virtualenv 
-python -m venv openvino_env --system-site-packages
+python -m venv openvino_env
 ```
 
 > **NOTE**: On Linux and macOS, you may need to type `python3` instead of
 `python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
 
-### Step 2. Activate Virtual Environment
+### Step 3. Activate Virtual Environment
 
 On Linux and macOS:
 ```sh
@@ -62,14 +66,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update pip to the Highest Version
+### Step 4. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+### Step 5. Install the Package
 
 Run the command below: <br>
 
@@ -77,7 +81,7 @@ Run the command below: <br>
    pip install openvino
    ```
 
-### Step 5. Verify that the Package is Installed
+### Step 6. Verify that the Package is Installed
 
 Run the command below:
 ```sh

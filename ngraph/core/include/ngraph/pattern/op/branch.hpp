@@ -57,6 +57,6 @@ namespace ngraph
                 Node* m_destination_node{nullptr};
                 size_t m_destination_index{0};
             };
-        }
-    }
-}
+        } // namespace op
+    }     // namespace pattern
+} // namespace ngraph

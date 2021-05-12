@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/shape.hpp"
+#include <cstring>
+#include <numeric>
 
-using namespace ngraph;
+#include "ngraph/coordinate.hpp"
+#include "ngraph/shape.hpp"
+#include "utils/span.hpp"
 
 namespace ngraph
 {
@@ -16,46 +18,39 @@ namespace ngraph
         namespace reference
         {
             template <typename dataType, typename indicesType>
-            void scatterNdUpdate(const dataType* inputData,
-                                 const indicesType* indices,
-                                 const dataType* updates,
-                                 dataType* outBuf,
+            void scatterNdUpdate(const dataType* const inputData,
+                                 const indicesType* const indices,
+                                 const dataType* const updates,
+                                 dataType* const outBuf,
                                  const Shape& dataShape,
                                  const Shape& indicesShape,
                                  const Shape& updatesShape)
             {
-                size_t numSlices = 1;
-                size_t sliceSize = 1;
-                for (size_t i = 0; i < indicesShape.size() - 1; i++)
-                {
-                    numSlices *= indicesShape[i];
-                }
-                for (size_t i = indicesShape.size() - 1; i < updatesShape.size(); i++)
-                {
-                    sliceSize *= updatesShape[i];
-                }
+                const auto update_chunk_shape = span(dataShape).drop_front(indicesShape.back());
+                const auto update_el_number = shape_size(update_chunk_shape);
 
-                const size_t k = indicesShape.back();
                 std::memcpy(outBuf, inputData, sizeof(dataType) * shape_size(dataShape));
-                CoordinateTransform dataTransform{dataShape};
 
-                for (size_t i = 0; i < numSlices; i++)
+                const auto input_data_dim_pading = [&] {
+                    std::vector<size_t> padding(dataShape.size(), 1);
+                    for (size_t i = dataShape.size() - 1; i != 0; --i)
+                    {
+                        padding[i - 1] = padding[i] * dataShape[i];
+                    };
+                    return padding;
+                }();
+
+                const auto num_of_updates = shape_size(span(indicesShape).drop_back(1));
+                for (size_t i = 0; i != num_of_updates; ++i)
                 {
-                    Coordinate coord;
-                    for (size_t j = 0; j < k; j++)
-                    {
-                        coord.push_back(indices[i * k + j]);
-                    }
-                    for (size_t j = k; j < dataShape.size(); j++)
-                    {
-                        coord.push_back(0);
-                    }
+                    const auto indices_coord = indices + i * indicesShape.back();
+                    const auto coord = span(indices_coord, indicesShape.back());
+                    const auto out_index = std::inner_product(
+                        begin(coord), end(coord), begin(input_data_dim_pading), 0);
 
-                    const size_t startDataIdx = dataTransform.index(coord);
-                    for (size_t j = 0; j < sliceSize; j++)
-                    {
-                        outBuf[startDataIdx + j] = updates[i * sliceSize + j];
-                    }
+                    const auto update_data = updates + i * update_el_number;
+                    const auto update_mem_size = update_el_number * sizeof(dataType);
+                    std::memcpy(outBuf + out_index, update_data, update_mem_size);
                 }
             }
         } // namespace reference

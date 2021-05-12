@@ -23,6 +23,7 @@ FetchContent_Declare(
     ext_onnx
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
+    GIT_SHALLOW TRUE
     # apply patch to fix problems with symbols visibility for MSVC
     PATCH_COMMAND git reset --hard HEAD && git apply --ignore-space-change --ignore-whitespace --verbose ${ONNX_PATCH_FILE}
 )
@@ -34,8 +35,8 @@ macro(onnx_set_target_properties)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
     elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
-        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
+        target_compile_options(onnx PRIVATE -Wno-all)
+        target_compile_options(onnx_proto PRIVATE -Wno-all -Wno-unused-variable)
 
         # it fixes random problems with double registration of descriptors to protobuf database
         set_target_properties(onnx_proto PROPERTIES

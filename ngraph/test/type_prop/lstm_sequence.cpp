@@ -320,7 +320,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension)
 
     // Validate invalid rank0 tensor for all inputs: X, initial_hidden_state, initial_cell_state W,
     // R, B
-    for (auto i = 0; i < lstm_sequence->get_input_size(); i++)
+    for (size_t i = 0; i < lstm_sequence->get_input_size(); i++)
     {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_rank0_tensor);
@@ -353,7 +353,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
 
     // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, initial_cell_state
     // W, R, B
-    for (auto i = 0; i < lstm_sequence->get_input_size(); i++)
+    for (size_t i = 0; i < lstm_sequence->get_input_size(); i++)
     {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_dynamic_tensor);

@@ -39,7 +39,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];

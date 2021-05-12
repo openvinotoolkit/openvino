@@ -7,11 +7,12 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <sched.h>
-#include "ie_system_conf.h"
-#include "ie_parallel.hpp"
-#include "ie_common.h"
 #include <numeric>
+#include <sched.h>
+
+#include "ie_common.h"
+#include "ie_system_conf.h"
+#include "threading/ie_parallel_custom_arena.hpp"
 
 
 namespace InferenceEngine {
@@ -61,7 +62,7 @@ std::vector<int> getAvailableNUMANodes() {
     return nodes;
 }
 #endif
-int getNumberOfCPUCores() {
+int getNumberOfCPUCores(bool bigCoresOnly) {
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
     IE_ASSERT(totalNumberOfCpuCores != 0);
@@ -81,7 +82,16 @@ int getNumberOfCPUCores() {
             }
         }
     }
-    return CPU_COUNT(&currentCoreSet);
+    int phys_cores = CPU_COUNT(&currentCoreSet);
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    auto core_types = custom::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
+                                                               .set_core_type(core_types.back())
+                                                               .set_max_threads_per_core(1));
+    }
+    #endif
+    return phys_cores;
 }
 
 }  // namespace InferenceEngine

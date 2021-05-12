@@ -177,7 +177,7 @@ def main():
         if test_conf:
             info = info_from_test_config(test_conf)
             for record in records:
-                record.update(info.get(Path(record["model"]), {}))
+                record.update(info.get(record["model_name"], {}))
 
         # upload
         if args.upload:

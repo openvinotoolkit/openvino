@@ -54,8 +54,8 @@ namespace ngraph
                     return {make_shared<ngraph::opset1::Power>(values, inv_p_node)
                                 ->add_provenance_group_members_above({value})};
                 }
-            }
-        }
+            } // namespace opset1
+        }     // namespace detail
 
         shared_ptr<Node> builder::opset1::l0_norm(const Output<Node>& value,
                                                   const Output<Node>& reduction_axes)

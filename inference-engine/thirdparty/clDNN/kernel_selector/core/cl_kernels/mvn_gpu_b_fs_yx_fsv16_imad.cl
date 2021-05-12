@@ -216,9 +216,9 @@ KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
 
 DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, INPUT_SLICE_PITCH, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
 #if defined EPS_OUTSIDE_SQRT
-    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, -1.f);
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, (MEAN_TYPE)-1.f);
 #elif defined EPS_INSIDE_SQRT
-    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, (MEAN_TYPE)-0.5f)
 #endif
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)
@@ -275,9 +275,9 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if defined EPS_OUTSIDE_SQRT
-    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, -1.f);
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, (MEAN_TYPE)-1.f);
 #elif defined EPS_INSIDE_SQRT
-    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, (MEAN_TYPE)-0.5f)
 #endif
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)

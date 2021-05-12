@@ -58,9 +58,9 @@ namespace ngraph
                 element::Type m_element_type;
                 bool m_is_relevant_to_shapes;
             };
-        }
+        } // namespace v0
         using v0::Parameter;
-    }
+    } // namespace op
     using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
 
     template <>
@@ -77,4 +77,4 @@ namespace ngraph
     protected:
         ParameterVector& m_ref;
     };
-}
+} // namespace ngraph

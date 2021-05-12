@@ -78,6 +78,7 @@ set(SRC
     op_eval/split.cpp
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
+    op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     op_is.cpp
     opset1.cpp
@@ -106,6 +107,7 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/convolution_backprop_data.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -115,6 +117,7 @@ set(SRC
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/einsum.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
@@ -127,6 +130,7 @@ set(SRC
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
+    type_prop/floor_mod.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
@@ -146,9 +150,11 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
+    type_prop/mod.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
@@ -207,6 +213,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
+    visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
@@ -249,8 +256,12 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
+    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
+    visitors/op/transpose.cpp
     uint4.cpp
     util.cpp
 )
@@ -322,13 +333,17 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
+    backend/dft.in.cpp
     backend/divide.in.cpp
+    backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
+    backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
+    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
@@ -338,6 +353,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
+    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
@@ -350,6 +366,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
@@ -392,6 +409,8 @@ set(MULTI_TEST_SRC
     backend/softmax.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
+    backend/squared_difference.in.cpp
+    backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
@@ -415,13 +434,18 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp
-            onnx/onnx_test_utils.in.cpp)
+            onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_editor.cpp
             onnx/onnx_tensor_names.cpp)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    list(APPEND SRC onnx/onnx_editor.cpp)
+    list(APPEND MULTI_TEST_SRC
+        onnx/onnx_test_utils.in.cpp
+        onnx/onnx_import_with_editor.in.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
@@ -484,6 +508,10 @@ if(NOT WIN32)
 endif()
 target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
 
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
+endif()
+
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
@@ -497,7 +525,11 @@ endif()
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
+    target_link_libraries(unit-test PRIVATE onnx_importer)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

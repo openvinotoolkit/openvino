@@ -13,15 +13,9 @@
 
 namespace MKLDNNPlugin {
 
-enum ROIAlignOpType {
-    Max,
-    Avg
-};
-
 class MKLDNNROIAlignNode : public MKLDNNNode {
 public:
-    MKLDNNROIAlignNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNROIAlignNode() override = default;
+    MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -29,16 +23,19 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     int pooledH = 7;
     int pooledW = 7;
     int samplingRatio = 2;
     float spatialScale = 1.0f;
-    ROIAlignOpType opType = Max;
     template <typename inputType, typename outputType>
     void executeSpecified();
     template<typename T>
     struct ROIAlignExecute;
-};
-}  // namespace MKLDNNPlugin
 
+    std::string errorPrefix;
+};
+
+}  // namespace MKLDNNPlugin

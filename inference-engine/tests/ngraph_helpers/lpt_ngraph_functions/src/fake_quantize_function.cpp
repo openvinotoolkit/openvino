@@ -20,6 +20,31 @@ namespace subgraph {
 
 using namespace ngraph::pass;
 
+std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginalWithMaxPool(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantizeOnData) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
+
+    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+        input, element::f32, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
+        fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
+    const auto maxPool = std::make_shared<opset1::MaxPool>(
+        fakeQuantize,
+        Strides{ 1, 1 },
+        Shape{ 1, 1 },
+        Shape{ 0, 0 },
+        Shape{ 2, 2 });
+
+    fakeQuantize->set_friendly_name("fakeQuantize");
+    auto& rtInfo = fakeQuantize->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
+}
+
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,

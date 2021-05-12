@@ -11,8 +11,6 @@
 #include <vector>
 #include <fstream>
 
-#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
-#include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -118,7 +116,29 @@ public:
         IE_THROW(NotImplemented);
     }
 
+
+    /**
+     * @brief      Creates an inference request public implementation.
+     * @return     The request public implementation
+     */
+    IInferRequestInternal::Ptr CreateInferRequest() override {
+        auto asyncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+        return asyncRequestImpl;
+    }
+
 protected:
+    /**
+     * @brief      Creates an asynchronous inference request internal implementation.
+     * @note       The method is called by ExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  networkInputs   The network inputs
+     * @param[in]  networkOutputs  The network outputs
+     * @return     A shared pointer to asynchnous inference request object.
+     */
+    virtual IInferRequestInternal::Ptr CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                              OutputsDataMap networkOutputs) = 0;
+
     /**
      * @brief Exports an internal hardware-dependent model to a stream.
      * @note The function is called from ExecutableNetworkInternal::Export(std::ostream&),
@@ -130,7 +150,7 @@ protected:
         IE_THROW(NotImplemented);
     }
 
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
     /**

@@ -12,6 +12,8 @@
 #include <utility>
 #include <algorithm>
 #include "ie_parallel.hpp"
+#include "common/tensor_desc_creator.h"
+#include <ngraph/op/experimental_detectron_detection_output.hpp>
 
 
 namespace {
@@ -43,6 +45,8 @@ struct Indexer {
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 static
 void refine_boxes(const float* boxes, const float* deltas, const float* weights, const float* scores,
@@ -235,46 +239,46 @@ private:
     const int OUTPUT_SCORES {2};
 
 public:
-    explicit ExperimentalDetectronDetectionOutputImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            score_threshold_ = layer->GetParamAsFloat("score_threshold");
-            nms_threshold_ = layer->GetParamAsFloat("nms_threshold");
-            max_delta_log_wh_ = layer->GetParamAsFloat("max_delta_log_wh");
-            classes_num_ = layer->GetParamAsInt("num_classes");
-            max_detections_per_class_ = layer->GetParamAsInt("post_nms_count");
-            max_detections_per_image_ = layer->GetParamAsInt("max_detections_per_image");
-            class_agnostic_box_regression_ = layer->GetParamAsBool("class_agnostic_box_regression", false);
-            deltas_weights_ = layer->GetParamAsFloats("deltas_weights");
-
-
-            LayerConfig config;
-            for (auto in : layer->insData) {
-                auto in_ = in.lock();
-                auto dims = in_->getTensorDesc().getDims();
-                DataConfig data;
-                data.desc = TensorDesc(Precision::FP32, dims, in_->getTensorDesc().getLayoutByDims(dims));
-                config.inConfs.push_back(data);
+            auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+            if (!doOp) {
+                errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
+                return false;
             }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            auto dimsB = layer->outData[OUTPUT_BOXES]->getTensorDesc().getDims();
-            DataConfig dataB;
-            dataB.desc = TensorDesc(Precision::FP32, dimsB,
-                                    layer->outData[OUTPUT_BOXES]->getTensorDesc().getLayoutByDims(dimsB));
-            config.outConfs.push_back(dataB);
-            auto dimsC = layer->outData[OUTPUT_CLASSES]->getTensorDesc().getDims();
-            DataConfig dataC;
-            dataC.desc = TensorDesc(Precision::I32, dimsC,
-                                    layer->outData[OUTPUT_BOXES]->getTensorDesc().getLayoutByDims(dimsC));
-            config.outConfs.push_back(dataC);
-            auto dimsS = layer->outData[OUTPUT_SCORES]->getTensorDesc().getDims();
-            DataConfig dataS;
-            dataS.desc = TensorDesc(Precision::FP32, dimsS,
-                                    layer->outData[OUTPUT_BOXES]->getTensorDesc().getLayoutByDims(dimsS));
-            config.outConfs.push_back(dataS);
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+    explicit ExperimentalDetectronDetectionOutputImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+            auto attributes = doOp->get_attrs();
+
+            score_threshold_ = attributes.score_threshold;
+            nms_threshold_ = attributes.nms_threshold;
+            max_delta_log_wh_ = attributes.max_delta_log_wh;
+            classes_num_ = attributes.num_classes;
+            max_detections_per_class_ = attributes.post_nms_count;
+            max_detections_per_image_ = attributes.max_detections_per_image;
+            class_agnostic_box_regression_ = attributes.class_agnostic_box_regression;
+            deltas_weights_ = attributes.deltas_weights;
+
+            std::vector<DataConfigurator> inDataConfigurators(op->get_input_size(), {TensorDescCreatorTypes::ncsp, Precision::FP32});
+
+            addConfig(op, inDataConfigurators,
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::I32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
     }
 

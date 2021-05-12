@@ -64,7 +64,7 @@ namespace cosop
         }
         return rc;
     }
-}
+} // namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

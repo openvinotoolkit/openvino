@@ -31,8 +31,8 @@ namespace ngraph
                             std::vector<int64_t>{0},  // begin mask
                             std::vector<int64_t>{0}); // end mask
                     }
-                }
-            } // detail
+                } // namespace
+            }     // namespace detail
 
             namespace set_1
             {

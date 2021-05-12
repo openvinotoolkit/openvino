@@ -70,7 +70,7 @@ std::shared_ptr<Node> createWeightsOriginal(
             ngraph::opset1::Constant::create(
                 element::i64,
                 Shape{ 5 },
-                std::vector<size_t>({ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, 7, 7 })),
+                std::vector<size_t>({ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize, kernelSize })),
             true);
     }
 
@@ -146,7 +146,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     // TODO: pass as argument
     //const size_t groupCount = 3ul;
     const size_t outputChannelsCount = outputShape[1];
-    const size_t kernelSize = 7ul;
+    const size_t kernelSize = 5ul;
     const size_t inputChannelsCount = inputShape[1];
 
     std::vector<float> weightsValues = { 1.f };

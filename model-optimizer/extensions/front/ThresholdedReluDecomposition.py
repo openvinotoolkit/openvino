@@ -36,3 +36,4 @@ class ThresholdedReluDecomposition(FrontReplacementPattern):
             mul.in_port(1).connect(float_greater.out_port(0))
 
             rename_nodes([(node, name + '/TBR'), (mul, name)])
+            graph.remove_node(node.id)

@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API ShuffleChannels : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ShuffleChannels", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 ShuffleChannels() = default;
                 /// \brief Constructs a ShuffleChannels node.
                 ///
@@ -61,7 +61,7 @@ namespace ngraph
                 int64_t m_axis;
                 int64_t m_group;
             };
-        }
+        } // namespace v0
         using v0::ShuffleChannels;
-    }
-}
+    } // namespace op
+} // namespace ngraph

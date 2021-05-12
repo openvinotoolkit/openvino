@@ -100,7 +100,7 @@ public:
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
-                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(IInferRequest::RESULT_READY));
+                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(InferRequest::RESULT_READY));
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {

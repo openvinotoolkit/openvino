@@ -74,7 +74,7 @@ namespace floorop
         }
         return rc;
     }
-}
+} // namespace floorop
 
 bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

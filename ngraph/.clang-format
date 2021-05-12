@@ -51,4 +51,4 @@ IncludeCategories:
     Priority:        2
 SortIncludes: true
 
-FixNamespaceComments: false
+FixNamespaceComments: true

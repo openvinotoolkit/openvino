@@ -72,7 +72,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
         const auto originalLayers = function->get_ops();
         std::map<std::string, int> originalLayersMap;
         for (const auto &layer : originalLayers) {
-            if (layer->description() == "Result")
+            if (layer->description() == "Result" && targetDevice != CommonTestUtils::DEVICE_CPU)
                 continue;
             originalLayersMap[layer->get_friendly_name()] = 0;
         }

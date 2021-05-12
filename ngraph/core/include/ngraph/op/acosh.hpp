@@ -38,7 +38,7 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        }
+        } // namespace v3
         using v3::Acosh;
-    }
-}
+    } // namespace op
+} // namespace ngraph

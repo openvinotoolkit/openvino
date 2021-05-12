@@ -16,10 +16,12 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 |[Multi-Device plugin](MULTI.md) |Multi-Device plugin enables simultaneous inference of the same network on several Intel&reg; devices in parallel    |   
 |[Heterogeneous plugin](HETERO.md) |Heterogeneous plugin enables automatic inference splitting between several Intel&reg; devices (for example if a device doesn't [support certain layers](#supported-layers)).                                                           |
 
+Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+
 ## Supported Configurations
 
 The Inference Engine can inference models in different formats with various input and output formats.
-This chapter provides supported and optimal configurations for each plugin.
+This page shows supported and optimal configurations for each plugin.
 
 ### Terminology
 
@@ -34,17 +36,19 @@ This chapter provides supported and optimal configurations for each plugin.
 |   U16 format      | 2-byte unsigned integer format                |
 |   U8 format       | 1-byte unsigned integer format                |
 
-NHWC, NCHW - Image data layout. Refers to the representation of batches of images.
-NCDHW - Images sequence data layout.
+NHWC, NCHW, and NCDHW refer to the representation of batches of images.
+* NHWC and NCHW refer to image data layout.
+* NCDHW refers to image sequence data layout.
 
-* N - Number of images in a batch
-* D - Depth. Depend on model it could be spatial or time dimension
-* H - Number of pixels in the vertical dimension
-* W - Number of pixels in the horizontal dimension
-* C - Number of channels
+Abbreviations in the support tables are as follows:
+* N: Number of images in a batch
+* D: Depth. Depend on model it could be spatial or time dimension
+* H: Number of pixels in the vertical dimension
+* W: Number of pixels in the horizontal dimension
+* C: Number of channels
 
 CHW, NC, C  - Tensor memory layout.
-For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy
+For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy.
 
 ### Supported Model Formats
 

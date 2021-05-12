@@ -59,6 +59,7 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
 
     if (!is_second) {
         const auto& scope = params.output;
+        dispatchData.indicesLastDim = 1;
         dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
     } else {
         auto indices_rank = params.indices_rank;
@@ -168,7 +169,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT_BLOCK_ND", GetInputBlockND(newParams)));
         }
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         clKernelData& kernel = kd.kernels[i];
 

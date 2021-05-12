@@ -87,7 +87,7 @@ void op::v1::Reverse::validate_and_infer_types()
 
     if (input_rank.is_static())
     {
-        const auto rank = input_rank.get_length();
+        const size_t rank = input_rank.get_length();
 
         if (const auto& rev_axes_constant = get_constant_from_source(input_value(1)))
         {
@@ -147,7 +147,7 @@ namespace reverseop
         size_t axes_rank = in->get_element_count();
         std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
     }
-}
+} // namespace reverseop
 
 #define GET_AXES(a, ...)                                                                           \
     case element::Type_t::a:                                                                       \

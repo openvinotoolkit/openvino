@@ -42,7 +42,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--backend",
         default="CPU",
-        choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO"],
+        choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO", "TEMPLATE"],
         help="Select target device",
     )
     parser.addoption(
@@ -71,6 +71,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_hddl: Skip test on HDDL")
     config.addinivalue_line("markers", "skip_on_myriad: Skip test on MYRIAD")
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
+    config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
 
 
@@ -86,6 +87,7 @@ def pytest_collection_modifyitems(config, items):
         "HDDL": "skip_on_hddl",
         "MYRIAD": "skip_on_myriad",
         "HETERO": "skip_on_hetero",
+        "TEMPLATE": "skip_on_template",
     }
 
     skip_markers = {
@@ -95,6 +97,7 @@ def pytest_collection_modifyitems(config, items):
         "HDDL": pytest.mark.skip(reason="Skipping test on the HDDL backend."),
         "MYRIAD": pytest.mark.skip(reason="Skipping test on the MYRIAD backend."),
         "HETERO": pytest.mark.skip(reason="Skipping test on the HETERO backend."),
+        "TEMPLATE": pytest.mark.skip(reason="Skipping test on the TEMPLATE backend."),
     }
 
     for item in items:

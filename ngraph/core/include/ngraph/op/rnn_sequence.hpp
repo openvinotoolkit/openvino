@@ -50,6 +50,6 @@ namespace ngraph
             protected:
                 op::RecurrentSequenceDirection m_direction;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 } // namespace ngraph

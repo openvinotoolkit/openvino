@@ -33,21 +33,27 @@ static const  std::vector<std::string> supported_values_on_gna2 = {
         GNAConfigParams::GNA_AVX2_EXACT
 };
 #else
-static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, Gna2DeviceVersion>> supported_values = {
-                {GNAConfigParams::GNA_AUTO,       {Gna2AccelerationModeAuto,     Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_HW,         {Gna2AccelerationModeHardware, Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_SW,         {Gna2AccelerationModeSoftware, Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_SW_EXACT,   {Gna2AccelerationModeSoftware, Gna2DeviceVersion1_0}},
-                {GNAConfigParams::GNA_GEN,        {Gna2AccelerationModeGeneric,  Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_GEN_EXACT,  {Gna2AccelerationModeGeneric,  Gna2DeviceVersion1_0}},
-                {GNAConfigParams::GNA_SSE,        {Gna2AccelerationModeSse4x2,   Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_SSE_EXACT,  {Gna2AccelerationModeSse4x2,   Gna2DeviceVersion1_0}},
-                {GNAConfigParams::GNA_AVX1,       {Gna2AccelerationModeAvx1,     Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_AVX1_EXACT, {Gna2AccelerationModeAvx1,     Gna2DeviceVersion1_0}},
-                {GNAConfigParams::GNA_AVX2,       {Gna2AccelerationModeAvx2,     Gna2DeviceVersionSoftwareEmulation}},
-                {GNAConfigParams::GNA_AVX2_EXACT, {Gna2AccelerationModeAvx2,     Gna2DeviceVersion1_0}},
+static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
+                {GNAConfigParams::GNA_AUTO,       {Gna2AccelerationModeAuto,     false}},
+                {GNAConfigParams::GNA_HW,         {Gna2AccelerationModeHardware, false}},
+                {GNAConfigParams::GNA_SW,         {Gna2AccelerationModeSoftware, false}},
+                {GNAConfigParams::GNA_SW_EXACT,   {Gna2AccelerationModeSoftware, true}},
+                {GNAConfigParams::GNA_GEN,        {Gna2AccelerationModeGeneric,  false}},
+                {GNAConfigParams::GNA_GEN_EXACT,  {Gna2AccelerationModeGeneric,  true}},
+                {GNAConfigParams::GNA_SSE,        {Gna2AccelerationModeSse4x2,   false}},
+                {GNAConfigParams::GNA_SSE_EXACT,  {Gna2AccelerationModeSse4x2,   true}},
+                {GNAConfigParams::GNA_AVX1,       {Gna2AccelerationModeAvx1,     false}},
+                {GNAConfigParams::GNA_AVX1_EXACT, {Gna2AccelerationModeAvx1,     true}},
+                {GNAConfigParams::GNA_AVX2,       {Gna2AccelerationModeAvx2,     false}},
+                {GNAConfigParams::GNA_AVX2_EXACT, {Gna2AccelerationModeAvx2,     true}},
         };
 #endif
+
+static const std::set<std::string> supportedTargets = {
+    GNAConfigParams::GNA_TARGET_2_0,
+    GNAConfigParams::GNA_TARGET_3_0,
+    ""
+};
 
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
@@ -116,9 +122,14 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 gna_proc_type = static_cast<intel_gna_proc_t>(procType->second);
 #else
                 pluginGna2AccMode = procType->second.first;
-                pluginGna2DeviceConsistent = procType->second.second;
+                swExactMode = procType->second.second;
 #endif
             }
+        } else if (key == GNA_CONFIG_KEY(EXEC_TARGET) || key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
+            if (supportedTargets.count(value) == 0) {
+                THROW_GNA_EXCEPTION << "Unsupported GNA config value (key, value): (" << key << ", " << value << ")";
+            }
+            (key == GNA_CONFIG_KEY(EXEC_TARGET) ? gnaExecTarget : gnaCompileTarget) = value;
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.compact_mode = true;
@@ -255,15 +266,17 @@ void Config::AdjustKeyMapValues() {
             }
 #else
             if (value.second.first == pluginGna2AccMode &&
-                value.second.second == pluginGna2DeviceConsistent) {
+                value.second.second == swExactMode) {
                 device_mode = value.first;
-            break;
-        }
+                break;
+            }
 #endif
         }
     }
     IE_ASSERT(!device_mode.empty());
     keyConfigMap[GNA_CONFIG_KEY(DEVICE_MODE)] = device_mode;
+    keyConfigMap[GNA_CONFIG_KEY(EXEC_TARGET)] = gnaExecTarget;
+    keyConfigMap[GNA_CONFIG_KEY(COMPILE_TARGET)] = gnaCompileTarget;
     keyConfigMap[GNA_CONFIG_KEY(COMPACT_MODE)] =
             gnaFlags.compact_mode ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =

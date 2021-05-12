@@ -8,9 +8,10 @@
  */
 #pragma once
 
+#include <format_reader.h>
+
 #include <memory>
 #include <string>
-#include <format_reader.h>
 
 #include "register.h"
 
@@ -31,9 +32,8 @@ public:
      * @param filename - path to input data
      * @return MnistUbyte reader object
      */
-    explicit MnistUbyte(const std::string &filename);
-    virtual ~MnistUbyte() {
-    }
+    explicit MnistUbyte(const std::string& filename);
+    virtual ~MnistUbyte() {}
 
     /**
      * \brief Get size

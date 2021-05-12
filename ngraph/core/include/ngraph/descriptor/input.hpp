@@ -103,5 +103,5 @@ namespace ngraph
             bool m_is_relevant_to_shape;
             bool m_is_relevant_to_value;
         };
-    }
-}
+    } // namespace descriptor
+} // namespace ngraph

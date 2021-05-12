@@ -21,6 +21,6 @@ namespace ngraph
                     out[i] = arg[i] > zero ? arg[i] : zero;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

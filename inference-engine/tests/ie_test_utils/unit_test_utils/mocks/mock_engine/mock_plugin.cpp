@@ -8,7 +8,6 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;
@@ -30,7 +29,7 @@ Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::str
     }
 }
 
-ExecutableNetwork
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork &network,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
@@ -40,7 +39,7 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
     }
 }
 
-ExecutableNetwork
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                         RemoteContext::Ptr context) {
     if (_target) {
@@ -56,22 +55,22 @@ MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
     return {};
 }
 
-InferenceEngine::ExecutableNetwork
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return _target->ImportNetwork(networkModel, config);
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, config));
     } else {
         IE_THROW(NotImplemented);
     }
 }
 
-InferenceEngine::ExecutableNetwork
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
                               const InferenceEngine::RemoteContext::Ptr& context,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return _target->ImportNetwork(networkModel, context, config);
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, context, config));
     } else {
         IE_THROW(NotImplemented);
     }

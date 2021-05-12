@@ -303,7 +303,7 @@ namespace ngraph
                                           bool clip_after_nms,
                                           T* probs = nullptr)
                 {
-                    for (size_t roi = 0; roi < num_rois; ++roi)
+                    for (int roi = 0; roi < num_rois; ++roi)
                     {
                         const unsigned int index = roi_indices[roi];
                         T x0 = proposals[index].x0;

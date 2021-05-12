@@ -35,11 +35,6 @@ class Function;
 namespace InferenceEngine {
 
 /**
- * @brief A collection that contains string as key, and Data smart pointer as value
- */
-using OutputsDataMap = std::map<std::string, DataPtr>;
-
-/**
  * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology

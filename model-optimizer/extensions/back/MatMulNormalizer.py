@@ -70,7 +70,7 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
 
 
 class PullTransposeThroughFQUp(BackReplacementPattern):
-    """
+    r"""
         BEFORE                                      AFTER
                                                         T  T T  T  T
          \ \ | / /                                       \ \ | / /
@@ -135,7 +135,7 @@ class PullTransposeThroughFQUp(BackReplacementPattern):
 
 
 class SmartReshape_HC_Reshape_MatMul(BackReplacementPattern):
-    """
+    r"""
     Relaxes hard-coded input of Reshape in such sub-graphs:
 
     input_1     Constant

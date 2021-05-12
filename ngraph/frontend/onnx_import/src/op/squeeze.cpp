@@ -38,14 +38,10 @@ namespace ngraph
             {
                 OutputVector squeeze(const Node& node)
                 {
-                    auto inputs = node.get_ng_inputs();
+                    const auto inputs = node.get_ng_inputs();
                     if (inputs.size() < 2)
                     {
-                        std::vector<int64_t> axes{};
-                        auto axes_node = std::make_shared<default_opset::Constant>(
-                            element::Type_t::u64, Shape{}, axes);
-
-                        return {std::make_shared<default_opset::Squeeze>(inputs.at(0), axes_node)};
+                        return {std::make_shared<default_opset::Squeeze>(inputs.at(0))};
                     }
                     else
                     {

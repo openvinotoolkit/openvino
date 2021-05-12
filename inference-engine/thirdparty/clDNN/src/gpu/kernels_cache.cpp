@@ -24,6 +24,9 @@
 #include <queue>
 #include <condition_variable>
 #endif
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
@@ -108,49 +111,6 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
     }
 }
 
-std::string get_undef_jit(cldnn::gpu::kernels_cache::source_code org_source_code) {
-    const std::string white_space_with_new_lines = " \t\r\n";
-    const std::string white_space = " \t";
-
-    size_t current_pos = 0;
-
-    const std::string define = "define";
-
-    std::set<std::string> to_undef;
-    for (const auto& source : org_source_code) {
-        do {
-            size_t index_to_hash = source.find_first_not_of(white_space_with_new_lines, current_pos);
-            if (index_to_hash != std::string::npos && source[index_to_hash] == '#') {
-                size_t index_define = source.find_first_not_of(white_space, index_to_hash + 1);
-
-                if (index_define != std::string::npos && !source.compare(index_define, define.size(), define)) {
-                    size_t index_to_name = source.find_first_not_of(white_space, index_define + define.size());
-                    if (index_to_name != std::string::npos) {
-                        size_t index_to_end_name =
-                            source.find_first_of(white_space_with_new_lines + "(", index_to_name);
-                        if (index_to_end_name == std::string::npos) {
-                            index_to_end_name = source.size();
-                        }
-                        std::string name = source.substr(index_to_name, index_to_end_name - index_to_name);
-                        to_undef.insert(name);
-                    }
-                }
-            }
-
-            current_pos = source.find_first_of('\n', current_pos + 1);
-        } while (current_pos != std::string::npos);
-    }
-
-    std::string undefs;
-    for (const auto& name : to_undef) {
-        undefs += "#ifdef " + name + "\n";
-        undefs += "#undef " + name + "\n";
-        undefs += "#endif\n";
-    }
-
-    return undefs;
-}
-
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
     std::set<std::string> sorted_options;
@@ -205,8 +165,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     std::map<std::string, std::vector<batch_program>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
-        std::string full_code = code.kernel_strings->jit + code.kernel_strings->str;
-        full_code += get_undef_jit({full_code});
+        std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
         const source_code org_source_code = { full_code };
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;
@@ -281,14 +240,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 }
 
 kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    int n_threads = _context.get_configuration().n_threads;
-    arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-    arena->initialize(n_threads);
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-    int n_threads = _context.get_configuration().n_threads;
-    pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
-#endif
 }
 
 kernels_cache::kernel_id kernels_cache::set_kernel_source(
@@ -450,6 +401,14 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
         get_program_source(_kernels_code, &batches);
         _one_time_kernels.clear();
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+        int n_threads = _context.get_configuration().n_threads;
+        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
+        arena->initialize(n_threads);
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+        int n_threads = _context.get_configuration().n_threads;
+        pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
+#endif
     }
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
@@ -479,6 +438,22 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
         _kernels_code.clear();
         _pending_compilation = false;
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+        arena.reset();
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+        malloc_trim(0);
+#endif
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+        pool.reset();
+#if defined(__unix__) && !defined(__ANDROID__)
+        malloc_trim(0);
+#endif
+#endif
     }
 }
 

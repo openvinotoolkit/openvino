@@ -46,6 +46,6 @@ namespace ngraph
                 static constexpr int UPDATES = 2;
                 static constexpr int AXIS = 3;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

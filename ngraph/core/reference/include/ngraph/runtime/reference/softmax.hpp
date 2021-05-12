@@ -44,6 +44,6 @@ namespace ngraph
 
                 delete[] temp_ptr;
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

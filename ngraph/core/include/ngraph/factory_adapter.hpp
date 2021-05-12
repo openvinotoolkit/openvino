@@ -51,4 +51,4 @@ namespace ngraph
     protected:
         std::shared_ptr<BASE_TYPE>& m_ref;
     };
-}
+} // namespace ngraph

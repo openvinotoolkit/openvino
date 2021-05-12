@@ -82,17 +82,17 @@ Computation algorithm for mode *xnor-popcount*:
   
 **Inputs**:
 
-*   **1**: Input tensor of type *T1* and rank 4. Layout is NCYX (number of batches, number of channels, spatial axes Y, X). Required.
-*   **2**: Kernel tensor of type *T2* and rank 4. Layout is OIYX (number of output channels, number of input channels, spatial axes Y, X). Required.
+*   **1**: Input tensor of type *T1* and rank 4. Layout is `[N, C_IN, Y, X]` (number of batches, number of channels, spatial axes Y, X). Required.
+*   **2**: Kernel tensor of type *T2* and rank 4. Layout is `[C_OUT, C_IN, Y, X]` (number of output channels, number of input channels, spatial axes Y, X). Required.
 *   **Note**: Interpretation of tensor values is defined by *mode* attribute.
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T3* and rank 4. Layout is NOYX (number of batches, number of kernel output channels, spatial axes Y, X).
+*   **1**: Output tensor of type *T3* and rank 4. Layout is `[N, C_OUT, Y, X]` (number of batches, number of kernel output channels, spatial axes Y, X).
   
 **Types**:
 
-* *T1*: floating point type with values `0` or `1`.
+* *T1*: any numeric type with values `0` or `1`.
 * *T2*: `u1` type with binary values `0` or `1`.
 * *T3*: *T1* type with full range of values.
 

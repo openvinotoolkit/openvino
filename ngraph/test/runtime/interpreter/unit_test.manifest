@@ -1,6 +1,4 @@
 fake_quantize_pdpd
-convert_float32_bf16
-convert_bf16_float32
 
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
@@ -65,6 +63,11 @@ INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
+INTERPRETER.gather_v7_4d_indices_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_int8
+INTERPRETER.gather_v7_axis_0_int16
+INTERPRETER.gather_v7_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_uint16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 

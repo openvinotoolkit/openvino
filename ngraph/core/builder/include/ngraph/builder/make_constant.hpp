@@ -121,5 +121,5 @@ namespace ngraph
         ///
         std::shared_ptr<Node>
             make_constant_from_double(const element::Type& type, const Shape& shape, double num);
-    }
-}
+    } // namespace builder
+} // namespace ngraph

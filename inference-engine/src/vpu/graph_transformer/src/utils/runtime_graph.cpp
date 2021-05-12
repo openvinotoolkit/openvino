@@ -80,7 +80,7 @@ InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, cons
         if (stageMeta.stageType == "Input") {
             params.emplace_back(std::make_shared<ngraph::op::Parameter>());
             node = params.back();
-        } else if (stageMeta.childsNum == 0) {
+        } else if (stageMeta.childrenNum == 0) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(inputs.back()));
             node = results.back();
         } else {

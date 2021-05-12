@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include <format_reader.h>
-#include "bmp.h"
+
+#include <iostream>
+
 #include "MnistUbyte.h"
-#include "opencv_wraper.h"
+#include "bmp.h"
+#include "opencv_wrapper.h"
 
 using namespace FormatReader;
 
@@ -19,11 +21,13 @@ Register<OCVReader> OCVReader::reg;
 Register<BitMap> BitMap::reg;
 #endif
 
-Reader *Registry::CreateReader(const char *filename) {
+Reader* Registry::CreateReader(const char* filename) {
     for (auto maker : _data) {
-        Reader *ol = maker(filename);
-        if (ol != nullptr && ol->size() != 0) return ol;
-        if (ol != nullptr) delete ol;
+        Reader* ol = maker(filename);
+        if (ol != nullptr && ol->size() != 0)
+            return ol;
+        if (ol != nullptr)
+            delete ol;
     }
     return nullptr;
 }
@@ -32,6 +36,6 @@ void Registry::RegisterReader(CreatorFunction f) {
     _data.push_back(f);
 }
 
-FORMAT_READER_API(Reader*) CreateFormatReader(const char *filename) {
+FORMAT_READER_API(Reader*) CreateFormatReader(const char* filename) {
     return Registry::CreateReader(filename);
 }

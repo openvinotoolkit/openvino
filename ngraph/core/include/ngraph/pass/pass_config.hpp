@@ -183,5 +183,5 @@ namespace ngraph
             std::unordered_set<DiscreteTypeInfo> m_disabled;
             std::unordered_set<DiscreteTypeInfo> m_enabled;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph

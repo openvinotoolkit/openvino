@@ -14,7 +14,7 @@ error() {
 }
 trap 'error ${LINENO}' ERR
 
-SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 printf "\nSetting environment variables for building samples...\n"
 

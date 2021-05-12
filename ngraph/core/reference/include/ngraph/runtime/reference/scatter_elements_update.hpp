@@ -48,6 +48,6 @@ namespace ngraph
                     out_buf[data_transform.index(out_cord)] = updates[indices_idx];
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

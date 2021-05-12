@@ -33,7 +33,7 @@ TEST(op_eval, reduce_l1_one_axis_keep_dims)
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{std::vector<size_t>({3, 2, 1})});
     auto result_data = read_vector<float>(result);
-    for (auto i = 0; i < expected_result.size(); i++)
+    for (size_t i = 0; i < expected_result.size(); i++)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
 }
 
@@ -54,6 +54,6 @@ TEST(op_eval, reduce_l1_one_axis_do_not_keep_dims)
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{std::vector<size_t>({3, 2})});
     auto result_data = read_vector<float>(result);
-    for (auto i = 0; i < expected_result.size(); i++)
+    for (size_t i = 0; i < expected_result.size(); i++)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
 }

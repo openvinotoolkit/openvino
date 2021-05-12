@@ -219,4 +219,4 @@ namespace ngraph
              {"bidirectional", op::RecurrentSequenceDirection::BIDIRECTIONAL}});
         return enum_names;
     }
-}
+} // namespace ngraph

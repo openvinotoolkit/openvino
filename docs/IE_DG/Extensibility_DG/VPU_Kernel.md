@@ -17,8 +17,7 @@ OpenCL support is provided by ComputeAorta*, and is distributed under a license 
 
 The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline compilation only, so first compile OpenCL C code using the standalone `clc` compiler. You can find the compiler binary at `<INSTALL_DIR>/deployment_tools/tools/cl_compiler`.
 
-> **NOTE:** By design, custom OpenCL layers support any OpenCL kernels written with 1.2 version assumed. It also supports half float
-extension and is optimized for this type, because it is a native type for Intel® Movidius™ VPUs.
+> **NOTE:** By design, custom OpenCL layers support any OpenCL kernels written with 1.2 version assumed. It also supports half float extension and is optimized for this type, because it is a native type for Intel® Movidius™ VPUs.
 
 1. Prior to running a compilation, make sure that the following variables are set:
    * `SHAVE_MA2X8XLIBS_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/lib/`
@@ -224,7 +223,7 @@ Here is a short list of optimization tips:
 annotate the code with pragmas as appropriate. The `ocl_grn` version with `#&zwj;pragma unroll 4` is up to 50% faster, most of which comes from unrolling the first loop, because LLVM, in general, is better in scheduling 3-stage loops (load-compute-store), while the fist loop
  `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay
 attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that
-still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4`to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel® Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
+still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4` to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel® Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
 ```cpp
 __kernel void ocl_grn(__global const half* restrict src_data, __global half* restrict dst_data, int C, float bias)
 {

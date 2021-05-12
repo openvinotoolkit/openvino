@@ -83,10 +83,10 @@ void MultiplyTransformation::validate() {
         const auto mul = output->get_input_node_shared_ptr(0);
         const std::string typeName = mul->get_type_name();
         ASSERT_EQ("Eltwise", typeName);
-
+        const bool notTransformed = param.expectedPrecisions[0] == param.expectedPrecisions[1];
         for (size_t i = 0; i < param.expectedPrecisions.size(); ++i) {
             const auto curPrecision = mul->get_input_element_type(i);
-            const auto expectedPrecision = param.expectedPrecisions[i];
+            const auto expectedPrecision = notTransformed ? precision : param.expectedPrecisions[i];
             ASSERT_EQ(curPrecision, expectedPrecision);
         }
     }

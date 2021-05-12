@@ -12,7 +12,6 @@
 #include <memory>
 #include <map>
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <ie_plugin_config.hpp>
 
 namespace vpu {

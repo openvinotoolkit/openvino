@@ -253,7 +253,7 @@ namespace scatter_element_update
         }
         return rc;
     }
-}
+} // namespace scatter_element_update
 
 bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
     const HostTensorVector& outputs, const HostTensorVector& inputs) const

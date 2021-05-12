@@ -233,7 +233,7 @@ namespace
             }
         }
     }
-}
+} // namespace
 void runtime::opt_kernel::reshape(const char* in,
                                   char* out,
                                   const Shape& in_shape,

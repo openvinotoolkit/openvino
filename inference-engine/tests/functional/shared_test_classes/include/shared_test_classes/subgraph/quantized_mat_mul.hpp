@@ -13,12 +13,17 @@
 
 namespace SubgraphTestsDefinitions {
 
+typedef std::pair<float, float> QuantRange;
+
 typedef std::tuple<
         size_t,
+        QuantRange,
+        QuantRange,
         ngraph::helpers::QuantizationGranularity,
         InferenceEngine::Precision> QuantParams;
 
 typedef std::tuple<
+        QuantParams,
         QuantParams,
         InferenceEngine::Precision,
         InferenceEngine::SizeVector,

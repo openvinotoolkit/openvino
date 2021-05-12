@@ -63,7 +63,7 @@ namespace ngraph
             ///
             Output<ngraph::Node>
                 reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                    size_t expected_rank);
+                                                    const Output<ngraph::Node>& expected_rank);
 
         } // namespace  reshape
     }     // namespace onnx_import

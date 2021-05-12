@@ -79,7 +79,7 @@ namespace ngraph
                                            const Output<Node>& reduction_axes,
                                            bool keep_dims = false,
                                            bool bessel_correction = false);
-        }
+        } // namespace opset1
 
     } // namespace builder
 } // namespace ngraph

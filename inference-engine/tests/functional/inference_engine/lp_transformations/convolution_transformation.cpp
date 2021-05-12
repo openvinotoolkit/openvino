@@ -382,6 +382,46 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
+    // incorrect zero point on activations [not transformed]
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, { 1000.f }, { {0.02f}, element::f32 }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, { 1000.f }, { {0.02f}, element::f32 }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            ngraph::element::f32,
+            {}
+        }
+    },
+    // incorrect zero point on weights [not transformed, weights folded]
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, {}, { {0.02f}, element::f32 }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { 5.f }, { 6.f } }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, {}, { {0.02f}, element::f32 }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 5.f }),
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

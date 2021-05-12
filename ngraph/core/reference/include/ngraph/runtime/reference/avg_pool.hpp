@@ -177,6 +177,13 @@ namespace ngraph
                             input_batch_transform_start[i] + window_shape_this_dim;
                         input_batch_transform_padding_below[i] = padding_below[i - 2];
                         input_batch_transform_padding_above[i] = padding_above[i - 2];
+                        // If a window (kernel) is out of arg shape bounds, trim it to fit
+                        auto padded_upper_bound =
+                            arg_shape[i] + padding_below[i - 2] + padding_above[i - 2];
+                        if (input_batch_transform_end[i] > padded_upper_bound)
+                        {
+                            input_batch_transform_end[i] = padded_upper_bound;
+                        }
                     }
 
                     for (size_t i = 0; i < arg_shape.size(); i++)
@@ -204,6 +211,20 @@ namespace ngraph
                     T result = 0;
                     size_t n_elements = 0;
 
+                    // The below conditions are to provide conformance between the ref and plugins:
+                    // If exclude_padding is disabled (include_padding... enabled), then:
+                    // The size of window doesn't change even if the window was clipped to fit the
+                    // input, number of elements will be equal to window_size.width *
+                    // window_size.height. The exception from this rule is if padding is not
+                    // present, then window size is calculated each time.
+
+                    auto padding_present = padding_below[0] != 0 || padding_below[1] != 0 ||
+                                           padding_above[0] != 0 || padding_above[1] != 0;
+
+                    if (include_padding_in_avg_computation && padding_present)
+                    {
+                        n_elements = shape_size(window_shape);
+                    }
                     for (const Coordinate& input_batch_coord : input_batch_transform)
                     {
                         bool in_bounds =
@@ -214,7 +235,11 @@ namespace ngraph
                             T v = in_bounds ? arg[input_batch_transform.index(input_batch_coord)]
                                             : static_cast<T>(0);
                             result += v;
-                            n_elements++;
+                            if (!padding_present ||
+                                (in_bounds && !include_padding_in_avg_computation))
+                            {
+                                n_elements++;
+                            }
                         }
                     }
 
@@ -235,6 +260,6 @@ namespace ngraph
                     std::fesetround(old_mode);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

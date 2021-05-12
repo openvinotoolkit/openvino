@@ -17,7 +17,7 @@ public:
                                 const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult);
 
-    ~MyriadAsyncInferRequest() override;
+    ~MyriadAsyncInferRequest();
 private:
     MyriadInferRequest::Ptr _request;
     InferenceEngine::ITaskExecutor::Ptr _taskExecutorGetResult;

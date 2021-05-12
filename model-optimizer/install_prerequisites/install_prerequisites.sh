@@ -35,7 +35,7 @@ for ((i=1;i <= $#;i++)) {
         esac
 }
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"

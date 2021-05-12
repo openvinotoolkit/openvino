@@ -13,7 +13,6 @@
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 namespace MKLDNNPlugin {
@@ -21,16 +20,20 @@ namespace MKLDNNPlugin {
 using namespace InferenceEngine;
 
 Config::Config() {
-#if (defined(__APPLE__) || defined(_WIN32))
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 11100)
-    // If we sure that TBB has NUMA aware API part.
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-#else
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
-#endif
-#else
+    // this is default mode
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
-#endif
+
+    // for the TBB code-path, additional configuration depending on the OS and CPU types
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        #if defined(__APPLE__) || defined(_WIN32)
+        // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        #endif
+
+        if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
+        }
+    #endif
 
     if (!with_cpu_x86_bfloat16())
         enforceBF16 = false;
@@ -95,12 +98,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_avx512_core())
+                if (with_cpu_x86_avx512_core()) {
                     enforceBF16 = true;
-                else
+                    manualEnforceBF16 = true;
+                } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
+                }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
+                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
@@ -126,6 +132,9 @@ void Config::updateProperties() {
             break;
             case IStreamsExecutor::ThreadBindingType::NUMA:
                 _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
+            break;
+            case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
             break;
         }
         if (collectPerfCounters == true)

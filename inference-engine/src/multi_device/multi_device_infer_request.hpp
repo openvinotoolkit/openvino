@@ -14,12 +14,13 @@
 #include <utility>
 #include <memory>
 #include <string>
-
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <cpp/ie_executable_network.hpp>
+#include <cpp/ie_infer_request.hpp>
 
 namespace MultiDevicePlugin {
 
-class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
+class MultiDeviceInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,

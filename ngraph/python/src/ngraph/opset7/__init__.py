@@ -37,7 +37,9 @@ from ngraph.opset1.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
 from ngraph.opset1.ops import detection_output
+from ngraph.opset7.ops import dft
 from ngraph.opset1.ops import divide
+from ngraph.opset7.ops import einsum
 from ngraph.opset1.ops import elu
 from ngraph.opset3.ops import embedding_bag_offsets_sum
 from ngraph.opset3.ops import embedding_bag_packed_sum
@@ -64,6 +66,7 @@ from ngraph.opset5.ops import gru_sequence
 from ngraph.opset1.ops import hard_sigmoid
 from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
+from ngraph.opset7.ops import idft
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
@@ -120,6 +123,7 @@ from ngraph.opset3.ops import rnn_cell
 from ngraph.opset5.ops import rnn_sequence
 from ngraph.opset3.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
+from ngraph.opset7.ops import roll
 from ngraph.opset5.ops import round
 from ngraph.opset3.ops import scatter_elements_update
 from ngraph.opset3.ops import scatter_update

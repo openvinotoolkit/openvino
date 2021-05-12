@@ -38,7 +38,7 @@ def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
         'in': in_port,
         'out': src_port,
         # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
+        'fw_tensor_debug_info': [(src_node_id, tensor_name)],
         'in_attrs': ['in', 'control_flow_edge', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info'],

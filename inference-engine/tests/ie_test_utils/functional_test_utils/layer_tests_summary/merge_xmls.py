@@ -1,17 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import xml.etree.ElementTree as ET
 import argparse
 import os
-from datetime import datetime
-import logging
 import glob
 
-logging.basicConfig()
-logger = logging.getLogger('XmlMerger')
-logger.setLevel(logging.INFO)
+import xml.etree.ElementTree as ET
 
+from utils import utils
+
+logger = utils.get_logger('XmlMerger')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -21,22 +19,9 @@ def parse_arguments():
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default="")
+    parser.add_argument("-f", "--output_filename", help=output_folders_help, default="report")
+
     return parser.parse_args()
-
-
-def update_passrates(results: ET.SubElement):
-    for device in results:
-        for op in device:
-            passed_tests = 0
-            total_tests = 0
-            for attrib in op.attrib:
-                if attrib == "passrate":
-                    continue
-                if attrib == "passed":
-                    passed_tests = int(op.attrib.get(attrib))
-                total_tests += int(op.attrib.get(attrib))
-            passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
-            op.set("passrate", str(round(passrate, 1)))
 
 
 def aggregate_test_results(results: ET.SubElement, xml_reports: list):
@@ -57,6 +42,8 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
                     if device_results.find(op.tag) is not None:
                         entry = device_results.find(op.tag)
                         for attr_name in device_results.find(op.tag).attrib:
+                            if attr_name == "passrate":
+                                continue
                             xml_value = int(op.attrib.get(attr_name))
                             aggregated_value = int(entry.attrib.get(attr_name))
                             device_results.find(entry.tag).set(attr_name, str(xml_value + aggregated_value))
@@ -65,7 +52,7 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     return timestamp
 
 
-def merge_xml(input_folder_paths: list, output_folder_paths: str):
+def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str):
     logger.info(f" Processing is finished")
 
     summary = ET.Element("report")
@@ -80,7 +67,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
             logger.error(f" {folder_path} is not a directory!")
             continue
 
-        xml_reports = glob.glob(os.path.join(folder_path, '**/report*.xml'))
+        xml_reports = glob.glob(os.path.join(folder_path, 'report*.xml'))
 
         xml_root = ET.parse(xml_reports[0]).getroot()
         for op in xml_root.find("ops_list"):
@@ -88,13 +75,13 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
                 ET.SubElement(ops_list, op.tag)
 
         timestamp = aggregate_test_results(results, xml_reports)
-        update_passrates(results)
+        utils.update_passrates(results)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 
         if not os.path.exists(output_folder_paths):
             os.mkdir(output_folder_paths)
-        out_file_path = os.path.join(output_folder_paths, "report.xml")
+        out_file_path = os.path.join(output_folder_paths, f'{output_filename}.xml')
         with open(out_file_path, "w") as xml_file:
             xml_file.write(ET.tostring(summary).decode('utf8'))
             logger.info(f" Final report is saved to file: '{out_file_path}'")
@@ -102,4 +89,4 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
 
 if __name__ == "__main__":
     arguments = parse_arguments()
-    merge_xml(arguments.input_folders, arguments.output_folder)
+    merge_xml(arguments.input_folders, arguments.output_folder, arguments.output_filename)

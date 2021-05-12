@@ -69,16 +69,6 @@ onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
 onnx_top_k_opset_11_const_k_smallest_negative_axis
-split_1d
-split_2d_axis_0
-split_2d_axis_1
-split_3d_axis_0
-split_3d_axis_1
-split_3d_axis_2
-split_4d_axis_0
-split_4d_axis_1
-split_4d_axis_2
-split_4d_axis_3
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
@@ -88,7 +78,7 @@ onnx_model_conv_transpose_w_groups
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 onnx_model_global_lp_pool_p0
-onnx_model_mod
+onnx_model_mod_sign_i64
 onnx_model_constant_of_shape_float_zeros
 onnx_model_constant_of_shape_int_ones
 ab_plus_c_inference
@@ -565,10 +555,6 @@ quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
 
-# Incorrect precision bf16!
-convert_float32_bf16
-convert_bf16_float32
-
 # [nGraph upgrade pass] Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis.
 softmax_dynamic_axes
 softmax_all
@@ -588,6 +574,10 @@ greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
+
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -880,11 +870,10 @@ broadcast_algo_matrix_stride_3
 
 # Cannot find blob with name: Parameter_1
 dyn_group_convolution_backprop_data
-dynamic_transpose
-transpose
 
-# Failing from new reason after unblocking more Blob types
+# todo: check negative indices implementation
 gather_2d_negative_and_positive_indices_axis_0_2d_input
+# Failing from new reason after unblocking more Blob types
 gather_axis_0_int8
 gather_axis_0_uint8
 gather_axis_0_uint32
@@ -899,6 +888,14 @@ divide_cpp_rounding_int32
 divide_python_rounding_int32
 convert_int32_bool
 lesseq_int32
+
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
 
 # Uncategorized
 convolution_2d_1item
@@ -1060,7 +1057,7 @@ rnn_cell_zero_bias_default_attrs
 # Activation function hardsigmoid is not supported
 gru_cell_hardsigmoid_activation_function
 
-# Roll is not implemented yet for CPU, GPU 
+# Roll is not implemented yet for CPU, GPU
 roll_2d_input
 roll_2d_input_negative_shift
 roll_repeated_axes
@@ -1156,12 +1153,49 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_input
 IE_CPU.onnx_model_reduce_sum_13_input_dynamic
 IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
 IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+IE_CPU.transpose_axes_parameter_static_shapes
+IE_CPU.transpose_axes_parameter_dynamic_shapes
 
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
+
+# DFT is not implemented yet in plugins
+IE_CPU.dft1d_eval
+IE_CPU.dft2d_eval
+IE_CPU.dft3d_eval
+IE_CPU.dft1d_eval_i32
+IE_CPU.dft2d_eval_i32
+IE_CPU.dft3d_eval_i32
+IE_CPU.dft1d_signal_size_eval
+IE_CPU.dft1d_eval_bfloat16
+IE_CPU.dft2d_eval_bfloat16
+IE_CPU.dft3d_eval_bfloat16
+IE_CPU.dft1d_eval_float16
+IE_CPU.dft2d_eval_float16
+IE_CPU.dft3d_eval_float16
+IE_CPU.dft1d_eval_1
+IE_CPU.dft2d_eval_1
+IE_CPU.dft3d_eval_1
+
+# IDFT is not implemented yet in plugins
+IE_CPU.idft1d_eval
+IE_CPU.idft2d_eval
+IE_CPU.idft3d_eval
+IE_CPU.idft1d_eval_i32
+IE_CPU.idft2d_eval_i32
+IE_CPU.idft3d_eval_i32
+IE_CPU.idft1d_eval_bfloat16
+IE_CPU.idft2d_eval_bfloat16
+IE_CPU.idft3d_eval_bfloat16
+IE_CPU.idft1d_eval_float16
+IE_CPU.idft2d_eval_float16
+IE_CPU.idft3d_eval_float16
+IE_CPU.idft1d_eval_1
+IE_CPU.idft2d_eval_1
+IE_CPU.idft3d_eval_1
 
 #-------------------------------------------------------------------------------
 #
@@ -1582,6 +1616,33 @@ evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
+# not yet implemented on CPU/GPU Gather 7
+gather_v7_1d_int32
+gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
+gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
+gather_v7_3d_indices_axis_1_batch_dims_1
+gather_v7_4d_indices_axis_0_uint8
+gather_v7_4d_indices_axis_0_2d_input
+gather_v7_3d_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_0_2d_input
+gather_v7_2d_negative_and_positive_indices_axis_0_2d_input
+gather_v7_1d_indices_axis_0_1d_input
+gather_v7_scalar_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_1_2d_input
+gather_v7_1d_indices_axis_2_4d_input
+gather_v7_scalar_indices_axis_1_2d_input
+gather_v7_axis_0_int8
+gather_v7_axis_0_int16
+gather_v7_axis_0_int32
+gather_v7_axis_0_int64
+gather_v7_axis_0_uint8
+gather_v7_axis_0_uint16
+gather_v7_axis_0_uint32
+gather_v7_axis_0_uint64
+gather_v7_axis_0_bool
+gather_v7_3d_indices_axis_1_batch_dims_1_int32
+gather_v7_4d_data_axis_2_batch_dims_1_int32
+
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel
 bin_convolution_2D_1batch_1channel_padding_pad_val_0
@@ -1598,3 +1659,14 @@ onnx_upsample6_dynamic
 
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
+
+# DeformableConvolution groups attribute: ticket 53312
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups

@@ -19,7 +19,7 @@ public:
 
 protected:
     virtual bool Validate(const Params&, const optional_params&) const { return true; }
-    std::string CreateJit(const std::string& template_name,
+    std::pair<std::string, std::string> CreateJit(const std::string& template_name,
                           const JitConstants& constants,
                           const std::string& kernel_name) const;
     std::string GetEntryPoint(const std::string& templateName,
@@ -30,7 +30,7 @@ protected:
                           bool use_bias,
                           uint32_t number_of_inputs_for_fused_prim = 0) const;
     std::shared_ptr<KernelString> GetKernelString(const std::string& kernel_name,
-                                                  const std::string& jit,
+                                                  const std::pair<std::string, std::string>& jit,
                                                   const std::string& entry_point,
                                                   const EngineInfo& engine_info,
                                                   const std::string& exe_mode = DEFAULT) const;
@@ -41,7 +41,7 @@ protected:
                           const CommonDispatchData& dispatchData,
                           const EngineInfo& engine_info,
                           const std::string& kernel_map_name,
-                          const std::string& jit,
+                          const std::pair<std::string, std::string>& jit,
                           const std::string& entry_point,
                           const std::string& exe_mode = DEFAULT,
                           bool weights = false,

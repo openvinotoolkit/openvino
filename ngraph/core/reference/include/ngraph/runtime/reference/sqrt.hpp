@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <type_traits>
 
 namespace ngraph
 {
@@ -14,13 +15,23 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void sqrt(const T* arg, T* out, size_t count)
+            typename std::enable_if<!std::is_integral<T>::value>::type
+                sqrt(const T* arg, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = std::sqrt(arg[i]);
                 }
             }
-        }
-    }
-}
+            template <typename T>
+            typename std::enable_if<std::is_integral<T>::value>::type
+                sqrt(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = static_cast<T>(std::round(std::sqrt(arg[i])));
+                }
+            }
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

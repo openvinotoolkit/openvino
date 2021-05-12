@@ -116,7 +116,7 @@ namespace ngraph
                             const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
 
                             const auto cc = sc - padding_begin[i];
-                            if (0 <= cc && cc < data_shape[i])
+                            if (0 <= cc && cc < static_cast<std::ptrdiff_t>(data_shape[i]))
                             {
                                 coord[i] = cc;
                             }
@@ -207,7 +207,7 @@ namespace ngraph
 
                     int axis_correction{};
                 };
-            }
+            } // namespace
 
             void pad(const char* data,
                      const char* pad_value,

@@ -74,7 +74,7 @@ TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPluginRelatedResults(executableNetwork, "SoftMax");
+    CheckPluginRelatedResults(executableNetwork, "Softmax");
 }
 
 namespace {

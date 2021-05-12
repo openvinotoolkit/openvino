@@ -82,7 +82,7 @@ void NormalizeL2Transformation::validate() {
     ASSERT_EQ("NormalizeIE", typeName);
 
     const auto inputPrecision = normalize->get_input_element_type(0);
-    const auto expectedPrecision = shift ? ngraph::element::f32 : ngraph::element::u8;
+    const auto expectedPrecision = shift ? precision : ngraph::element::u8;
     ASSERT_EQ(inputPrecision, expectedPrecision);
 }
 

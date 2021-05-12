@@ -40,6 +40,6 @@ namespace ngraph
             private:
                 size_t m_batch_dims;
             };
-        }
-    }
-}
+        } // namespace v5
+    }     // namespace op
+} // namespace ngraph

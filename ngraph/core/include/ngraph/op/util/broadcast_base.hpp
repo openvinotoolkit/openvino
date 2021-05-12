@@ -88,6 +88,6 @@ namespace ngraph
 
                 Shape get_target_shape(const HostTensorPtr& input1) const;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

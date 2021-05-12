@@ -111,11 +111,13 @@ protected:
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Elt_sum"] = "BF16";
+        expectedPrecisions["Elt_sum"] = "ndef";
     }
 };
 
 TEST_P(ConvAdd, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

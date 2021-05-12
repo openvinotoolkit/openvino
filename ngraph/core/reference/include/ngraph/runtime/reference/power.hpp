@@ -39,6 +39,6 @@ namespace ngraph
                         return std::pow(x, y);
                     });
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

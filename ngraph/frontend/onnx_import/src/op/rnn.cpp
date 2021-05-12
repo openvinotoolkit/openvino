@@ -38,7 +38,7 @@ namespace ngraph
 
                         virtual ~RNNAttributes() = default;
                     };
-                }
+                } // namespace
 
                 OutputVector rnn(const Node& node)
                 {

@@ -7,9 +7,7 @@
 #include <gmock/gmock.h>
 
 #include "ie_common.h"
-#include "cpp_interfaces/exception2status.hpp"
 
-// TODO: cover <cpp_interfaces/exception2status.hpp> and <details/ie_exception_conversion.hpp> from
 //  tests/unit/inference_engine/exception_test.cpp
 
 TEST(ExceptionTests, CanThrowUsingMacro) {
@@ -56,15 +54,6 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
 
 TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
     ASSERT_THROW(IE_THROW(), std::exception);
-}
-
-TEST(ExceptionTests, CanThrowStatusCode) {
-    try {
-        IE_THROW(InferNotStarted);
-    }
-    catch (const InferenceEngine::InferNotStarted& iex) {
-        ASSERT_EQ(InferenceEngine::ExceptionToStatus(iex), InferenceEngine::StatusCode::INFER_NOT_STARTED);
-    }
 }
 
 #ifdef    NDEBUG  // disabled for debug as macros calls assert()

@@ -16,6 +16,8 @@ using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                     const InferenceEngine::InputsDataMap&          inputInfoMap,
+                                                     const InferenceEngine::OutputsDataMap&         outputsInfoMap,
                                                      const Configuration&                           cfg,
                                                      const Plugin::Ptr&                             plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr), // Disable default threads creation
@@ -25,14 +27,14 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(function);
+        CompileNetwork(function, inputInfoMap, outputsInfoMap);
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -64,6 +66,8 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
 
     // TODO: implement Import / Export of configuration options and merge with `cfg`
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+    InferenceEngine::InputsDataMap inputInfoMap;
+    InferenceEngine::OutputsDataMap outputInfoMap;
 
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
@@ -72,27 +76,31 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     SetPointerToPlugin(_plugin->shared_from_this());
 
     try {
-        CompileNetwork(cnnnetwork.getFunction());
+        CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_import_stream]
 
 // ! [executable_network:map_graph]
 // forward declaration
-std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                   const InferenceEngine::InputsDataMap & inputInfoMap,
+                                                   const InferenceEngine::OutputsDataMap& outputsInfoMap);
 
-void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                       const InferenceEngine::InputsDataMap & inputInfoMap,
+                                                       const InferenceEngine::OutputsDataMap& outputsInfoMap) {
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
 
     // apply plugins transformations
-    _function = TransformNetwork(function);
+    _function = TransformNetwork(function, inputInfoMap, outputsInfoMap);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
@@ -131,21 +139,17 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 
 
 // ! [executable_network:create_infer_request_impl]
-InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                      InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<TemplateInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    InferenceEngine::IInferRequest::Ptr asyncRequest;
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl));
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
 }
 // ! [executable_network:create_infer_request]
 

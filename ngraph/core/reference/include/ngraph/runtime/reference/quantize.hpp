@@ -103,6 +103,6 @@ namespace ngraph
                     output[input_transform.index(input_coord)] = static_cast<QUANT>(qvalue);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

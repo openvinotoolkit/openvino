@@ -12,4 +12,4 @@ namespace ngraph
     {
         AxisSet extract_reduction_axes(const HostTensorPtr& axes, const char* op_name);
     }
-}
+} // namespace ngraph

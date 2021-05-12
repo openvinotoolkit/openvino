@@ -81,7 +81,7 @@ class LoopExtractor(FrontExtractorOp):
                     'out': src_port,
                     'in': dst_port,
                     'name': inp,
-                    'fw_tensor_debug_info': [(src_id, dst_port, inp)],
+                    'fw_tensor_debug_info': [(src_id, inp)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
@@ -136,7 +136,7 @@ class LoopExtractor(FrontExtractorOp):
             main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
                                                            'in': next_loop_input_port_idx,
                                                            'name': src_node,
-                                                           'fw_tensor_debug_info': [(src_node, next_loop_input_port_idx, tensor_name)],
+                                                           'fw_tensor_debug_info': [(src_node, tensor_name)],
                                                            'in_attrs': ['in', 'name'],
                                                            'out_attrs': ['out', 'name'],
                                                            'data_attrs': ['fw_tensor_debug_info']}

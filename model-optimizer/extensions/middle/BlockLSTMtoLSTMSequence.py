@@ -90,7 +90,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         time_len = match['concatenated_hidden_states'].shape[0]
-        """
+        r"""
         Working with concatenated_cell_states_data part first, because IE TensorIterator primitive doesn't have
         concatenated cell states output and if we can not collapse it, then we does not support this type of BlockLSTM
 

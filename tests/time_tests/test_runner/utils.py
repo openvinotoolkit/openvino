@@ -5,6 +5,7 @@
 
 import os
 import platform
+import subprocess
 import sys
 import distro
 import yaml
@@ -76,7 +77,7 @@ def filter_timetest_result(stats: dict):
         iqr, q1, q3 = calculate_iqr(time_results)
         cut_off = iqr * IQR_CUTOFF
         upd_time_results = [x for x in time_results if (q1 - cut_off < x < q3 + cut_off)]
-        filtered_stats.update({step_name: upd_time_results})
+        filtered_stats.update({step_name: upd_time_results if upd_time_results else time_results})
     return filtered_stats
 
 
@@ -150,3 +151,26 @@ def get_os_version():
     if os_type_is_darwin():
         return tuple(platform.mac_ver()[0].split(".")[:2])
     raise UnsupportedOsError()
+
+
+def get_cpu_info():
+    """
+    Check OS version and returns name and frequency of cpu
+
+    :return: CPU name and frequency
+    :rtype: str
+    """
+    model = ''
+    if os_type_is_linux():
+        command = r"lscpu | sed -n 's/Model name:[ \t]*//p'"
+        model = subprocess.check_output(command, shell=True)
+    elif os_type_is_windows():
+        command = 'wmic cpu get name | find /v "Name"'
+        model = subprocess.check_output(command, shell=True)
+    elif os_type_is_darwin():
+        command = ['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]
+        model = subprocess.check_output(command)
+    else:
+        raise UnsupportedOsError()
+    info = model.decode('utf-8').strip()
+    return info

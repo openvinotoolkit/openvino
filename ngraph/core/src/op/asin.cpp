@@ -67,7 +67,7 @@ namespace asinop
         }
         return rc;
     }
-}
+} // namespace asinop
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

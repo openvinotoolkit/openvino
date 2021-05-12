@@ -48,7 +48,7 @@ namespace ngraph
                 bool m_transpose_a;
                 bool m_transpose_b;
             };
-        }
+        } // namespace v0
         using v0::MatMul;
     } // namespace op
 } // namespace ngraph

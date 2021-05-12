@@ -38,6 +38,6 @@ namespace ngraph
                 uint64_t m_axis{0};
                 element::Type m_index_element_type;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

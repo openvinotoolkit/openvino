@@ -11,10 +11,14 @@
 #include <cassert>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include <ngraph/op/shuffle_channels.hpp>
+#include "common/tensor_desc_creator.h"
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class ShuffleChannelsImpl: public ExtLayerBase {
 #define CNTR_SIZE 3
@@ -50,65 +54,67 @@ __inline size_t updater(size_t idx, size_t size, size_t* counters, size_t* own_d
 }
 
 public:
-    explicit ShuffleChannelsImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            auto scOp = ngraph::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+            if (!scOp) {
+                errorMessage = "Node is not an instance of the TopK from the operations set v1.";
+                return false;
+            }
 
-            SizeVector src_dims = layer->insData[0].lock()->getTensorDesc().getDims();
-            SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
-            if (src_dims.size() != dst_dims.size())
-                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
+            if (_supported_precisions_sizes.find(op->get_input_element_type(0).size()) == _supported_precisions_sizes.end()) {
+                errorMessage = "Unsupported precision: " + op->get_input_element_type(0).get_type_name();
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            const auto precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
-            if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-                IE_THROW() << layer->name << "has unsupported precision: " << precision.name();
+    explicit ShuffleChannelsImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            auto scOp = ngraph::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+            auto& dstDims = op->get_output_shape(0);
 
-            int axis = layer->GetParamAsInt("axis", 1);
+            int64_t axis = scOp->get_axis();
             if (axis < 0)
-                axis += dst_dims.size();
+                axis += dstDims.size();
 
-            if (axis < 0 || axis >= static_cast<int>(dst_dims.size()))
-                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
+            if (axis < 0 || axis >= static_cast<int64_t>(dstDims.size()))
+                IE_THROW() << op->get_friendly_name() << " Incorrect input parameters dimensions and axis number!";
 
-            size_t group = layer->GetParamAsUInt("group", 1);
-            if (group == 0 || dst_dims[axis] % group)
-                IE_THROW() << layer->name << " Group parameter must evenly divide the channel dimension!";
+            size_t group = scOp->get_group();
+            if (group == 0 || dstDims[axis] % group)
+                IE_THROW() << op->get_friendly_name() << " Group parameter must evenly divide the channel dimension!";
 
             //  Find number of dictionaries, index range and data length
             own_dims[0] = 1;
             for (int i = 0; i < axis; i++)
-                own_dims[0] *= dst_dims[i];
+                own_dims[0] *= dstDims[i];
 
-            for (size_t i = axis + 1; i < dst_dims.size(); i++)
-                dataLength *= dst_dims[i];
+            for (size_t i = axis + 1; i < dstDims.size(); i++)
+                dataLength *= dstDims[i];
 
             if (dataLength == 0)
-                IE_THROW() << layer->name << " Incorrect input parameters dimension!";
+                IE_THROW() << op->get_friendly_name() << " Incorrect input parameters dimension!";
 
-            own_dims[1] = dst_dims[axis] / group;
+            own_dims[1] = dstDims[axis] / group;
             own_dims[2] = group;
-            ownStrides[0] = dst_dims[axis];
+            ownStrides[0] = dstDims[axis];
             ownStrides[1] = 1;
             ownStrides[2] = own_dims[1];
             work_amount_dst = ownStrides[0] * own_dims[0];
 
-            LayerConfig config;
-            DataConfig inConfig;
-            inConfig.desc = layer->insData[0].lock()->getTensorDesc();
-
-            config.inConfs.push_back(inConfig);
-
-            DataConfig outConfig;
-            outConfig.desc = layer->outData[0]->getTensorDesc();
-            outConfig.desc.setPrecision(inConfig.desc.getPrecision());
-            outConfig.desc.setLayout(inConfig.desc.getLayout());
-            config.outConfs.push_back(outConfig);
-
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, details::convertPrecision(op->get_input_element_type(0))}},
+                          {{TensorDescCreatorTypes::ncsp, details::convertPrecision(op->get_input_element_type(0))}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
     }
 
@@ -146,9 +152,9 @@ public:
     template<typename T>
     void process_data(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
         const T* src_data = inputs[0]->cbuffer().as<const T*>() +
-                                inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         T* dst_data = outputs[0]->cbuffer().as<T*>() +
-                          outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                      outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (dataLength > 1) {
             //  Vectorized & Parallel

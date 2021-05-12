@@ -109,7 +109,7 @@ namespace ngraph
         return is_type<Type>(value) ? std::static_pointer_cast<Type>(value)
                                     : std::shared_ptr<Type>();
     }
-}
+} // namespace ngraph
 
 namespace std
 {
@@ -118,4 +118,4 @@ namespace std
     {
         size_t operator()(const ngraph::DiscreteTypeInfo& k) const;
     };
-}
+} // namespace std

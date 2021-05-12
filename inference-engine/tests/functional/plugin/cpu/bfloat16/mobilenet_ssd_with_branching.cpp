@@ -159,6 +159,8 @@ protected:
 };
 
 TEST_P(MobileNet_ssd_with_branching, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

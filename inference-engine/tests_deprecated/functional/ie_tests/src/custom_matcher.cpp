@@ -103,7 +103,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
             ASSERT_NO_FATAL_FAILURE(executableApi = createExecutableNetworkFromIR());
         }
 
-        if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+        if (executableApi) {
             for (int i=0; i != config._nrequests; i++ ) {
                 inferRequests.push_back(executableApi.CreateInferRequest());
             }
@@ -116,7 +116,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
         }
 
         auto make_unified_endpoints = [&] () {
-            if (executableApi.operator IExecutableNetwork::Ptr &() != nullptr) {
+            if (executableApi) {
                 return std::make_pair(executableApi.GetInputsInfo(), executableApi.GetOutputsInfo());
             }
             auto inputs2 = network.getInputsInfo();
@@ -188,7 +188,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                             inferRequests[i].StartAsync();
                         }
                         for (int i = 0; i != requestProcessed; i++) {
-                            inferRequests[i].Wait(IInferRequest::RESULT_READY);
+                            inferRequests[i].Wait(InferRequest::RESULT_READY);
                         }
                         sts = OK;
                     }

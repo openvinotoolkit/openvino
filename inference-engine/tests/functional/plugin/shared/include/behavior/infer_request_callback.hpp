@@ -46,7 +46,7 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
             });
 
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
     ASSERT_TRUE(isCalled);
@@ -71,15 +71,12 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 if (status != InferenceEngine::StatusCode::OK) {
                     data.promise.set_value(status);
                 } else {
                     if (data.numIter.fetch_add(1) != NUM_ITER) {
-                        auto sts = request->StartAsync(nullptr);
-                        if (sts != InferenceEngine::StatusCode::OK) {
-                            data.promise.set_value(sts);
-                        }
+                        request.StartAsync();
                     } else {
                         data.promise.set_value(InferenceEngine::StatusCode::OK);
                     }
@@ -87,7 +84,7 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
             });
     auto future = data.promise.get_future();
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ((int) InferenceEngine::StatusCode::OK, waitStatus);
     future.wait();
     auto callbackStatus = future.get();
@@ -107,7 +104,7 @@ TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 isCalled = true;
             });
     req.Infer();
@@ -122,20 +119,12 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::IInferRequest::Ptr req = static_cast<InferenceEngine::IInferRequest::Ptr &>(execNet.CreateInferRequest());
-    req->SetCompletionCallback(
-            [](InferenceEngine::IInferRequest::Ptr, InferenceEngine::StatusCode status) {
-                IE_THROW() << "returnGeneralErrorIfCallbackThrowException";
-            });
+    auto req = execNet.CreateInferRequest();
+    req.SetCompletionCallback([] {
+        IE_THROW(GeneralError);
+    });
 
-    InferenceEngine::ResponseDesc resp;
-    req->StartAsync(&resp);
-    InferenceEngine::StatusCode waitStatus = InferenceEngine::StatusCode::INFER_NOT_STARTED;
-    while (InferenceEngine::StatusCode::RESULT_NOT_READY == waitStatus ||
-           InferenceEngine::StatusCode::INFER_NOT_STARTED == waitStatus) {
-        waitStatus = req->Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY, &resp);
-    }
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
-    ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
 }  // namespace BehaviorTestsDefinitions

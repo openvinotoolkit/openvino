@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -503,6 +504,10 @@ std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const float& on_val,
                                          const float& off_val,
                                          const int64_t& axis);
+
+std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
+                                       const ngraph::Output<Node>& shiftNode,
+                                       const ngraph::Output<Node>& axesNode);
 
 }  // namespace builder
 }  // namespace ngraph

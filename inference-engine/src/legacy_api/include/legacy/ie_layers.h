@@ -133,9 +133,9 @@ public:
     /**
      * @brief If suggested to fuse - a pointer to the layer which needs to be fused with this layer
      */
-    IE_SUPPRESS_DEPRECATED_START_WIN
+    _IE_SUPPRESS_DEPRECATED_START_MSVC
     Ptr _fusedWith;
-    IE_SUPPRESS_DEPRECATED_END_WIN
+    _IE_SUPPRESS_DEPRECATED_END_MSVC
 
     /**
      * @brief Convenience user values to store in this object as extra data
@@ -182,11 +182,11 @@ public:
      *
      * @param layer Reference to the layer to be fused with
      */
-    IE_SUPPRESS_DEPRECATED_START_WIN
+    _IE_SUPPRESS_DEPRECATED_START_MSVC
     void fuse(Ptr& layer) {
         _fusedWith = layer;
     }
-    IE_SUPPRESS_DEPRECATED_END_WIN
+    _IE_SUPPRESS_DEPRECATED_END_MSVC
 
     /**
      * @brief Returns the first element of the input data for this layer
@@ -301,6 +301,23 @@ public:
     unsigned int GetParamAsUInt(const char* param) const;
 
     /**
+     * @brief Returns an size_t value for the given parameter or returns the default value
+     *
+     * @param param Name of the layer parameter
+     * @param def Default value of the parameter if not found
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param, size_t def) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter
+     *
+     * @param param Name of the layer parameter
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param) const;
+
+    /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
      *
      * @param param Name of the layer parameter
@@ -412,7 +429,7 @@ INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data)
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data);
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data);
 
-IE_SUPPRESS_DEPRECATED_START_WIN
+_IE_SUPPRESS_DEPRECATED_START_MSVC
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
@@ -1953,7 +1970,7 @@ public:
     /**
      * @brief The number of quantization levels
      */
-    int levels = 1;
+    size_t levels = 1;
 
     /**
      * @brief Creates a new QuantizeLayer instance.
@@ -2195,6 +2212,6 @@ public:
     virtual ~ExperimentalDetectronGenerateProposalsSingleImageLayer();
 };
 
-IE_SUPPRESS_DEPRECATED_END_WIN
+_IE_SUPPRESS_DEPRECATED_END_MSVC
 
 }  // namespace InferenceEngine

@@ -72,7 +72,7 @@ namespace
         return op::Constant::create(
             element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
     }
-}
+} // namespace
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -267,15 +267,15 @@ namespace strided_slice
                                                ellipsis_mask);
         return evaluate(in, slice_plan, out);
     }
-}
+} // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 4));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],
                                                  input_values[2],

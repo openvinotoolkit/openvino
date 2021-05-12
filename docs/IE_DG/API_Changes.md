@@ -4,6 +4,10 @@ The sections below contain detailed list of changes made to the Inference Engine
 
 ## 2021.4
 
+### New API
+
+* InferenceEngine::Core::LoadNetwork(modelPath, deviceName, config) simplified API to read and load network in one call
+
 ### Deprecated API
 
  * InferenceEngine::Parameter(const std::shared_ptr<ngraph::Variant>&)

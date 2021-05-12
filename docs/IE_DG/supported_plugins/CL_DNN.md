@@ -16,7 +16,7 @@ For demonstration purposes, see the [Hello Query Device C++ Sample](../../../inf
 
 ```sh
 ./hello_query_device
-Available devices: 
+Available devices:
     Device: CPU
 ...
     Device: GPU.0
@@ -24,7 +24,7 @@ Available devices:
     Device: GPU.1
 ...
     Device: HDDL
-```    
+```
 
 ## Optimizations
 
@@ -41,31 +41,31 @@ Merge of a Convolution layer and any of the simple layers listed below:
 
 > **NOTE**: You can have any number and order of simple layers.
 
-A combination of a Convolution layer and simple layers results in a single fused layer called 
-*Convolution*:    
+A combination of a Convolution layer and simple layers results in a single fused layer called
+*Convolution*:
 ![conv_simple_01]
 
 
 ### Fusing Pooling and FakeQuantize Layers
 
-A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
+A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:
 ![pooling_fakequant_01]
 
 ### Fusing Activation Layers
 
 Given the linear pattern, an Activation layer can be fused into other layers:
-  
+
 ![fullyconnected_activation_01]
 
 
 ### Fusing Convolution and Sum Layers
 
-A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:  
+A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:
 ![conv_sum_relu_01]
 
 ### Fusing a Group of Convolutions
 
-If a topology contains the following pipeline, a GPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:   
+If a topology contains the following pipeline, a GPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:
 > **NOTE**: Parameters of the Convolution layers must coincide.
 
 ![group_convolutions_01]
@@ -104,6 +104,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 | Parameter Name          | Parameter Values                | Default         | Description                                               |
 |---------------------|-----------------------------|-----------------|-----------------------------------------------------------|
+| `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
 | `KEY_PERF_COUNT`      | `YES` / `NO`                    | `NO`              | Collect performance counters during inference             |
 | `KEY_CONFIG_FILE`     | `"<file1> [<file2> ...]"`         | `""`              | Load custom layer configuration files                     |
 | `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers             |

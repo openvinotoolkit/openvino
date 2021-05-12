@@ -7,34 +7,32 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <array>
 #include <memory>
-#include <unordered_map>
+#include <chrono>
 
-#include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
-#include <threading/ie_itask_executor.hpp>
 #include <openvino/itt.hpp>
+
+#include <ie_input_info.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
 #include <ngraph/runtime/tensor.hpp>
 #include <executable.hpp>
 
-#include "template_config.hpp"
-
-
 namespace TemplatePlugin {
 
+// forward declaration
 class ExecutableNetwork;
 
 // ! [infer_request:header]
-class TemplateInferRequest : public InferenceEngine::InferRequestInternal {
+class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
     TemplateInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
                          const InferenceEngine::OutputsDataMap&    networkOutputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
-    ~TemplateInferRequest() override;
+    ~TemplateInferRequest();
 
     void InferImpl() override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;

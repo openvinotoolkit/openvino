@@ -2,24 +2,50 @@
 
 **Versioned name**: *Tanh-1*
 
-**Category**: *Activation function*
+**Category**: *Arithmetic function*
 
-**Short description**: Tanh element-wise activation function.
-
-**Attributes**: has no attributes
-
-**Inputs**:
-
-*   **1**: Input tensor x of any floating point type. Required.
-
-**Outputs**:
-
-*   **1**: Result of Tanh function applied to the input tensor *x*. Floating point tensor with shape and type matching the input tensor.
+**Short description**: *Tanh* performs element-wise hyperbolic tangent (tanh) operation with given tensor.
 
 **Detailed description**
 
-For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 \f[
 tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
 \f]
+
+* For integer element type the result is rounded (half up) to the nearest integer value.
+
+**Attributes**: *Tanh* operation has no attributes.
+
+**Inputs**:
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**:
+
+* **1**: The result of element-wise *Tanh* operation. A tensor of type *T* and the same shape as input tensor.
+**Types**
+
+* *T*: any numeric type.
+
+
+**Examples**
+
+*Example 1*
+
+```xml
+<layer ... type="Tanh">
+    <input>
+        <port id="0">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </output>
+</layer>
+```

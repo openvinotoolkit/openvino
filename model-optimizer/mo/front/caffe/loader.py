@@ -169,7 +169,7 @@ def caffe_pb_to_nx(graph, proto, model):
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
-    blob_producers = {}  # maps layer blob name to the layer name and port
+    blob_producers = {}  # maps layer blob name to node id in graph, port and layer name
     proto_layers = get_layers(proto)
     model_layers = None
     if model:
@@ -239,7 +239,7 @@ def caffe_pb_to_nx(graph, proto, model):
         # Input is defined at the top level of proto instead of distinct Input layer
         graph.add_node(input_name, pb=None, model_pb=None, type='GlobalInput', name=input_name, shape=input_dim,
                        kind='op')
-        blob_producers[input_name] = (input_name, 0)
+        blob_producers[input_name] = (input_name, 0, input_name)
 
     used_blobs = set()
     for i, layer in enumerate(proto_layers):
@@ -280,19 +280,19 @@ def caffe_pb_to_nx(graph, proto, model):
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
-        layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        node_id = graph.unique_id(layer.name)
+        graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            add_edge_caffe(graph, bottom, layer.name, blob_producers, dst_port)
+            add_edge_caffe(graph, bottom, node_id, blob_producers, dst_port)
             used_blobs.add(bottom)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
             if top in blob_producers:
-                log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
-            blob_producers[top] = (layer.name, src_port)
+                log.debug("Detected reuse of blob {} by layer {}".format(top, node_id))
+            blob_producers[top] = (node_id, src_port, layer.name)
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -319,8 +319,8 @@ def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: di
         'out': src_port,
         'in': dst_port,
         'name': bottom,
-        # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
+        # debug anchor for a framework name and tensor name
+        'fw_tensor_debug_info': [(blob_producers[bottom][2], bottom)],
         'in_attrs': ['in', 'name'],
         'out_attrs': ['out', 'name'],
         'data_attrs': ['fw_tensor_debug_info']

@@ -99,7 +99,7 @@ namespace ngraph
                 bool m_exclusive;
                 bool m_reverse;
             };
-        }
+        } // namespace v0
         using v0::CumSum;
-    }
-}
+    } // namespace op
+} // namespace ngraph

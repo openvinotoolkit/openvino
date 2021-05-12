@@ -60,22 +60,54 @@ namespace ngraph
                     const auto converted_results =
                         std::make_shared<default_opset::Convert>(results, input.get_element_type());
 
-                    if (input_shape.is_static())
-                    {
-                        return {ngraph::builder::opset1::reshape(converted_results,
-                                                                 input_shape.to_shape())};
-                    }
-                    else
-                    {
-                        const auto output_shape = std::make_shared<default_opset::ShapeOf>(input);
-                        return {
-                            std::make_shared<default_opset::Reshape>(input, output_shape, false)};
-                    }
+                    const auto output_shape = std::make_shared<default_opset::ShapeOf>(input);
+                    return {std::make_shared<default_opset::Reshape>(
+                        converted_results, output_shape, false)};
                 }
 
             } // namespace set_1
+            namespace set_13
+            {
+                OutputVector hardmax(const Node& node)
+                {
+                    const auto input = node.get_ng_inputs().at(0);
+                    const auto& input_shape = input.get_partial_shape();
 
-        } // namespace op
+                    auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
+                    axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
+
+                    const auto input_runtime_shape =
+                        std::make_shared<default_opset::ShapeOf>(input);
+                    Output<ngraph::Node> row_size = std::make_shared<default_opset::Gather>(
+                        input_runtime_shape,
+                        default_opset::Constant::create(element::i64, {1}, {axis}),
+                        default_opset::Constant::create(element::i64, {}, {0}));
+                    row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
+
+                    const auto topk = std::make_shared<default_opset::TopK>(
+                        input,
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
+                        axis,
+                        default_opset::TopK::Mode::MAX,
+                        default_opset::TopK::SortType::NONE);
+
+                    const auto on_value =
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+                    const auto off_value =
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {0});
+
+                    const auto results = std::make_shared<default_opset::OneHot>(
+                        topk->output(1), row_size, on_value, off_value, axis);
+                    const auto converted_results =
+                        std::make_shared<default_opset::Convert>(results, input.get_element_type());
+
+                    const auto output_shape = std::make_shared<default_opset::ShapeOf>(input);
+                    return {std::make_shared<default_opset::Reshape>(
+                        converted_results, output_shape, false)};
+                }
+
+            } // namespace set_13
+        }     // namespace op
 
     } // namespace onnx_import
 

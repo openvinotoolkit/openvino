@@ -80,6 +80,6 @@ namespace ngraph
                 bool evaluate_pad(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

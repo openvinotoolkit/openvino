@@ -20,17 +20,19 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST};
+        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+};
 
 const std::vector<std::vector<size_t >> inputShapesBS2 = {
         {1, 4, 1, 1}, {1, 4, 2, 2}, {1, 4, 3, 3}, {2, 32, 3, 3}, {2, 16, 5, 4},
-        {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3}, {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}};
+        {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3}, {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}
+};
 
 const auto DepthToSpaceBS2 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS2),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(modes),
-        ::testing::Values(2),
+        ::testing::Values(1, 2),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -38,13 +40,14 @@ INSTANTIATE_TEST_CASE_P(smoke_DepthToSpaceBS2, DepthToSpaceLayerTest, DepthToSpa
 
 const std::vector<std::vector<size_t >> inputShapesBS3 = {
         {1, 9, 1, 1}, {1, 9, 2, 2}, {1, 9, 3, 3}, {2, 36, 3, 3}, {2, 27, 5, 4},
-        {1, 27, 1, 1, 1}, {1, 27, 2, 2, 2}, {1, 27, 3, 3, 3}, {2, 108, 3, 3, 3}, {2, 54, 5, 4, 6}};
+        {1, 27, 1, 1, 1}, {1, 27, 2, 2, 2}, {1, 27, 3, 3, 3}, {2, 108, 3, 3, 3}, {2, 54, 5, 4, 6}
+};
 
 const auto DepthToSpaceBS3 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS3),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(modes),
-        ::testing::Values(3),
+        ::testing::Values(1, 3),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

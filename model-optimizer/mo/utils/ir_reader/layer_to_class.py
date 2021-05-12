@@ -7,9 +7,11 @@ import os
 import numpy as np
 
 from extensions.back.TopKNormalizer import TopKNormalizer
+from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
+from extensions.ops.dft import FFTBase
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.loop import Loop
@@ -59,7 +61,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
-                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
@@ -272,6 +274,8 @@ postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    # Call normalize Split outputs for generated IR by ir-reader
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs
 }
 
 
@@ -299,9 +303,9 @@ def restore_tensor_names(op: Node):
                 op.out_node(out_port)['fw_tensor_debug_info'] = []
                 for out_tensor_name in out_tensor_names:
                     out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
-                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_tensor_name))
             else:
-                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_tensor_names)]
 
 
 def copy_graph_with_ops(graph: Graph) -> Graph:

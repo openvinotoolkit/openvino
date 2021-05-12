@@ -63,5 +63,5 @@ namespace ngraph
         bool is_constant(const std::shared_ptr<ngraph::Node>& node);
         NGRAPH_API
         bool is_commutative(const std::shared_ptr<ngraph::Node>& node);
-    }
-}
+    } // namespace op
+} // namespace ngraph

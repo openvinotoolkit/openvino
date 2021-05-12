@@ -31,7 +31,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::Multiply>(data, data_map)};
                 }
 
-            } // namespace set_1default_opset
+            } // namespace set_1
 
         } // namespace op
 

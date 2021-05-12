@@ -46,6 +46,6 @@ namespace ngraph
             private:
                 size_t m_axis;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

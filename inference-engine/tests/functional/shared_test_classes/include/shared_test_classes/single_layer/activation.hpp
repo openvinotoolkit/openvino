@@ -36,7 +36,6 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Log,                   "Log"},
         {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
         {ngraph::helpers::ActivationTypes::Abs,                   "Abs"},
-        {ngraph::helpers::ActivationTypes::Gelu,                  "Gelu"},
         {ngraph::helpers::ActivationTypes::Clamp,                 "Clamp"},
         {ngraph::helpers::ActivationTypes::Negative,              "Negative"},
         {ngraph::helpers::ActivationTypes::Acos,                  "Acos"},
@@ -70,7 +69,9 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Swish,                 "Swish"},
         {ngraph::helpers::ActivationTypes::HSigmoid,              "HSigmoid"},
         {ngraph::helpers::ActivationTypes::RoundHalfToEven,       "RoundHalfToEven"},
-        {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"}
+        {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
+        {ngraph::helpers::ActivationTypes::GeluErf,               "GeluErf"},
+        {ngraph::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
 };
 
 typedef std::tuple<

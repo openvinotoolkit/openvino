@@ -45,6 +45,6 @@ namespace ngraph
                                      const std::vector<float>& selected_scores,
                                      int64_t valid_outputs,
                                      const ngraph::element::Type selected_scores_type);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

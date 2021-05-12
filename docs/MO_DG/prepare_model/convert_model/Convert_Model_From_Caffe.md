@@ -38,10 +38,10 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert a Caffe\* model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.caffemodel` file:
+1. Go to the `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer` directory.
+2. Use the `mo.py` script to simply convert a model, specifying the path to the input model `.caffemodel` file and the path to an output directory with write permissions:
 ```sh
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel
+python3 mo.py --input_model <INPUT_MODEL>.caffemodel --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
@@ -91,15 +91,16 @@ Caffe*-specific parameters:
 
 #### Command-Line Interface (CLI) Examples Using Caffe\*-Specific Parameters
 
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file. You must have write permissions for the output directory.
+
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
+python3 mo.py --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires system Caffe\* on the computer. To read more about this, see [Legacy Mode for Caffe* Custom Layers](../customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md).
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer. To read more about this, see [Legacy Mode for Caffe* Custom Layers](../customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md).
 Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
+python3 mo.py --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params --output_dir <OUTPUT_MODEL_DIR>
 ```
 		This example shows a multi-input model with input layers: `data`, `rois`
 ```
@@ -121,9 +122,9 @@ layer {
 }
 ```
 
-* Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer. In particular, for data, set the shape to `1,3,227,227`. For rois, set the shape to `1,6,1,1`:
+* Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer along with a writable output directory. In particular, for data, set the shape to `1,3,227,227`. For rois, set the shape to `1,6,1,1`:
 ```sh
-python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
+python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 ## Custom Layer Definition

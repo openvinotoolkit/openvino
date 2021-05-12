@@ -51,6 +51,7 @@ Standard MXNet\* symbols:
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
 | _maximum | No |
 | _minimum | No |
+| _np_roll | No |
 | add_n | No |
 | arccosh | No |
 | arcsinh | No |
@@ -127,6 +128,7 @@ Standard TensorFlow\* operations:
 | AddV2 | No |
 | AddN | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
@@ -158,6 +160,9 @@ Standard TensorFlow\* operations:
 | EuclideanNorm | No |
 | FakeQuantWithMinMaxVars | No |
 | FakeQuantWithMinMaxVarsPerChannel | No |
+| FFT | Supported only when it is part of a sub-graph of the special form |
+| FFT2D | Supported only when it is part of a sub-graph of the special form |
+| FFT3D | Supported only when it is part of a sub-graph of the special form |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
@@ -170,6 +175,9 @@ Standard TensorFlow\* operations:
 | Greater | No |
 | GreaterEqual | No |
 | Identity | Not needed for shape inference |
+| IFFT | Supported only when it is part of a sub-graph of the special form |
+| IFFT2D | Supported only when it is part of a sub-graph of the special form |
+| IFFT3D | Supported only when it is part of a sub-graph of the special form |
 | LRN | No |
 | Less | No |
 | Log | No |
@@ -213,6 +221,7 @@ Standard TensorFlow\* operations:
 | ResizeNearestNeighbor | No |
 | ResourceGather| No |
 | ReverseSequence | No |
+| Roll | No |
 | Round | No |
 | Rsqrt | No |
 | Shape | No |
@@ -319,6 +328,7 @@ Standard TensorFlow 2 Keras\* operations:
 | ReLU | No |
 | RepeatVector | No |
 | Reshape | No |
+| Roll | No |
 | SeparableConv1D | No |
 | SeparableConv2D | No |
 | SimpleRNN | No |
@@ -380,6 +390,7 @@ Standard Kaldi\* Layers:
 | splicecomponent | No |
 | tanhcomponent | No |
 | tdnncomponent | No |
+| timeheightconvolutioncomponent | No |
 
 
 ## ONNX\* Supported Operators
@@ -394,6 +405,7 @@ Standard ONNX\* operators:
 | Add | No |
 | Affine | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asin | No |
 | Asinh | No |
 | Atan | No |

@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "ie_parallel.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
 #include "mean_image.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
-#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -48,7 +46,7 @@ public:
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);
 
     template<typename NET>
-    void CreateGraph(const NET &network,
+    void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
@@ -73,14 +71,13 @@ public:
         return graphEdges;
     }
 
-    std::vector<MKLDNNNodePtr>& GetOutputNodes() {
-        return outputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodesMap() {
+        return inputNodesMap;
     }
 
-    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
-        return inputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
+        return outputNodesMap;
     }
-
 
     mkldnn::engine getEngine() const {
         return eng;
@@ -152,9 +149,6 @@ public:
 
     InferenceEngine::CNNNetwork dump() const;
 
-    template<typename NET>
-    static void ApplyUnrollPasses(NET &net);
-
     void ResetInferCount() { infer_count = 0; }
 
     void SortTopologically();
@@ -166,8 +160,8 @@ protected:
         status = NotReady;
         eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
 
-        inputNodes.clear();
-        outputNodes.clear();
+        inputNodesMap.clear();
+        outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
         _meanImages.clear();
@@ -183,8 +177,8 @@ protected:
 
     MKLDNNMemoryPtr memWorkspace;
 
-    std::map<std::string, MKLDNNNodePtr> inputNodes;
-    std::vector<MKLDNNNodePtr> outputNodes;
+    std::map<std::string, MKLDNNNodePtr> inputNodesMap;
+    std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
@@ -194,7 +188,7 @@ protected:
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -204,23 +198,13 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExecuteConstantNodesOnly();
-    void SetOriginalLayerNames();
-
-    void do_before(const std::string &dir, const MKLDNNNodePtr &node);
-    void do_after(const std::string &dir, const MKLDNNNodePtr &node);
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
-    void dumpToDotFile(std::string file) const;
-    struct ParsedLayer {
-        MKLDNNNodePtr parent;
-        InferenceEngine::CNNLayerPtr cnnLayer;
-        size_t outIdx;
-    };
+    void printGraphInfo() const;
 };
 
 }  // namespace MKLDNNPlugin

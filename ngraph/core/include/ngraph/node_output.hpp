@@ -182,4 +182,4 @@ namespace ngraph
 
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Output<Node>& output);
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Output<const Node>& output);
-}
+} // namespace ngraph

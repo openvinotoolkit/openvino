@@ -17,6 +17,7 @@ set(LINK_LIBRARIES
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
+    inference_engine
 )
 
 set(DEPENDENCIES
@@ -43,6 +44,8 @@ addIeTargetTest(
         LABELS
         IE
 )
+
+set_ie_threading_interface_for(${TARGET_NAME})
 
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE

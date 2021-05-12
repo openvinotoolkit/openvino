@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstring>
+#include <map>
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -22,6 +23,8 @@ namespace ngraph
     class Input
     {
     };
+
+    class Variant;
 
     /// \brief A handle for one of a node's inputs.
     template <>
@@ -57,6 +60,12 @@ namespace ngraph
         /// \brief Replaces the source output of this input.
         /// \param new_source_output A handle for the output that will replace this input's source.
         void replace_source_output(const Output<Node>& new_source_output) const;
+
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+        /// \return The reference to runtime info map
+        RTMap& get_rt_info();
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
 
         bool operator==(const Input& other) const;
         bool operator!=(const Input& other) const;
@@ -101,6 +110,10 @@ namespace ngraph
         /// \return true if this input is relevant to its node's output values; else false.
         bool get_is_relevant_to_values() const;
 
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
+
         bool operator==(const Input& other) const;
         bool operator!=(const Input& other) const;
         bool operator<(const Input& other) const;
@@ -115,4 +128,4 @@ namespace ngraph
 
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Input<Node>& input);
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Input<const Node>& input);
-}
+} // namespace ngraph

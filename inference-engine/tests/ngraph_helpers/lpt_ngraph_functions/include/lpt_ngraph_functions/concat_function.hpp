@@ -53,7 +53,8 @@ public:
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
-        const FakeQuantizeOnData& fqOnData2);
+        const FakeQuantizeOnData& fqOnData2,
+        const bool addConvolution);
 
     static std::shared_ptr<ngraph::Function> getOriginalSelectionWithIntermediate(
         const ngraph::element::Type precision,
@@ -70,7 +71,7 @@ public:
         const bool ssBeforeConcat,
         const bool ssAfterConcat);
 
-    static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChilds(
+    static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
@@ -114,7 +115,8 @@ public:
         const DequantizationOperations::Convert& convert2,
         const DequantizationOperations& dequantization2,
         const ngraph::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter);
+        const DequantizationOperations& dequantizationAfter,
+        const std::int64_t& axis);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,
@@ -150,6 +152,7 @@ public:
         const DequantizationOperations& dequantizationBefore1,
         const DequantizationOperations& dequantizationBefore2,
         const ngraph::element::Type precisionAfterOperation,
+        const bool addConvolution,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 
@@ -179,7 +182,7 @@ public:
         const DequantizationOperations& deqAfter1,
         const DequantizationOperations& deqAfter2);
 
-    static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChilds(
+    static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const bool multiChannel,

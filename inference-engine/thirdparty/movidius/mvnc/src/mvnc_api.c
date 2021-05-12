@@ -802,10 +802,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         d->wd_interval = watchdogInterval;
         *deviceHandlePtr = dH;
     } else {
-        GLOBAL_UNLOCK();
         mvLog(MVLOG_ERROR, "Memory allocation failed");
         free(d);
         free(dH);
+        GLOBAL_UNLOCK();
         return NC_OUT_OF_MEMORY;
     }
 

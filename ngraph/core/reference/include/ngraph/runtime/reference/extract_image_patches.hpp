@@ -143,6 +143,6 @@ namespace ngraph
                 }
             } // extractImagePatches
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

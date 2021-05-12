@@ -19,7 +19,6 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
-#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)

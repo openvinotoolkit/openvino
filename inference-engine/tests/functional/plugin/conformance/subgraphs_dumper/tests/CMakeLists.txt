@@ -24,6 +24,4 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
-ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/src/precomp.hpp"
-        )
+ie_faster_build(${TARGET_NAME} UNITY)

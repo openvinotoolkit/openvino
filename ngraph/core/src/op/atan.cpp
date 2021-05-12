@@ -66,7 +66,7 @@ namespace atanop
         }
         return rc;
     }
-}
+} // namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

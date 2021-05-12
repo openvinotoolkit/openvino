@@ -16,7 +16,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-#include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
@@ -228,7 +227,7 @@ class Core::Impl : public ICore {
                                       const std::string& blobID,
                                       const std::string& modelPath = std::string(),
                                       bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetworkImpl");
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
         ExecutableNetwork execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
@@ -236,7 +235,7 @@ class Core::Impl : public ICore {
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
-                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Export");
                 cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
                     networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber,
                                                         NetworkCompilationContext::calculateFileInfo(modelPath));
@@ -263,7 +262,7 @@ class Core::Impl : public ICore {
         IE_ASSERT(cacheManager != nullptr);
         try {
             cacheManager->readCacheEntry(blobId, [&](std::istream &networkStream) {
-                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
                 try {
                     CompiledBlobHeader header;
                     networkStream >> header;
@@ -290,7 +289,9 @@ class Core::Impl : public ICore {
             networkIsImported = false;
         } catch (...) {
             cacheManager->removeCacheEntry(blobId);
-            throw;
+            networkIsImported = false;
+            // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
+            // throw;
         }
         return execNetwork;
     }
@@ -432,19 +433,19 @@ public:
     }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from file");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
         return details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from memory");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
         return details::ReadNetwork(model, weights, extensions);
     }
 
     // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
                                   const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
@@ -468,7 +469,7 @@ public:
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         if (forceDisableCache) {
@@ -495,7 +496,7 @@ public:
     // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Path");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ExecutableNetwork res;
@@ -590,12 +591,49 @@ public:
     }
 
     /**
+     * @brief Returns devices available for neural networks inference
+     *
+     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * If there more than one device of specific type, they are enumerated with .# suffix.
+     */
+    std::vector<std::string> GetAvailableDevices() const override {
+        std::vector<std::string> devices;
+        const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+
+        for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+            std::vector<std::string> devicesIDs;
+            try {
+                const Parameter p = GetMetric(deviceName, propertyName);
+                devicesIDs = p.as<std::vector<std::string>>();
+            } catch (Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (const std::exception& ex) {
+                IE_THROW() << "An exception is thrown while trying to create the " << deviceName
+                                << " device and call GetMetric: " << ex.what();
+            } catch (...) {
+                IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
+                                << " device and call GetMetric";
+            }
+
+            if (devicesIDs.size() > 1) {
+                for (auto&& deviceID : devicesIDs) {
+                    devices.push_back(deviceName + '.' + deviceID);
+                }
+            } else if (!devicesIDs.empty()) {
+                devices.push_back(deviceName);
+            }
+        }
+
+        return devices;
+    }
+
+    /**
      * @brief Returns reference to CPP plugin wrapper by a device name
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
      */
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
@@ -1005,35 +1043,7 @@ Parameter Core::GetMetric(const std::string& deviceName, const std::string& name
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {
-    std::vector<std::string> devices;
-
-    std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
-
-    for (auto&& deviceName : _impl->GetListOfDevicesInRegistry()) {
-        std::vector<std::string> devicesIDs;
-        try {
-            Parameter p = GetMetric(deviceName, propertyName);
-            devicesIDs = p.as<std::vector<std::string>>();
-        } catch (Exception&) {
-            // plugin is not created by e.g. invalid env
-        } catch (const std::exception& ex) {
-            IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                               << " device and call GetMetric: " << ex.what();
-        } catch (...) {
-            IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                               << " device and call GetMetric";
-        }
-
-        if (devicesIDs.size() > 1) {
-            for (auto&& deviceID : devicesIDs) {
-                devices.push_back(deviceName + '.' + deviceID);
-            }
-        } else if (!devicesIDs.empty()) {
-            devices.push_back(deviceName);
-        }
-    }
-
-    return devices;
+    return _impl->GetAvailableDevices();
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {

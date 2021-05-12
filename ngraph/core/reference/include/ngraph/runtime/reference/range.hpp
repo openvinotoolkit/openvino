@@ -46,6 +46,6 @@ namespace ngraph
                     val += *step;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

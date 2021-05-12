@@ -637,6 +637,30 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         },
         "convolution"
     },
+    // convolution with multiple consumers before FQ ( FP32 on other branch due to possible quantize fusing )
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+                ngraph::element::u8,
+                { {ngraph::element::f32},  { 7.f }, { 10.f }},
+                ngraph::element::u8,
+                { {ngraph::element::f32},  { 3.f }, { 5.f } },
+                {}
+        },
+        {
+                ngraph::element::u8,
+                { {ngraph::element::f32},  { 8.5f }, { 2.f } },
+                ngraph::element::u8,
+                { {},  {}, {}},
+                { {},  {}, { 5.f } },
+                {}
+        },
+        "convolution_multiconsumers"
+    },
     // group convolution before FQ (choose that branch)
     {
         ngraph::element::f32,

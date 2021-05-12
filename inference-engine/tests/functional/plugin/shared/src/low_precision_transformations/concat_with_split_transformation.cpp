@@ -63,7 +63,8 @@ void ConcatWithSplitTransformation::SetUp() {
         netPrecision,
         inputShapes,
         param.fqOnData1,
-        param.fqOnData2);
+        param.fqOnData2,
+        true);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

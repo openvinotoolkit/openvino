@@ -13,8 +13,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNConvertNode : public MKLDNNNode {
 public:
-    MKLDNNConvertNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNConvertNode() override = default;
+    MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -37,9 +38,13 @@ public:
     std::shared_ptr<const InferenceEngine::TensorDesc> getInput() const { return input; }
     std::shared_ptr<const InferenceEngine::TensorDesc> getOutput() const { return output; }
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     std::shared_ptr<InferenceEngine::TensorDesc> input;
     std::shared_ptr<InferenceEngine::TensorDesc> output;
+
+    std::string errorPrefix;
 };
 }  // namespace MKLDNNPlugin
 

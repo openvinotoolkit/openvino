@@ -45,6 +45,6 @@ namespace ngraph
             protected:
                 size_t m_num_splits;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

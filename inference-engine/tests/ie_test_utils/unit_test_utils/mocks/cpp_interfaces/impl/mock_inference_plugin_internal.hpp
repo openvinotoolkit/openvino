@@ -7,7 +7,6 @@
 #include <map>
 #include <memory>
 
-#include <ie_iinfer_request.hpp>
 #include "mock_executable_network_internal.hpp"
 #include "ie_icore.hpp"
 #include <gmock/gmock.h>
@@ -20,7 +19,7 @@ class MockInferencePluginInternal2 : public InferenceEngine::InferencePluginInte
 public:
     MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>(
             const InferenceEngine::CNNNetwork &, const std::map<std::string, std::string> &));
-    MOCK_METHOD2(LoadNetwork, ExecutableNetwork(
+    MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
             const InferenceEngine::CNNNetwork &,
             const std::map<std::string, std::string> &));
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
@@ -36,7 +35,7 @@ public:
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
-    ExecutableNetwork ImportNetworkImpl(std::istream& stream, const std::map <std::string, std::string>&) {
+    ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& stream, const std::map <std::string, std::string>&) {
         std::getline(stream, importedString);
         return {};
     }

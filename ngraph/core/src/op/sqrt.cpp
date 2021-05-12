@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Sqrt::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Sqrt, "Sqrt", 0, util::UnaryElementwiseArithmetic);
 
 op::Sqrt::Sqrt(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -61,7 +61,7 @@ namespace sqrtop
         }
         return rc;
     }
-}
+} // namespace sqrtop
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

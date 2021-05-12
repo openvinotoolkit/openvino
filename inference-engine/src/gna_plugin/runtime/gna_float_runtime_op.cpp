@@ -79,10 +79,12 @@ void FP::ApplyDiagonalTransform(intel_dnn_component_t *component) {
             C[i * ldc + j] = bias[i];
         }
     }
-    for (uint32_t j = 0; j < n; j++) {
-        float *Bcol = B + j * component->num_rows_in;
-        float *Ccol = C + j * component->num_rows_out;
-        cblas_ssbmv1(CblasRowMajor, CblasLower, m, 0, 1.0, A, 1, Bcol, 1, 1.0, Ccol, 1);
+    std::vector<float> Arow(n);
+    for (uint32_t i = 0; i < m; i++) {
+        float *Brow = B + i * n;
+        float *Crow = C + i * ldc;
+        std::fill(std::begin(Arow), std::end(Arow), A[i]);
+        cblas_ssbmv1(CblasRowMajor, CblasLower, n, 0, 1.0, Arow.data(), 1, Brow, 1, 1.0, Crow, 1);
     }
 }
 

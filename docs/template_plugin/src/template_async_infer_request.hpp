@@ -18,7 +18,7 @@ public:
                               const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
-    ~TemplateAsyncInferRequest() override;
+    ~TemplateAsyncInferRequest();
 
 private:
     TemplateInferRequest::Ptr           _inferRequest;

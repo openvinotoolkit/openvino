@@ -1,6 +1,6 @@
 # Hello Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_classification_README}
 
-Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
+This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
 Hello Classification C sample application demonstrates how to use the following Inference Engine C API in applications:
 
@@ -15,7 +15,7 @@ Hello Classification C sample application demonstrates how to use the following 
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | AlexNet and GoogLeNet (image classification networks)
-| Model Format                     | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)
+| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../../samples/hello_classification/README.md), [Python](../../../python/sample/hello_classification/README.md) |
@@ -35,6 +35,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 ## Running
 
 To run the sample, you need specify a model and image:
+
 - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
@@ -44,7 +45,7 @@ To run the sample, you need specify a model and image:
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
 You can do inference of an image using a trained AlexNet network on a GPU using the following command:
 

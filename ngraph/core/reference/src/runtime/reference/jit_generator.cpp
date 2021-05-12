@@ -213,6 +213,6 @@ namespace ngraph
             {
                 copy<uint32_t>(dst, src, size);
             }
-        }
-    }
-}
+        } // namespace jit
+    }     // namespace runtime
+} // namespace ngraph
