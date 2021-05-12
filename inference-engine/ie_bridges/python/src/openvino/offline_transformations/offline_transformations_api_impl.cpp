@@ -26,8 +26,9 @@ void InferenceEnginePython::ApplyPOTTransformations(InferenceEnginePython::IENet
     manager.run_passes(network.actual->getFunction());
 }
 
-void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network) {
+void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, int64_t num_iterations) {
     ngraph::pass::Manager manager;
+    // TODO: pass num_iterations to LowLatency
     manager.register_pass<ngraph::pass::LowLatency>();
     manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 

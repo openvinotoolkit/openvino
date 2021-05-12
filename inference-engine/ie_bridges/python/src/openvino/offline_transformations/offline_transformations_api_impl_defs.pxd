@@ -3,6 +3,7 @@
 
 from libcpp cimport bool
 from libcpp.string cimport string
+from libc.stdint cimport int64_t
 
 from ..inference_engine.ie_api_impl_defs cimport IENetwork
 
@@ -11,7 +12,7 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void ApplyPOTTransformations(IENetwork network, string device)
 
-    cdef void ApplyLowLatencyTransformation(IENetwork network)
+    cdef void ApplyLowLatencyTransformation(IENetwork network, int64_t num_iterations)
 
     cdef void ApplyPruningTransformation(IENetwork network)
 
