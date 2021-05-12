@@ -166,6 +166,16 @@ public:
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                     const std::map<std::string, std::string>& config,
                                                                     RemoteContext::Ptr context) = 0;
+
+    /**
+     * @brief Creates an executable network from model file path
+     * @param modelPath A path to model
+     * @param config A string-string map of config parameters relevant only for this load operation
+     * @return Created Executable Network object
+     */
+    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                          const std::map<std::string, std::string>& config) = 0;
+
     /**
      * @brief Registers extension within plugin
      * @param extension - pointer to already loaded extension

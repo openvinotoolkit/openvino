@@ -88,6 +88,10 @@ public:
         PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
     }
 
+    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+        PLUGIN_CALL_STATEMENT(return actual->LoadNetwork(modelPath, config));
+    }
+
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;

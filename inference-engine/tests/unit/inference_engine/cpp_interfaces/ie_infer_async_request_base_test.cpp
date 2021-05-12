@@ -199,9 +199,9 @@ protected:
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mock_request));
         std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
-        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
         plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
-        exeNetwork = plugin.LoadNetwork({}, {});
+        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
         request = exeNetwork.CreateInferRequest();
         _incorrectName = "incorrect_name";
         _inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
@@ -223,9 +223,9 @@ protected:
         auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
         std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
-        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
         auto plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
-        auto exeNetwork = plugin.LoadNetwork({}, {});
+        auto exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
         return exeNetwork.CreateInferRequest();
     }
 

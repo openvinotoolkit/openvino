@@ -20,6 +20,7 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 
 using testing::_;
+using testing::MatcherCast;
 using testing::Throw;
 using testing::Ref;
 using testing::Return;
@@ -52,9 +53,9 @@ protected:
     virtual void SetUp() {
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
-        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
         plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
-        exeNetwork = plugin.LoadNetwork({}, {});
+        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
     }
 };
 
