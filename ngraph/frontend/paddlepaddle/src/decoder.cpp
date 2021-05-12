@@ -157,12 +157,50 @@ std::vector<std::string> DecoderPDPDProto::get_output_names() const {
     return output_names;
 }
 
+std::vector<int64_t> DecoderPDPDProto::get_longs(const std::string& name, const std::vector<int64_t>& def) const
+{
+    std::cout << "Running get_longs" << std::endl;
+    std::vector<proto::OpDesc_Attr> attrs;
+    for (const auto &attr : op_place->getDesc()->attrs()) {
+        if (attr.name() == name)
+            attrs.push_back(attr);
+    }
+    if (attrs.empty()) {
+        return def;
+    } else if (attrs.size() > 1) {
+        // TODO: raise exception here
+        return def;
+    } else {
+        std::vector<int64_t> res;
+        std::copy(attrs[0].longs().begin(), attrs[0].longs().end(), std::back_inserter(res));
+        return res;
+    }
 std::vector<ngraph::element::Type> DecoderPDPDProto::get_out_port_types(const std::string& port_name) const {
     std::vector<ngraph::element::Type> output_types;
     for (const auto& out_port : op_place->getOutputPorts().at(port_name)) {
         output_types.push_back(out_port->getTargetTensorPDPD()->getElementType());
     }
     return output_types;
+}
+
+int64_t DecoderPDPDProto::get_long(const std::string& name, const int64_t& def) const
+    {
+        std::cout << "Running get_long" << std::endl;
+        std::vector<proto::OpDesc_Attr> attrs;
+        for (const auto &attr : op_place->getDesc()->attrs()) {
+            if (attr.name() == name)
+                attrs.push_back(attr);
+        }
+        if (attrs.empty()) {
+            return def;
+        } else if (attrs.size() > 1) {
+            // TODO: raise exception here
+            return def;
+        } else {
+            return attrs[0].l();
+        }
+    }
+
 }
 
 }

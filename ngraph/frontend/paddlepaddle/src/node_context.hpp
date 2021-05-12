@@ -136,6 +136,14 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     }
     return named_outputs;
 }
+template <>
+inline std::vector<int64_t> NodeContext::get_attribute (const std::string& name, const std::vector<int64_t>& def) const
+{ return node.get_longs(name, def); }
+
+template <>
+inline int64_t NodeContext::get_attribute (const std::string& name, const int64_t& def) const
+{ return node.get_long(name, def); }
+
 } // namespace pdpd
 } // namespace frontend
 } // namespace ngraph

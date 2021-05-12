@@ -566,13 +566,26 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_custom_target(pdpd_test_models)
-    add_custom_command(TARGET pdpd_test_models
-            PRE_BUILD
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_all.py ${TEST_PDPD_MODELS})
+    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                        ${GEN_SCRIPT}
+                        ${TEST_PDPD_MODELS}
+                        ${OUT_DONE_FILE}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                )
+    endforeach()
+    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
 
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+    target_link_libraries(unit-test PRIVATE libnpy)
 endif()
 ### END FRONTEND ###
