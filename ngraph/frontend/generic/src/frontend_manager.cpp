@@ -107,8 +107,7 @@ namespace ngraph
             return m_impl->loadByFramework(framework, fec);
         }
 
-        FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path,
-                                                     FrontEndCapFlags fec)
+        FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path, FrontEndCapFlags fec)
         {
             return m_impl->loadByModel(path, fec);
         }

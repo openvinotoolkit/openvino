@@ -386,7 +386,7 @@ namespace ngraph
 
             /// \brief Partial model conversion and decoding capability
             static const int FEC_WILDCARDS = 4;
-        };
+        }; // namespace FrontEndCapabilities
 
         // -------------- FrontEndManager -----------------
         using FrontEndCapFlags = int;
@@ -417,9 +417,8 @@ namespace ngraph
             /// \param fec Frontend capabilities. It is recommended to use only those capabilities
             /// which are needed to minimize load time
             /// \return Frontend interface for further loading of model
-            FrontEnd::Ptr
-                load_by_model(const std::string& path,
-                              FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
+            FrontEnd::Ptr load_by_model(const std::string& path,
+                                        FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
 
             /// \brief Gets list of registered frontends
             std::vector<std::string> get_available_front_ends() const;
