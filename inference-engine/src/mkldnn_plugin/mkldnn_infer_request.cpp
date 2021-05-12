@@ -251,7 +251,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_outputs.find(name) == _outputs.end()) {
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-        desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
+                desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
 
                 // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
                 // in situation if we push output blobs as inputs for next network (in Hetero plugin)

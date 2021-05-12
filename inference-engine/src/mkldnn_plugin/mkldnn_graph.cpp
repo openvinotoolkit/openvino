@@ -748,7 +748,7 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
         if (!out.count(name)) {
-            continue;
+            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
         const Blob::Ptr &ext_blob = out.at(name);

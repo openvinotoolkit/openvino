@@ -20,6 +20,7 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTest {
         auto inputBlob = inputs.front();
         const size_t elementsCount = inputBlob->size();
         for (size_t i = 0; i < inferIterations; ++i) {
+            CommonTestUtils::fill_data_random<Precision::FP32>(inputBlob, 10, 0, 1, i);
             const auto& inputsInfo = cnnNetwork.getInputsInfo().begin()->second;
             std::string inputName = cnnNetwork.getInputsInfo().begin()->first;
 
