@@ -169,17 +169,13 @@ public:
 
     /**
      * @brief Creates an executable network from model file path
+     * @note Named as LoadNetworkFromFile to avoid ambiguity when calling LoadNetwork({}, {})
      * @param modelPath A path to model
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath,
-                                          const std::map<std::string, std::string>& config)
-    {
-        auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-        auto net = GetCore()->LoadNetwork(cnnNet, GetName(), config);
-        return net;
-    }
+    virtual ExecutableNetwork LoadNetworkFromFile(const std::string& modelPath,
+                                                  const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Registers extension within plugin
