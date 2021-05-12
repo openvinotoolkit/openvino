@@ -25,12 +25,41 @@ namespace {
     }
 
     DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
+        if (metaDevices.empty()) {
+            IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+        }
+        if (metaDevices.size() == 1) {
+            return metaDevices.at(0);
+        }
+
+        std::vector<DeviceInformation> CPU;
+        std::vector<DeviceInformation> GPU;
+
         for (auto& item : metaDevices) {
             if (item.deviceName.find("CPU") == 0) {
-              return item;
+                CPU.push_back(item);
+                continue;
+            }
+            if (item.deviceName.find("GPU") == 0) {
+                GPU.push_back(item);
+                continue;
             }
         }
-        IE_THROW(NotFound) << "No available device could be used";
+
+        if (CPU.empty() && GPU.empty()) {
+            IE_THROW(NotFound) << "No available device found";
+        }
+
+        // dGPU is preferred
+        std::sort(GPU.begin(), GPU.end(), [](DeviceInformation& a, DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
+
+        if (!GPU.empty()) {
+            return GPU[0];
+        }
+        if (CPU.empty()) {
+            IE_THROW() << "Cannot select any device";
+        }
+        return CPU[0];
     }
 }  // namespace
 
