@@ -950,15 +950,6 @@ gelu_f64
 gelu_backprop_factor_f32
 gelu_backprop_factor_f64
 
-# Incorrect precision f64!
-batch_norm_inference_0eps_f64
-batch_norm_inference_f64
-batch_norm_training_0eps_f64
-
-# Function inputs number differ from number of given inputs
-batch_norm_inference_parameters_duplication
-batch_norm_inference_parameters_duplication_v5
-
 backwards_abs
 backwards_acos
 backwards_add
