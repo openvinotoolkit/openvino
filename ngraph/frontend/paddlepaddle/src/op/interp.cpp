@@ -85,7 +85,7 @@ namespace ngraph {
                     auto scale = node.get_attribute<std::vector<float>>("scale");
                     Output<Node> scales;
                     Output<Node> target_spatial_shape;
-                    //TODO reduce duplicate codes
+
                     if (node.has_ng_input("OutSize")) {
                         attrs.shape_calculation_mode = ShapeCalcMode::sizes;
                         auto hw_shape = node.get_ng_input("OutSize");

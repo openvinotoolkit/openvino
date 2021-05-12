@@ -14,7 +14,7 @@ namespace ngraph {
                     std::vector<int32_t> shape = node.get_attribute<std::vector<int32_t>>("shape");
                     auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
                     std::shared_ptr<Node> const_node;
-                    PDPD_ASSERT(dtype != element::f64, "PDPD 2.0 doesn't support FLOAT64 yet");
+
                     switch (dtype) {
                         case element::i32:
                         {
@@ -34,10 +34,15 @@ namespace ngraph {
                             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
                             break;
                         }
-                        default:
+                        case element::i64:
                         {
                             auto values = node.get_attribute<std::vector<int64_t>>("int64_values");
                             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
+                            break;
+                        }
+                        default:
+                        {
+                            PDPD_ASSERT(false, "assign_value only supports int32, int64, float32, bool");
                             break;
                         }
                     }
