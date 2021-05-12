@@ -157,7 +157,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 
 xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")
-
 xfail_issue_49359 = xfail_test(reason="DFT is not implemented in CPU plugin")
 xfail_issue_49375 = xfail_test(reason="IDFT is not implemented in CPU plugin")
 xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
