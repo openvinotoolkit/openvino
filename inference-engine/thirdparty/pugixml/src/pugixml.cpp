@@ -3953,9 +3953,9 @@ PUGI__NS_BEGIN
 			// skip ]] if we stopped at ]]>, > will go to the next CDATA section
 			if (*s) s += 2;
 
-			size_t bufLenght = static_cast<size_t>(s - prev);
+			size_t bufLength = static_cast<size_t>(s - prev);
 
-			writer.write_buffer(prev, bufLenght);
+			writer.write_buffer(prev, bufLength);
 
 			writer.write(']', ']', '>');
 		}
@@ -4013,9 +4013,9 @@ PUGI__NS_BEGIN
 			// look for -\0 or -- sequence - we can't output it since -- is illegal in comment body
 			while (*s && !(s[0] == '-' && (s[1] == '-' || s[1] == 0))) ++s;
 
-			size_t bufLenght = static_cast<size_t>(s - prev);
+			size_t bufLength = static_cast<size_t>(s - prev);
 
-			writer.write_buffer(prev, bufLenght);
+			writer.write_buffer(prev, bufLength);
 
 			if (*s)
 			{
