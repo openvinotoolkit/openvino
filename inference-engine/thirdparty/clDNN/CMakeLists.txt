@@ -60,9 +60,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
 # ======================================================================================================
-if("${CLDNN_THREADING}" MATCHES "SEQ")
+if(CLDNN_THREADING MATCHES "SEQ")
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
-elseif("${CLDNN_THREADING}" MATCHES "TBB")
+elseif(CLDNN_THREADING MATCHES "TBB")
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
 else()
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)

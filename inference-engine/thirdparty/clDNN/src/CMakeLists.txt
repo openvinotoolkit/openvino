@@ -157,6 +157,10 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     openvino::itt
   )
 
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+endif()
+
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
