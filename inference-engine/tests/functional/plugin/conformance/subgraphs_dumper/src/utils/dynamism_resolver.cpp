@@ -22,7 +22,7 @@ void resolve_dynamic_shapes(const std::shared_ptr<ngraph::Function>& f) {
                         return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return;
     }
-    auto f_clone = f;
+    auto f_clone = ngraph::clone_function(*f);
     const auto & f_clone_ops = f_clone->get_ordered_ops();
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 

@@ -84,9 +84,6 @@ int main(int argc, char *argv[]) {
                                   << std::endl;
                     }
                 }
-                for (const auto &op : function->get_ordered_ops()) {
-                    std::cout << op << std::endl;
-                }
                 cache->update_ops_cache(function, model.xml);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;

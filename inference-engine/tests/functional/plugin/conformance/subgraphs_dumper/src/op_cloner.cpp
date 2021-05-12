@@ -71,19 +71,6 @@ void get_port_range(const std::shared_ptr<ngraph::op::Constant> &constant_input,
 }
 
 std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, LayerTestsUtils::OPInfo &meta) {
-//    auto inputs = node->inputs();
-//    bool all_inputs_static = std::all_of(inputs.begin(), inputs.end(), [](const ngraph::Input<ngraph::Node> &in){
-//        const auto &dims = in.get_partial_shape();
-//        return std::all_of(dims.begin(), dims.end(), [](const ngraph::Dimension &dim) {
-//            return !dim.get_interval().has_upper_bound();
-//        });
-//    });
-//    for (const auto &out : node->outputs()) {
-//        std::stringstream sstream;
-//        sstream << "Can't clone operation " << node << " from model " << meta.source_model
-//                << "\nOutput shape is dynamic or one of inputs has no upper bound for some of dimensions" << std::endl;
-//        NGRAPH_CHECK(out.get_partial_shape().is_static() || all_inputs_static, sstream.str());
-//    }
     ngraph::OutputVector op_inputs;
     bool static_inputs = true;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
@@ -125,19 +112,6 @@ std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, L
 std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph::Node> &node,
                                                     const std::vector<size_t> &weight_ports,
                                                     LayerTestsUtils::OPInfo &meta) {
-//    auto inputs = node->inputs();
-//    bool all_inputs_static = std::all_of(inputs.begin(), inputs.end(), [](const ngraph::Input<ngraph::Node> &in){
-//        const auto &dims = in.get_partial_shape();
-//        return std::all_of(dims.begin(), dims.end(), [](const ngraph::Dimension &dim) {
-//            return !dim.get_interval().has_upper_bound();
-//        });
-//    });
-//    for (const auto &out : node->outputs()) {
-//        std::stringstream sstream;
-//        sstream << "Can't clone operation " << node << " from model " << meta.source_model
-//                << "\nOutput shape is dynamic or one of inputs has no upper bound for some of dimensions" << std::endl;
-//        NGRAPH_CHECK(out.get_partial_shape().is_static() || all_inputs_static, sstream.str());
-//    }
     ngraph::OutputVector op_inputs;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
