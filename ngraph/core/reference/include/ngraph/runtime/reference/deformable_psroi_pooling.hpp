@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
+
+// DeformablePSROIPooling implementation was inspired by
+// https://github.com/msracver/Deformable-ConvNets
+// Copyright (c) 2017 Microsoft
+// SPDX-License-Identifier: MIT License
 
 #pragma once
 
