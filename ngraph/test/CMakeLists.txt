@@ -586,5 +586,6 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+    target_link_libraries(unit-test PRIVATE libnpy)
 endif()
 ### END FRONTEND ###
