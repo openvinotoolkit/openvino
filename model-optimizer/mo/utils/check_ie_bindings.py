@@ -42,10 +42,10 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.inference_engine import get_version, read_network # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, GenerateMappingFile # pylint: disable=import-error
+        from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, GenerateMappingFile  # pylint: disable=import-error
 
-        import openvino # pylint: disable=import-error
+        import openvino  # pylint: disable=import-error
 
         if silent:
             return True

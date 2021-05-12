@@ -255,8 +255,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='float')
     common_group.add_argument('--transform',
                               help='Apply additional transformations. ' +
-                                   'Usage: "--transform pass_name1[args],pass_name2..." ' +
-                                   'where [args] is key=value pairs separated by semicolon' +
+                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon. ' +
                                    'Examples: "--transform LowLatency" or ' +
                                    '          "--transform LowLatency[num_iterations=2]" ' +
                                    'Available transformations: "LowLatency"',
