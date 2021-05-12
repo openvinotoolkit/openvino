@@ -371,22 +371,26 @@ namespace ngraph
         /// level It will allow faster load of frontend when only limited usage is expected by
         /// client application as well as binary size can be minimized by removing not needed parts
         /// from application's package
-        enum class FrontEndCapabilities
+        namespace FrontEndCapabilities
         {
             /// \brief Just reading and conversion, w/o any modifications; intended to be used in
             /// Reader
-            FEC_DEFAULT = 0,
+            static const int FEC_DEFAULT = 0;
+
             /// \brief Topology cutting capability
-            FEC_CUT = 1,
+            static const int FEC_CUT = 1;
+
             /// \brief Query entities by names, renaming and adding new names for operations and
             /// tensors
-            FEC_NAMES = 2,
+            static const int FEC_NAMES = 2;
+
             /// \brief Partial model conversion and decoding capability
-            FEC_WILDCARDS = 4,
+            static const int FEC_WILDCARDS = 4;
         };
 
         // -------------- FrontEndManager -----------------
-        using FrontEndFactory = std::function<FrontEnd::Ptr(FrontEndCapabilities fec)>;
+        using FrontEndCapFlags = int;
+        using FrontEndFactory = std::function<FrontEnd::Ptr(FrontEndCapFlags fec)>;
 
         /// \brief Frontend management class, loads available frontend plugins on construction
         /// Allows load of frontends for particular framework, register new and list available
@@ -405,7 +409,7 @@ namespace ngraph
             /// for further loading of models
             FrontEnd::Ptr
                 load_by_framework(const std::string& framework,
-                                  FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
+                                  FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
 
             /// \brief Loads frontend by model file path. Selects and loads appropriate frontend
             /// depending on model file extension and other file info (header) \param framework
@@ -415,7 +419,7 @@ namespace ngraph
             /// \return Frontend interface for further loading of model
             FrontEnd::Ptr
                 load_by_model(const std::string& path,
-                              FrontEndCapabilities fec = FrontEndCapabilities::FEC_DEFAULT);
+                              FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
 
             /// \brief Gets list of registered frontends
             std::vector<std::string> get_available_front_ends() const;

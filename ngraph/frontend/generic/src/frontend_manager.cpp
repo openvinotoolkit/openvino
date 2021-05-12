@@ -31,7 +31,7 @@ namespace ngraph
 
             ~Impl() = default;
 
-            FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec)
+            FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapFlags fec)
             {
                 FRONT_END_ASSERT(m_factories.count(framework))
                 return m_factories[framework](fec);
@@ -49,7 +49,7 @@ namespace ngraph
                 return keys;
             }
 
-            FrontEnd::Ptr loadByModel(const std::string& path, FrontEndCapabilities fec)
+            FrontEnd::Ptr loadByModel(const std::string& path, FrontEndCapFlags fec)
             {
                 FRONT_END_NOT_IMPLEMENTED(loadByModel);
             }
@@ -102,13 +102,13 @@ namespace ngraph
         FrontEndManager::~FrontEndManager() = default;
 
         FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework,
-                                                         FrontEndCapabilities fec)
+                                                         FrontEndCapFlags fec)
         {
             return m_impl->loadByFramework(framework, fec);
         }
 
         FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path,
-                                                     FrontEndCapabilities fec)
+                                                     FrontEndCapFlags fec)
         {
             return m_impl->loadByModel(path, fec);
         }

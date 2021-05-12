@@ -33,7 +33,7 @@ static int set_test_env(const char* name, const char* value)
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end("mock", [](FrontEndCapabilities fec)
+    ASSERT_NO_THROW(fem.register_front_end("mock", [](FrontEndCapFlags fec)
     {
         return std::make_shared<FrontEnd>();
     }));
@@ -41,6 +41,28 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
+}
+
+TEST(FrontEndManagerTest, testLoadWithFlags)
+{
+    int expFlags = FrontEndCapabilities::FEC_CUT |
+            FrontEndCapabilities::FEC_WILDCARDS |
+            FrontEndCapabilities::FEC_NAMES;
+    int actualFlags = FrontEndCapabilities::FEC_DEFAULT;
+    FrontEndManager fem;
+    ASSERT_NO_THROW(fem.register_front_end("mock", [&actualFlags](int fec)
+    {
+        actualFlags = fec;
+        return std::make_shared<FrontEnd>();
+    }));
+    auto frontends = fem.get_available_front_ends();
+    ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
+    FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(fe = fem.load_by_framework("mock", expFlags));
+    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_CUT);
+    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_WILDCARDS);
+    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_NAMES);
+    ASSERT_EQ(expFlags, actualFlags);
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)

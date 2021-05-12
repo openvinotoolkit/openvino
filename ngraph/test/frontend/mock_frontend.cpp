@@ -29,7 +29,7 @@ extern "C" MOCK_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
-    res->m_creator = [](ngraph::frontend::FrontEndCapabilities) {
+    res->m_creator = [](FrontEndCapFlags) {
         return std::make_shared<FrontEndMock>();
     };
     return res;
