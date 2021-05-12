@@ -197,6 +197,11 @@ namespace InferenceEngine {
 
             // TODO consider to call only once per layer/TI-Loop node
             IoMap updated_io_map(const pugi::xml_node& node, std::string body_name);
+            /// \brief Generates maps of dependencies of layer_id and parameters/results of internal subgraphs
+            /// Shall be used only for ops with independent among themselves subgraphs .
+            /// \param node xml op representation
+            /// \param body_name name of body in IR
+            IoMap gen_internal_layer_id_offsets(const pugi::xml_node& node, std::string body_name);
 
             /// \brief Traverses xml node representation in order to create nGraph function for it.
             /// \param node xml node representation
@@ -257,6 +262,34 @@ namespace InferenceEngine {
             return extend_io_map;
         }
 
+        XmlDeserializer::IoMap XmlDeserializer::gen_internal_layer_id_offsets(const pugi::xml_node& node, std::string body_name = "body") {
+            auto body_node = node.child(body_name.c_str());
+
+            if (body_node.empty()) {
+                IE_THROW() << "Missing body part.";
+            }
+            // Fill map: parameter/result id to parameter/result number in Function
+
+            auto extend_io_map = XmlDeserializer::IoMap();
+
+            size_t parameter_counter = 0;
+            size_t result_counter = 0;
+            FOREACH_CHILD(layer, body_node.child("layers"), "layer") {
+                auto type = XMLParseUtils::GetStrAttr(layer, "type");
+
+                if (type == "Parameter") {
+                    auto id = XMLParseUtils::GetUIntAttr(layer, "id");
+                    extend_io_map.inputs.insert({ id, parameter_counter });  // add mapping old internal_layer_id and parameter number
+                    parameter_counter++;
+                }
+                else if (type == "Result") {
+                    auto id = XMLParseUtils::GetUIntAttr(layer, "id");
+                    extend_io_map.outputs.insert({ id, result_counter });  // try add as unconnected
+                    result_counter++;
+                }
+            }
+            return extend_io_map;
+        }
         std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>
             XmlDeserializer::parseInputDescription(const pugi::xml_node& node) {
             std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
@@ -432,7 +465,7 @@ namespace InferenceEngine {
             {
                 body_name = "body";
             }
-            const auto up_io_map = updated_io_map(node, body_name);
+            const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
 
             // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
             std::map<uint64_t, pugi::xml_node> input_map;
@@ -445,9 +478,14 @@ namespace InferenceEngine {
                 auto& xml_input = input.second;
                 int64_t ti_input_index = XMLParseUtils::GetInt64Attr(xml_input, "external_port_id");
                 size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
-                inputs.push_back(
-                    std::make_shared<ngraph::op::util::MultiSubGraphOp::InvariantInputDescription>(
-                        ti_input_index, body_parameter_index));
+                if (ti_input_index >= 0) {
+                    const auto input_index = up_io_map.inputs.at(body_parameter_index);
+
+                    inputs.push_back(
+                        std::make_shared<ngraph::op::util::MultiSubGraphOp::InvariantInputDescription>(
+                            ti_input_index, input_index));
+                }
+
             }
             return inputs;
         }
@@ -468,7 +506,7 @@ namespace InferenceEngine {
             {
                 body_name = "body";
             }
-            const auto up_io_map = updated_io_map(node, body_name);
+            const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
 
             // Parse PortMap: outputs
             std::map<int64_t, pugi::xml_node> output_map;

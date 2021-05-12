@@ -97,9 +97,14 @@ void op::v7::If::validate_and_infer_type_body(
     std::shared_ptr<Function> body,
     ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors)
 {
+    auto layer_id_map = std::map<size_t, std::shared_ptr<op::Parameter>>();
+    for (auto param : body->get_parameters()) {
+        layer_id_map.insert({param->get_instance_id(),param});
+    }
     for (const auto& input_description : input_descriptors)
     {
         auto index = input_description->m_input_index;
+
         auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
         auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
         if (input_partial_shape.is_static())
