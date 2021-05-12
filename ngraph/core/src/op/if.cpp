@@ -135,7 +135,6 @@ void op::v7::If::validate_and_infer_types()
             NODE_VALIDATION_CHECK(this, cond_shape.at(0) == 1, "Incorrect shape of condition");
         }
     }
-    auto cond_type = cond_output.get_element_type();
     // Trying to get cond as const value
     if (const auto& cond_value = get_constant_from_source(cond_output))
     {
