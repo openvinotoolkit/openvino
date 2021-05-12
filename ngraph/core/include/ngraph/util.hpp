@@ -363,6 +363,15 @@ namespace ngraph
 
         return static_cast<T>(x);
     }
+
+    /// \brief Extracts the tensor data and returns a set of normalized axes created out of it.
+    ///
+    /// \param tensor A pointer to a HostTensor object containing the raw axes data
+    /// \param rank Rank of an operator's input data tensor (used to normalize the axes)
+    /// \param node_description An identifier of the operator's node (used to report errors)
+    AxisSet get_axes_from_tensor(const HostTensorPtr tensor,
+                                 const Rank& rank,
+                                 const std::string& node_description);
 } // end namespace ngraph
 
 template <typename T>

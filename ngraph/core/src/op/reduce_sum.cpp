@@ -6,9 +6,11 @@
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
+#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -73,5 +75,15 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate);
-    return reduce_sum::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    auto reduction_axes = get_reduction_axes();
+
+    if (!ngraph::op::is_constant(input(1).get_node()) && inputs.size() > 1)
+    {
+        // attempt to extract the reduction axes from an input tensor
+        // when the second input to the operator is not a Constant
+        reduction_axes =
+            get_axes_from_tensor(inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
+    }
+
+    return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }

@@ -19,6 +19,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 
 #include <iostream>
 
@@ -708,4 +709,13 @@ vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv)
     }
 
     return index_vec;
+}
+
+AxisSet ngraph::get_axes_from_tensor(const HostTensorPtr tensor,
+                                     const ngraph::Rank& rank,
+                                     const std::string& node_description)
+{
+    const auto axes_vector = host_tensor_2_vector<int64_t>(tensor);
+    const auto normalized_axes = ngraph::normalize_axes(node_description, axes_vector, rank);
+    return AxisSet{normalized_axes};
 }
