@@ -4,7 +4,7 @@
 // DeformablePSROIPooling implementation was inspired by
 // https://github.com/msracver/Deformable-ConvNets
 // Copyright (c) 2017 Microsoft
-// SPDX-License-Identifier: MIT License
+// SPDX-License-Identifier: MIT
 
 #pragma once
 
