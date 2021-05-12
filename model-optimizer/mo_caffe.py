@@ -5,5 +5,5 @@
 
 
 if __name__ == "__main__":
-    from mo.main import subprocess_main
+    from mo.subprocess_main import subprocess_main
     subprocess_main(framework='caffe')

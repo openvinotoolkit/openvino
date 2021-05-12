@@ -34,7 +34,7 @@ from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
-from mo.utils.versions_checker import check_requirements, check_python_version  # pylint: disable=no-name-in-module
+from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -421,33 +421,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
     telemetry.end_session()
     telemetry.force_shutdown(1.0)
     return 1
-
-
-def subprocess_main(framework=None):
-    """
-        This function checks that Inference Engine Python API available and working as expected
-        and then in sub-process it executes main_<fw>.py files. Due to some OSs specifics we can't
-        just add paths to Python modules and libraries into current env. So to make Inference Engine
-        Python API to be available inside MO we need to use subprocess with new env.
-    """
-    ret_code = check_python_version()
-    if ret_code:
-        sys.exit(ret_code)
-
-    from mo.utils.find_ie_version import find_ie_version
-    find_ie_version(silent=True)
-
-    mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
-
-    python_path_key = 'PYTHONPATH'
-    if python_path_key not in os.environ:
-        os.environ[python_path_key] = mo_root_path
-    else:
-        os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
-
-    path_to_main = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'main_{}.py'.format(framework) if framework else 'main.py')
-    status = subprocess.run([sys.executable, path_to_main, *sys.argv[1:]], env=os.environ)
-    sys.exit(status.returncode)
 
 
 if __name__ == "__main__":
