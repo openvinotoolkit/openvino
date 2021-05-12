@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNPSROIPoolingNode : public MKLDNNNode {
 public:
     MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPSROIPoolingNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
