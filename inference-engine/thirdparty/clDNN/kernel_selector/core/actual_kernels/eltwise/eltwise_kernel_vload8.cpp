@@ -73,6 +73,9 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
         }
     }
 
+    if (IsUnsupportedModeForVecCode(ewParams))
+        return false;
+
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
         return false;
     }
@@ -88,7 +91,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    std::string jit;
+    std::pair<std::string, std::string> jit;
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
 

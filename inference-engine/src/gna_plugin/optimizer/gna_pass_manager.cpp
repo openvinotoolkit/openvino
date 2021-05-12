@@ -81,9 +81,13 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     auto diagLayer = std::make_shared<ScaleShiftLayer>(LayerParams({diagName, "ScaleShift", Precision::FP32}));
     IE_ASSERT(diagLayer != nullptr);
 
-    // TODO: diagonal size
-    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? weightsSize = nextLayer->outData[0]->getDims().back() :
-                                                               Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+    auto inputLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(nextLayer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonValuesChangable();
+    });
+    IE_ASSERT(inputLayer != nullptr);
+    size_t weightsSize = (LayerInfo(prevLayer).has32BOutput() || LayerInfo(inputLayer).isInput()) ?
+                         weightsSize = nextLayer->outData[0]->getDims().back() :
+                         Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
@@ -126,7 +130,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     return copyWithQuant;
 }
 
-static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l) {
+static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager) {
     std::vector<CNNLayerPtr> prevLayers;
 
     // skipping memory inputs and true inputs layers
@@ -148,15 +152,24 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
     if (eltwise != nullptr) {
         // eltwise layer has 2 inputs, so depends on situation identity should or should not be inserted
 
-        // for  sum if we have 4-4 inputs we will handle that by inserting identity activation case (1)
-        // for  sum if we have 4-2 - OK
-        // for  sum if we have 2-2 inputs we need to insert diagonal
+        // for sum with 16-bit input precision
+        //          if we have 4-4 inputs - we will handle that by inserting identity activation case (1)
+        //          if we have 4-2 inputs - OK
+        //          if we have 2-2 inputs - we need to insert diagonal
 
-        // for  mul if we have 2-2 - OK
-        // for  mul if we have 2-4 - inputs we need to insert identity activation to make 2 bytes input
-        // for  mul if we have 4-4 - there 2 options
-        //          option 1 both inputs came from single outdata  - we will insert 1 identity  to just convert single input into 2 bytes
-        //          option 2 each input came from it's own outdata - we need to insert 2 identities activations to convert both and feed weights and inputs
+        // for sum with 8-bit input precision
+        //          if we have 1-1 inputs - OK
+        //          if we have 4-4 inputs - there are 2 options
+        //              option 1 both inputs came from single outdata - we need to insert 1 identity activation to just convert single input into 1 byte
+        //              option 2 each input came from its own outdata - we need to insert 2 identity activations to convert both and feed weights and inputs
+
+        // for mul if we have 2-2 or 1-1 (low precision case) inputs - OK
+        // for mul if we have 2-4 or 1-4 (low precision case) inputs - we need to insert identity activation to make 2 bytes input
+        //                                                             or 1 byte input (low precision case)
+        // for mul if we have 4-4 inputs - there are 2 options
+        //          option 1 both inputs came from single outdata - we need to insert 1 identity activation to just convert single input into 2 bytes
+        //                                                          or 1 byte (low precision case)
+        //          option 2 each input came from its own outdata - we need to insert 2 identity activations to convert both and feed weights and inputs
 
         auto prev0 = PrevFunctionalLayer(l, 0);
         auto prev1 = PrevFunctionalLayer(l, 1);
@@ -164,14 +177,32 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         switch (eltwise->_operation) {
             case EltwiseLayer::Sub:
             case EltwiseLayer::Sum:
-                if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
-                    return prevLayers;
+                if (!passmanager->isLowPrecision()) {
+                    if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
+                        return prevLayers;
+                    }
+                    // TODO: whether there are possibility to select after what layer identity gets inserted
+                    prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                } else {
+                    if (LayerInfo(prev0).has8BOr16BOutput() && LayerInfo(prev1).has8BOr16BOutput()) {
+                        return prevLayers;
+                    }
+
+                    if (LayerInfo(prev0).has32BOutput()) {
+                        prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                    }
+
+                    // if layers of outdata are different
+                    auto prevData0 = l->insData[0].lock();
+                    auto prevData1 = l->insData[1].lock();
+
+                    if ((prev0 != prev1 || prevData0 != prevData1) && LayerInfo(prev1).has32BOutput()) {
+                        prevLayers.push_back(CNNNetPrevLayer(l, 1));
+                    }
                 }
-                // TODO: whether there are possibility to select after what layer identity gets inserted
-                prevLayers.push_back(CNNNetPrevLayer(l, 0));
                 break;
             case EltwiseLayer::Prod: {
-                if (LayerInfo(prev0).has16BOutput() && LayerInfo(prev1).has16BOutput()) {
+                if (LayerInfo(prev0).has8BOr16BOutput() && LayerInfo(prev1).has8BOr16BOutput()) {
                     return prevLayers;
                 }
 
@@ -227,6 +258,8 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 }
 
 void InsertDiagonalLayerPass::run() {
+    bool lowPrecision = getPassManager()->isLowPrecision();
+
     for (auto & l : *pLayers) {
         if (l->insData.empty()) continue;
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, 0, [](CNNLayerPtr ptr) {
@@ -241,12 +274,16 @@ void InsertDiagonalLayerPass::run() {
             if (!eltwise) {
                 continue;
             }
-            // in case of eltwise sum one of input would be 4 bytes one - 2
-            // in case of eltwise mull one of input would be 2 bytes one - 2
+            // in case of eltwise sum in 16-bit input precision one of input would be 4 bytes one - 2
+            // in case of eltwise mul in 16-bit input precision one of input would be 2 bytes one - 2
+            // in case of eltwise sum in low (8-bit) input precision both inputs are 1 byte
+            // in case of eltwise mul in low (8-bit) input precision both inputs are 1 byte
             // for e sum if we have 4-4 inputs we will handle that by inserting identity activation
             // for e sum if we have 4-2 - OK
             // for e sum if we have 2-2 inputs we need to insert diagonal -- handling here
+            // for e sum if we have 1-1 inputs in low precision mode - OK
             // for e mul if we have 2-2 - OK
+            // for e mul if we have 1-1 in low precision mode - OK
             // for e mul if we have 2-4 - inputs we need to insert identity to put 4 bytes input into weights
             // for e mul if we have 4-4 - inputs we need to insert 2 identities to put both 4 bytes input into weights
 
@@ -256,7 +293,10 @@ void InsertDiagonalLayerPass::run() {
             auto prevLayer1 = CNNNetPrevLayerSkipCertain(l, 1, [](CNNLayerPtr ptr) {
                 return LayerInfo(ptr).isNonFunctional();
             });
-            if (!LayerInfo(prevLayer).has16BOutput() || !LayerInfo(prevLayer1).has16BOutput())
+            if (!LayerInfo(prevLayer).has8BOr16BOutput() || !LayerInfo(prevLayer1).has8BOr16BOutput())
+                continue;
+
+            if (lowPrecision && LayerInfo(prevLayer).has8BOr16BOutput() && LayerInfo(prevLayer1).has8BOr16BOutput())
                 continue;
         }
         auto prevDirectLayer = CNNNetPrevLayer(l, 0);
@@ -331,19 +371,21 @@ namespace {
 
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
-    // conv->relu->maxpooling
-    // changing it to conv->maxpooling->relu
+    // conv->activation->maxpooling
+    // changing it to conv->maxpooling->activation
     for (auto & l : *pLayers) {
         auto pool = LayerInfo(l);
         if (!pool.isMaxPooling()) continue;
 
         // don't reorder if pooling is 2D for CNN2D
         auto pooling = dynamic_cast<PoolingLayer*>(l.get());
-        if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
+        // todo: return the check for stride after it'll be fixed in MO for Kaldi models
+        if (pooling == nullptr || (is2D(pooling->_kernel))) continue;
 
         // checking prev layer type
-        auto activation = LayerInfo(CNNNetPrevLayer(l));
-        if (!activation.isActivation()) continue;
+        auto actLayer = CNNNetPrevLayer(l);
+        auto activation = LayerInfo(actLayer);
+        if (!activation.isActivation() || actLayer->insData.size() > 1) continue;
 
         // if activation came from convolution
         auto convolution = LayerInfo(CNNNetPrevLayer(static_cast<InferenceEngine::CNNLayer*>(activation)));
@@ -735,8 +777,40 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
 void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    auto createIdentityLayer = [quantized, this](const TensorDesc& tensorDesc) {
+        int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
+        auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
+        CNNLayerPtr activationLayer =
+            std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
+        CNNLayerPtr activationLayerWithQuant = quantized ?
+                                        InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
+                                        activationLayer;
+        auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), tensorDesc);
+        getCreatorLayer(dataPtr) = activationLayerWithQuant;
+        activationLayerWithQuant->outData.push_back(dataPtr);
+        return activationLayerWithQuant;
+    };
+
     for (auto & l : *pLayers) {
-        for (auto && prev : getCandidatesForIdentityInsertion(l)) {
+        if (LayerInfo(l).isPooling()) {
+            // Identity should be inserted after 1D pooling if it's the last functional layer.
+            auto pooling = LayerInfo(l).as<PoolingLayer*>();
+            IE_ASSERT(pooling != nullptr);
+            if (is2D(pooling->_kernel)) continue;
+
+            auto hasNextFuncLayer = CNNNetHasNextLayerSkipCertain(l, 0, 0, [](CNNLayerPtr layer) {
+                return LayerInfo(layer).isNonFunctional();
+            });
+            if (hasNextFuncLayer) continue;
+
+            auto identityLayer = createIdentityLayer(l->outData[0]->getTensorDesc());
+            gnalog() << "Inserted "<< identityLayer->name << " after " << l->name << std::endl;
+
+            auto nextLayer = CNNNetCheckNextLayerSkipCertain(l, 0, 0, true, [](CNNLayerPtr layer) { return false; }).first;
+            CNNNetworkInsertLayer(l, nextLayer, identityLayer);
+        }
+
+        for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
             auto true_layer = l;
@@ -775,15 +849,6 @@ void InsertIdentityLayerPass::run() {
             if (reconnected)
                 continue;
 
-            int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
-            // actual insertion
-            auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
-
-            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
-
-            CNNLayerPtr activationLayer =
-                std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
-
             // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
             // detecting ins-data-idx
             size_t insDataIdx = std::numeric_limits<size_t>::max();
@@ -798,34 +863,31 @@ void InsertIdentityLayerPass::run() {
             }
 
             auto inputData = true_layer->insData[insDataIdx].lock();
+            auto identityLayer = createIdentityLayer(inputData->getTensorDesc());
 
-            auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
-            auto activationLayerWithQuant = quantized ?
-                                            InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
-                                            activationLayer;
-            getCreatorLayer(dataPtr) = activationLayerWithQuant;
-            activationLayerWithQuant->outData.push_back(dataPtr);
+            gnalog() << "Inserted "<< identityLayer->name << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
+
             // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
                 for (auto && nextLayer : getInputTo(nextData)) {
                     if (nextLayer.second.get() == l.get())
                         continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second).empty()) {
+                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty()) {
                         notAll = true;
                     }
                 }
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("output_offset") != prev->params.end()) {
-                activationLayerWithQuant->params["output_offset"] = prev->params["output_offset"];
+                identityLayer->params["output_offset"] = prev->params["output_offset"];
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("original_num_rows") != prev->params.end()) {
-                activationLayerWithQuant->params["original_num_rows"] = prev->params["original_num_rows"];
+                identityLayer->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
+            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), identityLayer);
         }
     }
 }
@@ -1620,6 +1682,10 @@ void BreakFusingOfOutputLayersPass::run() {
 #endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
+        /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
+         * since scaleshift layers will be inserted between the pooling and activations
+         */
+        if (LayerInfo(layer).isPooling()) continue;
         for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
@@ -1954,7 +2020,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst()) {
+        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
             return true;
         }
 
@@ -2079,7 +2145,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const or activation layer
+        // FQ Layer is fused only when previous layer is const, memory or activation layer
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();

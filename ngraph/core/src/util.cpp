@@ -292,7 +292,7 @@ namespace ngraph
 
         return result;
     }
-}
+} // namespace ngraph
 
 std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
 {
@@ -335,7 +335,7 @@ bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank r
         }
     }
 
-    return (rank.is_dynamic() || permutation.size() == rank.get_length());
+    return (rank.is_dynamic() || static_cast<int64_t>(permutation.size()) == rank.get_length());
 }
 
 template <typename T>
@@ -394,16 +394,30 @@ namespace ngraph
 
         return output;
     }
-}
+} // namespace ngraph
 
 AxisVector ngraph::get_default_order(const Shape& shape)
 {
     return get_default_order(shape.size());
 }
 
+AxisVector ngraph::get_default_order(const PartialShape& shape)
+{
+    return get_default_order(shape.rank());
+}
+
 AxisVector ngraph::get_default_order(size_t rank)
 {
     AxisVector default_order(rank);
+    std::iota(begin(default_order), end(default_order), 0);
+    return default_order;
+}
+
+AxisVector ngraph::get_default_order(const Rank& rank)
+{
+    NGRAPH_CHECK(rank.is_static(), "Can not calculate default order for dynamic rank");
+
+    AxisVector default_order(rank.get_length());
     std::iota(begin(default_order), end(default_order), 0);
     return default_order;
 }

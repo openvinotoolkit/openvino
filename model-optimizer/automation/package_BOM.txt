@@ -60,14 +60,16 @@ extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
 extensions/back/TopKNormalizer.py
+extensions/back/TransposeDFT.py
 extensions/back/TransposeReduceFusing.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
-extensions/front/ArgMaxSqueeze.py
+extensions/front/ArgOpsSqueeze.py
 extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
@@ -159,6 +161,7 @@ extensions/front/kaldi/memoryoffset_batch_update.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
+extensions/front/kaldi/replace_timeheightconvolution.py
 extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_recurrent_memoryoffset.py
@@ -194,6 +197,7 @@ extensions/front/mxnet/elementwise_ext.py
 extensions/front/mxnet/eltwise_scalar_replacers.py
 extensions/front/mxnet/exp_ext.py
 extensions/front/mxnet/expand_dims_ext.py
+extensions/front/mxnet/fft_ext.py
 extensions/front/mxnet/flatten_ext.py
 extensions/front/mxnet/fully_connected_ext.py
 extensions/front/mxnet/gather.py
@@ -206,6 +210,7 @@ extensions/front/mxnet/max_ext.py
 extensions/front/mxnet/multibox_detection_ext.py
 extensions/front/mxnet/mx_reshape_reverse.py
 extensions/front/mxnet/mx_reshape_to_reshape.py
+extensions/front/mxnet/MXFFTToDFT.py
 extensions/front/mxnet/MXRepeatReplacer.py
 extensions/front/mxnet/null_ext.py
 extensions/front/mxnet/pad_ext.py
@@ -217,6 +222,7 @@ extensions/front/mxnet/reshape_ext.py
 extensions/front/mxnet/RNN_ext.py
 extensions/front/mxnet/rnn_param_concat.py
 extensions/front/mxnet/roi_pooling_ext.py
+extensions/front/mxnet/roll_ext.py
 extensions/front/mxnet/shape_array_ext.py
 extensions/front/mxnet/sigmoid.py
 extensions/front/mxnet/slice_channel_ext.py
@@ -252,6 +258,7 @@ extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
 extensions/front/onnx/affine_ext.py
 extensions/front/onnx/argmax_ext.py
+extensions/front/onnx/argmin_ext.py
 extensions/front/onnx/aten_ext.py
 extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
@@ -353,18 +360,19 @@ extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
+extensions/front/RollWithEmptyAxesReplacer.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
 extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
-extensions/front/standalone_const_eraser.py
 extensions/front/sub.py
 extensions/front/Swish_fusion.py
 extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
+extensions/front/tf/argmin_ext.py
 extensions/front/tf/assign_elimination.py
 extensions/front/tf/automl_efficientdet.json
 extensions/front/tf/AutomlEfficientDet.py
@@ -378,10 +386,13 @@ extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
+extensions/front/tf/ComplexAbs.py
+extensions/front/tf/ComplexAbsAfterComplex.py
 extensions/front/tf/concat.py
 extensions/front/tf/concat_ext.py
 extensions/front/tf/const_ext.py
 extensions/front/tf/conv_ext.py
+extensions/front/tf/CorrectRollAxes.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
@@ -408,6 +419,7 @@ extensions/front/tf/faster_rcnn_support_api_v1.15.json
 extensions/front/tf/faster_rcnn_support_api_v1.7.json
 extensions/front/tf/faster_rcnn_support_api_v2.0.json
 extensions/front/tf/faster_rcnn_support_api_v2.4.json
+extensions/front/tf/fft_ext.py
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
@@ -465,6 +477,8 @@ extensions/front/tf/rfcn_support.json
 extensions/front/tf/rfcn_support_api_v1.10.json
 extensions/front/tf/rfcn_support_api_v1.13.json
 extensions/front/tf/rfcn_support_api_v1.14.json
+extensions/front/tf/roll_ext.py
+extensions/front/tf/RollRealImagPack.py
 extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
@@ -489,12 +503,14 @@ extensions/front/tf/ssd_toolbox_detection_output.json
 extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
 extensions/front/tf/SSDToolboxDetectionOutput.py
+extensions/front/tf/SSliceComplex.py
 extensions/front/tf/swap_deconv_inputs.py
 extensions/front/tf/swish_ext.py
 extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFFFTToDFT.py
 extensions/front/tf/TFResizeToInterpolate.py
 extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
@@ -541,7 +557,7 @@ extensions/middle/AddIsCyclicAttribute.py
 extensions/middle/AddMeanScaleValues.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
-extensions/middle/ArgMaxToTopK.py
+extensions/middle/ArgOpsToTopK.py
 extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
@@ -637,6 +653,7 @@ extensions/ops/accum.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
 extensions/ops/argmax.py
+extensions/ops/argmin.py
 extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py
@@ -660,6 +677,7 @@ extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
+extensions/ops/dft.py
 extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
@@ -688,6 +706,7 @@ extensions/ops/lstm_sequence.py
 extensions/ops/MatMul.py
 extensions/ops/merge.py
 extensions/ops/mvn.py
+extensions/ops/mxfft.py
 extensions/ops/mxrepeat.py
 extensions/ops/mxreshape.py
 extensions/ops/NextIteration.py
@@ -725,6 +744,7 @@ extensions/ops/RNN.py
 extensions/ops/RNNCell.py
 extensions/ops/roialign.py
 extensions/ops/roifeatureextractor_onnx.py
+extensions/ops/roll.py
 extensions/ops/scatter.py
 extensions/ops/scatternd.py
 extensions/ops/select.py
@@ -752,6 +772,7 @@ extensions/ops/TensorArrayScatter.py
 extensions/ops/TensorArraySize.py
 extensions/ops/TensorArrayWrite.py
 extensions/ops/TensorIterator_ops.py
+extensions/ops/TFFFT.py
 extensions/ops/TFResize.py
 extensions/ops/topk.py
 extensions/ops/topkrois_onnx.py
@@ -860,6 +881,7 @@ mo/front/kaldi/extractors/softmax_ext.py
 mo/front/kaldi/extractors/specaugment_component_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
 mo/front/kaldi/extractors/tdnncomponent_ext.py
+mo/front/kaldi/extractors/timeheightconvolution_ext.py
 mo/front/kaldi/loader/__init__.py
 mo/front/kaldi/loader/loader.py
 mo/front/kaldi/loader/utils.py
@@ -972,6 +994,7 @@ mo/ops/squeeze.py
 mo/ops/strided_slice.py
 mo/ops/tdnncomponent.py
 mo/ops/tile.py
+mo/ops/timeheightconvolution.py
 mo/ops/unsqueeze.py
 mo/pipeline/__init__.py
 mo/pipeline/common.py

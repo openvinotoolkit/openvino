@@ -3,6 +3,7 @@
 //
 
 #include <dlfcn.h>
+#include <iostream>
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
@@ -27,9 +28,9 @@ public:
     }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
-    ~Impl() noexcept(false) {
+    ~Impl() {
         if (0 != dlclose(shared_object)) {
-            IE_THROW() << "dlclose failed: " << dlerror();
+            std::cerr << "dlclose failed: " << dlerror() << std::endl;
         }
     }
 
@@ -60,7 +61,7 @@ SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl.reset(new Impl(pluginName));
 }
 
-SharedObjectLoader::~SharedObjectLoader() noexcept(false) {}
+SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
     return _impl->get_symbol(symbolName);

@@ -10,7 +10,6 @@
 #include <limits>
 #include <map>
 #include <memory>
-#include <iostream>
 #include <string>
 #include <typeinfo>
 #include <unordered_set>
@@ -20,6 +19,8 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/opsets/opset6.hpp"
+
+#include "lpt_itt.h"
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
@@ -43,8 +44,13 @@
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/prelu.hpp"
+#include "low_precision/reduce_max.hpp"
+#include "low_precision/reduce_mean.hpp"
+#include "low_precision/reduce_min.hpp"
+#include "low_precision/reduce_sum.hpp"
 #include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
+#include "low_precision/shuffle_channels.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
@@ -226,12 +232,19 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MVNTransformation, opset6::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<PReluTransformation, opset1::PRelu>(params).
+        add<ReduceMaxTransformation, opset1::ReduceMax>(params).
+        add<ReduceMeanTransformation, opset1::ReduceMean>(params).
+        add<ReduceMinTransformation, opset1::ReduceMin>(params).
+        add<ReduceSumTransformation, opset1::ReduceSum>(params).
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
+        add<ShuffleChannelsTransformation, opset1::ShuffleChannels>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
+        add<SplitTransformation, opset1::Split>(params).
         add<StridedSliceTransformation, opset1::StridedSlice>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
+        add<VariadicSplitTransformation, opset1::VariadicSplit>(params).
 
         addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
@@ -329,6 +342,8 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::PRelu>(this);
+    make_matcher_type_relaxed<opset1::ReduceMean>(this);
+    make_matcher_type_relaxed<opset1::ReduceSum>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
@@ -346,6 +361,8 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         return;
     }
 
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::LPT_LT, "LowPrecisionTransformer", "transform");
+
     ngraph::pass::ConstantFolding constantFolding;
     constantFolding.run_on_function(network);
 
@@ -354,11 +371,15 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 
     TransformationContext context(network);
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "TypeRelaxedReplacer");
+
     // Extend necessary operations with polymorphic semantics
     {
         TypeRelaxedReplacer pass;
         pass.run_on_function(network);
     }
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "BranchSpecificTransformations");
 
     {
         // Branch specific transformations
@@ -367,12 +388,16 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FakeQuantizeDecomposition");
+
     {
         // Step #1: FakeQuantize decomposition transformation execution
         GraphRewrite pass;
         registerAllMatchers(transformations.decompositionTransformations, pass, context);
         pass.run_on_function(network);
     }
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "LayerTransformations");
 
     {
         // Step #2: layer transformations execution
@@ -381,12 +406,16 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "CleanupTransformations");
+
     {
         // Step #3: cleanup transformations execution
         GraphRewrite pass;
         registerAllMatchers(transformations.cleanupTransformations, pass, context);
         pass.run_on_function(network);
     }
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "StandaloneCleanupTransformations");
 
     {
         // Step #4: standalone cleanup transformations execution

@@ -19,15 +19,7 @@ namespace ngraph
                                                           const int64_t axis)
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
-
-                const auto axis_1 = default_opset::Constant::create(element::i64, Shape{1}, {1});
-                const auto max =
-                    std::make_shared<default_opset::ReduceMax>(coerced_data, axis_1, true);
-
-                const auto data_minus_max =
-                    std::make_shared<default_opset::Subtract>(coerced_data, max);
-
-                const auto result = std::make_shared<default_opset::LogSoftmax>(data_minus_max, 1);
+                const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
                 const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
                 return std::make_shared<default_opset::Reshape>(result, data_shape, false);
             }
@@ -70,7 +62,7 @@ namespace ngraph
 
                 return {result};
             }
-        }
+        } // namespace detail
 
         namespace op
         {
@@ -81,8 +73,13 @@ namespace ngraph
 
             namespace set_13
             {
-                OutputVector log_softmax(const Node& node) { return detail::log_softmax(node, -1); }
-            } // namespace set_1
+                OutputVector log_softmax(const Node& node)
+                {
+                    const auto axis = node.get_attribute_value<int64_t>("axis", -1);
+                    return {
+                        std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
+                }
+            } // namespace set_13
 
         } // namespace op
 

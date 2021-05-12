@@ -8,16 +8,15 @@
 #include <map>
 #include <vector>
 
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "gna_infer_request.hpp"
 #include "gna_plugin.hpp"
 #include <gna/gna_config.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_async_only.hpp>
+#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 namespace GNAPluginNS {
 
-class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeAsyncOnly {
+class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
 
  public:
@@ -53,17 +52,15 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
     }
 
-    InferenceEngine::AsyncInferRequestInternal::Ptr
-        CreateAsyncInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                    InferenceEngine::OutputsDataMap networkOutputs) override {
+    InferenceEngine::IInferRequestInternal::Ptr
+        CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+                               InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
         IE_SUPPRESS_DEPRECATED_START
-        auto pluginStates = plg->QueryState();
-        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
         return plg->QueryState();
         IE_SUPPRESS_DEPRECATED_END
     }

@@ -41,32 +41,6 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, elu)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, 0.5f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{-0.432332358f, 3.f, -0.432332358f, 1.f, -0.316060279f, 0.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, -1.f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{0.864664717f, 3.f, 0.864664717f, 1.f, 0.632120559f, 0.f});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, prelu)
 {
     Shape shape{3, 2};
@@ -717,55 +691,6 @@ NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_float)
 
     test_case.add_expected_output<float>(Shape{6, 1, 1, 1}, {0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f});
 
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze)
-{
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
-    const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
-
-    const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 1, 2}, data);
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
-{
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
-    const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
-
-    const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 2}, data);
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
-{
-    const auto data_param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});
-
-    const auto squeeze = make_shared<op::Squeeze>(data_param, axes_param);
-
-    const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_param, axes_param});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_input(vector<int64_t>{0, 2});
-    test_case.add_expected_output<float>(Shape{4, 1, 2}, data);
     test_case.run();
 }
 

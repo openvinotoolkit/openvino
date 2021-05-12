@@ -22,7 +22,6 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -485,7 +484,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     if (!strm.str().empty()) {
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }
@@ -498,7 +497,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }
@@ -519,7 +518,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
         }
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }

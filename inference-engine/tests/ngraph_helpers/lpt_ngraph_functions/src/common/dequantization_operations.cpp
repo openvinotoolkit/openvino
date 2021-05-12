@@ -185,6 +185,14 @@ DequantizationOperations::DequantizationOperations(
     multiply(multiply)
 {}
 
+void DequantizationOperations::setPrecision(const ngraph::element::Type& type) noexcept {
+    convert.outPrecision = type;
+    subtract.constantPrecision = type;
+    subtract.outPrecision = type;
+    multiply.constantPrecision = type;
+    multiply.outPrecision = type;
+}
+
 bool DequantizationOperations::empty() const noexcept {
     return convert.empty() && subtract.empty() && multiply.empty();
 }

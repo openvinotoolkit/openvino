@@ -9,7 +9,8 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {

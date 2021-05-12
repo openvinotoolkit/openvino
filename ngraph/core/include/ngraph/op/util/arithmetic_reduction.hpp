@@ -25,14 +25,10 @@ namespace ngraph
                 ///
                 /// \param arg Output that produces the first input tensor.
                 /// \param reduction_axes The axis positions (0-based) to be eliminated.
-                ArithmeticReduction(const Output<Node>& arg, const AxisSet& reduction_axes);
-                /// \brief Constructs an arithmetic reduction operation.
-                ///
-                /// \param arg Output that produces the first input tensor.
-                /// \param reduction_axes The axis positions (0-based) to be eliminated.
                 ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
                 void validate_and_infer_types() override;
 
                 /// \return true if reduction axes are constant else false.
@@ -46,6 +42,6 @@ namespace ngraph
                 /// \brief Change the reduction axes
                 void set_reduction_axes(const AxisSet& reduction_axes);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

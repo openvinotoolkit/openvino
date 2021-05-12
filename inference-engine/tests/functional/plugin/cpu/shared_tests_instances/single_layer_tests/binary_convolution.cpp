@@ -12,7 +12,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::I32};
 
 /* ============= 2D Binary Convolution ============= */
 const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};

@@ -105,34 +105,21 @@ methods:
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part7
 
 6) **Prepare input**. You can use one of the following options to prepare input:
-    * **Optimal way for a single network.** Get blobs allocated by an infer request using `InferenceEngine::InferRequest::GetBlob()`
-    and feed an image and the input data to the blobs. In this case, input data must be aligned (resized manually) with a
-    given blob size and have a correct color format.
+    * **Optimal way for a single network.** Get blobs allocated by an infer request using `InferenceEngine::InferRequest::GetBlob()` and feed an image and the input data to the blobs. In this case, input data must be aligned (resized manually) with a given blob size and have a correct color format.
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part8
 
-    * **Optimal way for a cascade of networks (output of one network is input for another).** Get output blob from the first
-    request using `InferenceEngine::InferRequest::GetBlob()` and set it as input for the second request using
-    `InferenceEngine::InferRequest::SetBlob()`.
+    * **Optimal way for a cascade of networks (output of one network is input for another).** Get output blob from the first request using `InferenceEngine::InferRequest::GetBlob()` and set it as input for the second request using `InferenceEngine::InferRequest::SetBlob()`.
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part9
 
-    * **Optimal way to handle ROI (a ROI object located inside of input of one network is input for another).** It is
-    possible to re-use shared input by several networks. You do not need to allocate separate input blob for a network if
-    it processes a ROI object located inside of already allocated input of a previous network. For instance, when first
-    network detects objects on a video frame (stored as input blob) and second network accepts detected bounding boxes
-    (ROI inside of the frame) as input.
-    In this case, it is allowed to re-use pre-allocated input blob (used by first network) by second network and just crop
-    ROI without allocation of new memory using `InferenceEngine::make_shared_blob()` with passing of
-    `InferenceEngine::Blob::Ptr` and `InferenceEngine::ROI` as parameters.
+    * **Optimal way to handle ROI (a ROI object located inside of input of one network is input for another).** It is possible to re-use shared input by several networks. You do not need to allocate separate input blob for a network if it processes a ROI object located inside of already allocated input of a previous network. For instance, when first network detects objects on a video frame (stored as input blob) and second network accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input blob (used by first network) by second network and just crop ROI without allocation of new memory using `InferenceEngine::make_shared_blob()` with passing of `InferenceEngine::Blob::Ptr` and `InferenceEngine::ROI` as parameters.
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part10
 
-      Make sure that shared input is kept valid during execution of each network. Otherwise, ROI blob may be corrupted if the
-      original input blob (that ROI is cropped from) has already been rewritten.
+Make sure that shared input is kept valid during execution of each network. Otherwise, ROI blob may be corrupted if the original input blob (that ROI is cropped from) has already been rewritten.
 
-    * Allocate input blobs of the appropriate types and sizes, feed an image and the input data to the blobs, and call
-    `InferenceEngine::InferRequest::SetBlob()` to set these blobs for an infer request:
+    * Allocate input blobs of the appropriate types and sizes, feed an image and the input data to the blobs, and call `InferenceEngine::InferRequest::SetBlob()` to set these blobs for an infer request:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part11
 
@@ -140,7 +127,7 @@ methods:
 
 > **NOTE:**
 >
-> * `SetBlob()` method compares precision and layout of an input blob with ones defined on step 3 and
+> * The `SetBlob()` method compares precision and layout of an input blob with the ones defined in step 3 and
 > throws an exception if they do not match. It also compares a size of the input blob with input
 > size of the read network. But if input was configured as resizable, you can set an input blob of
 > any size (for example, any ROI blob). Input resize will be invoked automatically using resize
@@ -154,8 +141,7 @@ methods:
 > corresponding values of the read network. No pre-processing will happen for this blob. If you
 > call `GetBlob()` after `SetBlob()`, you will get the blob you set in `SetBlob()`.
 
-7) **Do inference** by calling the `InferenceEngine::InferRequest::StartAsync` and `InferenceEngine::InferRequest::Wait`
-methods for asynchronous request:
+7) **Do inference** by calling the `InferenceEngine::InferRequest::StartAsync` and `InferenceEngine::InferRequest::Wait` methods for asynchronous request:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part12
 
@@ -164,14 +150,12 @@ or by calling the `InferenceEngine::InferRequest::Infer` method for synchronous 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part13
 
 `StartAsync` returns immediately and starts inference without blocking main thread, `Infer` blocks
- main thread and returns when inference is completed.
-Call `Wait` for waiting result to become available for asynchronous request.
+ main thread and returns when inference is completed. Call `Wait` for waiting result to become available for asynchronous request.
 
 There are three ways to use it:
-* specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed,
-or the result becomes available, whichever comes first.
-* `InferenceEngine::IInferRequest::WaitMode::RESULT_READY` - waits until inference result becomes available
-* `InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY` - immediately returns request status.It does not
+* specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed, or the result becomes available, whichever comes first.
+* `InferenceEngine::InferRequest::WaitMode::RESULT_READY` - waits until inference result becomes available
+* `InferenceEngine::InferRequest::WaitMode::STATUS_ONLY` - immediately returns request status.It does not
 block or interrupts current thread.
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
@@ -182,8 +166,7 @@ While request is ongoing, all its methods except `InferenceEngine::InferRequest:
 exception.
 
 8) Go over the output blobs and **process the results**.
-Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not recommended way,
-better to access data via `buffer()` and `as()` methods as follows:
+Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the recommended way. It's better to access data via the `buffer()` and `as()` methods as follows:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part14
 
@@ -217,7 +200,7 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS} ${NGRAPH_LIBRARIES})
 ```
 3. **To build your project** using CMake with the default build tools currently available on your machine, execute the following commands:
-> **NOTE**: Make sure **Set the Environment Variables** step in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document is applied to your terminal, otherwise `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
+> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/bin/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
 ```sh
 cd build/
 cmake ../project

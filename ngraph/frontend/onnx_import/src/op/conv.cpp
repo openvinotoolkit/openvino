@@ -37,12 +37,8 @@ namespace ngraph
                     {
                         if (groups > 1)
                         {
-                            auto filters_shape = filters.get_shape();
-                            filters_shape.at(0) = filters_shape.at(0) / groups;
-                            filters_shape.insert(filters_shape.begin(), groups);
-
                             const auto reshaped_filters =
-                                ngraph::builder::opset1::reshape(filters, filters_shape);
+                                convpool::get_reshaped_filters(filters, groups);
 
                             return std::make_shared<default_opset::GroupConvolution>(
                                 data,
@@ -71,25 +67,9 @@ namespace ngraph
                         const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
                         const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
 
-                        // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
-                        const auto one_const =
-                            default_opset::Constant::create(element::i64, Shape{1}, {1});
-                        const auto two_const =
-                            default_opset::Constant::create(element::i64, Shape{1}, {2});
-                        const auto tail_shape_rank =
-                            std::make_shared<default_opset::Subtract>(conv_rank, two_const);
-                        const auto tail_shape =
-                            std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
-
-                        // Construct new bias shape: [1, C, 1, 1, ... ]
-                        const auto C_dim = std::make_shared<default_opset::ShapeOf>(bias);
-                        const auto bias_shape = std::make_shared<default_opset::Concat>(
-                            OutputVector{one_const, C_dim, tail_shape}, 0);
-
-                        const auto reshaped_bias =
-                            std::make_shared<default_opset::Reshape>(bias, bias_shape, false);
-
-                        return {std::make_shared<default_opset::Add>(ng_conv, reshaped_bias)};
+                        return {std::make_shared<default_opset::Add>(
+                            ng_conv,
+                            reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
                     }
                 } // namespace
 

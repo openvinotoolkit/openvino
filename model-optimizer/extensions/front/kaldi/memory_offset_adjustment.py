@@ -64,7 +64,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
 
 
 class MemoryOffsetAdjustment(FrontReplacementSubgraph):
-    """
+    r"""
     Pass used to fix wrong results in the following situation:
                               input
                               |   \

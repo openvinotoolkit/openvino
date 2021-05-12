@@ -27,15 +27,16 @@ std::ostream& operator<<(std::ostream & os, setType type) {
 }
 
 std::string SetBlobTest::getTestCaseName(testing::TestParamInfo<SetBlobParams> obj) {
-    Precision prec;
+    Precision precNet, precNg;
     setType type;
     std::string targetDevice;
-    std::tie(prec, type, targetDevice) = obj.param;
+    std::tie(precNet, precNg, type, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "Type="<< type;
-    result << " Device="<< targetDevice;
-    result << " Precision=" << prec;
+    result << "Type=" << type << "_";
+    result << "Device=" << targetDevice << "_";
+    result << "PrecisionInNet=" << precNet << "_";
+    result << "PrecisionInNgraph=" << precNg;
     return result.str();
 }
 
@@ -65,7 +66,7 @@ void SetBlobTest::Infer() {
         const auto &info = input.second;
         Blob::Ptr inBlob;
         if (type == setType::INPUT || type == setType::BOTH) {
-            inBlob = make_blob_with_precision(precision, info->getTensorDesc());
+            inBlob = make_blob_with_precision(precNet, info->getTensorDesc());
             inBlob->allocate();
             fillBlob(inBlob);
         } else {
@@ -78,7 +79,7 @@ void SetBlobTest::Infer() {
     if (type == setType::OUTPUT || type == setType::BOTH) {
         for (const auto &output : executableNetwork.GetOutputsInfo()) {
             const auto &info = output.second;
-            Blob::Ptr outBlob = make_blob_with_precision(precision, info->getTensorDesc());
+            Blob::Ptr outBlob = make_blob_with_precision(precNet, info->getTensorDesc());
             outBlob->allocate();
             fillBlob(outBlob);
             inferRequest.SetBlob(info->getName(), outBlob);
@@ -90,12 +91,15 @@ void SetBlobTest::Infer() {
 
 void SetBlobTest::SetUp() {
     SizeVector IS{4, 5, 6, 7};
-    std::tie(precision, type, targetDevice) = this->GetParam();
+    Precision precNg;
+    std::tie(precNet, precNg, type, targetDevice) = this->GetParam();
 
+    if (type == setType::INPUT || type == setType::BOTH)
+        inPrc = precNet;
     if (type == setType::OUTPUT || type == setType::BOTH)
-        outPrc = precision;
+        outPrc = precNet;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
     auto params = ngraph::builder::makeParams(ngPrc, {IS});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})->output(0);

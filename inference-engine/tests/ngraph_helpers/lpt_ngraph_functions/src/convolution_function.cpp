@@ -147,7 +147,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
     const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{ 1, 1, 1, 1 }, 3.0f));
+        std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         fakeQuantizeOnData.empty() ? input : fqOnData,
@@ -244,7 +244,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
     std::shared_ptr<ngraph::Node> onWeights = fakeQuantizeOnWeights.empty() ?
-        std::dynamic_pointer_cast<ngraph::Node>(weights) :
+        (weights->get_output_element_type(0).is_real() ?
+            convertedWeights :
+            std::dynamic_pointer_cast<ngraph::Node>(weights)) :
         ngraph::builder::makeFakeQuantize(
             convertedWeights->output(0),
             netPrecision,

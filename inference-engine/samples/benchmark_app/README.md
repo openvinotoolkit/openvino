@@ -74,49 +74,53 @@ InferenceEngine:
 benchmark_app [OPTION]
 Options:
 
-    -h, --help                Print a usage message
-    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
-    -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-    -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
-                              Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
-                              Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
+    -h, --help                  Print a usage message
+    -m "<path>"                 Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
+    -i "<path>"                 Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+    -d "<device>"               Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
+                                Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
+                                Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
     The application looks for a suitable plugin for the specified device.
-    -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+    -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
-    -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -api "<sync/async>"       Optional. Enable Sync/Async API. Default value is "async".
-    -niter "<integer>"        Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
-    -nireq "<integer>"        Optional. Number of infer requests. Default value is determined automatically for a device.
-    -b "<integer>"            Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
-    -stream_output            Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
-    -t                        Optional. Time, in seconds, to execute topology.
-    -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
-    -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
-    -layout                   Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
+    -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
+    -api "<sync/async>"         Optional. Enable Sync/Async API. Default value is "async".
+    -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
+    -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
+    -b "<integer>"              Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
+    -stream_output              Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
+    -t                          Optional. Time, in seconds, to execute topology.
+    -progress                   Optional. Show progress bar (can affect performance measurement). Default values is "false".
+    -shape                      Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+    -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
 
   CPU-specific performance options:
-    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
-                              (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                              Default value is determined automatically for a device.
-                              Please note that although the automatic selection usually provides a reasonable performance,
-                              it still may be non-optimal for some cases, especially for very small networks.
-                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
-                              estimations the number of streams should be set to 1.
-    -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
-    -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
-    -ip "U8"/"FP16"/"FP32"    Optional. Specifies precision for all input layers of the network.
-    -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
-    -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
-
+    -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
+                                (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                                Default value is determined automatically for a device.
+                                Please note that although the automatic selection usually provides a reasonable performance,
+                                it still may be non-optimal for some cases, especially for very small networks.
+                                Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
+                                estimations the number of streams should be set to 1.
+    -nthreads "<integer>"       Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
+    -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+    -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
+                                Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
+					            enabling threads->cores pinning ("YES", which is already default for a conventional CPU),  
+			                    letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
+			                    threads->(NUMA)nodes ("NUMA") or 
+			      	            completely disable ("NO") CPU inference threads pinning.
+    -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
+    -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
+    -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 
   Statistics dumping options:
-    -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
-    -report_folder            Optional. Path to a folder where statistics report is stored.
-    -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
-    -pc                       Optional. Report performance counters.
-    -dump_config              Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
-    -load_config              Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+    -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
+    -report_folder              Optional. Path to a folder where statistics report is stored.
+    -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
+    -pc                         Optional. Report performance counters.
+    -dump_config                Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
+    -load_config                Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -126,7 +130,7 @@ If a model has only image input(s), please provide a folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -198,4 +202,4 @@ Below are fragments of sample output for CPU and FPGA devices:
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)
