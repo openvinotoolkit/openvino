@@ -6,7 +6,6 @@
 
 #include <ie_blob.h>
 #include <memory>
-#include <details/ie_no_copy.hpp>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
 #include "mkldnn_weights_cache.hpp"
@@ -24,7 +23,7 @@ class MKLDNNEdge;
 using MKLDNNEdgePtr = std::shared_ptr<MKLDNNEdge>;
 using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
 
-class MKLDNNEdge : public InferenceEngine::details::no_copy {
+class MKLDNNEdge {
 public:
     MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
                const std::shared_ptr<MKLDNNNode>& child,

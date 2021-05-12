@@ -73,7 +73,6 @@ struct jit_uni_mvn_kernel {
 class MKLDNNMVNNode : public MKLDNNNode {
 public:
     MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMVNNode() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -104,7 +103,9 @@ private:
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+    void transformTo5DCase(const ngraph::Shape& shape);
+
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
 
     bool acrossChannels_ = false;
     bool normalizeVariance_ = true;
