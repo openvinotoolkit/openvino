@@ -213,11 +213,13 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
+    visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/gather.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
@@ -236,6 +238,8 @@ set(SRC
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_l1.cpp
+    visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
     visitors/op/reduce_logical_or.cpp
     visitors/op/reduce_max.cpp
@@ -255,8 +259,10 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     uint4.cpp
@@ -336,6 +342,7 @@ set(MULTI_TEST_SRC
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
+    backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
