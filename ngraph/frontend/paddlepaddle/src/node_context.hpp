@@ -118,7 +118,7 @@ inline ngraph::element::Type NodeContext::get_out_port_type(const std::string& p
     PDPD_ASSERT(types.size() > 0, "Port has no tensors connected.");
     PDPD_ASSERT(std::equal(types.begin() + 1, types.end(), types.begin()),
                 "Port has tensors with different types connected.");
-    return res;
+    return types[0];
 }
 
 inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
