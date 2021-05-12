@@ -85,6 +85,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      # TODO: this is needed only when PDPD frontend is enabled and tests are executed
+      python3 -m pip install paddlepaddle==2.0.1
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
