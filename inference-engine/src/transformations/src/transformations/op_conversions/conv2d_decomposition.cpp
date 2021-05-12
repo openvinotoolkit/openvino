@@ -611,7 +611,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                         std::shared_ptr<Node> last_conv_block_op = conv;
                         if (add_bias_const) {
                             last_conv_block_op = std::make_shared<ngraph::opset1::Add>(conv, add_bias_const);
-                            ngraph::copy_runtime_info(source_conv2d, {last_conv_block_op});
+                            ngraph::copy_runtime_info(source_conv2d, last_conv_block_op);
                         }
                         //add max pooling
                         if (pool_size_x > 1 || pool_stride_x > 1) {
