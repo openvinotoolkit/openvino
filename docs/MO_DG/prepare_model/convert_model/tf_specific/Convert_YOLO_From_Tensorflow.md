@@ -35,7 +35,7 @@ cd tensorflow-yolo-v3
 git checkout ed60b90
 ```
 3. Download [coco.names](https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
-4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pretrained weights with the same structure
+4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure
 5. Run a converter:
 - for YOLO-v3:
 ```sh
@@ -89,18 +89,20 @@ where:
 
 To generate the IR of the YOLOv3 TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py
---input_model /path/to/yolo_v3.pb
---transformations_config $MO_ROOT/extensions/front/tf/yolo_v3.json
---batch 1
+python3 mo_tf.py                                                   \
+--input_model /path/to/yolo_v3.pb                                  \
+--transformations_config $MO_ROOT/extensions/front/tf/yolo_v3.json \
+--batch 1                                                          \
+--output_dir <OUTPUT_MODEL_DIR>
 ```
 
 To generate the IR of the YOLOv3-tiny TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py
---input_model /path/to/yolo_v3_tiny.pb
---transformations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json
---batch 1
+python3 mo_tf.py                                                        \
+--input_model /path/to/yolo_v3_tiny.pb                                  \
+--transformations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json \
+--batch 1                                                               \
+--output_dir <OUTPUT_MODEL_DIR>
 ```
 
 where:
