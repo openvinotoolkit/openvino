@@ -579,15 +579,15 @@ const VecFusingParams fusingParamsSetReducedBF16 {
         fusingSum,
 };
 
-const VecPrcConnectedParams vecPrcConnectParamsFP32 = {{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32}};
-const VecPrcConnectedParams vecPrcConnectParams = {{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32},
-                                                   {Precision::BF16, Precision::BF16, fusingParamsSetReducedBF16},
-                                                   {Precision::BF16, Precision::FP32, fusingParamsSetReducedBF16}};
+const VecPrcConnectedParams vecPrcConnectParamsFP32 = {PrcConnectedParams{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32}};
+const VecPrcConnectedParams vecPrcConnectParams = {PrcConnectedParams{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32},
+                                                   PrcConnectedParams{Precision::BF16, Precision::BF16, fusingParamsSetReducedBF16},
+                                                   PrcConnectedParams{Precision::BF16, Precision::FP32, fusingParamsSetReducedBF16}};
 
-const VecPrcConnectedParams vecPrcConnectParamsFP32Default = {{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
-const VecPrcConnectedParams vecPrcConnectParamsDefault = {{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}},
-                                                          {Precision::BF16, Precision::BF16, VecFusingParams{emptyFusingSpec}},
-                                                          {Precision::BF16, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
+const VecPrcConnectedParams vecPrcConnectParamsFP32Default = {PrcConnectedParams{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
+const VecPrcConnectedParams vecPrcConnectParamsDefault = {PrcConnectedParams{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}},
+                                                          PrcConnectedParams{Precision::BF16, Precision::BF16, VecFusingParams{emptyFusingSpec}},
+                                                          PrcConnectedParams{Precision::BF16, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
 
 /* ============= GEMM GroupConvolution ============= */
 const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = generateSingleGroupConvCPUTestCases(
