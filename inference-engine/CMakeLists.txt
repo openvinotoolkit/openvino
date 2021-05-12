@@ -32,6 +32,8 @@ add_subdirectory(thirdparty)
 
 add_subdirectory(src)
 
+add_subdirectory(ie_bridges/c)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
@@ -58,11 +60,9 @@ endfunction()
 # they must be built even if samples build is disabled (required for tests and tools).
 ie_build_samples()
 
-if (ENABLE_PYTHON)
+if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
-
-add_subdirectory(ie_bridges/c)
 
 #
 # Install
@@ -113,16 +113,6 @@ install(DIRECTORY ie_bridges/c/samples/
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
-
-# install Python samples
-
-if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples DEPENDS core)
-
-    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-            COMPONENT python_samples)
-endif()
 
 # install speech demo files
 

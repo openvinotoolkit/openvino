@@ -858,8 +858,8 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 auto minScaleFactor = quantParamsFirst->_dst_quant.GetScale();
                 for (auto it = inputLayers.begin(); it != inputLayers.end(); ++it) {
                     auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*it);
-                    if (quantParams->_dst_quant.GetScale() < minScaleFactor &&
-                        !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f) ||
+                    if ((quantParams->_dst_quant.GetScale() < minScaleFactor &&
+                         !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f)) ||
                         fp32eq(minScaleFactor, 1.0f)) {
                         minScaleFactor = quantParams->_dst_quant.GetScale();
                         sourceLayerIt = it;

@@ -22,7 +22,6 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>

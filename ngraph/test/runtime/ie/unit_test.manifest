@@ -575,6 +575,10 @@ broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
 
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
@@ -866,8 +870,6 @@ broadcast_algo_matrix_stride_3
 
 # Cannot find blob with name: Parameter_1
 dyn_group_convolution_backprop_data
-dynamic_transpose
-transpose
 
 # todo: check negative indices implementation
 gather_2d_negative_and_positive_indices_axis_0_2d_input
@@ -1151,6 +1153,8 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_input
 IE_CPU.onnx_model_reduce_sum_13_input_dynamic
 IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
 IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+IE_CPU.transpose_axes_parameter_static_shapes
+IE_CPU.transpose_axes_parameter_dynamic_shapes
 
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input

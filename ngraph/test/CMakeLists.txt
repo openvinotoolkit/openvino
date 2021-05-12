@@ -78,6 +78,7 @@ set(SRC
     op_eval/split.cpp
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
+    op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     op_is.cpp
     opset1.cpp
@@ -106,6 +107,7 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/convolution_backprop_data.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -211,6 +213,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
+    visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
@@ -253,8 +256,12 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
+    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
+    visitors/op/transpose.cpp
     uint4.cpp
     util.cpp
 )
@@ -332,6 +339,7 @@ set(MULTI_TEST_SRC
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
+    backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
@@ -435,7 +443,9 @@ endif()
 
 if (NGRAPH_ONNX_EDITOR_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC onnx/onnx_test_utils.in.cpp)
+    list(APPEND MULTI_TEST_SRC
+        onnx/onnx_test_utils.in.cpp
+        onnx/onnx_import_with_editor.in.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
