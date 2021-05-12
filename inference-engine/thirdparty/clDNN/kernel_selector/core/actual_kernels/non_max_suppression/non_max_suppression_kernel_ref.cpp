@@ -257,7 +257,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
 
     // Build clKernelData.
     for (size_t i = 0; i < kKernelsNum; i++) {
-        DispatchData dispatchData = SetDefault(orgParams, i);
+        DispatchData dispatchData = SetDefault(orgParams, static_cast<int>(i));
         auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
@@ -276,7 +276,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
             cldnn_jit.AddConstants({ MakeJitConstant("IS_STAGE_1", "true")
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
-                                   , MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+                                   , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
         } else if (i == 2) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_STAGE_2", "true"));
         } else {

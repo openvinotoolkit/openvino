@@ -231,7 +231,7 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
         1, 0, 2,
         1, 1, 2,
     };
-    const int expected_out_num = expected_out.size() / 3;
+    const int expected_out_num = static_cast<int>(expected_out.size()) / 3;
 
     std::vector<float> expected_second_out = {
         0.f, 0.f, 0.9f,
@@ -243,18 +243,28 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     auto out_mem = result.at("nms").get_memory();
     auto out_ptr = out_mem.pointer<int>();
 
-    auto second_output_ptr = selected_scores_mem.pointer<float>();
-    auto third_output_ptr = valid_outputs_mem.pointer<int>();
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
         EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 
-    for (size_t i = 0; i < expected_second_out.size(); ++i) {
-        EXPECT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
+    if (selected_scores_mem.get_layout().data_type == data_types::f32) {
+        auto second_output_ptr = selected_scores_mem.pointer<float>();
+
+        for (size_t i = 0; i < expected_second_out.size(); ++i) {
+            EXPECT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
+        }
+    } else {
+        auto second_output_ptr = selected_scores_mem.pointer<half_t>();
+
+        for (size_t i = 0; i < expected_second_out.size(); ++i) {
+            EXPECT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
+        }
     }
 
+
+    auto third_output_ptr = valid_outputs_mem.pointer<int>();
     ASSERT_EQ(expected_out_num, third_output_ptr[0]);
 }
 
