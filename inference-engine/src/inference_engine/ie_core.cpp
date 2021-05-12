@@ -510,8 +510,11 @@ public:
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
-        } else {
+        } else if (cacheManager) {
             res = plugin.LoadNetwork(modelPath, parsed._config);
+        } else {
+            auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return res;
     }
