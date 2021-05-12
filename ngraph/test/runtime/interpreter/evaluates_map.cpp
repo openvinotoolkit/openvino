@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iostream>
 #include "evaluates_map.hpp"
 
 #include "backend.hpp"
@@ -974,8 +975,25 @@ namespace
                   const HostTensorVector& inputs)
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        std::cout << "Input data:\n    [";
+        for (auto x : info.input_data)
+        {
+            std::cout << " " << x;
+        }
+        std::cout << " ]\n";
+        std::cout << "Axes data:\n    [";
+        for (auto x : info.axes_data)
+        {
+            std::cout << " " << x;
+        }
+        std::cout << " ]\n";
+        std::cout << "input_data_shape: " << info.input_data_shape << "\n";
+        std::cout << "axes_data_shape:  " << info.axes_data_shape << "\n";
+        std::cout << "output_shape:     " << info.output_shape << "\n";
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
+        std::cout << "FFT result size (in floats):   " << fft_result.size() << "\n";
+        std::cout << "shape_size(info.output_shape): " << shape_size(info.output_shape) << "\n";
         runtime::reference::fft(info.input_data.data(),
                                 info.input_data_shape,
                                 info.axes_data.data(),
