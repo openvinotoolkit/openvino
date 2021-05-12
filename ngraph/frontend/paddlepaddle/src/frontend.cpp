@@ -67,7 +67,7 @@ NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
         }
     }
 
-    return CREATORS_MAP.at(op->type())(NodeContext(DecoderPDPDProto(*op), named_inputs));
+    return CREATORS_MAP.at(op->type())(NodeContext(DecoderPDPDProto(op_place), named_inputs));
 }
 
 } // namespace pdpd

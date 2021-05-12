@@ -29,6 +29,7 @@
 #include "framework.pb.h"
 
 #include <paddlepaddle_frontend/frontend.hpp>
+#include <paddlepaddle_frontend/place.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -44,10 +45,10 @@ class AttributeNotFound : public std::exception
 
 class DecoderPDPDProto
 {
-    paddle::framework::proto::OpDesc op;
+    std::shared_ptr<OpPlacePDPD> op_place;
 
 public:
-    explicit DecoderPDPDProto (const paddle::framework::proto::OpDesc& _op) : op(_op) {}
+    explicit DecoderPDPDProto (const std::shared_ptr<OpPlacePDPD>& op) : op_place(op) {}
 
     std::vector<int32_t> get_ints(const std::string& name, const std::vector<int32_t>& def = {}) const;
     int get_int(const std::string& name, int def = 0) const;
@@ -62,6 +63,7 @@ public:
     ngraph::element::Type get_dtype(const std::string& name, ngraph::element::Type def) const;
 
     std::vector<std::string> get_output_names() const;
+    std::vector<element::Type> get_out_port_types(const std::string& port_name) const;
 };
 
 }
