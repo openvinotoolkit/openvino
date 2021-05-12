@@ -15,9 +15,13 @@ from shutil import copyfile
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
+from pathlib import Path
 
 PACKAGE_NAME = 'mo'
 
+SETUP_DIR = Path(__file__).resolve().parent
+def read_text(path):
+    return (SETUP_DIR / path).read_text()
 # Detect all the framework specific requirements_*.txt files.
 requirements_txt = []
 py_modules = []
@@ -97,6 +101,13 @@ setup(name='openvino-mo',
         'mo.extensions.front.onnx': ['*.json'],
         'mo.extensions.front.tf': ['*.json'],
       },
+      extras_require={'caffe2': read_text('requirements_caffe.txt'),
+                      'kaldi': read_text('requirements_kaldi.txt'),
+                      'mxnet': read_text('requirements_mxnet.txt'),
+                      'onnx': read_text('requirements_onnx.txt'),
+                      'tensorflow': read_text('requirements_tf.txt'),
+                      'tensorflow2': read_text('requirements_tf2.txt'),
+      },	  
       classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
