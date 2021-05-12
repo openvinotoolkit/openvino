@@ -53,10 +53,8 @@ std::vector<int32_t> DecoderPDPDProto::get_ints(const std::string& name, const s
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
-        std::vector<int32_t> res;
-        std::copy(attrs[0].ints().begin(), attrs[0].ints().end(), std::back_inserter(res));
-        return res;
+    } else {        
+        return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
     }
 }
 
@@ -92,9 +90,7 @@ std::vector<float> DecoderPDPDProto::get_floats(const std::string& name, const s
         // TODO: raise exception here
         return def;
     } else {
-        std::vector<float> res;
-        std::copy(attrs[0].floats().begin(), attrs[0].floats().end(), std::back_inserter(res));
-        return res;
+        return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
     }
 }
 
@@ -149,14 +145,6 @@ bool DecoderPDPDProto::get_bool(const std::string& name, bool def) const
     }
 }
 
-std::vector<std::string> DecoderPDPDProto::get_output_names() const {
-    std::vector<std::string> output_names;
-    for (const auto& output : op_place->getDesc()->outputs()) {
-        output_names.push_back(output.parameter());
-    }
-    return output_names;
-}
-
 std::vector<int64_t> DecoderPDPDProto::get_longs(const std::string& name, const std::vector<int64_t>& def) const
 {
     std::cout << "Running get_longs" << std::endl;
@@ -171,10 +159,37 @@ std::vector<int64_t> DecoderPDPDProto::get_longs(const std::string& name, const 
         // TODO: raise exception here
         return def;
     } else {
-        std::vector<int64_t> res;
-        std::copy(attrs[0].longs().begin(), attrs[0].longs().end(), std::back_inserter(res));
-        return res;
+        
+        return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
     }
+}
+
+int64_t DecoderPDPDProto::get_long(const std::string& name, const int64_t& def) const
+{
+    std::cout << "Running get_long" << std::endl;
+    std::vector<proto::OpDesc_Attr> attrs;
+    for (const auto &attr : op_place->getDesc()->attrs()) {
+        if (attr.name() == name)
+            attrs.push_back(attr);
+    }
+    if (attrs.empty()) {
+        return def;
+    } else if (attrs.size() > 1) {
+        // TODO: raise exception here
+        return def;
+    } else {
+        return attrs[0].l();
+    }
+}
+
+std::vector<std::string> DecoderPDPDProto::get_output_names() const {
+    std::vector<std::string> output_names;
+    for (const auto& output : op_place->getDesc()->outputs()) {
+        output_names.push_back(output.parameter());
+    }
+    return output_names;
+}
+
 std::vector<ngraph::element::Type> DecoderPDPDProto::get_out_port_types(const std::string& port_name) const {
     std::vector<ngraph::element::Type> output_types;
     for (const auto& out_port : op_place->getOutputPorts().at(port_name)) {
@@ -183,25 +198,5 @@ std::vector<ngraph::element::Type> DecoderPDPDProto::get_out_port_types(const st
     return output_types;
 }
 
-int64_t DecoderPDPDProto::get_long(const std::string& name, const int64_t& def) const
-    {
-        std::cout << "Running get_long" << std::endl;
-        std::vector<proto::OpDesc_Attr> attrs;
-        for (const auto &attr : op_place->getDesc()->attrs()) {
-            if (attr.name() == name)
-                attrs.push_back(attr);
-        }
-        if (attrs.empty()) {
-            return def;
-        } else if (attrs.size() > 1) {
-            // TODO: raise exception here
-            return def;
-        } else {
-            return attrs[0].l();
-        }
-    }
-
-}
-
-}
-}
+} // namespace frontend
+} // namespace ngraph
