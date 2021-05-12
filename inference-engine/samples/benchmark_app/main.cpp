@@ -146,6 +146,14 @@ int main(int argc, char* argv[]) {
                     }) != command_line_arguments.end());
         };
 
+        std::string device_name = FLAGS_d;
+
+        // Parse devices
+        auto devices = parseDevices(device_name);
+
+        // Parse nstreams per device
+        std::map<std::string, std::string> device_nstreams = parseNStreamsValuePerDevice(devices, FLAGS_nstreams);
+
         // Load device config file if specified
         std::map<std::string, std::map<std::string, std::string>> config;
 #ifdef USE_OPENCV
@@ -162,18 +170,6 @@ int main(int argc, char* argv[]) {
         next_step();
 
         Core ie;
-        // Parse devices
-        std::string device_name = FLAGS_d;
-        std::vector<std::string> devices;
-        if (device_name == "AUTO") {
-            devices = ie.GetAvailableDevices();
-        } else {
-            devices = parseDevices(device_name);
-        }
-
-        // Parse nstreams per device
-        std::map<std::string, std::string> device_nstreams = parseNStreamsValuePerDevice(devices, FLAGS_nstreams);
-
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
             // pointer to base extension
