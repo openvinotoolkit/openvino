@@ -575,6 +575,10 @@ broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
 
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
@@ -943,15 +947,6 @@ topk_1d_i32_max_all
 topk_int64
 gelu_backprop_factor_f32
 gelu_backprop_factor_f64
-
-# Incorrect precision f64!
-batch_norm_inference_0eps_f64
-batch_norm_inference_f64
-batch_norm_training_0eps_f64
-
-# Function inputs number differ from number of given inputs
-batch_norm_inference_parameters_duplication
-batch_norm_inference_parameters_duplication_v5
 
 backwards_abs
 backwards_acos

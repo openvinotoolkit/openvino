@@ -191,7 +191,7 @@ public:
      */
     template<typename F>
     void SetCompletionCallback(F callbackToSet) {
-        return SetCallback<F>{*this}(std::move(callbackToSet));
+        SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
     /**

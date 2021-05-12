@@ -140,6 +140,12 @@ ngraph::matcher_pass_callback get_callback() {
             }
 
             const ngraph::Shape constShape = constant->get_output_shape(0);
+            const ngraph::Shape shape = partialShape.to_shape();
+
+            if (constShape.size() == 1ul && constShape[0] != 1 && constShape[0] != shape[1]) {
+                return false;
+            }
+
             if ((constShape.size() > 5ul)) {
                 return false;
             }
@@ -148,7 +154,6 @@ ngraph::matcher_pass_callback get_callback() {
                 return true;
             }
 
-            const ngraph::Shape shape = partialShape.to_shape();
             if (constShape.size() == shape.size()) {
                 if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
                     return false;

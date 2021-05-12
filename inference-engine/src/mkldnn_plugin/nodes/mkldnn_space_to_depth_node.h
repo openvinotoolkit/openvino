@@ -14,7 +14,6 @@ namespace MKLDNNPlugin {
 class MKLDNNSpaceToDepthNode : public MKLDNNNode {
 public:
     MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSpaceToDepthNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
