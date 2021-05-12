@@ -53,7 +53,6 @@ onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
-convert_float32_bool
 broadcast_trivial
 aliased_output
 bool_init_raw
@@ -824,9 +823,6 @@ cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
 
-# Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!
-convert_uint16_float32
-
 # Unsupported primitive of type: Ceiling
 ceiling
 
@@ -886,7 +882,6 @@ strided_slice_stride_optional
 divide_int32
 divide_cpp_rounding_int32
 divide_python_rounding_int32
-convert_int32_bool
 lesseq_int32
 
 # Constant and Low Precision
@@ -1055,6 +1050,22 @@ roll_repeated_axes
 roll_3d_input
 roll_3d_input_negative_shift
 roll_negative_axes
+
+# convert operation
+IE_CPU.convert_f16_to_f32
+IE_CPU.convert_u8_to_f16
+IE_CPU.convert_u8_to_i16
+IE_CPU.convert_u8_to_i64
+IE_CPU.convert_u8_to_u16
+IE_CPU.convert_u8_to_u32
+IE_CPU.convert_u8_to_u64
+IE_CPU.convert_u8_to_boolean
+IE_CPU.convert_i32_to_boolean
+IE_CPU.convert_f32_to_boolean
+IE_CPU.convert_u32_to_f32 # NOT_IMPLEMENTED
+IE_CPU.convert_i4_to_f32 # NOT_IMPLEMENTED
+IE_CPU.convert_u1_to_f32 # NOT_IMPLEMENTED
+IE_CPU.convert_u4_to_f32 # NOT_IMPLEMENTED
 
 #-------------------------------------------------------------------------------
 #
@@ -1418,7 +1429,6 @@ IE_GPU.divide_overload
 IE_GPU.divide_by_zero_float32
 IE_GPU.cosh
 IE_GPU.cos
-IE_GPU.convert_int32_float32
 IE_GPU.concat_negative_axis
 IE_GPU.concat_matrix_colwise
 IE_GPU.concat_matrix_rowwise

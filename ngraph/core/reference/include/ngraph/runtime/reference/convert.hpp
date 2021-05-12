@@ -29,6 +29,7 @@ namespace ngraph
             template <>
             void convert<float16, float>(const float16* arg, float* out, size_t count);
 
+            // overload to handle ngraph::boolean (it is stored as char)
             template <typename TI, typename TO>
             typename std::enable_if<std::is_same<TO, char>::value>::type
                 convert(const TI* arg, TO* out, size_t count)
