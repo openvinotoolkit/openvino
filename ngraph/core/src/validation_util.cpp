@@ -224,8 +224,45 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
     return output_shape;
 }
 
+void ngraph::validate_conv_params_spatial_dimensions(const Node* node,
+                                                     const size_t num_spatial_dims,
+                                                     const op::PadType auto_pad,
+                                                     Strides& strides,
+                                                     Strides& dilations,
+                                                     CoordinateDiff& pads_begin,
+                                                     CoordinateDiff& pads_end)
+{
+    if (strides.size() == 0)
+    {
+        strides = Strides(num_spatial_dims, 1);
+    }
+    if (dilations.size() == 0)
+    {
+        dilations = Strides(num_spatial_dims, 1);
+    }
+    if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID)
+    {
+        pads_begin = CoordinateDiff(num_spatial_dims, 0);
+    }
+    if (pads_end.size() == 0 || auto_pad == op::PadType::VALID)
+    {
+        pads_end = CoordinateDiff(num_spatial_dims, 0);
+    }
+    NODE_VALIDATION_CHECK(node,
+                          strides.size() == num_spatial_dims,
+                          "Strides should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          dilations.size() == num_spatial_dims,
+                          "Dilations should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          pads_begin.size() == num_spatial_dims &&
+                              pads_end.size() == num_spatial_dims,
+                          "Pads should be defined for all and only spatial features.");
+}
+
 PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
     const Node* node,
+    const Rank& result_ps_rank,
     const PartialShape& data_batch_pshape,
     const PartialShape& filters_pshape,
     const op::PadType auto_pad,
@@ -234,51 +271,12 @@ PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
     CoordinateDiff& pads_begin,
     CoordinateDiff& pads_end)
 {
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(
-        node,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-        "Data batch and filters inputs must have same rank. Got: ",
-        data_batch_pshape,
-        " and ",
-        filters_pshape);
-
     PartialShape result_shape = PartialShape::dynamic();
     if (result_ps_rank.is_static())
     {
-        const size_t num_spatial_dims = result_ps_rank.get_length() - 2;
-        if (strides.size() == 0)
-        {
-            strides = Strides(num_spatial_dims, 1);
-        }
-
-        if (dilations.size() == 0)
-        {
-            dilations = Strides(num_spatial_dims, 1);
-        }
-
-        if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID)
-        {
-            pads_begin = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        if (pads_end.size() == 0 || auto_pad == op::PadType::VALID)
-        {
-            pads_end = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        NODE_VALIDATION_CHECK(node,
-                              strides.size() == num_spatial_dims,
-                              "Strides should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(node,
-                              dilations.size() == num_spatial_dims,
-                              "Dilations should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(node,
-                              pads_begin.size() == num_spatial_dims &&
-                                  pads_end.size() == num_spatial_dims,
-                              "Pads should be defined for all and only spatial features.");
+        const auto num_spatial_dims = result_ps_rank.get_length() - 2;
+        validate_conv_params_spatial_dimensions(
+            node, num_spatial_dims, auto_pad, strides, dilations, pads_begin, pads_end);
 
         result_shape = PartialShape::dynamic(result_ps_rank);
         if (data_batch_pshape.rank().is_static())

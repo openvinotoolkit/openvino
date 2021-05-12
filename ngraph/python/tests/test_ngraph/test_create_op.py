@@ -112,7 +112,7 @@ def test_deformable_convolution(dtype):
     dilations = np.array([1, 1])
 
     input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 1, 9, 9]
+    input1_shape = [1, 18, 7, 7]
     input2_shape = [1, 1, 3, 3]
     expected_shape = [1, 1, 7, 7]
 
