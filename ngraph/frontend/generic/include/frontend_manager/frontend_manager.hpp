@@ -272,6 +272,9 @@ public:
     /// when the model is converted to ngraph.
     virtual void setPartialShape (Place::Ptr place, const ngraph::PartialShape&);
 
+    /// Get current shape for this place; place should be uniquely refer to some data.
+    virtual ngraph::PartialShape getPartialShape (Place::Ptr place) const;
+
     /// Sets new element type for a place.
     virtual void setElementType (Place::Ptr place, const ngraph::element::Type&);
 

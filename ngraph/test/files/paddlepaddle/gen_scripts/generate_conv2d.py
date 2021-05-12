@@ -1,6 +1,9 @@
 import paddle
 from paddle import fluid
 import numpy as np
+import os
+import sys
+
 
 paddle.enable_static()
 
@@ -16,4 +19,4 @@ inp_dict = {'x': inp_blob}
 var = [test_layer]
 res_pdpd = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-fluid.io.save_inference_model("../models/conv2d", list(inp_dict.keys()), var, exe)
+fluid.io.save_inference_model(os.path.join(sys.argv[1], "conv2d"), list(inp_dict.keys()), var, exe)

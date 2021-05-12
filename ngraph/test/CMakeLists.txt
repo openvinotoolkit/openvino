@@ -78,6 +78,7 @@ set(SRC
     op_eval/split.cpp
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
+    op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     op_is.cpp
     opset1.cpp
@@ -106,6 +107,7 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/convolution_backprop_data.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -437,7 +439,9 @@ endif()
 
 if (NGRAPH_ONNX_EDITOR_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC onnx/onnx_test_utils.in.cpp)
+    list(APPEND MULTI_TEST_SRC
+        onnx/onnx_test_utils.in.cpp
+        onnx/onnx_import_with_editor.in.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
@@ -473,6 +477,8 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
     set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+    set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
+    add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
 endif()
 #-----
 
@@ -560,6 +566,24 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                        ${GEN_SCRIPT}
+                        ${TEST_PDPD_MODELS}
+                        ${OUT_DONE_FILE}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                )
+    endforeach()
+    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test pdpd_test_models)
+
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
 endif()

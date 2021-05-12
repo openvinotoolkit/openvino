@@ -30,13 +30,13 @@ class NGRAPH_API InputModelPDPD : public InputModel
     class InputModelPDPDImpl;
     std::shared_ptr<InputModelPDPDImpl> _impl;
 
-    std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
     std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
     std::map<std::string, Output<Node>> getTensorValues() const;
 
 public:
-    explicit InputModelPDPD (const std::string& _path);
+    explicit InputModelPDPD (const std::string& path);
+    explicit InputModelPDPD (const std::vector<std::istream*>& streams);
     std::vector<Place::Ptr> getInputs () const override;
     std::vector<Place::Ptr> getOutputs () const override;
     Place::Ptr getPlaceByTensorName (const std::string& tensorName) const override;
@@ -45,6 +45,7 @@ public:
     void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
     void setDefaultShape (Place::Ptr place, const ngraph::Shape&) override;
     void setPartialShape (Place::Ptr place, const ngraph::PartialShape&) override;
+    ngraph::PartialShape getPartialShape (Place::Ptr place) const override;
     void setElementType (Place::Ptr place, const ngraph::element::Type&) override;
     void setTensorValue (Place::Ptr place, const void* value) override;
 

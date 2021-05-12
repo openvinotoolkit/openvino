@@ -308,12 +308,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor);
                 }
             }
         }
@@ -617,12 +617,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor );
                 }
             }
         }
