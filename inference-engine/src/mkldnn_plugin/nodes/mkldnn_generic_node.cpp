@@ -12,16 +12,13 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {
-    params = layer->params;
-    blobs = layer->blobs;
+MKLDNNGenericNode::MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache), ngraphOp(op) {
 }
 
 void MKLDNNGenericNode::getSupportedDescriptors() {
     if (!extFactory && impls.empty()) {
-        std::string type = getCnnLayer() ? getCnnLayer()->type : "Generic";
-        IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << type;
+        IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << getTypeStr();
     }
 }
 
@@ -30,23 +27,6 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::ResponseDesc resp;
-    if (impls.empty()) {
-        if (!extFactory)
-            IE_THROW() << "Descriptor for generic primitive doesn't exist";
-
-        std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
-
-        InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
-        for (const auto& impl : impls_no_exec) {
-            if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
-                impls.emplace_back(exec_impl);
-            }
-        }
-        if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
-        }
-    }
-
     for (auto &impl : impls) {
         std::vector<InferenceEngine::LayerConfig> configs;
         auto rc = impl->getSupportedConfigurations(configs, &resp);
@@ -84,16 +64,33 @@ bool MKLDNNGenericNode::created() const {
 }
 
 bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
-    if (getCnnLayer() && extMgr) {
+    if (ngraphOp && extMgr) {
         // We should save extension manager in order to avoid situation when
         // it will destroyed before extensibility primitives
-        if (getCnnLayer()->getNode()) {
-            auto impl = extMgr->CreateImplementation(getCnnLayer()->getNode());
-            if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl))
-                impls.emplace_back(execImpl);
-        }
+        auto impl = extMgr->CreateImplementation(ngraphOp);
+        if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl))
+            impls.emplace_back(execImpl);
+
         if (impls.empty()) {
-            extFactory = extMgr->CreateExtensionFactory(getCnnLayer());
+            extFactory = extMgr->CreateExtensionFactory(ngraphOp);
+
+            if (!extFactory)
+                IE_THROW(NotImplemented);
+
+            std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
+            InferenceEngine::ResponseDesc resp;
+            InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
+            if (rc == InferenceEngine::NOT_IMPLEMENTED) {
+                IE_THROW(NotImplemented) << resp.msg;
+            } else if (rc != InferenceEngine::OK) {
+                IE_THROW() << resp.msg;
+            }
+
+            for (const auto& impl : impls_no_exec) {
+                if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
+                    impls.emplace_back(exec_impl);
+                }
+            }
         }
 
         if (extFactory || !impls.empty())
