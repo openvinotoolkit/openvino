@@ -58,7 +58,7 @@ namespace LayerTestsDefinitions {
             } else if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), batch_distrib,
+                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, batch_distrib,
                                                height, width, 1.0f, true);
             } else {
                 blob = make_blob_with_precision(info->getTensorDesc());
