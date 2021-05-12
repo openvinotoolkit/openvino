@@ -20,6 +20,13 @@ from mo.utils.error import Error
 class QuantizeLinearResolver(MiddleReplacementPattern):
     """
     Replaces QuantizeLinear with FakeQuantize
+    QuantizeLinear -> FakeQuantize(input
+                                   Mul(y_scale, Const(low_value))
+                                   Mul(y_scale, Const(high_value))
+                                   Const(low_value)
+                                   Const(high_value))
+    low_value and high_value depend on from y_zero_point type
+
     """
     enabled = True
 
