@@ -493,9 +493,8 @@ public:
         return res;
     }
 
-    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) {
+                                  const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -512,8 +511,7 @@ public:
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else {
-            auto cnnNetwork = ReadNetwork(modelPath, std::string());
-            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
+            res = plugin.LoadNetwork(modelPath, parsed._config);
         }
         return res;
     }
