@@ -254,8 +254,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',
-                              help='Apply additional transformations. '
-                                   'Example: --transform LowLatency[num_iterations=1].',
+                              help='Apply additional transformations. ' +
+                                   'Usage: "--transform pass_name1[args],pass_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon' +
+                                   'Examples: "--transform LowLatency" or ' +
+                                   '          "--transform LowLatency[num_iterations=2]" ' +
+                                   'Available transformations: "LowLatency"',
                               default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
@@ -1138,7 +1142,7 @@ def isfloat(value):
         return False
 
 
-def detect_value_type(value: str):
+def convert_string_to_real_type(value: str):
     values = value.split(',')
     for i in range(len(values)):
         value = values[i]
@@ -1150,7 +1154,7 @@ def detect_value_type(value: str):
     return values[0] if len(values) == 1 else values
 
 
-def parse_transform(transform: str, ie_is_available=True) -> list:
+def parse_transform(transform: str) -> list:
     transforms = []
 
     if len(transform) == 0:
@@ -1186,10 +1190,20 @@ def parse_transform(transform: str, ie_is_available=True) -> list:
                 if not m:
                     raise Error("Unrecognized attributes for transform key: {}".format(transform))
 
-                args_dict[m.group(1)] = detect_value_type(m.group(2))
+                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
 
         transforms.append((name, args_dict))
 
+    return transforms
+
+
+def check_available_transforms(transforms: list, ie_is_available: bool):
+    """
+    This function check that transformations specified by user are available.
+    :param transforms: list of user specified transformations
+    :param ie_is_available: True if IE Python API is available and False if it is not
+    :return: raises an Error if IE or transformation is not available
+    """
     if not ie_is_available and len(transforms) != 0:
         raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
             ','.join([name for name, _ in transforms])))
@@ -1203,10 +1217,10 @@ def parse_transform(transform: str, ie_is_available=True) -> list:
             missing_transformations.append(name)
 
     if len(missing_transformations) != 0:
-        raise Error('Following transformations ({}) are not available. List with available transformations ({})'.format(','.join(missing_transformations),
-                                                                                                                        ','.join(available_transforms.keys())))
-
-    return transforms
+        raise Error('Following transformations ({}) are not available. '
+                    'List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                      ','.join(available_transforms.keys())))
+    return True
 
 
 def check_positive(value):

@@ -22,9 +22,10 @@ from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
-from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, parse_transform, \
+from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
+    parse_transform, check_available_transforms
 from mo.utils.error import Error, FrameworkError
 from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
@@ -141,20 +142,19 @@ def prepare_ir(argv: argparse.Namespace):
     # This try-except is additional reinsurance that the IE
     # dependency search does not break the MO pipeline
     try:
-        if not find_ie_version(silent=argv.silent) and not argv.silent:
+        argv.ie_is_available = find_ie_version(silent=argv.silent)
+
+        if not argv.ie_is_available and not argv.silent:
             print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
             print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
             # If the IE was not found, it will not print the MO version, so we have to print it manually
             print("{}: \t{}".format("Model Optimizer version", get_version()))
-            argv.ie_is_available = False
-        else:
-            argv.ie_is_available = True
     except Exception as e:
         argv.ie_is_available = False
 
-    # This is just to check that transform key is valid
-    parse_transform(argv.transform, argv.ie_is_available)
+    # This is just to check that transform key is valid and transformations are available
+    check_available_transforms(parse_transform(argv.transform), argv.ie_is_available)
 
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
@@ -424,6 +424,12 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
 
 
 def subprocess_main(framework=None):
+    """
+        This function checks that Inference Engine Python API available and working as expected
+        and then in sub-process it executes main_<fw>.py files. Due to some OSs specifics we can't
+        just add paths to Python modules and libraries into current env. So to make Inference Engine
+        Python API to be available inside MO we need to use subprocess with new env.
+    """
     ret_code = check_python_version()
     if ret_code:
         sys.exit(ret_code)

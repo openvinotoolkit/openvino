@@ -32,6 +32,15 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
 
 
 def import_core_modules(silent: bool, path_to_module: str):
+    """
+        This function checks that InferenceEngine Python API is available
+        and necessary python modules exists. So the next list of imports
+        must contain all IE/NG Python API imports that are used inside MO.
+
+    :param silent: enables or disables logs printing to stdout
+    :param path_to_module: path where python API modules were found
+    :return: True if all imports were successful and False otherwise
+    """
     try:
         from openvino.inference_engine import get_version, read_network # pylint: disable=import-error
         from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, GenerateMappingFile # pylint: disable=import-error
