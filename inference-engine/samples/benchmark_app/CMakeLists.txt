@@ -10,3 +10,5 @@ ie_add_sample(NAME benchmark_app
               HEADERS ${HDR}
               DEPENDENCIES format_reader
               OPENCV_DEPENDENCIES imgcodecs)
+find_package(ngraph REQUIRED)
+target_link_libraries(benchmark_app PRIVATE ${NGRAPH_LIBRARIES})

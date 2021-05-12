@@ -290,18 +290,35 @@ public:
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
         auto deviceName = deviceNameOrig;
         auto config = configOrig;
-        if (deviceNameOrig == "GPU") {
-            if (config.find("DO_NOT_AUTO_BATCH") != config.end()) {
-                config.erase("DO_NOT_AUTO_BATCH");
-            } else {
-                std::map<std::string, Parameter> options;
-                options["MODEL_ADDRESS"] = &network;
-                auto optimalBatchSize = GetCPPPluginByName("GPU").GetMetric(METRIC_KEY(OPTIMAL_BATCH),
-                                                                            options).as<unsigned int>();
-                if (optimalBatchSize > 1)
-                    deviceName = "BATCH:GPU(" + std::to_string(optimalBatchSize) + ")";
-            }
-        }
+//        if (deviceNameOrig == "GPU") {
+//            if (config.find("DO_NOT_AUTO_BATCH") != config.end()) {
+//                config.erase("DO_NOT_AUTO_BATCH");
+//            } else {
+//                std::map<std::string, Parameter> options;
+//                options["MODEL_ADDRESS"] = &network;
+//                auto optimalBatchSize = GetCPPPluginByName(deviceNameOrig).GetMetric(METRIC_KEY(OPTIMAL_BATCH),
+//                                                                            options).as<unsigned int>();
+//                auto function = network.getFunction();
+//                bool bDetectionOutput = false;
+//                for (auto &&node : function->get_ops()) {
+//                    if ((!std::strcmp("DetectionOutput", node->get_type_info().name))) {
+//                        node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameOrig);
+//                        std::cout << "!!! AFF !!! type: " << node->get_type_info().name <<
+//                                  ", name: " << node->get_friendly_name() << std::endl;
+//                        bDetectionOutput = true;
+//                    } else {
+//                        node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("BATCH");
+//                    }
+//                }
+//                if (optimalBatchSize > 1) {
+//                    std::string deviceBatch = "BATCH:" + deviceNameOrig +"(" + std::to_string(optimalBatchSize) + ")";
+//                    if (bDetectionOutput)
+//                        deviceName = "HETERO:" + deviceBatch + "," + deviceNameOrig;
+//                    else
+//                        deviceName = deviceBatch;
+//                }
+//            }
+//        }
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
     }

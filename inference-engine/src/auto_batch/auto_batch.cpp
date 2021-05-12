@@ -23,17 +23,23 @@ namespace AutoBatchPlugin {
     using namespace InferenceEngine;
 
     template <Precision::ePrecision precision>
-    Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, int batch_id, int batch_num) {
+    Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, size_t batch_id, size_t batch_num) {
         typedef typename PrecisionTrait<precision>::value_type TYPE;
         typedef typename std::add_pointer<TYPE>::type TYPEPTR;
         auto ptr = batched_blob->buffer().as<TYPEPTR>();
         auto sizePerBatch = batched_blob->size() / batch_num;
         SizeVector dims = batched_blob->getTensorDesc().getDims();
 
-        dims[0] = 1;
-        assert(batched_blob->getTensorDesc().getPrecision() == precision);
-        return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
-                ptr + sizePerBatch * batch_id, sizePerBatch);
+        if (dims[0] == batch_num) {
+            dims[0] = 1;
+            assert(batched_blob->getTensorDesc().getPrecision() == precision);
+            return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
+                                          ptr + sizePerBatch * batch_id, sizePerBatch);
+        } else {
+            // same blob for all requests (e.g. constants)
+            return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
+                                          ptr);
+        }
     }
 
 // ------------------------------AutoBatchInferRequest----------------------------
@@ -416,6 +422,8 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     ExecutableNetwork executableNetworkForDevice;
     auto & deviceName = metaDevice.deviceName;
     auto & deviceConfig = metaDevice.config;
+    // network.serialize("out_orig.xml", "out_orig.bin");
+
     CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
     const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
     ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
@@ -428,9 +436,10 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     }
     std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
     clonedNetwork.reshape(shapes);
+    // clonedNetwork.serialize("out_batch4.xml", "out_batch4.bin");
 
     std::map<std::string, std::string> deviceConfig0 = deviceConfig;
-    deviceConfig0["DO_NOT_AUTO_BATCH"] = "TRUE";
+    // deviceConfig0["DO_NOT_AUTO_BATCH"] = "TRUE";
     executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig0);
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     if ((std::shared_ptr<InferenceEngine::IExecutableNetwork>)executableNetworkForDevice == nullptr)
@@ -448,6 +457,8 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
 
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                               const std::map<std::string, std::string>& config) const {
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+//    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    const std::map<std::string, std::string> cfg;
+    return GetCore()->QueryNetwork(network, "CPU", cfg);
 }
 }  // namespace AutoBatchPlugin
