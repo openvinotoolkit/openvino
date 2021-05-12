@@ -99,6 +99,7 @@ namespace LayerTestsDefinitions {
     }
 
     void GRUSequenceTest::GenerateInputs() {
+        inputs.clear();
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
