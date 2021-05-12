@@ -1379,9 +1379,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[0]->get_data_ptr<T>(),
                                                     inputs[1]->get_data_ptr<T>(),
-                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[3]->get_data_ptr<T>(),
                                                     inputs[4]->get_data_ptr<T>(),
                                                     outputs[0]->get_data_ptr<T>(),
@@ -1396,9 +1396,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[1]->get_data_ptr<const T>(),
                                                     inputs[2]->get_data_ptr<const T>(),
-                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[3]->get_data_ptr<const T>(),
                                                     inputs[4]->get_data_ptr<const T>(),
                                                     outputs[0]->get_data_ptr<T>(),
