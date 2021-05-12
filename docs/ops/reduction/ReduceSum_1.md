@@ -11,9 +11,9 @@
 *ReduceSum* operation performs reduction with addition, on a given input `data`, along dimensions specified by `axes` additional input.
 Each element in the output is calculated as follows:
 
-    output[i0, i1, ..., iN] = sum[j0,..., jN](x[j0, ..., jN]))
+    output[i0, i1, ..., iN] = sum[j0, ..., jN](x[j0, ..., jN]))
 
-where indices i0, ..., iN run through all valid indices for input `data` and summation `sum[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input. 
+where indices i0, ..., iN run through all valid indices for input `data` and summation `sum[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input.
 
 Particular cases:
 
@@ -25,9 +25,9 @@ Particular cases:
 * *keep_dims*
 
   * **Description**: If set to `true` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
-  * **Range of values**: true or false
+  * **Range of values**: `true` or `false`
   * **Type**: `boolean`
-  * **Default value**: false
+  * **Default value**: `false`
   * **Required**: *no*
 
 **Inputs**
@@ -38,7 +38,7 @@ Particular cases:
 
 **Outputs**
 
-* **1**: A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`, otherwise the `i`-th dimension is removed from the output.
+* **1**: The result of *ReduceSum* function applied to `data` input tensor. A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`, otherwise the `i`-th dimension is removed from the output.
 
 **Types**
 
