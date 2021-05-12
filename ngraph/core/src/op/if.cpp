@@ -40,12 +40,6 @@ op::v7::If::If(const Output<Node>& execution_condition)
 bool op::v7::If::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v7_If_visit_attributes);
-    if (m_bodies.size() != 2)
-    {
-        m_bodies.resize(2);
-        m_input_descriptions.resize(2);
-        m_output_descriptions.resize(2);
-    }
     m_bodies[then_body_index] =
         std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
     m_bodies[else_body_index] =
