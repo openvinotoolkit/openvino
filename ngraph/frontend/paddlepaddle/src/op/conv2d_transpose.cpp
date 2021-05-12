@@ -4,14 +4,14 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/builder/reshape.hpp>
-#include "conv2d.hpp"
+#include "conv2d_transpose.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
 
-ngraph::op::PadType get_auto_pad(const NodeContext& node)
+static ngraph::op::PadType get_auto_pad(const NodeContext& node)
 {
     // Default value means use explicitly provided padding values.
     ngraph::op::PadType pad_type{ngraph::op::PadType::NOTSET};
@@ -36,7 +36,7 @@ ngraph::op::PadType get_auto_pad(const NodeContext& node)
     return pad_type;
 }
 
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node,
+static std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node,
                                                    const size_t kernel_rank)
 {
     CoordinateDiff pads(kernel_rank, 0);
@@ -68,7 +68,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node,
     }
 }
 
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node)
+static std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node)
 {
     const auto data_rank = node.get_ng_input("Input").get_partial_shape().rank();
 
@@ -77,7 +77,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node)
     return get_pads(node, data_spatial_dims);
 }
 
-NamedOutputs conv2d (const NodeContext& node) {
+NamedOutputs conv2d_transpose (const NodeContext& node) {
     auto data = node.get_ng_input("Input");
     auto filters = node.get_ng_input("Filter");
 
@@ -108,7 +108,7 @@ NamedOutputs conv2d (const NodeContext& node) {
         auto target_filter_shape = std::make_shared<opset6::Concat>(OutputVector{groups_node, grouped_num_node, filter_hw_node}, 0);
         const auto reshaped_filters = std::make_shared<opset6::Reshape>(filters, target_filter_shape, false);
 
-        return node.default_single_output_mapping({std::make_shared<opset6::GroupConvolution>(
+        return node.default_single_output_mapping({std::make_shared<opset6::GroupConvolutionBackpropData>(
                 data,
                 reshaped_filters,
                 ngraph::Strides(strides.begin(), strides.end()),
@@ -119,7 +119,7 @@ NamedOutputs conv2d (const NodeContext& node) {
     }
     else
     {
-        return node.default_single_output_mapping({std::make_shared<opset6::Convolution>(
+        return node.default_single_output_mapping({std::make_shared<opset6::ConvolutionBackpropData>(
                     data,
                     filters,
                     ngraph::Strides(strides.begin(), strides.end()),
