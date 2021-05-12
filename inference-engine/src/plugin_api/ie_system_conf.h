@@ -11,6 +11,7 @@
 
 #include "ie_api.h"
 #include <vector>
+#include <exception>
 
 namespace InferenceEngine {
 
