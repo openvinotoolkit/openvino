@@ -546,22 +546,23 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 size_t offset = y * (pads_begin_x + input_width + pads_end_x) * h_1_filter_channel_count;
                 auto row = (output_height == 1) ? reduced_input_plane :
                     FlatCrop(reduced_input_plane, offset, (pads_begin_x + input_width + pads_end_x) * h_1_filter_channel_count);
-                //                padded row
-                //                    |
-                //          ??? <dilation !=1> ???
-                //                    |
-                //          split in vertical dim
-                //                  / | \
-                //                  concat
-                //                    |
-                //                 permute
-                //                    |
-                //             permute NHWC => NCHW
-                //                    |
-                //                  conv 1D (BIAS|MaxPooling)
-                //                    |
-                //             permute NCHW => NHWC
-
+                /*
+                 *              padded row
+                 *                  |
+                 *        ??? <dilation !=1> ???
+                 *                  |
+                 *         split in vertical dim
+                 *                / | \
+                 *                concat
+                 *                  |
+                 *               permute
+                 *                  |
+                 *           permute NHWC => NCHW
+                 *                  |
+                 *                conv 1D (BIAS|MaxPooling)
+                 *                  |
+                 *           permute NCHW => NHWC
+                 */
                 auto nhwc_conv_y_input = row;
                 if (horizontal_permute) {
                     // split
