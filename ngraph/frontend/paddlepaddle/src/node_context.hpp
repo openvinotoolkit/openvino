@@ -116,10 +116,8 @@ inline ngraph::element::Type NodeContext::get_out_port_type(const std::string& p
 {
     auto types = get_out_port_types(port_name);
     PDPD_ASSERT(types.size() > 0, "Port has no tensors connected.");
-    if (!std::equal(types.begin() + 1, types.end(), types.begin()))
-    {
-        PDPD_THROW("Port has tensors with different types connected.");
-    }
+    PDPD_ASSERT(std::equal(types.begin() + 1, types.end(), types.begin()),
+                "Port has tensors with different types connected.");
     return res;
 }
 
