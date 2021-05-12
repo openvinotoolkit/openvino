@@ -3,12 +3,12 @@
 This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow 
 the steps below to export a PyTorch* model into ONNX* before converting it to IR:
 
-**Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository. Make a shallow clone to pull only RNN-T 
-model without full repository. If you already have a full repository, skip this and go to **Step 2**:
+**Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository (revision r1.0). Make a shallow clone to pull 
+only RNN-T model without full repository. If you already have a full repository, skip this and go to **Step 2**:
 ```bash
-git clone -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
+git clone -b r1.0 -n https://github.com/mlcommons/inference rnnt_for_openvino --depth 1
 cd rnnt_for_openvino
-git checkout 0bbb7a7025e86010cc65cf80b4cafbad72d57693 speech_recognition/rnnt 
+git checkout HEAD speech_recognition/rnnt 
 ```
 
 **Step 2**. If you already have a full clone of MLCommons inference repository, create a folder for 
@@ -56,7 +56,7 @@ def load_and_migrate_checkpoint(ckpt_path):
     return migrated_state_dict
 
 
-mlcommons_inference_path = '../onnx_specific/'  # specify relative path for MLCommons inferene
+mlcommons_inference_path = './'  # specify relative path for MLCommons inferene
 checkpoint_path = 'DistributedDataParallel_1576581068.9962234-epoch-100.pt'
 config_toml = 'speech_recognition/rnnt/pytorch/configs/rnnt.toml'
 config = toml.load(config_toml)
