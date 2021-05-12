@@ -14,7 +14,6 @@ namespace MKLDNNPlugin {
 class MKLDNNMatMulNode : public MKLDNNNode {
 public:
     MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMatMulNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
