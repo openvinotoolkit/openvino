@@ -17,7 +17,6 @@ class MKLDNNEltwiseNode;
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNConvolutionNode() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
