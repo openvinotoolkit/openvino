@@ -11,7 +11,6 @@
 #include <ie_plugin_config.hpp>
 
 #include "tests_common.hpp"
-#include "tests_common_func.hpp"
 #include "format_reader_ptr.h"
 #include "single_layer_common.hpp"
 

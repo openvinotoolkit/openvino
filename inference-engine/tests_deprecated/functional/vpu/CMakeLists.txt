@@ -37,6 +37,9 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
     LINK_LIBRARIES
         IESharedTests
+        ieTestHelpers
+        funcTestUtils
+        format_reader
         vpu_graph_transformer
         vpu_custom_kernels
 )
@@ -44,6 +47,7 @@ addIeTarget(
 target_include_directories(VPUCommonTests INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/vpu_base
     ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
+    $<TARGET_PROPERTY:funcTestUtils,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 

@@ -41,6 +41,7 @@ target_compile_definitions(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
         PRIVATE
             IESharedTests
+            funcTestUtils
         )
 
 target_include_directories(${TARGET_NAME}

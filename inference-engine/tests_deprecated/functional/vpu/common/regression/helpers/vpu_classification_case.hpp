@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <tests_common.hpp>
 #include "vpu_case_common.hpp"
 
 using CompilationTestParam = WithParamInterface<std::tuple<PluginDevicePair, CompilationParameter>>;
@@ -63,14 +64,14 @@ protected:
 // class VpuNoRegressionWithCompilation
 //------------------------------------------------------------------------------
 
-class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
+class VpuNoRegressionWithCompilation : public TestsCommon,
                                        public CompilationTestParam {
 public:
     // Operations
     static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
 
     // Accessors
-    std::string getDeviceName() const override;
+    std::string getDeviceName() const;
 
 protected:
     // Data section
