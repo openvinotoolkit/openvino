@@ -381,12 +381,8 @@ namespace ngraph
             /// \brief Query entities by names, renaming and adding new names for operations and
             /// tensors
             FEC_NAMES = 2,
-            /// TODO
-            FEC_REPLACE = 4,
-            /// \brief Traversing model's graph capability
-            FEC_TRAVERSE = 8,
-            /// TODO
-            FEC_WILDCARDS = 16,
+            /// \brief Partial model conversion and decoding capability
+            FEC_WILDCARDS = 4,
         };
 
         // -------------- FrontEndManager -----------------
