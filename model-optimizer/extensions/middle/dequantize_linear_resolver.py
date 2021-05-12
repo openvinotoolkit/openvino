@@ -44,7 +44,7 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
 
             assert scale_y_shape is not None
             if axis is not None and len(scale_y_shape) > 0 and scale_y_shape[0] > 1:
-                input_shape = cast.in_port(0).get_source().node.shape
+                input_shape = cast.in_port(0).data.get_shape()
                 target_shape = np.ones(len(input_shape), np.int)
                 target_shape[axis] = input_shape[axis]
 
