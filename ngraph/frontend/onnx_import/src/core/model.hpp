@@ -28,10 +28,10 @@ namespace ngraph
         {
         public:
             Model() = delete;
-            explicit Model(const ONNX_NAMESPACE::ModelProto& model_proto);
+            explicit Model(std::unique_ptr<ONNX_NAMESPACE::ModelProto>&& model_proto);
 
-            Model(const Model&) = default;
-            Model(Model&&) = default;
+            Model(const Model&) = delete;
+            Model(Model&&) = delete;
 
             Model& operator=(const Model&) = delete;
             Model& operator=(Model&&) = delete;
@@ -71,7 +71,7 @@ namespace ngraph
             void enable_opset_domain(const std::string& domain);
 
         private:
-            const ONNX_NAMESPACE::ModelProto* m_model_proto;
+            const std::unique_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
             std::unordered_map<std::string, OperatorSet> m_opset;
         };
 
