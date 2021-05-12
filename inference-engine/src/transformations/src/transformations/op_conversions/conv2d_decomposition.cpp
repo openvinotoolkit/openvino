@@ -15,6 +15,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 #include "itt.hpp"
 
+
 using namespace ngraph;
 using namespace op;
 
@@ -34,8 +35,6 @@ std::vector<std::shared_ptr<opset1::Constant>> ReduceConv2DFilterHeightByChannel
         for (size_t i=0; i < split_channels; i++)
             flat_filters[i].resize(shape_size(filter_shape)/split_channels);
 
-        size_t src_offset = 0;
-        size_t chunk = 0;
         auto N = filter_shape[0];
         auto C = filter_shape[1];
         auto H = filter_shape[2];
@@ -108,7 +107,7 @@ std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset
     return nullptr;
 }
 
-bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<size_t> order) {
+bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<int64_t> order) {
     if (!transpose)
         return false;
     const Output<Node>& transpose_order = transpose->input_value(1);
@@ -190,7 +189,6 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         size_t input_width = input.get_shape()[3];
 
         size_t filter_count = filters.get_shape()[0];
-        size_t filter_channel_count = filters.get_shape()[1];
         size_t filter_height = filters.get_shape()[2];
         size_t filter_width = filters.get_shape()[3];
 
@@ -248,9 +246,9 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         }
 
         size_t pool_size_x = 1;
-        size_t pool_size_y = 1;
+        //size_t pool_size_y = 1;
         size_t pool_stride_x = 1;
-        size_t pool_stride_y = 1;
+        //size_t pool_stride_y = 1;
 
         if (max_pool) {
             // Check if MaxPool vertical stride == pool size
@@ -266,9 +264,9 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             if (pool_kernel[0] != pool_strides[0] || pool_kernel[0] > 8)
                 continue;
             pool_size_x = pool_kernel[1];
-            pool_size_y = pool_kernel[0];
+            //pool_size_y = pool_kernel[0];
             pool_stride_x = pool_strides[1];
-            pool_stride_y = pool_strides[0];
+            //pool_stride_y = pool_strides[0];
 
             auto maxpool_output_0 = max_pool->get_output_target_inputs(0);
             if (maxpool_output_0.size() != 1)
@@ -356,8 +354,8 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             size_t pad_begin_n_end_x = output_width * filter_stride_x + filter_width * filter_dilation_x - input_width;
             pads_begin_y = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
             pads_end_y = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
-            pads_begin_x = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
-            pads_end_x = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
+            pads_begin_x = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_x >> 1) + (pad_begin_n_end_x & 1) : (pad_begin_n_end_x >> 1);
+            pads_end_x = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_x >> 1) + (pad_begin_n_end_x & 1) : (pad_begin_n_end_x >> 1);
 
             break;
         }
@@ -379,7 +377,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         while (total_factorized_conv_channel_count / conv_count > GNA_MAX_1D_CONV_CHANNEL_COUNT || total_factorized_conv_channel_count % conv_count != 0)
             conv_count++;
         //LIMITATION: currently we are able to split only convolutions without pooling in horizontal dimention
-        if (conv_count > GNA_MAX_PERMUTE_COL_COUNT || (pool_size_x > 1 || pool_stride_x > 1) && conv_count > 1)
+        if (conv_count > GNA_MAX_PERMUTE_COL_COUNT || ((pool_size_x > 1 || pool_stride_x > 1) && conv_count > 1))
             continue;
 
         // GNA supported features - there is no need to decompose such convolution
@@ -432,7 +430,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             }
 
             // pad every row of input plan
-            for (int h = 0; h < input_height; h++) {
+            for (size_t h = 0; h < input_height; h++) {
                 // left padding     input     right padding
                 //     |              |           |
                 //     +--------------+-----------+
@@ -505,28 +503,21 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
 
         // if we split input planes due to GNA limitation - we must sum their results
         std::vector<std::shared_ptr<ngraph::Node>> partial_conv_results;
-        auto org_input_channel_count = input_channel_count;
         input_channel_count /= conv_count;
 
-        //if (input_channel_count == 96 && output_channel_count == 128 && filter_height == 1 && filter_width == 5)
-        //{
-        //    printf("conv name: %s in [%u, %u, %u, %u] k [%u, %u, %u, %u] \n",
-        //        conv->get_friendly_name().c_str(),
-        //        1ull, input_channel_count, input_height, input_width,
-        //        filter_count, filter_channel_count, filter_height, filter_width);
-        //}
         for (size_t conv_index = 0; conv_index < conv_count; conv_index++) {
             Output<Node> reduced_input_plane = splitted_planes[conv_index];
             // lets change filter height to 1
             if (filter_height > 1) {
-                //                padded row - NHWC order
-                //                    |
-                //          split in vertical dim ( filter height)
-                //                  / | \
-                //                  concat
-                //                    |
-                //                 permute
-
+                /*
+                 *              padded row - NHWC order
+                 *                  |
+                 *        split in vertical dim ( filter height)
+                 *                / | \
+                 *                concat
+                 *                  |
+                 *                permute
+                 */
                 OutputVector dilated_input_planes;
                 for (size_t f_y = 0; f_y < filter_height; f_y++) {
                     size_t offset = f_y * filter_dilation_y * (pads_begin_x + input_width + pads_end_x) * input_channel_count;
