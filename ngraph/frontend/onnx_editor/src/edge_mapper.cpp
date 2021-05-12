@@ -61,36 +61,47 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
     return result;
 };
 
-std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int output_index) const
+int onnx_editor::EdgeMapper::get_node_output_idx(int node_index,
+                                                 const std::string& output_name) const
 {
     if (node_index >= static_cast<int>(m_node_outputs.size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            "is out of scope outputs list");
     }
-    if (output_index >= static_cast<int>(m_node_outputs[node_index].size()))
+    const auto out_port_idx = std::find(
+        std::begin(m_node_outputs[node_index]), std::end(m_node_outputs[node_index]), output_name);
+    if (out_port_idx == std::end(m_node_outputs[node_index]))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
-                           " has not output with index: " + std::to_string(output_index));
+                           " has not output with name: " + output_name);
     }
-    const auto output_name = m_node_outputs[node_index][output_index];
-    return output_name;
+    return (out_port_idx - std::begin(m_node_outputs[node_index]));
 }
 
-std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int input_index) const
+int onnx_editor::EdgeMapper::get_node_input_idx(int node_index, const std::string& input_name) const
 {
-    if (node_index >= static_cast<int>(m_node_inputs.size()))
+    if (node_index >= 0 && node_index >= static_cast<int>(m_node_inputs.size()))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            "is out of scope inputs list");
     }
-    if (input_index >= static_cast<int>(m_node_inputs[node_index].size()))
+    const auto matched_inputs = std::count(
+        std::begin(m_node_inputs[node_index]), std::end(m_node_inputs[node_index]), input_name);
+    if (matched_inputs == 0)
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
-                           " has not input with index: " + std::to_string(input_index));
+                           " has not input with name: " + input_name);
     }
-    const auto input_name = m_node_inputs[node_index][input_index];
-    return input_name;
+    if (matched_inputs > 1) // more indexes with the same name
+    {
+        throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                           " has more than one inputs with name: " + input_name +
+                           ". You should use port indexes to distinguish them.");
+    }
+    const auto in_port_idx = std::find(
+        std::begin(m_node_inputs[node_index]), std::end(m_node_inputs[node_index]), input_name);
+    return (in_port_idx - std::begin(m_node_inputs[node_index]));
 }
 
 InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
@@ -143,14 +154,14 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
                            " and input index: " + std::to_string(in.m_input_index) +
                            " are ambiguous to determine input edge");
     }
+    if (in.m_input_index != -1) // input index is set
+    {
+        return InputEdge{node_index, in.m_input_index};
+    }
     if (!in.m_input_name.empty())
     {
-        return InputEdge{node_index, in.m_input_name};
-    }
-    else if (in.m_input_index != -1) // input index is set
-    {
-        const auto& input_name = get_node_input_name(node_index, in.m_input_index);
-        return InputEdge{node_index, input_name};
+        const auto input_idx = get_node_input_idx(node_index, in.m_input_name);
+        return InputEdge{node_index, input_idx};
     }
     else
     {
@@ -203,14 +214,14 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
                            " and output index: " + std::to_string(out.m_output_index) +
                            " are ambiguous to determine output edge");
     }
+    if (out.m_output_index != -1) // output index is set
+    {
+        return OutputEdge{node_index, out.m_output_index};
+    }
     if (!out.m_output_name.empty())
     {
-        return OutputEdge{node_index, out.m_output_name};
-    }
-    else if (out.m_output_index != -1) // output index is set
-    {
-        const auto& output_name = get_node_output_name(node_index, out.m_output_index);
-        return OutputEdge{node_index, output_name};
+        const auto output_idx = get_node_output_idx(node_index, out.m_output_name);
+        return OutputEdge{node_index, output_idx};
     }
     else
     {
@@ -231,8 +242,10 @@ std::vector<InputEdge>
     std::transform(matched_nodes_range.first,
                    matched_nodes_range.second,
                    std::back_inserter(input_edges),
-                   [&output_name](const std::pair<std::string, int>& iter) {
-                       return InputEdge{iter.second, output_name};
+                   [&output_name, this](const std::pair<std::string, int>& iter) {
+                       const auto node_idx = iter.second;
+                       const auto port_idx = this->get_node_input_idx(node_idx, output_name);
+                       return InputEdge{node_idx, port_idx};
                    });
     return input_edges;
 }

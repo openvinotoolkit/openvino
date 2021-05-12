@@ -265,7 +265,7 @@ namespace ngraph
                 return std::vector<std::string>(1, tensorName);
             }
 
-            //virtual std::vector<Place::Ptr> getConsumingPorts () const override;
+            virtual std::vector<Place::Ptr> getConsumingPorts () const override;
             virtual Place::Ptr getProducingPort () const override;
             virtual Ptr getInputPort (int inputPortIndex = -1) const override;
         };
@@ -371,20 +371,15 @@ namespace ngraph
             }
         };
 
-#if 0
         std::vector<Place::Ptr> PlaceTensorONNX::getConsumingPorts () const
         {
-
-            // ONNX specific code to find a node indices for all operations that consume a given tensor name
             std::vector<Place::Ptr> result;
-
-            for(int i: model->editor.find_input_edge(onnx_editor::EditorNode(onnx_editor::EditorOutput(tensorName))).find_consumeing_node_idxs(tensorName))
-            {
-                result.push_back(std::make_shared<PlaceInputEdgeONNX>(tensorName, i));
-            }
+            auto edges = model->editor.find_consuming_input_edges(tensorName);
+            std::transform(edges.begin(), edges.end(), std::back_inserter(result), [](onnx_editor::InputEdge edge) {
+                return std::make_shared<PlaceInputEdgeONNX>(edge);
+            });
             return result;
         }
-#endif
 
         Place::Ptr PlaceTensorONNX::getProducingPort () const
         {

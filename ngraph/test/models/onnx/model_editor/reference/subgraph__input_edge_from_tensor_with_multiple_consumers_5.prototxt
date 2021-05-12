@@ -34,7 +34,7 @@ graph {
     }
   }
   node {
-    input: "mul1/placeholder_port_0"
+    input: "relu1"
     input: "split1"
     output: "mul1"
     op_type: "Mul"
@@ -68,22 +68,6 @@ graph {
   }
   input {
     name: "add2/placeholder_port_0"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "mul1/placeholder_port_0"
     type {
       tensor_type {
         elem_type: 1

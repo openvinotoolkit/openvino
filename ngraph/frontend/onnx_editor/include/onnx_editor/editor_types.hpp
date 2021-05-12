@@ -19,46 +19,46 @@ namespace ngraph
     struct Edge
     {
         Edge() = delete;
-        Edge(const int node_idx, std::string tensor_name)
+        Edge(const int node_idx, const int port_idx)
             : m_node_idx{node_idx}
-            , m_tensor_name{std::move(tensor_name)}
+            , m_port_idx{port_idx}
         {
         }
 
         const int m_node_idx;
-        const std::string m_tensor_name;
+        const int m_port_idx;
     };
     namespace onnx_editor
     {
         /// \brief Defines an edge connected to an input of any node in the graph.
-        ///        It consists of a node index in the processed ONNX model and the input name.
-        ///        The index should point to a node in the topological sort of the underlying graph
-        ///        which means it has to be in range:  0 <= node_idx < graph.node_size()
+        ///        It consists of a node index in the processed ONNX model and the port index.
+        ///        The node index should point to a node in the topological sort of the underlying
+        ///        graph which means it has to be in range:  0 <= node_idx < graph.node_size()
         ///
         ///        For a node number 5, with 3 inputs:
         ///
-        ///            ----(in_A)---->  +--------+
-        ///            ----(in_B)---->  | node 5 |  ----(out)---->
-        ///            ----(in_C)---->  +--------+
+        ///            ----(0)---->  +--------+
+        ///            ----(1)---->  | node 5 |  ----(0)---->
+        ///            ----(2)---->  +--------+
         ///
         ///        there are 3 possible valid instances of this struct:
-        ///            InputEdge(5, "in_A")
-        ///            InputEdge(5, "in_B")
-        ///            InputEdge(5, "in_C")
+        ///            InputEdge(5, 0)
+        ///            InputEdge(5, 1)
+        ///            InputEdge(5, 2)
         using InputEdge = Edge<EdgeType::INPUT>;
 
         /// \brief Defines an edge connected to an output of any node in the graph.
-        ///        It consists of a node index in the processed ONNX model and the output name.
+        ///        It consists of a node index in the processed ONNX model and the port index.
         ///
         ///        For a node number 5, with 2 outputs:
         ///
-        ///                             +--------+  ----(out1)---->
-        ///            ----(in_A)---->  | node 5 |
-        ///                             +--------+  ----(out2)---->
+        ///                          +--------+  ----(0)---->
+        ///            ----(0)---->  | node 5 |
+        ///                          +--------+  ----(1)---->
         ///
         ///        there are 2 possible valid instances of this struct:
-        ///            OutputEdge(5, "out1")
-        ///            OutputEdge(5, "out2")
+        ///            OutputEdge(5, 0)
+        ///            OutputEdge(5, 1)
         using OutputEdge = Edge<EdgeType::OUTPUT>;
 
         /// \brief Specifies a single node input by the name or index.
