@@ -237,24 +237,6 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
-        case InferenceEngine::Precision::UNSPECIFIED:
-            break;
-        case InferenceEngine::Precision::MIXED:
-            break;
-        case InferenceEngine::Precision::FP64:
-            break;
-        case InferenceEngine::Precision::Q78:
-            break;
-        case InferenceEngine::Precision::U4:
-            break;
-        case InferenceEngine::Precision::I4:
-            break;
-        case InferenceEngine::Precision::U32:
-            break;
-        case InferenceEngine::Precision::BIN:
-            break;
-        case InferenceEngine::Precision::CUSTOM:
-            break;
     }
 }
 
