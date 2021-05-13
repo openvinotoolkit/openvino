@@ -58,7 +58,8 @@ namespace BehaviorTestsDefinitions {
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
         if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+            targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
+            targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
             ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
             ASSERT_THROW(ie->SetConfig(configuration, targetDevice),
                          InferenceEngine::Exception);

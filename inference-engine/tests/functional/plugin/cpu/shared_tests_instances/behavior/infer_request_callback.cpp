@@ -23,6 +23,10 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
 };
 
+const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {}
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -35,5 +39,12 @@ INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CallbackTests,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(multiConfigs)),
+        CallbackTests::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, CallbackTests,
+        ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(autoConfigs)),
         CallbackTests::getTestCaseName);
 }  // namespace

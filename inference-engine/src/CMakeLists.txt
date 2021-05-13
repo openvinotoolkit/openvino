@@ -30,6 +30,8 @@ endif()
 
 add_subdirectory(hetero_plugin)
 
+add_subdirectory(auto_plugin)
+
 add_subdirectory(multi_device)
 
 add_subdirectory(transformations)
