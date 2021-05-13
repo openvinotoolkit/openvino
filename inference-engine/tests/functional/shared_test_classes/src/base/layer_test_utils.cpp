@@ -139,8 +139,8 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
             break;
         case ngraph::element::Type_t::boolean:
         case ngraph::element::Type_t::u8:
-            LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold);
+           LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
+                                                    actualBuffer, size, threshold);
             break;
         case ngraph::element::Type_t::f32:
             LayerTestsCommon::Compare<T_IE, float>(reinterpret_cast<const float *>(expectedBuffer),
@@ -167,7 +167,7 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
                                float threshold) {
     ASSERT_FALSE(expected.first.is_integral() == actual->getTensorDesc().getPrecision().is_float());
     ASSERT_FALSE(expected.first.is_real() == !actual->getTensorDesc().getPrecision().is_float());
-    float k = expected.first.size() / actual->getTensorDesc().getPrecision().size();
+    auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
     ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
