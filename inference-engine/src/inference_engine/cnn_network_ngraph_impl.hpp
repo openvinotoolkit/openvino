@@ -105,6 +105,7 @@ private:
      */
     void reshape();
     void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
+    void validateFunctionNames() const;
 };
 }  // namespace details
 }  // namespace InferenceEngine
