@@ -69,7 +69,7 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update pip to the Highest Version
+### Step 3. Set Up and Update PIP to the Highest Version
 
 Run the command below:
 ```sh
@@ -97,11 +97,11 @@ You will see the help message for Post-Training Optimization Tool if installatio
 
 #### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue you are required to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repete package installation.
+On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
 
 #### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
-To resolve missing external dependency on Ubuntu* execute a command:
+To resolve missing external dependency on Ubuntu*, execute the following command:
 ```sh
 sudo apt-get install libpython3.7
 ```
