@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <iostream>
 #include "ngraph/runtime/reference/fft.hpp"
 #include <algorithm>
 #include <cassert>
@@ -22,6 +21,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <utility>
 #include <vector>
 #include "ngraph/shape.hpp"
@@ -129,17 +129,6 @@ namespace ngraph
                     }
                     return result;
                 }
-//                 // Helper function to get only length with respect to given axes.
-//                 std::vector<int64_t> get_lengths(const std::vector<int64_t>& shape,
-//                                                  const std::vector<int64_t>& axes)
-//                 {
-//                     std::vector<int64_t> lengths;
-//                     for (int64_t axis : axes)
-//                     {
-//                         lengths.push_back(shape[axis]);
-//                     }
-//                     return lengths;
-//                 }
 
                 // This function calculates 'outer axes', that is axes that are
                 // not transformed by FFT.
@@ -259,10 +248,7 @@ namespace ngraph
                         return ptr_to_data[offset_from_coords_and_strides(coords, strides)];
                     }
 
-                    std::vector<int64_t> get_output_shape() const
-                    {
-                        return output_shape;
-                    }
+                    std::vector<int64_t> get_output_shape() const { return output_shape; }
                 private:
                     complex_type* ptr_to_data;
                     std::vector<int64_t> strides;
@@ -286,10 +272,8 @@ namespace ngraph
                         return coords_from_index(i, strides);
                     }
 
-                    int64_t size() const
-                    {
-                        return strides.back();
-                    }
+                    int64_t size() const { return strides.back(); }
+
                 private:
                     std::vector<int64_t> strides;
                 };
@@ -331,15 +315,9 @@ namespace ngraph
                         return ptr_to_data[offset];
                     }
 
-                    int64_t padded_size() const
-                    {
-                        return padded_shape_strides.back();
-                    }
+                    int64_t padded_size() const { return padded_shape_strides.back(); }
 
-                    int64_t nonpadded_size() const
-                    {
-                        return nonpadded_shape_strides.back();
-                    }
+                    int64_t nonpadded_size() const { return nonpadded_shape_strides.back(); }
                 private:
                     const complex_type* ptr_to_data;
                     std::vector<int64_t> padded_data_shape;
@@ -351,13 +329,13 @@ namespace ngraph
                     complex_type default_value = complex_type{0.0f, 0.0f};
                 };
 
-                std::vector<complex_type> get_transposed_data(const complex_type* data,
-                                                              const std::vector<int64_t>& input_shape,
-                                                              const std::vector<int64_t>& axes_order)
+                std::vector<complex_type>
+                    get_transposed_data(const complex_type* data,
+                                        const std::vector<int64_t>& input_shape,
+                                        const std::vector<int64_t>& axes_order)
                 {
-                    Transposed_view transposed_view{const_cast<complex_type*>(data),
-                                                    input_shape,
-                                                    axes_order};
+                    Transposed_view transposed_view{
+                        const_cast<complex_type*>(data), input_shape, axes_order};
                     const auto output_shape = transposed_view.get_output_shape();
 
                     Flatten_indexing output_indexing{output_shape};
@@ -607,11 +585,11 @@ namespace ngraph
                     auto permuted_input_shape = permute_vector(reversed_input_shape, axes_order);
                     auto permuted_output_shape = permute_vector(reversed_output_shape, axes_order);
 
-                    std::vector<int64_t> permuted_fft_input_lengths(permuted_input_shape.begin(),
-                                                                    permuted_input_shape.begin() + fft_rank);
+                    std::vector<int64_t> permuted_fft_input_lengths(
+                        permuted_input_shape.begin(), permuted_input_shape.begin() + fft_rank);
 
-                    std::vector<int64_t> permuted_fft_output_lengths(permuted_output_shape.begin(),
-                                                                     permuted_output_shape.begin() + fft_rank);
+                    std::vector<int64_t> permuted_fft_output_lengths(
+                        permuted_output_shape.begin(), permuted_output_shape.begin() + fft_rank);
 
                     const auto fft_strides = compute_strides(permuted_fft_output_lengths);
                     const int64_t buffer_size = compute_buffer_size(permuted_fft_output_lengths);
@@ -665,9 +643,8 @@ namespace ngraph
                 const auto& permuted_fft_output_lengths = info.permuted_fft_output_lengths;
                 const auto& permuted_fft_input_lengths = info.permuted_fft_input_lengths;
 
-                const auto transposed_data = get_transposed_data(complex_input_data_ptr,
-                                                                 info.reversed_input_shape,
-                                                                 info.axes_order);
+                const auto transposed_data = get_transposed_data(
+                    complex_input_data_ptr, info.reversed_input_shape, info.axes_order);
                 std::vector<complex_type> transposed_result(fft_size * info.outer_size);
 
                 const complex_type* transposed_data_ptr = transposed_data.data();
