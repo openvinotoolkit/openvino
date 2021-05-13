@@ -15,7 +15,9 @@
 #include "deconv_ref.hpp"
 #include "def_conv_ref.hpp"
 #include "pool_ref.hpp"
+#include "single_layer_common.hpp"
 #include "common_test_utils/common_layers_params.hpp"
+#include <common_test_utils/xml_net_builder/xml_net_builder.hpp>
 
 using namespace InferenceEngine;
 

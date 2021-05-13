@@ -147,8 +147,8 @@ Function::Function(const OutputVector& results, const string& name)
 void Function::check_all_parameters_registered(
     const std::vector<shared_ptr<Node>>& ordered_ops) const
 {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
-                       "Function::check_all_parameters_registered");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
+
     std::stringstream unregistered_parameters;
     for (auto& node : ordered_ops)
     {
@@ -215,8 +215,7 @@ void Function::prerequirements(bool detect_variables, bool detect_parameters)
 
 void Function::validate_nodes_and_infer_types() const
 {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
-                       "Function::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
 
     struct Counter
     {
