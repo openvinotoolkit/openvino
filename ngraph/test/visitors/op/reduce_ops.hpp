@@ -24,7 +24,7 @@ TYPED_TEST_CASE_P(ReduceOpsAttrTest);
 TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
 {
     Shape in_shape{3, 4, 5};
-    element::Type in_et = element::f32;
+    element::Type in_et = element::dynamic;
 
     Shape axes_shape{2};
     element::Type axes_et = element::i64;
