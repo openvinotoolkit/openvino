@@ -24,11 +24,6 @@
 #include "statistics_report.hpp"
 #include "inputs_filling.hpp"
 #include "utils.hpp"
-#include "../../../ngraph/core/include/ngraph/variant.hpp"
-#include <ngraph/function.hpp>
-#include <ngraph/node.hpp>
-#include "hetero/hetero_plugin_config.hpp"
-
 
 using namespace InferenceEngine;
 
@@ -141,52 +136,11 @@ int main(int argc, char *argv[]) {
             statistics->addParameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
         }
         auto isFlagSetInCommandLine = [&command_line_arguments] (const std::string& name) {
-            return (std::find_if(command_line_arguments.begin(), command_line_arguments.end(),
-                                 [ name ] (const std::pair<std::string, std::string>& p) { return p.first == name;}) != command_line_arguments.end());
+           return (std::find_if(command_line_arguments.begin(), command_line_arguments.end(),
+           [ name ] (const std::pair<std::string, std::string>& p) { return p.first == name;}) != command_line_arguments.end());
         };
-        Core ie;
-        // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
-        next_step();
 
-        slog::info << "Loading network files" << slog::endl;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
-
-        const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-        if (inputInfo.empty()) {
-            throw std::logic_error("no inputs info is provided");
-        }
-        //AFFINITY
-//        CNNNetwork clonedNetwork = ie.ReadNetwork(FLAGS_m);
-//        InferenceEngine::ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
-//
-//        for (const InputsDataMap::value_type &item : clonedNetwork.getInputsInfo()) {
-//            if (shapes.at(item.first).size() < 2)
-//                THROW_IE_EXCEPTION << "Auto-batching  of the network with no dim 0 on input " <<
-//                                   item.first << " (first input is scalar or channels-only)!";
-//            shapes[item.first][0] = 4;
-//        }
-//        std::cout << "Reshaped network by batch to  " << 4   << std::endl;
-//        clonedNetwork.reshape(shapes);
-
-        auto function = cnnNetwork.getFunction();
-        for (auto &&node : function->get_ops()) {
-            if ((!std::strcmp("DetectionOutput", node->get_type_info().name) ||
-            !std::strcmp("Result", node->get_type_info().name))) {
-//                 || !std::strcmp("ConcatPriorBoxesClustered", node->get_friendly_name().c_str())) {
-                 //!std::strcmp("Softmax", node->get_type_info().name)) {
-                // Store affinity mapping using node runtime information
-                node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("CPU");
-                std::cout << "!!! AFF !!! type: " << node->get_type_info().name <<
-                ", name: " << node->get_friendly_name() << std::endl;
-            } else {
-                node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("BATCH");
-            }
-        }
-        std::string device_name = "HETERO"; // HETERO:BATCH(GPU),GPU
-        ie.SetConfig({{"TARGET_FALLBACK", "BATCH,CPU"}}, "HETERO");
-        ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), PluginConfigParams::YES}}, "HETERO");
-
-        ie.SetConfig({{"AUTO_BATCH_NUM", "CPU(4)"}}, "BATCH");
+        std::string device_name = FLAGS_d;
 
         // Parse devices
         auto devices = parseDevices(device_name);
@@ -208,6 +162,7 @@ int main(int argc, char *argv[]) {
         // ----------------- 2. Loading the Inference Engine -----------------------------------------------------------
         next_step();
 
+        Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
             const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
@@ -246,16 +201,16 @@ int main(int argc, char *argv[]) {
                 // set to user defined value
                 device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
             } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) &&
-                       (device_config.at(CONFIG_KEY(PERF_COUNT)) == "YES")) {
+                      (device_config.at(CONFIG_KEY(PERF_COUNT)) == "YES")) {
                 slog::warn << "Performance counters for " << device <<
-                           " device is turned on. To print results use -pc option." << slog::endl;
+                              " device is turned on. To print results use -pc option." << slog::endl;
             } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
                 slog::warn << "Turn on performance counters for " << device <<
-                           " device since report type is " << FLAGS_report_type << "." << slog::endl;
+                              " device since report type is " << FLAGS_report_type << "." << slog::endl;
                 device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device <<
-                           " device due to execution graph dumping." << slog::endl;
+                              " device due to execution graph dumping." << slog::endl;
                 device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
             } else {
                 // set to default value
@@ -276,8 +231,8 @@ int main(int argc, char *argv[]) {
                     device_config[key] = device_nstreams.at(device);
                 } else if (!device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
-                  "Although the automatic selection usually provides a reasonable performance, "
-                  "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
+                          "Although the automatic selection usually provides a reasonable performance, "
+                          "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
                     if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
                         device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
                 }
@@ -299,8 +254,8 @@ int main(int argc, char *argv[]) {
                 } else if (!device_config.count(CONFIG_KEY(CPU_BIND_THREAD))) {
                     if ((device_name.find("MULTI") != std::string::npos) &&
                         (device_name.find("GPU") != std::string::npos)) {
-                        slog::warn << "Turn off threads pinning for " << device <<
-                                   " device since multi-scenario with GPU device is used." << slog::endl;
+                         slog::warn << "Turn off threads pinning for " << device <<
+                                       " device since multi-scenario with GPU device is used." << slog::endl;
                         device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
                     } else {
                         // set to default value
@@ -317,7 +272,7 @@ int main(int argc, char *argv[]) {
                 if ((device_name.find("MULTI") != std::string::npos) &&
                     (device_name.find("CPU") != std::string::npos)) {
                     slog::warn << "Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint," <<
-                               "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)"<< slog::endl;
+                                  "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)"<< slog::endl;
                     device_config[CLDNN_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
             } else if (device == "MYRIAD") {
@@ -335,7 +290,7 @@ int main(int argc, char *argv[]) {
                 std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 auto supported = [&] (const std::string& key) {
                     return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key)
-                           != std::end(supported_config_keys);
+                        != std::end(supported_config_keys);
                 };
                 if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -367,57 +322,98 @@ int main(int argc, char *argv[]) {
         std::string topology_name = "";
         benchmark_app::InputsInfo app_inputs_info;
         std::string output_name;
+        if (!isNetworkCompiled) {
+            // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
+            next_step();
 
-        // ----------------- 5. Resizing network to match image sizes and given batch ----------------------------------
-        next_step();
-        batchSize = cnnNetwork.getBatchSize();
-        // Parse input shapes if specified
-        bool reshape = false;
-        app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
-        if (reshape) {
-            InferenceEngine::ICNNNetwork::InputShapes shapes = {};
-            for (auto& item : app_inputs_info)
-                shapes[item.first] = item.second.shape;
-            slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
+            slog::info << "Loading network files" << slog::endl;
+
             auto startTime = Time::now();
-            cnnNetwork.reshape(shapes);
+            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
-            slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
+            slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                                  {"reshape network time (ms)", duration_ms}
+                                                  {"read network time (ms)", duration_ms}
                                           });
-        }
-        // use batch size according to provided layout and shapes
-        batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
 
-        topology_name = cnnNetwork.getName();
-        slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
+            const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
+            if (inputInfo.empty()) {
+                throw std::logic_error("no inputs info is provided");
+            }
 
-        // ----------------- 6. Configuring input ----------------------------------------------------------------------
-        next_step();
+            // ----------------- 5. Resizing network to match image sizes and given batch ----------------------------------
+            next_step();
+            batchSize = cnnNetwork.getBatchSize();
+            // Parse input shapes if specified
+            bool reshape = false;
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
+            if (reshape) {
+                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                for (auto& item : app_inputs_info)
+                    shapes[item.first] = item.second.shape;
+                slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
+                startTime = Time::now();
+                cnnNetwork.reshape(shapes);
+                auto duration_ms = double_to_string(get_total_ms_time(startTime));
+                slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
+                if (statistics)
+                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                            {
+                                                    {"reshape network time (ms)", duration_ms}
+                                            });
+            }
+            // use batch size according to provided layout and shapes
+            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
 
-        for (auto& item : inputInfo) {
-            if (app_inputs_info.at(item.first).isImage()) {
-                /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
-                app_inputs_info.at(item.first).precision = Precision::U8;
-                item.second->setPrecision(app_inputs_info.at(item.first).precision);
+            topology_name = cnnNetwork.getName();
+            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
+
+            // ----------------- 6. Configuring input ----------------------------------------------------------------------
+            next_step();
+
+            for (auto& item : inputInfo) {
+                if (app_inputs_info.at(item.first).isImage()) {
+                    /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
+                    app_inputs_info.at(item.first).precision = Precision::U8;
+                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
+                }
+            }
+            // ----------------- 7. Loading the model to the device --------------------------------------------------------
+            next_step();
+            startTime = Time::now();
+            exeNetwork = ie.LoadNetwork(cnnNetwork, device_name);
+            duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+            if (statistics)
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                                  {"load network time (ms)", duration_ms}
+                                          });
+        } else {
+            next_step();
+            slog::info << "Skipping the step for compiled network" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for compiled network" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for compiled network" << slog::endl;
+            // ----------------- 7. Loading the model to the device --------------------------------------------------------
+            next_step();
+            auto startTime = Time::now();
+            exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {});
+            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
+            if (statistics)
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                                  {"import network time (ms)", duration_ms}
+                                          });
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
+            if (batchSize == 0) {
+                batchSize = 1;
             }
         }
-
-
-        // ----------------- 7. Loading the model to the device --------------------------------------------------------
-        next_step();
-        auto startTime = Time::now();
-        exeNetwork = ie.LoadNetwork(cnnNetwork, device_name);
-        auto duration_ms = double_to_string(get_total_ms_time(startTime));
-        slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
-        if (statistics)
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                              {"load network time (ms)", duration_ms}
-                                      });
         // ----------------- 8. Setting optimal runtime parameters -----------------------------------------------------
         next_step();
 
@@ -537,16 +533,16 @@ int main(int argc, char *argv[]) {
             inferRequestsQueue.getIdleRequest()->startAsync();
         }
         inferRequestsQueue.waitAll();
-        duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
         if (statistics)
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                              {"first inference time (ms)", duration_ms}
-                                      });
+                                        {
+                                                {"first inference time (ms)", duration_ms}
+                                        });
         inferRequestsQueue.resetTimes();
 
-        startTime = Time::now();
+        auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
         /** Start inference & calculate performance **/
