@@ -18,15 +18,14 @@ namespace TimeTest {
 Timer::Timer(const std::string &timer_name) {
   name = timer_name;
   start_time = std::chrono::high_resolution_clock::now();
-  StatisticsWriter::Instance().addOrderCount(name);
+  StatisticsWriter::Instance().addTimer(name);
 }
 
 Timer::~Timer() {
   float duration = std::chrono::duration_cast<std::chrono::microseconds>(
                        std::chrono::high_resolution_clock::now() - start_time)
                        .count();
-  StatisticsWriter::Instance().addToTimeStructure({name, duration});
-  StatisticsWriter::Instance().deleteOrderCount();
+  StatisticsWriter::Instance().deleteTimer({name, duration});
 }
 
 } // namespace TimeTest

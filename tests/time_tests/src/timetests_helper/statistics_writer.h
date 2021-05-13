@@ -10,6 +10,9 @@
 #include <string>
 #include <stdexcept>
 #include <map>
+#include <vector>
+
+#define TAB "  "
 
 /**
  * @brief Class response for writing provided statistics
@@ -20,10 +23,9 @@
 class StatisticsWriter {
 private:
   std::ofstream statistics_file;
-  std::map<std::pair<int, std::string>, std::pair<std::string, float>> time_structure;
-  std::map<std::string, int> order_structure;
+  std::map<std::string, std::pair<int, float>> time_structure;
+  std::vector<std::string> time_struct_order;
   int tab_count = 0;
-  int order = 0;
 
   StatisticsWriter() = default;
   StatisticsWriter(const StatisticsWriter &) = delete;
@@ -54,26 +56,14 @@ public:
   /**
    * @brief Compute order for statistics operations.
    */
-  void addOrderCount(const std::string name) {
-    order++;
-    order_structure.insert(std::make_pair(name, order));
+  void addTimer(const std::string name) {
     tab_count++;
+    time_struct_order.push_back(name);
   }
 
-  void deleteOrderCount() {
+  void deleteTimer(const std::pair<std::string, float> &record) {
+    time_structure[record.first] = std::make_pair(tab_count, record.second);
     tab_count--;
-  }
-
-  /**
-   * @brief Writes statistics in map structure.
-   */
-  void addToTimeStructure(const std::pair<std::string, float> &record) {
-    const std::string tab_const = "  ";
-    std::string tabs = "";
-    for (int i = 0; i < tab_count - 1; ++i) {
-      tabs += tab_const;
-    }
-    time_structure.insert({std::make_pair(order_structure[record.first], tabs), record});
   }
 
   /**
@@ -82,9 +72,13 @@ public:
   void write() {
     if (!statistics_file)
       throw std::runtime_error("Statistic file path isn't set");
-    for (auto& x: time_structure) {
-      statistics_file << (x.first).second << "- " << (x.second).first << ":" << '\n'
-                      << (x.first).second << "  " << "- " << (x.second).second << '\n';
+    for (auto& timer: time_struct_order) {
+      std::string tabs = "";
+      for (int i = 0; i < time_structure[timer].first - 1; ++i) {
+        tabs += TAB;
+      }
+      statistics_file << tabs << "- " << timer << ":" << '\n'
+                      << tabs << "  " << "- " << time_structure[timer].second << '\n';
     }
     statistics_file << "---" << '\n' << "measurement_unit: microsecs";
   }
