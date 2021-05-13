@@ -15,7 +15,6 @@
 #include "transformations/init_node_info.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "../shared_tests_instances/skip_tests_check.hpp"
 
 using namespace ngraph;
 using namespace ngraph::opset1;
@@ -52,19 +51,19 @@ typedef std::tuple<
     std::map<std::string, std::string>, // Configuration
     InferenceEngine::SizeVector,        // Input shapes
     modelType                           // Test model
-> padded2ValidParams;
+> conv2DDecomposeParams;
 
-class Padded2ValidConvTest : public testing::WithParamInterface<padded2ValidParams>,
+class Conv2DDecomposeTest : public testing::WithParamInterface<conv2DDecomposeParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<padded2ValidParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<conv2DDecomposeParams> obj) {
         convSpecificParams convParams;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        InferenceEngine::SizeVector inputShapes;
+        InferenceEngine::SizeVector inputShape;
         modelType model;
-        std::tie(convParams, netPrecision, targetDevice, configuration, inputShapes, model) = obj.param;
+        std::tie(convParams, netPrecision, targetDevice, configuration, inputShape, model) = obj.param;
         op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpool;
         std::vector<ptrdiff_t> padBegin, padEnd;
@@ -73,7 +72,7 @@ public:
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
         result << "K" << CommonTestUtils::vec2str(kernel) << "_";
         result << "S" << CommonTestUtils::vec2str(stride) << "_";
         result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -179,26 +178,7 @@ protected:
     }
 };
 
-class GnaPadded2ValidConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
-protected:
-    void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            Padded2ValidConvTest::Run();
-        }
-    }
-
-    void SetUp() override {
-        Padded2ValidConvTest::SetUp();
-    }
-};
-
-TEST_P(Padded2ValidConvTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(GnaPadded2ValidConvTest, CompareWithRefs) {
+TEST_P(Conv2DDecomposeTest, CompareWithRefs) {
     Run();
 }
 
@@ -215,61 +195,34 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<op::PadType> padTypes = {
-        op::PadType::EXPLICIT,
-        op::PadType::SAME_LOWER,
-        //TODO: SAME_UPPER fails for 1d conv
+        //op::PadType::EXPLICIT,
+        //op::PadType::SAME_LOWER,
         //op::PadType::SAME_UPPER,
         op::PadType::VALID
 };
 
 const std::vector<modelType> models = {
     modelType::TranspConvTransp,
-    modelType::TranspConvBcastAddTransp,
-    //TODO: this model fails for 1d conv
+//    modelType::TranspConvBcastAddTransp,
+//    modelType::TranspConvBcastAddActTransp,
+//    modelType::TranspConvTranspBcastAdd,
+//    modelType::TranspConvTranspBcastAddAct
+    //TODO: maxpool 2d is not suppurted yet by this transform
     //modelType::TranspConvBcastAddMaxPoolTransp,
-    //TODO: disabled models fail with result comparison check
-    //modelType::TranspConvBcastAddActTransp,
     //modelType::TranspConvBcastAddMaxPoolActTransp,
-    modelType::TranspConvTranspBcastAdd,
-    //modelType::TranspConvTranspBcastAddAct
 };
 
-const std::vector<std::vector<size_t>> input1DNHWC = { {1, 1, 16, 8} };
-const std::vector<std::vector<size_t >> kernels1D = { {1, 2}, {1, 3} //TODO: {1, 4} fails on result comparison for 1d conv
-};
-const std::vector<std::vector<size_t >> strides1D = { {1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0, 2} };
-const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0, 3} };
-const std::vector<std::vector<size_t >> dilations1D = { {1, 1} };
-const std::vector<size_t> numOutChannels1D = { 4 };
-const std::vector<std::vector<size_t >> biases1D = { {1, 4, 1, 1} };
-const std::vector<std::vector<size_t >> transp_biases1D = { {1, 1, 1, 4} };
-const std::vector<std::vector<size_t >> maxpools1D = { {1, 2} };
-
-const std::vector<std::vector<size_t>> input2DNHWC = { {1, 16, 16, 32} };
-const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, {4, 1}, {1, 3} };
+const std::vector<std::vector<size_t>> input2DNHWC = { {1, 16, 16, 8} };
+const std::vector<std::vector<size_t >> kernels2D = { {3, 1} };
 //TODO: strides other than {1, 1} fail on result comparison for 2d conv
 const std::vector<std::vector<size_t >> strides2D = { {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {3, 1} };
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1} };
-const std::vector<size_t> numOutChannels2D = { 32 };
+const std::vector<size_t> numOutChannels2D = { 4 };
 const std::vector<std::vector<size_t >> biases2D = { {1, 32, 1, 1} };
 const std::vector<std::vector<size_t >> transp_biases2D = { {1, 1, 1, 32} };
 const std::vector<std::vector<size_t >> maxpools2D = { {2, 2} };
-
-const auto conv1DParams = ::testing::Combine(
-    ::testing::ValuesIn(kernels1D),
-    ::testing::ValuesIn(strides1D),
-    ::testing::ValuesIn(padBegins1D),
-    ::testing::ValuesIn(padEnds1D),
-    ::testing::ValuesIn(dilations1D),
-    ::testing::ValuesIn(numOutChannels1D),
-    ::testing::ValuesIn(padTypes),
-    ::testing::ValuesIn(biases1D),
-    ::testing::ValuesIn(transp_biases1D),
-    ::testing::ValuesIn(maxpools1D)
-);
 
 const auto conv2DParams = ::testing::Combine(
     ::testing::ValuesIn(kernels2D),
@@ -284,17 +237,7 @@ const auto conv2DParams = ::testing::Combine(
     ::testing::ValuesIn(maxpools2D)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_1DTranspConvTransp, Padded2ValidConvTest,
-    ::testing::Combine(
-        conv1DParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(input1DNHWC),
-        ::testing::ValuesIn(models)),
-    Padded2ValidConvTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_2DTranspConvTransp, GnaPadded2ValidConvTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_2DConvDecompose, Conv2DDecomposeTest,
     ::testing::Combine(
         conv2DParams,
         ::testing::ValuesIn(netPrecisions),
@@ -302,6 +245,6 @@ INSTANTIATE_TEST_CASE_P(smoke_2DTranspConvTransp, GnaPadded2ValidConvTest,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
-    GnaPadded2ValidConvTest::getTestCaseName);
+    Conv2DDecomposeTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
