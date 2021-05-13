@@ -111,7 +111,7 @@ namespace ngraph {
                         }
 
                         uint64_t stride_h = int64_t(input_h / pool_size_Height);
-                        uint64_t stride_w = int64_t(input_h / pool_size_Width);
+                        uint64_t stride_w = int64_t(input_w / pool_size_Width);
                         uint64_t kernel_h = input_h - (pool_size_Height - 1) * stride_h;
                         uint64_t kernel_w = input_w - (pool_size_Width - 1) * stride_w;
 
