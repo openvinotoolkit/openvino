@@ -49,6 +49,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
@@ -276,6 +277,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 

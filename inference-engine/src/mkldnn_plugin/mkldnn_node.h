@@ -91,6 +91,7 @@ enum Type {
     Select,
     Roll,
     Reference,
+    ShuffleChannels,
 };
 
 Type TypeFromName(const std::string type);
@@ -203,6 +204,8 @@ static std::string NameFromType(Type type) {
             return "Select";
         case Roll:
             return "Roll";
+        case ShuffleChannels:
+            return "ShuffleChannels";
         default:
             return "Unknown";
     }
