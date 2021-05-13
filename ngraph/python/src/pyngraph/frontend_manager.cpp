@@ -20,6 +20,7 @@
 
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_manager.hpp"
+#include "frontend_manager/frontend_exceptions.hpp"
 #include "pyngraph/function.hpp"
 
 namespace py = pybind11;
