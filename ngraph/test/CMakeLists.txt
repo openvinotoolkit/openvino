@@ -172,6 +172,7 @@ set(SRC
     type_prop/reduce_l2.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
+    type_prop/result.cpp
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
