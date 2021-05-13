@@ -10,7 +10,7 @@
 
 ConvolutionBackpropData takes the input tensor, weights tensor and output shape and computes the output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined by other attributes implicitly. If output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed.
 
-ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular [Convolution](Convolution_1.md) operation for detailed description of each attribute.
+ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation and additionally `output_padding` attribute, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular [Convolution](Convolution_1.md) operation for detailed description of each Convolution attribute.
 
 When output shape is specified as an input tensor `output_shape` then it specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[O_z, O_y, O_x]` by input spatial shape `[I_z, I_y, I_x]` in the following way:
 
@@ -98,7 +98,7 @@ else:
 
 *   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is `[C_INPUT, C_OUTPUT, Z, Y, X]` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. *Required*.
 
-*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. *Optional*. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`.
+*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`. *Optional*.
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X,
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X,
@@ -115,9 +115,10 @@ else:
 
 **Example**
 
+2D ConvolutionBackpropData
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
-    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0"/>
+    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0" auto_pad="explicit"/>
     <input>
         <port id="0">
             <dim>1</dim>
@@ -138,6 +139,68 @@ else:
             <dim>10</dim>
             <dim>447</dim>
             <dim>447</dim>
+        </port>
+    </output>
+</layer>
+```
+
+2D ConvolutionBackpropData with output_padding
+```xml
+<layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
+    <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="3,3" output_padding="2,2" auto_pad="explicit"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>2</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>20</dim>
+            <dim>10</dim>
+            <dim>3</dim>
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0" precision="FP32">
+            <dim>1</dim>
+            <dim>10</dim>
+            <dim>8</dim>
+            <dim>8</dim>
+        </port>
+    </output>
+</layer>
+```
+
+2D ConvolutionBackpropData with output_shape input
+```xml
+<layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
+    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="1,1" output_padding="0,0" auto_pad="valid"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>20</dim>
+            <dim>10</dim>
+            <dim>3</dim>
+            <dim>3</dim>
+        </port>
+        <port id="2">
+            <dim>450</dim>
+            <dim>450</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0" precision="FP32">
+            <dim>1</dim>
+            <dim>10</dim>
+            <dim>450</dim>
+            <dim>450</dim>
         </port>
     </output>
 </layer>
