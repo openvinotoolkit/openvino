@@ -17,20 +17,23 @@
 #include "concat.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs concat(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_inputs("X");
-            auto axis = node.get_attribute<int>("axis");
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Concat>(data, axis)}, {"Out"});
-        }
+            namespace op
+            {
+                NamedOutputs concat(const NodeContext& node)
+                {
+                    auto data = node.get_ng_inputs("X");
+                    auto axis = node.get_attribute<int>("axis");
+                    return node.default_single_output_mapping(
+                        {std::make_shared<opset6::Concat>(data, axis)}, {"Out"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

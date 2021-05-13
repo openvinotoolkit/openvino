@@ -5,15 +5,19 @@
 #include "paddlepaddle_frontend/exceptions.hpp"
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            std::string
+                NodeValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeContext& node)
+            {
+                return " \nNodeValidationFailure: validation failed for " + node.op_type() +
+                       " PaddlePaddle node.";
+            }
 
-std::string NodeValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeContext &node) {
-    return " \nNodeValidationFailure: validation failed for " + node.op_type() + " PaddlePaddle node.";
-}
-
-} // pdpd
-} // frontend
-} // ngraph
-
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

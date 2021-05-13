@@ -6,37 +6,46 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs split(const NodeContext& node)
+        namespace pdpd
         {
-            using namespace ngraph;
-            using namespace opset7;
-            const auto& data = node.get_ng_input("X");
-            auto dim = node.get_attribute<int32_t>("axis");
-            // todo: 'num' can be list of values, in this case we should create
-            // VariadicSplit todo: support VariadicSplit
-            auto num_or_sections = node.get_attribute<int32_t>("num");
-            auto axis = std::make_shared<Constant>(element::i32, Shape{}, dim);
-
-            NamedOutputs named_outputs;
-            auto split_outputs = std::make_shared<Split>(data, axis, num_or_sections)->outputs();
-            auto out_names = node.get_output_names();
-            PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, out_names.size() == 1, "Unexpected number of outputs");
-
-
-            auto it = std::find(out_names.begin(), out_names.end(), "Out");
-            PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, it != out_names.end(), "Expected output not found");
-            for (const auto& split_output : split_outputs)
+            namespace op
             {
-                named_outputs[*it].push_back(split_output);
-            }
-            return named_outputs;
-        }
-    } // namespace op
-} // namespace pdpd
+                NamedOutputs split(const NodeContext& node)
+                {
+                    using namespace ngraph;
+                    using namespace opset7;
+                    const auto& data = node.get_ng_input("X");
+                    auto dim = node.get_attribute<int32_t>("axis");
+                    // todo: 'num' can be list of values, in this case we should create
+                    // VariadicSplit todo: support VariadicSplit
+                    auto num_or_sections = node.get_attribute<int32_t>("num");
+                    auto axis = std::make_shared<Constant>(element::i32, Shape{}, dim);
+
+                    NamedOutputs named_outputs;
+                    auto split_outputs =
+                        std::make_shared<Split>(data, axis, num_or_sections)->outputs();
+                    auto out_names = node.get_output_names();
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                                               node,
+                                               out_names.size() == 1,
+                                               "Unexpected number of outputs");
+
+                    auto it = std::find(out_names.begin(), out_names.end(), "Out");
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                                               node,
+                                               it != out_names.end(),
+                                               "Expected output not found");
+                    for (const auto& split_output : split_outputs)
+                    {
+                        named_outputs[*it].push_back(split_output);
+                    }
+                    return named_outputs;
+                }
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

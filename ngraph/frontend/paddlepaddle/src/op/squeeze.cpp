@@ -3,29 +3,32 @@
 //
 
 #include "squeeze.hpp"
-#include <paddlepaddle_frontend/exceptions.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs squeeze(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_input("X");
-            std::vector<int32_t> axes;
-            if (node.has_attribute<std::vector<int32_t>>("axes"))
+            namespace op
             {
-                axes = node.get_attribute<std::vector<int32_t>>("axes");
-            }
+                NamedOutputs squeeze(const NodeContext& node)
+                {
+                    auto data = node.get_ng_input("X");
+                    std::vector<int32_t> axes;
+                    if (node.has_attribute<std::vector<int32_t>>("axes"))
+                    {
+                        axes = node.get_attribute<std::vector<int32_t>>("axes");
+                    }
 
-            auto axesNode = opset6::Constant::create(element::i32, {axes.size()}, axes);
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Squeeze>(data, axesNode)}, {"Out"});
-        }
+                    auto axesNode = opset6::Constant::create(element::i32, {axes.size()}, axes);
+                    return node.default_single_output_mapping(
+                        {std::make_shared<opset6::Squeeze>(data, axesNode)}, {"Out"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

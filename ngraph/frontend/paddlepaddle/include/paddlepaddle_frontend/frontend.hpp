@@ -64,8 +64,8 @@ namespace ngraph
             virtual InputModel::Ptr
                 loadFromStreams(const std::vector<std::istream*>& paths) const override;
 
-    std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
-};
+            std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+        };
 
     } // namespace frontend
 } // namespace ngraph

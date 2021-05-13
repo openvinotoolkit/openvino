@@ -17,31 +17,34 @@
 #include "conv2d.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs conv2d(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_input("Input");
-            auto filter = node.get_ng_input("Filter");
-            // TODO: resolve padding according to spec
-            auto strides = node.get_attribute<std::vector<int32_t>>("strides");
-            auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
-            auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Convolution>(
-                    data,
-                    filter,
-                    Strides(strides.begin(), strides.end()),
-                    CoordinateDiff(paddings.begin(), paddings.end()),
-                    CoordinateDiff(paddings.begin(), paddings.end()),
-                    Strides(dilations.begin(), dilations.end()))},
-                {"Output"});
-        }
+            namespace op
+            {
+                NamedOutputs conv2d(const NodeContext& node)
+                {
+                    auto data = node.get_ng_input("Input");
+                    auto filter = node.get_ng_input("Filter");
+                    // TODO: resolve padding according to spec
+                    auto strides = node.get_attribute<std::vector<int32_t>>("strides");
+                    auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
+                    auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+                    return node.default_single_output_mapping(
+                        {std::make_shared<opset6::Convolution>(
+                            data,
+                            filter,
+                            Strides(strides.begin(), strides.end()),
+                            CoordinateDiff(paddings.begin(), paddings.end()),
+                            CoordinateDiff(paddings.begin(), paddings.end()),
+                            Strides(dilations.begin(), dilations.end()))},
+                        {"Output"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

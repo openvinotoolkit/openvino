@@ -80,16 +80,23 @@ std::vector<Place::Ptr> TensorPlacePDPD::getConsumingPorts() const
         if (const auto& locked = consuming_port.lock())
         {
             consuming_ports.push_back(locked);
-        } else {
-            PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, false, "Consuming Port has expired.");
+        }
+        else
+        {
+            PDPD_CHECK(
+                ngraph::frontend::ErrorCode::ERROR_GENERAL, false, "Consuming Port has expired.");
         }
     }
     return consuming_ports;
 }
 
-Place::Ptr TensorPlacePDPD::getProducingPort() const {
-    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, m_producing_ports.size() > 1, "Only one producing port is supported.");
-    if (const auto& producing_port = m_producing_ports[0].lock()) {
+Place::Ptr TensorPlacePDPD::getProducingPort() const
+{
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+               m_producing_ports.size() > 1,
+               "Only one producing port is supported.");
+    if (const auto& producing_port = m_producing_ports[0].lock())
+    {
         return producing_port;
     }
     PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, false, "Producing Port has expired.");
