@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_layer/convolution_backprop.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet> obj) {
-    convBackpropDataSpecificParams convBackpropDataParams;
+std::string ConvolutionBackpropLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet> obj) {
+    convBackpropSpecificParams convBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -41,8 +41,8 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
     return result.str();
 }
 
-void ConvolutionBackpropDataLayerTest::SetUp() {
-    convBackpropDataSpecificParams convBackpropDataParams;
+void ConvolutionBackpropLayerTest::SetUp() {
+    convBackpropSpecificParams convBackpropDataParams;
     std::vector<size_t> inputShape;
     std::vector<size_t> outputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;

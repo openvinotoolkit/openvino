@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-// DEPRECATED, this file shall be removed when kmb plugin will switch to use API from "convolution_backprop.hpp"
-
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
@@ -24,23 +22,25 @@ typedef std::tuple<
         std::vector<ptrdiff_t>,         // Pad end
         InferenceEngine::SizeVector,    // Dilation
         size_t,                         // Num out channels
-        ngraph::op::PadType             // Padding type
-> convBackpropDataSpecificParams;
+        ngraph::op::PadType,            // Padding type
+        InferenceEngine::SizeVector     // Output padding
+> convBackpropSpecificParams;
 typedef std::tuple<
-        convBackpropDataSpecificParams,
+        convBackpropSpecificParams,
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Output shapes
         LayerTestsUtils::TargetDevice   // Device name
-> convBackpropDataLayerTestParamsSet;
+> convBackpropLayerTestParamsSet;
 
-class ConvolutionBackpropDataLayerTest : public testing::WithParamInterface<convBackpropDataLayerTestParamsSet>,
+class ConvolutionBackpropLayerTest : public testing::WithParamInterface<convBackpropLayerTestParamsSet>,
                                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet> obj);
 
 protected:
     void SetUp() override;

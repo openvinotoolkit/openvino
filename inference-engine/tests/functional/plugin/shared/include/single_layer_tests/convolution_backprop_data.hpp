@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_layer/convolution_backprop.hpp"
 
 namespace LayerTestsDefinitions {
 
-TEST_P(ConvolutionBackpropDataLayerTest, CompareWithRefs) {
+TEST_P(ConvolutionBackpropLayerTest, CompareWithRefs) {
     Run();
 }
 
