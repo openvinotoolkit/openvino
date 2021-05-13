@@ -266,11 +266,6 @@ void InputModel::remove_output(Place::Ptr place)
     FRONT_END_NOT_IMPLEMENTED(remove_output);
 }
 
-void InputModel::remove_input(Place::Ptr place)
-{
-    FRONT_END_NOT_IMPLEMENTED(remove_input);
-}
-
 void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs)
 {
     FRONT_END_NOT_IMPLEMENTED(override_all_outputs);
@@ -288,11 +283,6 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs,
 }
 
 // Setting tensor properties
-void InputModel::set_default_shape(Place::Ptr place, const ngraph::Shape&)
-{
-    FRONT_END_NOT_IMPLEMENTED(set_default_shape);
-}
-
 void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&)
 {
     FRONT_END_NOT_IMPLEMENTED(set_partial_shape);

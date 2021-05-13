@@ -122,8 +122,6 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
     ASSERT_ANY_THROW(im->cut_and_add_new_output(nullptr, ""));
     ASSERT_ANY_THROW(im->add_output(nullptr));
     ASSERT_ANY_THROW(im->remove_output(nullptr));
-    ASSERT_ANY_THROW(im->remove_input(nullptr));
-    ASSERT_ANY_THROW(im->set_default_shape(nullptr, ngraph::Shape{}));
     ASSERT_ANY_THROW(im->set_partial_shape(nullptr, ngraph::Shape{}));
     ASSERT_ANY_THROW(im->get_partial_shape(nullptr));
     ASSERT_ANY_THROW(im->set_element_type(nullptr, ngraph::element::Type{}));
