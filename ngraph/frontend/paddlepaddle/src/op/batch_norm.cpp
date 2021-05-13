@@ -39,6 +39,3 @@ namespace pdpd
 
     } // namespace op
 } // namespace pdpd
-frontend::pdpd::NamedOutputs frontend::pdpd::op::batch_norm(const frontend::pdpd::NodeContext &node) {
-    return ngraph::frontend::pdpd::NamedOutputs();
-}
