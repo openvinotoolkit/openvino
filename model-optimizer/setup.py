@@ -20,6 +20,7 @@ from setuptools.command.build_py import build_py
 PACKAGE_NAME = 'mo'
 SETUP_DIR = Path(__file__).resolve().parent
 
+
 def read_text(path):
     return (SETUP_DIR / path).read_text()
 
@@ -54,7 +55,8 @@ class InstallCmd(install):
         version_txt = 'version.txt'
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
-                     os.path.join(self.install_purelib, PACKAGE_NAME, version_txt))
+                     os.path.join(self.install_purelib,
+                                  PACKAGE_NAME, version_txt))
 
         path = os.path.join(self.install_purelib, PACKAGE_NAME, '__init__.py')
         with open(path, 'wt') as init_file:
@@ -80,40 +82,42 @@ class BuildCmd(build_py):
 packages = find_packages()
 packages = [PACKAGE_NAME + '.' + p for p in packages]
 
-setup(name='openvino-mo',
-      version='0.0.0',
-      author='Intel Corporation',
-      author_email='openvino_pushbot@intel.com',
-      url='https://github.com/openvinotoolkit/openvino',
-      packages=packages,
-      package_dir={PACKAGE_NAME: '.'},
-      py_modules=py_modules,
-      cmdclass={
-          'install': InstallCmd,
-          'build_py': BuildCmd,
-      },
-      entry_points={
-          'console_scripts': [
-              'mo = mo.__main__:main',
-           ],
-      },
-      package_data={
-        'mo.mo.front.caffe.proto': ['*.proto'],
-        'mo.extensions.front.mxnet': ['*.json'],
-        'mo.extensions.front.onnx': ['*.json'],
-        'mo.extensions.front.tf': ['*.json'],
-      },
-      extras_require={'caffe': read_text('requirements_caffe.txt'),
-                      'kaldi': read_text('requirements_kaldi.txt'),
-                      'mxnet': read_text('requirements_mxnet.txt'),
-                      'onnx': read_text('requirements_onnx.txt'),
-                      'tensorflow': read_text('requirements_tf.txt'),
-                      'tensorflow2': read_text('requirements_tf2.txt'),
-      },
-      classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-      ],
-      install_requires=deps,
+setup(
+    name='openvino-mo',
+    version='0.0.0',
+    author='Intel Corporation',
+    author_email='openvino_pushbot@intel.com',
+    url='https://github.com/openvinotoolkit/openvino',
+    packages=packages,
+    package_dir={PACKAGE_NAME: '.'},
+    py_modules=py_modules,
+    cmdclass={
+        'install': InstallCmd,
+        'build_py': BuildCmd,
+    },
+    entry_points={
+        'console_scripts': [
+            'mo = mo.__main__:main',
+         ],
+    },
+    package_data={
+      'mo.mo.front.caffe.proto': ['*.proto'],
+      'mo.extensions.front.mxnet': ['*.json'],
+      'mo.extensions.front.onnx': ['*.json'],
+      'mo.extensions.front.tf': ['*.json'],
+    },
+    extras_require={
+      'caffe': read_text('requirements_caffe.txt'),
+      'kaldi': read_text('requirements_kaldi.txt'),
+      'mxnet': read_text('requirements_mxnet.txt'),
+      'onnx': read_text('requirements_onnx.txt'),
+      'tensorflow': read_text('requirements_tf.txt'),
+      'tensorflow2': read_text('requirements_tf2.txt'),
+    },
+    classifiers=[
+      "Programming Language :: Python :: 3",
+      "License :: OSI Approved :: Apache Software License",
+      "Operating System :: OS Independent",
+    ],
+    install_requires=deps,
 )
