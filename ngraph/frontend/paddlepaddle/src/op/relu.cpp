@@ -14,16 +14,24 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/opsets/opset6.hpp>
 #include "relu.hpp"
+#include <ngraph/opsets/opset6.hpp>
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs relu(const NodeContext& node)
+                {
+                    return node.default_single_output_mapping(
+                        {std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
+                }
 
-NamedOutputs relu (const NodeContext& node) {
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
-}
-
-}}}}
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

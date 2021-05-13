@@ -17,11 +17,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs multiclass_nms(const NodeContext& node);
 
-NamedOutputs multiclass_nms (const NodeContext& node);
-
-}}}}
+            }
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

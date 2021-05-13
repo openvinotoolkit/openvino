@@ -5,11 +5,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs yolo_box(const NodeContext& node);
 
-NamedOutputs yolo_box (const NodeContext& node);
-
-}}}}
+            }
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

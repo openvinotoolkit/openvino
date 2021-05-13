@@ -5,12 +5,19 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
-//TODO support other interp such as linear trilinear, bicubic. etc #55397
-NamedOutputs nearest_interp_v2 (const NodeContext& node_context);
-NamedOutputs bilinear_interp_v2 (const NodeContext& node_context);
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                // TODO support other interp such as linear trilinear, bicubic. etc #55397
+                NamedOutputs nearest_interp_v2(const NodeContext& node_context);
+                NamedOutputs bilinear_interp_v2(const NodeContext& node_context);
 
-}}}}
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph
