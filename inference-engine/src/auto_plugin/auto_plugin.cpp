@@ -38,6 +38,38 @@ AutoInferencePlugin::AutoInferencePlugin() {
     _pluginName = "AUTO";
 }
 
+IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::string& fileName,
+                                                                     const ConfigType&  config) {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+    }
+
+    auto fullConfig = mergeConfigs(_config, config);
+    auto metaDevices = GetDeviceChoice(fullConfig);
+
+    // FIXME: always select CPU device now
+    DeviceInformation selectedDevice = SelectDevice(metaDevices);
+    IE::ExecutableNetwork executableNetwork;
+    try {
+        executableNetwork = GetCore()->LoadNetwork(fileName, selectedDevice.deviceName, selectedDevice.config);
+    } catch(const IE::Exception &iie) {
+        IE_THROW() << "Failed to load network to device named " << selectedDevice.deviceName
+                   << " with exception " << iie.what();
+    }
+
+    bool enablePerfCounters = false;
+    try {
+        enablePerfCounters =
+            executableNetwork.GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+                IE::PluginConfigParams::YES;
+    } catch (...) {
+    }
+
+    return std::make_shared<AutoExecutableNetwork>(executableNetwork,
+                                                   selectedDevice,
+                                                   enablePerfCounters);
+}
+
 IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
                                                                            const ConfigType&     config) {
     if (GetCore() == nullptr) {
