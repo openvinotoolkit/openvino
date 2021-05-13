@@ -1,25 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
-#include "util/random.hpp"
-
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
-
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/engine/test_engines.hpp"
