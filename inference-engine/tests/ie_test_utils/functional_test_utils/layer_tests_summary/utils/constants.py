@@ -65,6 +65,7 @@ VERIFIED_OP_REFERENCES = [
     'ReduceL1-4',
     'ReduceL2-4',
     'ReduceMean-1',
+    'ReduceSum-1',
     'RegionYOLO-1',
     'Relu-1',
     'ReorgYOLO-2',
