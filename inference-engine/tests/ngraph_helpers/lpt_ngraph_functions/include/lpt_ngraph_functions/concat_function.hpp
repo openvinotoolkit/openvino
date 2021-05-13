@@ -71,7 +71,7 @@ public:
         const bool ssBeforeConcat,
         const bool ssAfterConcat);
 
-    static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChilds(
+    static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
@@ -182,7 +182,7 @@ public:
         const DequantizationOperations& deqAfter1,
         const DequantizationOperations& deqAfter2);
 
-    static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChilds(
+    static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const bool multiChannel,
