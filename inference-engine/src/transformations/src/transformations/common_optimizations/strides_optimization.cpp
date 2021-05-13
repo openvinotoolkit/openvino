@@ -40,7 +40,7 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
     auto first_node = first.get_node_shared_ptr();
     auto rank = first.get_partial_shape().rank();
     if (rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2) {
-        auto diff = strides.size() + 2 - rank.get_length();
+        size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         auto ones = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
         auto current_shape = std::make_shared<ngraph::opset7::ShapeOf>(first);
         auto new_shape = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
