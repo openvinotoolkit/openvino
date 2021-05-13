@@ -429,8 +429,8 @@ void MKLDNNPSROIPoolingNode::executeBilinearDeformable(const inputType *srcData,
         float binSizeH = roiHeight / static_cast<float>(pooledHeight);
         float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-        float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
-        float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
+        float subBinSizeH = binSizeH / static_cast<float>(spatialBinsY);
+        float subBinSizeW = binSizeW / static_cast<float>(spatialBinsX);
 
         int partH = h * partSize / pooledHeight;
         int partW = w * partSize / pooledWidth;
