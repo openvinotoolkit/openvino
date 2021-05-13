@@ -318,7 +318,6 @@ void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>
     auto labels = ngraph::op::v7::Einsum::extract_labels(input_subscript);
     auto required_labels = ngraph::op::v7::Einsum::extract_labels(required_subscript);
     NGRAPH_CHECK(labels.size() == required_labels.size());
-    bool is_identity = true;
     for (const auto& required_label : required_labels) {
         auto it = std::find(labels.begin(), labels.end(), required_label);
         NGRAPH_CHECK(it != labels.end());
@@ -593,7 +592,6 @@ ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
 
         auto equation = einsum_node->get_equation();
         std::vector<std::string> input_subscripts;
-        auto num_inputs = input_subscripts.size();
         std::string output_subscript;
         ngraph::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
 
