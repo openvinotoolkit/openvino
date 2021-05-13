@@ -36,9 +36,9 @@ class VariableStateTests : public ::testing::Test {
         mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
         ON_CALL(*mockExeNetworkInternal, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
         std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
-        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockExeNetworkInternal));
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockExeNetworkInternal));
         plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
-        net = plugin.LoadNetwork({}, {});
+        net = plugin.LoadNetwork(CNNNetwork{}, {});
         req = net.CreateInferRequest();
     }
 };
