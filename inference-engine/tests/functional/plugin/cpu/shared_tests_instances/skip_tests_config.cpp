@@ -72,32 +72,16 @@ std::vector<std::string> disabledTestPatterns() {
         // incorrect reference implementation. Issues: 55384, 54528, 54529
         R"(.*DFTLayerTest.*)",
         // TODO: 54718 Accuracy mismatch
-        R"(.*GroupDeconv_2D_DW_BF16.*IS=\(2\.32\.7\.7\)_K\(3\.3\)_S\(1\.1\)_PB\(0\.0\)_
-           PE\(0\.0\)_D=\(1\.1\)_O=32_G=32_AP=explicit_netPRC=FP32_inPRC=BF16_outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_
-           inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_dw_PluginConf_ENFORCE_BF16=YES.*)",
-        R"(.*GroupDeconv_2D_DW_BF16.*IS=\(2\.32\.7\.7\)_K\(3\.3\)_S\(1\.1\)_PB\(0\.0\)_PE\(0\.0\)_D=\(1\.1\)_O=32_G=32_
-           AP=explicit_netPRC=FP32_inPRC=BF16_outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_
-           inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_dw_PluginConf_ENFORCE_BF16=YES.*)"
+        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
+        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
     };
         // TODO: 54718 Accuracy mismatch
 #ifdef _WIN32
         retVector.insert(retVector.end(), {
-              R"(.*GroupDeconv_3D_Planar_BF16.*IS=\(2\.12\.7\.7\.7\)_K\(3\.3\.3\)_
-              S\(1\.1\.1\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=6_G=3_AP=explicit_netPRC=FP32_inPRC=BF16_
-              outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_
-              PluginConf_ENFORCE_BF16=YES.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*IS=\(2\.12\.7\.7\.7\)_K\(3\.3\.3\)_
-              S\(2\.2\.2\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=6_G=3_AP=explicit_netPRC=FP32_inPRC=BF16_
-              outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_
-              PluginConf_ENFORCE_BF16=YES.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*IS=\(2\.12\.7\.7\.7\)_K\(1\.1\.1\)_
-              S\(1\.1\.1\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=6_G=3_AP=explicit_netPRC=FP32_inPRC=BF16_
-              outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_
-              PluginConf_ENFORCE_BF16=YES.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*IS=\(2\.12\.7\.7\.7\)_K\(1\.1\.1\)_
-              S\(2\.2\.2\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=6_G=3_AP=explicit_netPRC=FP32_inPRC=BF16_
-              outPRC=BF16_inL=ANY_outL=ANY_trgDev=CPU_inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_
-              PluginConf_ENFORCE_BF16=YES.*)"
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
         });
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

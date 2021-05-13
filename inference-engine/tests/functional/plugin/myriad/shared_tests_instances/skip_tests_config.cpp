@@ -40,6 +40,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
-        R"(IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
+        R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
     };
 }
