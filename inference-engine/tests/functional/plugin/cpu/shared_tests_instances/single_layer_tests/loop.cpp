@@ -9,7 +9,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    // without clip values increase rapidly, so use only seq_lenghts = 2
+    // without clip values increase rapidly, so use only seq_lengths = 2
     std::vector<bool> execute_first_iteration{true};
     std::vector<bool> is_body_condition_const{true/*, false*/};
     std::vector<bool> body_condition{true/*, false*/}; // works only if is_body_condition_const == true

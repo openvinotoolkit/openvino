@@ -36,20 +36,19 @@ PYBIND11_MODULE(_pyngraph, m)
 {
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_PyRTMap(m);
+    regmodule_pyngraph_types(m);
+    regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
+    regclass_pyngraph_Shape(m);
+    regclass_pyngraph_PartialShape(m);
     regclass_pyngraph_Node(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);
     regclass_pyngraph_NodeFactory(m);
-    regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
-    regclass_pyngraph_PartialShape(m);
-    regclass_pyngraph_Shape(m);
     regclass_pyngraph_Strides(m);
     regclass_pyngraph_CoordinateDiff(m);
     regclass_pyngraph_AxisSet(m);
     regclass_pyngraph_AxisVector(m);
     regclass_pyngraph_Coordinate(m);
-    regmodule_pyngraph_types(m);
-    regclass_pyngraph_Function(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ngraph::op");
     regclass_pyngraph_op_Constant(m_op);
     regclass_pyngraph_op_Parameter(m_op);
@@ -58,6 +57,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regmodule_pyngraph_onnx_import(m);
 #endif
     regmodule_pyngraph_op_util(m_op);
+    regclass_pyngraph_Function(m);
     regmodule_pyngraph_passes(m);
     regmodule_pyngraph_util(m);
     regclass_pyngraph_Variant(m);

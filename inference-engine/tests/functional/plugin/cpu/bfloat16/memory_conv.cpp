@@ -73,6 +73,8 @@ protected:
 };
 
 TEST_P(MemoryConv, CheckTypeConversion) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     if (!InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
 

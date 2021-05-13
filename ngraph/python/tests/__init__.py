@@ -48,9 +48,6 @@ xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
-xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
-                                      "Pad. Cannot parse parameter pads_end  from IR for layer B. "
-                                      "Value -1,0 cannot be casted to int.")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
@@ -103,7 +100,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
@@ -121,6 +117,8 @@ xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not suppor
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
+xfail_issue_51993 = xfail_test(reason="PRelu supports only 1D tensor for 'slope' input broadcasted"
+                                      "by channel")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -159,3 +157,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 
 xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")
+xfail_issue_49359 = xfail_test(reason="DFT is not implemented in CPU plugin")
+xfail_issue_49375 = xfail_test(reason="IDFT is not implemented in CPU plugin")
+xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
