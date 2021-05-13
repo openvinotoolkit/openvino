@@ -166,55 +166,33 @@ namespace Common
         }
     }
 
-    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob)
-    {
-        if (py::isinstance<InferenceEngine::TBlob<float>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<double>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<double>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int8_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int16_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int32_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int64_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint8_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint16_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint32_t>>&>();
-        }
-        else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob))
-        {
-            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>>&>();
-        }
-        else
-        {
-            // Throw error
+    bool is_TBlob(const py::handle& blob) {
+        if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob)) {
+            return true;
+        } else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob)) {
+            return true;
+        } else {
+            return false;
         }
     }
 
-    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob) {
+    const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob) {
         if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
             return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>> &>();
         } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
@@ -237,6 +215,70 @@ namespace Common
             return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>> &>();
         } else {
             // Throw error
+            py::print("Error when casting.");
+        }
+    }
+
+    void blob_from_numpy(const py::handle& arr, InferenceEngine::Blob::Ptr blob) {
+        if (py::isinstance<py::array_t<float>>(arr)) {
+            Common::fill_blob<float>(arr, blob);
+        } else if (py::isinstance<py::array_t<double>>(arr)) {
+            Common::fill_blob<double>(arr, blob);
+        } else if (py::isinstance<py::array_t<int8_t>>(arr)) {
+            Common::fill_blob<int8_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<int16_t>>(arr)) {
+            Common::fill_blob<int16_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<int32_t>>(arr)) {
+            Common::fill_blob<int32_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<int64_t>>(arr)) {
+            Common::fill_blob<int64_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<uint8_t>>(arr)) {
+            Common::fill_blob<uint8_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<uint16_t>>(arr)) {
+            Common::fill_blob<uint16_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<uint32_t>>(arr)) {
+            Common::fill_blob<uint32_t>(arr, blob);
+        } else if (py::isinstance<py::array_t<uint64_t>>(arr)) {
+            Common::fill_blob<uint64_t>(arr, blob);
+        } else {
+            py::print("Error when creating.");
+        }
+    }
+
+    void set_request_blobs(InferenceEngine::InferRequest& request, const py::dict& dictonary) {
+        for (auto&& pair : dictonary) {
+            const std::string& name = pair.first.cast<std::string>();
+            if (py::isinstance<py::array>(pair.second)) {
+                // py::print("Numpy array path.");
+                Common::blob_from_numpy(pair.second, request.GetBlob(name));
+            }
+            else if (is_TBlob(pair.second)) {
+                // py::print("Custom Blob path.");
+                request.SetBlob(name, Common::cast_to_blob(pair.second));
+            } else {
+                py::print("Error when setting.");
+            }
+        }
+    }
+
+    uint32_t get_optimal_number_of_requests(const InferenceEngine::ExecutableNetwork& actual) {
+        try {
+            auto parameter_value = actual.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            auto supported_metrics = parameter_value.as<std::vector<std::string>>();
+            const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
+            if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
+                parameter_value = actual.GetMetric(key);
+                if (parameter_value.is<unsigned int>())
+                    return parameter_value.as<unsigned int>();
+                else
+                    IE_THROW() << "Unsupported format for " << key << "!"
+                            << " Please specify number of infer requests directly!";
+            } else {
+                IE_THROW() << "Can't load network: " << key << " is not supported!"
+                        << " Please specify number of infer requests directly!";
+            }
+        } catch (const std::exception& ex) {
+            IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
         }
     }
 };

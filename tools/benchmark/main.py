@@ -264,10 +264,15 @@ def run(args):
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
-        if args.mode == "poc":
-            infer_requests = []
-            for i in range(benchmark.nireq):
-                infer_requests.append(exe_network.create_infer_request())
+        if args.mode == 'pybind':
+            if args.api_type == 'sync':
+                infer_requests = []
+                for i in range(benchmark.nireq):
+                    infer_requests.append(exe_network.create_infer_request())
+            else:
+                from openvino.inference_engine import InferQueue
+                infer_requests = InferQueue(network=exe_network, jobs=benchmark.nireq)
+                benchmark.nireq = len(infer_requests)
         else:
             infer_requests = exe_network.requests
 
@@ -313,14 +318,17 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms =  f"{benchmark.first_infer(exe_network):.2f}"
+        if args.mode == 'pybind':
+            duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests=infer_requests))
+        else:
+            duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        if args.mode == "poc":
+        if args.mode == 'pybind':
             fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests=infer_requests,
                                                                              batch_size=batch_size,
                                                                              progress_bar=progress_bar)

@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
-
 #include <cpp/ie_executable_network.hpp>
 #include <ie_input_info.hpp>
 
@@ -12,11 +9,7 @@
 
 #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
-
-using PyConstInputsDataMap =
-    std::map<std::string, std::shared_ptr<const InferenceEngine::InputInfo>>;
-
-PYBIND11_MAKE_OPAQUE(PyConstInputsDataMap);
+#include "pyopenvino/inference_engine/containers.hpp"
 
 namespace py = pybind11;
 
@@ -27,8 +20,32 @@ void regclass_ExecutableNetwork(py::module m)
         cls(m, "ExecutableNetwork");
 
     cls.def("create_infer_request", [](InferenceEngine::ExecutableNetwork& self) {
-        return static_cast<InferenceEngine::InferRequest>(self.CreateInferRequest());
+        auto request = InferRequestWrapper(self.CreateInferRequest());
+        // Get Inputs and Outputs info from executable network
+        request._inputsInfo = self.GetInputsInfo();
+        request._outputsInfo = self.GetOutputsInfo();
+        // request.user_callback_defined = false;
+        return request;
     });
+
+    cls.def("_infer", [](InferenceEngine::ExecutableNetwork& self, const py::dict& inputs) {
+        // Create temporary InferRequest
+        auto request = self.CreateInferRequest();
+        // Update inputs if there are any
+        if (!inputs.empty()) {
+            Common::set_request_blobs(request, inputs); //, self.GetInputsInfo());
+        }
+        // Call Infer function
+        request.Infer();
+        // Get output Blobs and return
+        Containers::PyResults results;
+        InferenceEngine::ConstOutputsDataMap outputsInfo = self.GetOutputsInfo();
+        for (auto& out : outputsInfo)
+        {
+            results[out.first] = request.GetBlob(out.first);
+        }
+        return results;
+    }, py::arg("inputs"));
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 
@@ -47,18 +64,8 @@ void regclass_ExecutableNetwork(py::module m)
         return Common::parse_parameter(self.GetMetric(metric_name));
     }, py::arg("metric_name"));
 
-    //    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
-    //
-    //    cls.def("wait", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
-
-    auto py_const_inputs_data_map = py::bind_map<PyConstInputsDataMap>(m, "PyConstInputsDataMap");
-
-    py_const_inputs_data_map.def("keys", [](PyConstInputsDataMap& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
-
     cls.def_property_readonly("input_info", [](InferenceEngine::ExecutableNetwork& self) {
-        PyConstInputsDataMap inputs;
+        Containers::PyConstInputsDataMap inputs;
         const InferenceEngine::ConstInputsDataMap& inputsInfo = self.GetInputsInfo();
         for (const auto& in : inputsInfo)
         {
@@ -67,7 +74,13 @@ void regclass_ExecutableNetwork(py::module m)
         return inputs;
     });
 
-    cls.def_property_readonly("outputs", &InferenceEngine::ExecutableNetwork::GetOutputsInfo);
-
-    //    cls.def_property_readonly("requests", &InferenceEngine::ExecutableNetwork::name);
+    cls.def_property_readonly("output_info", [](InferenceEngine::ExecutableNetwork& self) {
+        Containers::PyOutputsDataMap outputs;
+        InferenceEngine::ConstOutputsDataMap outputsInfo = self.GetOutputsInfo();
+        for (auto& out : outputsInfo)
+        {
+            outputs[out.first] = out.second;
+        }
+        return outputs;
+    });
 }
