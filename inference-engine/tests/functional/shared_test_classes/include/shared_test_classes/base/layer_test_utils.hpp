@@ -81,42 +81,26 @@ public:
     std::string getRuntimePrecision(const std::string& layerName);
     std::string getRuntimePrecisionByType(const std::string& layerType);
 
-    template<class T1, class T2>
-    static void Compare(const T2 *expected, const T1 *actual, std::size_t size, T1 threshold) {
+    template<class T_IE, class T_NGRAPH>
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, T_IE threshold) {
         for (std::size_t i = 0; i < size; ++i) {
-            const auto &ref = expected[i];
+            const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
-
-            const auto max = std::max(CommonTestUtils::ie_abs(static_cast<const T2&>(res)), CommonTestUtils::ie_abs(ref));
-            float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
+            double max;
+            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+            } else {
+                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+            }
+            double diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
             if (max == 0 || (diff > static_cast<float>(threshold))) {
                 IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
                            << " at index " << i << " with threshold " << threshold
                            << " failed";
-            }
-        }
-    }
-
-    template<class T>
-    static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
-        for (std::size_t i = 0; i < size; ++i) {
-            const auto &ref = expected[i];
-            const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            if (absoluteDifference <= threshold) {
-                continue;
-            }
-
-            const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
-            float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
-            if (max == 0 || (diff > static_cast<float>(threshold))) {
-                IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
-                                   << " at index " << i << " with threshold " << threshold
-                                   << " failed";
             }
         }
     }
