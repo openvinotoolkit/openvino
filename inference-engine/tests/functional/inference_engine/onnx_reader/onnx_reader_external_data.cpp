@@ -64,7 +64,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 
         EXPECT_PRED_FORMAT2(
             testing::IsSubstring,
-            std::string("data/tensor.data, offset: 0, data_lenght: 0, sha1_digest: 0)"),
+            std::string("data/tensor.data, offset: 0, data_length: 0, sha1_digest: 0)"),
             e.what());
     }
     catch(...) {

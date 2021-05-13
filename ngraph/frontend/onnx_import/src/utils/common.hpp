@@ -125,6 +125,18 @@ namespace ngraph
                                        const std::shared_ptr<ngraph::Node> input,
                                        const std::set<element::Type> allowed_types = {});
 
+            /// \brief Temporary replacement for C++14 std::make_unique.
+            /// \note details: https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
+            ///
+            /// \param args List of arguments with which an instance of T will be constructed.
+            ///
+            /// \return     std::unique_ptr of an instance of type T
+            template <typename T, typename... Args>
+            std::unique_ptr<T> make_unique(Args&&... args)
+            {
+                return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+            }
+
         } // namespace  common
     }     // namespace onnx_import
 } // namespace ngraph

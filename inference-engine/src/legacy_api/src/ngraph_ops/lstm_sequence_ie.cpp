@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(op::LSTMSequenceIE, "LSTMSequenceIE", 5);
 op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const Output<Node> &H_t,
                                    const Output<Node> &C_t,
-                                   const Output<Node> &seq_lenghts,
+                                   const Output<Node> &seq_lengths,
                                    const Output<Node> &WR,
                                    const Output<Node> &B,
                                    std::size_t hidden_size,
@@ -27,7 +27,7 @@ op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const std::vector<float> &activations_beta,
                                    float clip,
                                    int64_t seq_axis)
-        : RNNCellBase({X, H_t, C_t, seq_lenghts, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
+        : RNNCellBase({X, H_t, C_t, seq_lengths, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
           m_direction(direction),
           m_seq_axis(seq_axis) {
     constructor_validate_and_infer_types();
@@ -52,7 +52,7 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
 
     std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, c_state_pshape,
                                                  seq_lengths_pshape, wr_pshape, b_pshape};
-    std::vector<std::string> in_names = {"X", "H", "C", "seq_lenghts", "WR", "B"};
+    std::vector<std::string> in_names = {"X", "H", "C", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 2, 1, 2, 1};
     for (size_t i = 0; i < pshapes.size(); ++i) {
