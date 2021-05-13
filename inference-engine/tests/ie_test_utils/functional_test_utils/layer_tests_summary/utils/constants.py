@@ -20,6 +20,7 @@ VERIFIED_OP_REFERENCES = [
     'Convolution-1',
     'Constant-1',
     'DeformableConvolution-1',
+    'DeformablePSROIPooling-1',
     'DetectionOutput-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',

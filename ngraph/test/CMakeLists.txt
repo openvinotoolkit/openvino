@@ -210,15 +210,18 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/gather.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
@@ -237,6 +240,8 @@ set(SRC
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_l1.cpp
+    visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
     visitors/op/reduce_logical_or.cpp
     visitors/op/reduce_max.cpp
@@ -332,6 +337,7 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
+    backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
     backend/divide.in.cpp
