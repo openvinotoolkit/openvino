@@ -975,12 +975,14 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node,
     fused_node.recalc_output_layout(true);
 }
 
-void program_impl::remove_nodes(std::list<program_node*>& to_remove) {
+void program_impl::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {
             get_inputs().remove(node);
         } else {
-            for (auto& dep : node->dependencies) dep->users.remove(node);
+            for (auto& dep : node->dependencies) {
+                dep->users.remove(node);
+            }
         }
         for (auto& user : node->users) {
             user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
