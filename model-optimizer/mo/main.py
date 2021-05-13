@@ -451,4 +451,4 @@ def main(cli_parser: argparse.ArgumentParser, fem, framework: str):
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(), None))
+    sys.exit(main(*get_all_cli_parser(), None))
