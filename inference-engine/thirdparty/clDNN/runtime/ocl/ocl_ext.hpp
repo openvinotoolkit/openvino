@@ -52,11 +52,9 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTE
 namespace {
 template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {
-    T p = reinterpret_cast<T>(
-        clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
+    T p = reinterpret_cast<T>(clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
     if (!p) {
-        throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" +
-            name + ") returned NULL.");
+        throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
     }
     return p;
 }
@@ -64,11 +62,9 @@ T load_entrypoint(const cl_platform_id platform, const std::string name) {
 template <typename T>
 T load_entrypoint(const cl_device_id device, const std::string name) {
     cl_platform_id platform;
-    cl_int error = clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform),
-        &platform, nullptr);
+    cl_int error = clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
     if (error) {
-        throw std::runtime_error("Failed to retrieve CL_DEVICE_PLATFORM: " +
-            std::to_string(error));
+        throw std::runtime_error("Failed to retrieve CL_DEVICE_PLATFORM: " + std::to_string(error));
     }
     return load_entrypoint<T>(platform, name);
 }
@@ -142,11 +138,6 @@ inline void* deviceMemAlloc(const cl::Device& cpp_device, const cl::Context& cpp
     cl_uint alignment, cl_int* err_code_ret) {
     clDeviceMemAllocINTEL_fn fn = load_entrypoint<clDeviceMemAllocINTEL_fn>(cpp_context.get(), "clDeviceMemAllocINTEL");
     return fn(cpp_context.get(), cpp_device.get(), properties, size, alignment, err_code_ret);
-}
-
-inline cl_int memFree(const cl::Context& cpp_context, void* ptr) {
-    clMemFreeINTEL_fn fn = load_entrypoint<clMemFreeINTEL_fn>(cpp_context.get(), "clMemFreeINTEL");
-    return fn(cpp_context.get(), ptr);
 }
 
 inline cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr, clSetKernelArgMemPointerINTEL_fn fn) {
@@ -601,12 +592,20 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
     */
     class UsmHolder {
     public:
-        explicit UsmHolder(Context& ctx, void* ptr) : _ctx(ctx), _ptr(ptr) {}
+        explicit UsmHolder(Context& ctx, void* ptr) : _ctx(ctx), _ptr(ptr), deleter(nullptr) {
+            deleter = load_entrypoint<clMemFreeINTEL_fn>(_ctx.get(), "clMemFreeINTEL");
+            if (!deleter) {
+                throw std::runtime_error("clMemFreeINTEL is nullptr in UsmHolder");
+            }
+        }
         void* ptr() { return _ptr; }
-        ~UsmHolder() { usm::memFree(_ctx, _ptr); }
+        ~UsmHolder() {
+            deleter(_ctx.get(), _ptr);
+        }
     private:
         Context _ctx;
         void* _ptr;
+        clMemFreeINTEL_fn deleter;
     };
 
     /*
