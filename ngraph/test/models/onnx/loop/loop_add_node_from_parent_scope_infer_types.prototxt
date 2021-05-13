@@ -1,0 +1,176 @@
+ir_version: 6
+producer_name: "nGraph ONNX Importer"
+graph {
+  name: "basic loop"
+  node {
+    input: "parent_input"
+    input: "scale"
+    name: "mul_node"
+    op_type: "Mul"
+    output: "b"
+  }
+  node {
+    input: "parent_input"
+    input: "b"
+    name: "parent_add_node"
+    op_type: "Add"
+    output: "c"
+  }
+  node {
+    input: "trip_count"
+    input: "cond_in"
+    input: "a_init"
+    output: "a_final"
+    output: "a_values"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        name: "simple add"
+        node {
+          input: "b"
+          input: "a_in"
+          output: "current_a"
+          name: "loop_body_add"
+          op_type: "Add"
+        }
+        node {
+          input: "cond"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        node {
+          input: "current_a"
+          output: "a_out"
+          name: "output_accumulator"
+          op_type: "Identity"
+        }
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        input {
+          name: "a_in"
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        output {
+          name: "current_a"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+        output {
+          name: "a_out"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "trip_count"
+  }
+  initializer {
+    dims: 1
+    data_type: 9
+    int32_data: 00000001
+    name: "cond_in"
+  }
+  initializer {
+    dims: 1
+    data_type: 1
+    float_data: 2
+    name: "scale"
+  }
+
+  input {
+    name: "a_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "parent_input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "a_final"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "a_values"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

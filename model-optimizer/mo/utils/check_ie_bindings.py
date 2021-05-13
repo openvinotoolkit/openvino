@@ -32,11 +32,20 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
 
 
 def import_core_modules(silent: bool, path_to_module: str):
-    try:
-        from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
+    """
+        This function checks that InferenceEngine Python API is available
+        and necessary python modules exists. So the next list of imports
+        must contain all IE/NG Python API imports that are used inside MO.
 
-        import openvino # pylint: disable=import-error
+    :param silent: enables or disables logs printing to stdout
+    :param path_to_module: path where python API modules were found
+    :return: True if all imports were successful and False otherwise
+    """
+    try:
+        from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, GenerateMappingFile  # pylint: disable=import-error
+
+        import openvino  # pylint: disable=import-error
 
         if silent:
             return True
@@ -46,15 +55,10 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
         print("{}: \t{}".format("Inference Engine version", ie_version))
-        print("{}: \t    {}".format("Model Optimizer version", mo_version))
+        print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
-        # MO and IE version have a small difference in the beginning of version because
-        # IE version also includes API version. For example:
-        #   Inference Engine version: 2.1.custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
-        #   Model Optimizer version:      custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
-        # So to match this versions we skip IE API version.
-        if not re.match(r"^([0-9]+).([0-9]+).{}$".format(mo_version), ie_version):
+        if mo_version != ie_version:
             versions_mismatch = True
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)

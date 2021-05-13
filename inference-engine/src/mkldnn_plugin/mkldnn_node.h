@@ -91,6 +91,7 @@ enum Type {
     Select,
     Roll,
     Reference,
+    ShuffleChannels,
 };
 
 Type TypeFromName(const std::string type);
@@ -203,6 +204,8 @@ static std::string NameFromType(Type type) {
             return "Select";
         case Roll:
             return "Roll";
+        case ShuffleChannels:
+            return "ShuffleChannels";
         default:
             return "Unknown";
     }
@@ -288,7 +291,7 @@ private:
     }
 };
 
-class MKLDNNNode : public InferenceEngine::details::no_copy {
+class MKLDNNNode {
 public:
     template<typename T, int N>
     struct Tag {};
@@ -326,7 +329,7 @@ public:
     class NodesFactory;
     static NodesFactory & factory();
 
-    ~MKLDNNNode() override = default;
+    virtual ~MKLDNNNode() = default;
 
     void addEdge(const MKLDNNEdgeWeakPtr& edge);
     void removeEdge(const MKLDNNEdgeWeakPtr& edge);
