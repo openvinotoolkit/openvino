@@ -10,7 +10,6 @@
 #include <list>
 #include <utility>
 
-
 namespace cldnn {
 namespace sycl {
 

@@ -9,7 +9,7 @@ set(CLDNN__PROJ_NAME "clDNN")
 project("${CLDNN__PROJ_NAME}")
 
 if (GPU_BACKEND STREQUAL "SYCL")
-  include("cmake/SYCL.cmake")
+  find_package(SYCL REQUIRED)
   set(CLDNN_WITH_SYCL ON CACHE BOOL "SYCL engine is enabled/disabled" FORCE)
   set(CLDNN_WITH_OCL ON CACHE BOOL "OCL engine is enabled/disabled" FORCE)
   add_definitions(-DCLDNN_WITH_SYCL=1)

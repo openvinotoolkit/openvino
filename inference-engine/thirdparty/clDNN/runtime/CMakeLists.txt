@@ -8,25 +8,27 @@ set(CLDNN_BUILD__PROJ             "cldnn_runtime")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 
 if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
-  if (CLDNN_WITH_SYCL)
   intel_config_flag_apply_settings(
       CompilerOptions
       CMAKE_CXX_FLAGS
       ALL_PATTERN ""
       SET_RAW
-        -stdlib=libstdc++
+        -stdlib=libc++
     )
-  else()
-    intel_config_flag_apply_settings(
-        CompilerOptions
-        CMAKE_CXX_FLAGS
-        ALL_PATTERN ""
-        SET_RAW
-          -stdlib=libc++
-      )
-  endif()
 endif()
 # ========================================= Source/Header files ========================================
+if (CLDNN_WITH_SYCL)
+  # TODO: Setup proper compilation flags. Common ones doesn't work as some of them are not recognized by dpc++ compiler
+  set(CMAKE_CXX_FLAGS "-fsycl")
+  set(CMAKE_CXX_COMPILER ${SYCL_COMPILER})
+  intel_config_flag_apply_settings(
+    CompilerOptions
+    CMAKE_CXX_FLAGS
+    ALL_PATTERN ""
+    SET_RAW
+      -stdlib=libstdc++
+  )
+endif()
 
 set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")
 set(__CLDNN_Label__main                "")
@@ -98,6 +100,9 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     OpenCL
     openvino::itt
   )
+if (CLDNN_WITH_SYCL)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${SYCL_LIBRARY})
+endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
