@@ -301,6 +301,9 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() cons
             std::vector<std::string> device_cap =
                 GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
             for (auto &dc : device_cap) {
+                if (dc == METRIC_VALUE(BATCHED_BLOB)) {
+                    continue;
+                }
                 capabilities.insert(dc);
             }
         } catch (...) {
