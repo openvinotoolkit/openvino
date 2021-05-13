@@ -92,7 +92,8 @@ enum Type {
     Roll,
     Reference,
     ShuffleChannels,
-    DFT,
+    DFT
+    Math
 };
 
 Type TypeFromName(const std::string type);
@@ -209,6 +210,8 @@ static std::string NameFromType(Type type) {
             return "ShuffleChannels";
         case DFT:
             return "DFT";
+        case Math:
+            return "Math";
         default:
             return "Unknown";
     }
