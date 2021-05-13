@@ -991,6 +991,7 @@ namespace
         std::cout << "input_data_shape: " << info.input_data_shape << "\n";
         std::cout << "axes_data_shape:  " << info.axes_data_shape << "\n";
         std::cout << "output_shape:     " << info.output_shape << "\n";
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         std::cout << "FFT result size (in floats):   " << fft_result.size() << "\n";
@@ -1029,6 +1030,7 @@ namespace
         std::cout << "input_data_shape: " << info.input_data_shape << "\n";
         std::cout << "axes_data_shape:  " << info.axes_data_shape << "\n";
         std::cout << "output_shape:     " << info.output_shape << "\n";
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         std::cout << "FFT result size (in floats):   " << fft_result.size() << "\n";

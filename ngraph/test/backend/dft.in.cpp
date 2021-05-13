@@ -1497,44 +1497,44 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_signal_size_eval)
     ASSERT_TRUE(true);
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_1)
-// {
-//    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-//    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-//    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {5, 9});
-//    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-//
-//    auto f = make_shared<Function>(dft, ParameterVector{data});
-//
-//    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-//    auto dft_output = backend->create_tensor(element::f32, Shape{5, 6, 9, 2});
-//
-//    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-//    copy_data(backend_data, input_data_1);
-//
-//    auto handle = backend->compile(f);
-//
-//    handle->call({dft_output}, {backend_data});
-//
-//    auto result = read_vector<float>(dft_output);
-//    std::cout << "Actual results: [";
-//    for (auto x : result)
-//    {
-//        std::cout << x << ", " ;
-//    }
-//    std::cout << "]\n";
-// //    size_t num_of_elems = result.size();
-//    std::cout << "Actual size of results:   " << result.size() << "\n";
-//    std::cout << "Expected size of results: " << expected_dft2d_signal_size_results_1.size() << "\n";
-//    std::cout << "Expected results: [";
-//    for (auto x : expected_dft2d_signal_size_results_1)
-//    {
-//        std::cout << x << ", " ;
-//    }
-//    std::cout << "]\n";
-//     ASSERT_TRUE(true);
+NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_1)
+{
+   auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
+   auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
+   auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {5, 9});
+   auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
+
+   auto f = make_shared<Function>(dft, ParameterVector{data});
+
+   auto backend = runtime::Backend::create("${BACKEND_NAME}");
+   auto dft_output = backend->create_tensor(element::f32, Shape{5, 6, 9, 2});
+
+   auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
+   copy_data(backend_data, input_data_1);
+
+   auto handle = backend->compile(f);
+
+   handle->call({dft_output}, {backend_data});
+
+   auto result = read_vector<float>(dft_output);
+   std::cout << "Actual results: [";
+   for (auto x : result)
+   {
+       std::cout << x << ", " ;
+   }
+   std::cout << "]\n";
+//    size_t num_of_elems = result.size();
+   std::cout << "Actual size of results:   " << result.size() << "\n";
+   std::cout << "Expected size of results: " << expected_dft2d_signal_size_results_1.size() << "\n";
+   std::cout << "Expected results: [";
+   for (auto x : expected_dft2d_signal_size_results_1)
+   {
+       std::cout << x << ", " ;
+   }
+   std::cout << "]\n";
+    ASSERT_TRUE(true);
 // //    for (std::size_t j = 0; j < num_of_elems; ++j)
 // //    {
 // //        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_1[j], 0.00001);
 // //    }
-// }
+}
