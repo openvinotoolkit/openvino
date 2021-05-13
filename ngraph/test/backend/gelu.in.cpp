@@ -2,34 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
-#include "util/random.hpp"
-
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
-
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
