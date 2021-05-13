@@ -27,6 +27,7 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
     auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     test_case.add_input(data);
     test_case.add_expected_output<float>(Shape{4, 1, 1, 2}, data);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, unsqueeze_negative_axis)
@@ -42,4 +43,5 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze_negative_axis)
     auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     test_case.add_input(data);
     test_case.add_expected_output<float>(Shape{4, 1, 2, 1}, data);
+    test_case.run();
 }

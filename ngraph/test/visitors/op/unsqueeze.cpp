@@ -19,8 +19,8 @@ TEST(attributes, unsqueeze_op)
     using namespace opset1;
 
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axex = make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
-    auto op = make_shared<op::v0::Unsqueeze>(param, axex);
+    auto axes = make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
+    auto op = make_shared<op::v0::Unsqueeze>(param, axes);
 
     NodeBuilder builder(op);
     const auto expected_attr_count = 0;
