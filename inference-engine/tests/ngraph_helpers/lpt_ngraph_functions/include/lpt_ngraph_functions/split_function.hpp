@@ -20,6 +20,7 @@ namespace subgraph {
 class SplitFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const element::Type& precision,
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
@@ -34,6 +35,7 @@ public:
         const size_t numSplit);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const element::Type& precision,
         const ngraph::Shape& inputShape,
         const ngraph::element::Type inputPrecision,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

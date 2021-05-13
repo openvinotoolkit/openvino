@@ -83,7 +83,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<DequantizationMultiply>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(parent, splitedMul[i]);
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
         lastNodes.push_back(multiply);
