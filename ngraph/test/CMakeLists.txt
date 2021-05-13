@@ -213,6 +213,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
+    visitors/op/convert.cpp
     visitors/op/cum_sum.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
@@ -236,6 +237,8 @@ set(SRC
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_l1.cpp
+    visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
     visitors/op/reduce_logical_or.cpp
     visitors/op/reduce_max.cpp
@@ -255,8 +258,10 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
+    visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     uint4.cpp
@@ -336,6 +341,7 @@ set(MULTI_TEST_SRC
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
+    backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
@@ -475,10 +481,32 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # TODO: try to find a way to move it out of common CMakeLists
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
-    set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-    set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
-    add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+
+    set(PDPD_PYTHON_OK TRUE)
+    if(NOT Python3_FOUND)
+        message("Python3 is required to build the PDPD frontend unit tests")
+        set(PDPD_PYTHON_OK FALSE)
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        execute_process(
+                COMMAND ${Python3_EXECUTABLE} -m pip show paddlepaddle
+                RESULT_VARIABLE PIP_EXIT_CODE
+                OUTPUT_QUIET
+        )
+
+        if (NOT ${PIP_EXIT_CODE} EQUAL 0)
+            message("Python paddlepaddle package is not installed. Please use \"pip install paddlepaddle==2.0.1\".")
+            set(PDPD_PYTHON_OK FALSE)
+        endif()
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
+        add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+    endif()
 endif()
 #-----
 
@@ -565,7 +593,7 @@ target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
 #PaddlePaddle
-if (NGRAPH_PDPD_FRONTEND_ENABLE)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
@@ -573,7 +601,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
         set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
+                COMMAND ${Python3_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
                         ${TEST_PDPD_MODELS}
@@ -586,5 +614,6 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+    target_link_libraries(unit-test PRIVATE libnpy)
 endif()
 ### END FRONTEND ###

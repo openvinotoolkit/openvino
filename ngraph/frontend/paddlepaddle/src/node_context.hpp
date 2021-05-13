@@ -17,6 +17,7 @@
 #pragma once
 #include "decoder.hpp"
 #include <paddlepaddle_frontend/exceptions.hpp>
+#include <paddlepaddle_frontend/place.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -77,6 +78,9 @@ public:
 
     const std::string& op_type() const { return node.get_op_type(); }
     std::vector<OutPortName> get_output_names() const { return node.get_output_names(); }
+    std::vector<ngraph::element::Type> get_out_port_types(const std::string& port_name) const
+        { return node.get_out_port_types(port_name); }
+    ngraph::element::Type get_out_port_type(const std::string& port_name) const;
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node> &ngraph_node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 };
@@ -109,6 +113,14 @@ template <>
 inline ngraph::element::Type NodeContext::get_attribute (const std::string& name, const ngraph::element::Type& def) const
 { return node.get_dtype(name, def); }
 
+inline ngraph::element::Type NodeContext::get_out_port_type(const std::string& port_name) const
+{
+    auto types = get_out_port_types(port_name);
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, types.size() > 0, "Port has no tensors connected.");
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, std::equal(types.begin() + 1, types.end(), types.begin()),
+                "Port has tensors with different types connected.");
+    return types[0];
+}
 
 inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
                                                                const std::vector<OutPortName>& required_pdpd_out_names) const
@@ -123,6 +135,14 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     }
     return named_outputs;
 }
-}
-}
-}
+template <>
+inline std::vector<int64_t> NodeContext::get_attribute (const std::string& name, const std::vector<int64_t>& def) const
+{ return node.get_longs(name, def); }
+
+template <>
+inline int64_t NodeContext::get_attribute (const std::string& name, const int64_t& def) const
+{ return node.get_long(name, def); }
+
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph
