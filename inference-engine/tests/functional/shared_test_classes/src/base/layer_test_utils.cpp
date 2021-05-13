@@ -106,7 +106,7 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 
 template <typename T_IE>
 inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const T_IE* actualBuffer, size_t size, T_IE threshold) {
+                        const T_IE* actualBuffer, size_t size, float threshold) {
     auto expectedBuffer = expected.second.data();
     switch (expected.first) {
         case ngraph::element::Type_t::i64:
@@ -139,8 +139,12 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
             break;
         case ngraph::element::Type_t::boolean:
         case ngraph::element::Type_t::u8:
-           LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
-                                                    actualBuffer, size, threshold);
+            LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
+                                                     actualBuffer, size, threshold);
+            break;
+        case ngraph::element::Type_t::f64:
+            LayerTestsCommon::Compare<T_IE, double>(reinterpret_cast<const double *>(expectedBuffer),
+                                                   actualBuffer, size, threshold);
             break;
         case ngraph::element::Type_t::f32:
             LayerTestsCommon::Compare<T_IE, float>(reinterpret_cast<const float *>(expectedBuffer),
@@ -154,6 +158,26 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
             LayerTestsCommon::Compare<T_IE, ngraph::bfloat16>(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
                                                               actualBuffer, size, threshold);
             break;
+        case ngraph::element::Type_t::i4: {
+            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+                    expected.second,
+                    expected.first,
+                    ngraph::element::Type_t::i8,
+                    size);
+            LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedOut.data()),
+                                                    actualBuffer, size, threshold);
+            break;
+        }
+        case ngraph::element::Type_t::u4: {
+            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+                    expected.second,
+                    expected.first,
+                    ngraph::element::Type_t::u8,
+                    size);
+            LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedOut.data()),
+                                                     actualBuffer, size, threshold);
+            break;
+        }
         case ngraph::element::Type_t::dynamic:
         case ngraph::element::Type_t::undefined:
             break;
@@ -165,9 +189,11 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual,
                                float threshold) {
-    ASSERT_FALSE(expected.first.is_integral() == actual->getTensorDesc().getPrecision().is_float());
-    ASSERT_FALSE(expected.first.is_real() == !actual->getTensorDesc().getPrecision().is_float());
     auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
+    // W/A for int4, uint4
+    if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
+        k /= 2;
+    }
     ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
@@ -179,35 +205,35 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
-            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, 0);
+            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I32:
-            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I64:
-            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, 0);
+            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I8:
-            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, 0);
+            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::U16:
-            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, 0);
+            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I16:
-            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, 0);
+            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::U8:
-            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, 0);
+            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::U64:
-            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, 0);
+            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::BF16:
-            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, 0);
+            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::FP16:
-            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, 0);
+            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -327,6 +353,10 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
+    // nGraph interpreter does not support f16/bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
     function->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
@@ -374,7 +404,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     }
 
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs;
-    for (size_t i = 0; i < function->get_results().size(); ++i) {
+    for (size_t i = 0; i < expectedOutputs.size(); ++i) {
         std::pair<ngraph::element::Type, std::vector<std::uint8_t>> b =
                 {function->get_results()[i]->get_element_type(), expectedOutputs[i]};
         outputs.push_back({function->get_results()[i]->get_element_type(), expectedOutputs[i]});

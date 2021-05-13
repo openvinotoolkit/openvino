@@ -82,7 +82,7 @@ public:
     std::string getRuntimePrecisionByType(const std::string& layerType);
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, T_IE threshold) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
@@ -96,7 +96,7 @@ public:
             } else {
                 max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
             }
-            double diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
+            double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
                 std::isnan(static_cast<float>(res)) || std::isnan(static_cast<float>(ref))) {
                 IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
