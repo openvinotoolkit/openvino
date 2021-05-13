@@ -87,12 +87,28 @@ def test_read_network():
     assert isinstance(net, IENetwork)
 
 
-def test_read_network_from_memory():
+def test_read_network_from_blob():
     ie_core = IECore()
     model = open(test_net_xml).read()
     blob = blob_from_file(test_net_bin)
     net = ie_core.read_network(model=model, blob=blob)
     assert isinstance(net, IENetwork) 
+
+
+def test_read_network_from_blob_valid():
+    ie_core = IECore()
+    model = open(test_net_xml).read()
+    blob = blob_from_file(test_net_bin)
+    net = ie_core.read_network(model=model, blob=blob)
+    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_read_network_as_path():
@@ -129,6 +145,34 @@ def test_read_network_from_prototxt_as_path():
     ie_core = IECore()
     net = ie_core.read_network(model=Path(test_net_prototxt))
     assert isinstance(net, IENetwork)
+
+
+def test_read_net_from_buffer():
+    ie_core = IECore()
+    with open(test_net_bin, 'rb') as f:
+        bin = f.read()
+    with open(model_path()[0], 'rb') as f:
+        xml = f.read()
+    net = ie_core.read_network(model=xml, weights=bin)
+    assert isinstance(net, IENetwork)
+
+
+def test_net_from_buffer_valid():
+    ie_core = IECore()
+    with open(test_net_bin, 'rb') as f:
+        bin = f.read()
+    with open(model_path()[0], 'rb') as f:
+        xml = f.read()
+    net = ie_core.read_network(model=xml, weights=bin)
+    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_get_version(device):
