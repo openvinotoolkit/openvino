@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "batch_norm.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -33,7 +33,7 @@ namespace ngraph
                     auto mean = node.get_ng_input("Mean");
                     auto variance = node.get_ng_input("Variance");
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::BatchNormInference>(
+                        {std::make_shared<ngraph::opset6::BatchNormInference>(
                             data,
                             gamma,
                             beta,

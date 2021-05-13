@@ -4,7 +4,7 @@
 #include <limits> // std::numeric_limits
 #include <numeric>
 
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include "yolo_box.hpp"
 
 namespace ngraph
@@ -15,7 +15,7 @@ namespace ngraph
         {
             namespace op
             {
-                using namespace opset6;
+                using namespace ngraph::opset6;
                 using namespace element;
 
                 NamedOutputs yolo_box(const NodeContext& node_context)

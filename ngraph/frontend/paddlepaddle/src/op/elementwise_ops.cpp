@@ -15,7 +15,7 @@
 //*****************************************************************************
 #include <map>
 
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include "elementwise_ops.hpp"
 
 namespace ngraph
@@ -62,9 +62,9 @@ namespace ngraph
                         for (auto it = y_shape.begin(); it != y_shape.end(); ++i, ++it)
                             broadcast_shape[axis + i] = (*it).get_length();
 
-                        auto reshape_node = opset6::Constant::create(
+                        auto reshape_node = ngraph::opset6::Constant::create(
                             element::i64, Shape{broadcast_shape.size()}, broadcast_shape);
-                        auto y_node = std::make_shared<opset6::Reshape>(y, reshape_node, false);
+                        auto y_node = std::make_shared<ngraph::opset6::Reshape>(y, reshape_node, false);
                         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)},
                                                                   {"Out"});
                     }
@@ -73,37 +73,37 @@ namespace ngraph
                 //
                 NamedOutputs elementwise_add(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Add>(node_context);
+                    return elementwise_ops<ngraph::opset6::Add>(node_context);
                 }
 
                 NamedOutputs elementwise_sub(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Subtract>(node_context);
+                    return elementwise_ops<ngraph::opset6::Subtract>(node_context);
                 }
 
                 NamedOutputs elementwise_mul(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Multiply>(node_context);
+                    return elementwise_ops<ngraph::opset6::Multiply>(node_context);
                 }
 
                 NamedOutputs elementwise_div(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Divide>(node_context);
+                    return elementwise_ops<ngraph::opset6::Divide>(node_context);
                 }
 
                 NamedOutputs elementwise_min(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Minimum>(node_context);
+                    return elementwise_ops<ngraph::opset6::Minimum>(node_context);
                 }
 
                 NamedOutputs elementwise_max(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Maximum>(node_context);
+                    return elementwise_ops<ngraph::opset6::Maximum>(node_context);
                 }
 
                 NamedOutputs elementwise_pow(const NodeContext& node_context)
                 {
-                    return elementwise_ops<opset6::Power>(node_context);
+                    return elementwise_ops<ngraph::opset6::Power>(node_context);
                 }
 
             } // namespace op

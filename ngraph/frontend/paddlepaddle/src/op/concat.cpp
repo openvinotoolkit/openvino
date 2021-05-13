@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "concat.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -30,7 +30,7 @@ namespace ngraph
                     auto data = node.get_ng_inputs("X");
                     auto axis = node.get_attribute<int>("axis");
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Concat>(data, axis)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Concat>(data, axis)}, {"Out"});
                 }
 
             } // namespace op

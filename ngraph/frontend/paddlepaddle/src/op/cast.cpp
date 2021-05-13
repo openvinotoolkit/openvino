@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "cast.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -31,7 +31,7 @@ namespace ngraph
                     auto out_dtype = node.get_attribute<element::Type>("out_dtype");
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Convert>(data, out_dtype)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Convert>(data, out_dtype)}, {"Out"});
                 }
 
             } // namespace op

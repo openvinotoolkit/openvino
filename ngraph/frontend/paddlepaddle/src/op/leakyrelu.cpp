@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "leakyrelu.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -28,10 +28,10 @@ namespace ngraph
                 NamedOutputs leaky_relu(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("X");
-                    auto alpha = opset6::Constant::create(
+                    auto alpha = ngraph::opset6::Constant::create(
                         element::f32, {1}, {node.get_attribute<float>("alpha")});
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::PRelu>(data, alpha)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::PRelu>(data, alpha)}, {"Out"});
                 }
 
             } // namespace op

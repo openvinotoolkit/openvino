@@ -3,7 +3,7 @@
 //
 
 #include "clip.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -24,7 +24,7 @@ namespace ngraph
                                                max >= min,
                                                "clip: max value must greater than min value!");
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Clamp>(data, min, max)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Clamp>(data, min, max)}, {"Out"});
                 }
 
             } // namespace op

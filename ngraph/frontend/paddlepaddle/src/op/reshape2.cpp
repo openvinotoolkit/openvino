@@ -32,9 +32,9 @@ namespace ngraph
                     {
                         auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
                         auto shape_node =
-                            opset6::Constant::create(element::i32, {shape_attr.size()}, shape_attr);
+                            ngraph::opset6::Constant::create(element::i32, {shape_attr.size()}, shape_attr);
                         return node.default_single_output_mapping(
-                            {std::make_shared<opset6::Reshape>(data, shape_node, true)}, {"Out"});
+                            {std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)}, {"Out"});
                     }
                     else
                     {

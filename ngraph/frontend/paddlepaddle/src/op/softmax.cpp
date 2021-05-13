@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "softmax.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -42,7 +42,7 @@ namespace ngraph
                         axis = data_rank + axis;
                     }
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Softmax>(data, axis)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Softmax>(data, axis)}, {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd

@@ -3,7 +3,7 @@
 //
 
 #include "squeeze.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -23,9 +23,9 @@ namespace ngraph
                         axes = node.get_attribute<std::vector<int32_t>>("axes");
                     }
 
-                    auto axesNode = opset6::Constant::create(element::i32, {axes.size()}, axes);
+                    auto axesNode = ngraph::opset6::Constant::create(element::i32, {axes.size()}, axes);
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Squeeze>(data, axesNode)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Squeeze>(data, axesNode)}, {"Out"});
                 }
 
             } // namespace op

@@ -40,12 +40,12 @@ namespace ngraph
                     }
 
                     auto startsNode =
-                        opset6::Constant::create(element::i32, {shape_size}, fixedStarts);
-                    auto endsNode = opset6::Constant::create(element::i32, {shape_size}, fixedEnds);
-                    auto stridesNode = opset6::Constant::create(
+                        ngraph::opset6::Constant::create(element::i32, {shape_size}, fixedStarts);
+                    auto endsNode = ngraph::opset6::Constant::create(element::i32, {shape_size}, fixedEnds);
+                    auto stridesNode = ngraph::opset6::Constant::create(
                         element::i32, {shape_size}, std::vector<int32_t>(shape_size, 1));
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::StridedSlice>(
+                        {std::make_shared<ngraph::opset6::StridedSlice>(
                             data,
                             startsNode,
                             endsNode,

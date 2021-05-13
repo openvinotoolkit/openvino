@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "matmul.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -33,10 +33,10 @@ namespace ngraph
                     auto alpha = node.get_attribute<float>("alpha");
                     auto transpose_a = node.get_attribute<bool>("transpose_a");
                     auto transpose_b = node.get_attribute<bool>("transpose_b");
-                    auto mm = std::make_shared<opset6::MatMul>(x, y, transpose_a, transpose_b);
-                    auto alpha_node = opset6::Constant::create(element::f32, {1}, {alpha});
+                    auto mm = std::make_shared<ngraph::opset6::MatMul>(x, y, transpose_a, transpose_b);
+                    auto alpha_node = ngraph::opset6::Constant::create(element::f32, {1}, {alpha});
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Multiply>(mm, alpha_node)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Multiply>(mm, alpha_node)}, {"Out"});
                 }
 
             } // namespace op

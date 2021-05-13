@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "mul.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include "mul.hpp"
 
@@ -43,33 +43,33 @@ namespace ngraph
                                                "matmul: Y rank must be static, and 2!");
                     if (x_rank > 2)
                     {
-                        auto shape = std::make_shared<opset6::ShapeOf>(x);
+                        auto shape = std::make_shared<ngraph::opset6::ShapeOf>(x);
                         int64_t x_num_col_dims = node.get_attribute<int32_t>("x_num_col_dims");
-                        auto axis = opset6::Constant::create(element::i64, {}, {0});
-                        auto split_lengths = opset6::Constant::create(
+                        auto axis = ngraph::opset6::Constant::create(element::i64, {}, {0});
+                        auto split_lengths = ngraph::opset6::Constant::create(
                             element::i64, {2}, {x_num_col_dims, x_rank - x_num_col_dims});
                         auto split =
-                            std::make_shared<opset6::VariadicSplit>(shape, axis, split_lengths);
-                        auto f_dim_red_axis = opset6::Constant::create(element::i64, {}, {0});
+                            std::make_shared<ngraph::opset6::VariadicSplit>(shape, axis, split_lengths);
+                        auto f_dim_red_axis = ngraph::opset6::Constant::create(element::i64, {}, {0});
                         auto first_dim_reduce =
-                            std::make_shared<opset6::ReduceProd>(split->output(0), f_dim_red_axis);
-                        auto f_dim_shape = opset6::Constant::create(element::i64, {1}, {1});
+                            std::make_shared<ngraph::opset6::ReduceProd>(split->output(0), f_dim_red_axis);
+                        auto f_dim_shape = ngraph::opset6::Constant::create(element::i64, {1}, {1});
                         auto first_dim =
-                            std::make_shared<opset6::Reshape>(first_dim_reduce, f_dim_shape, false);
-                        auto s_dim_red_axis = opset6::Constant::create(element::i64, {}, {0});
+                            std::make_shared<ngraph::opset6::Reshape>(first_dim_reduce, f_dim_shape, false);
+                        auto s_dim_red_axis = ngraph::opset6::Constant::create(element::i64, {}, {0});
                         auto second_dim_reduce =
-                            std::make_shared<opset6::ReduceProd>(split->output(1), s_dim_red_axis);
-                        auto s_dim_shape = opset6::Constant::create(element::i64, {1}, {1});
-                        auto second_dim = std::make_shared<opset6::Reshape>(
+                            std::make_shared<ngraph::opset6::ReduceProd>(split->output(1), s_dim_red_axis);
+                        auto s_dim_shape = ngraph::opset6::Constant::create(element::i64, {1}, {1});
+                        auto second_dim = std::make_shared<ngraph::opset6::Reshape>(
                             second_dim_reduce, s_dim_shape, false);
                         auto out_shape =
-                            std::make_shared<opset6::Concat>(NodeVector{first_dim, second_dim}, 0);
-                        auto x_reshaped = std::make_shared<opset6::Reshape>(x, out_shape, false);
+                            std::make_shared<ngraph::opset6::Concat>(NodeVector{first_dim, second_dim}, 0);
+                        auto x_reshaped = std::make_shared<ngraph::opset6::Reshape>(x, out_shape, false);
                         return node.default_single_output_mapping(
-                            {std::make_shared<opset6::MatMul>(x_reshaped, y)}, {"Out"});
+                            {std::make_shared<ngraph::opset6::MatMul>(x_reshaped, y)}, {"Out"});
                     }
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::MatMul>(x, y)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::MatMul>(x, y)}, {"Out"});
                 }
 
             } // namespace op

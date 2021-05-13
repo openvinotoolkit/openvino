@@ -41,7 +41,7 @@ namespace ngraph
                     shapes[output_dim_idx] = static_shape[input_dim_idx];
                     auto dtype = node.get_attribute<element::Type>("dtype");
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Constant>(
+                        {std::make_shared<ngraph::ngraph::opset6::Constant>(
                             dtype, Shape(shapes.begin(), shapes.end()), value)},
                         {"Out"});
                 }

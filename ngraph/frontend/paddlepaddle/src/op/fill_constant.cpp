@@ -3,7 +3,7 @@
 //
 
 #include "fill_constant.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -22,17 +22,17 @@ namespace ngraph
                     if (dtype == element::i32)
                     {
                         int32_t value = node.get_attribute<int32_t>("value");
-                        value_node = opset6::Constant::create(dtype, {1}, {value});
+                        value_node = ngraph::opset6::Constant::create(dtype, {1}, {value});
                     }
                     else if (dtype == element::f32)
                     {
                         float value = node.get_attribute<float>("value");
-                        value_node = opset6::Constant::create(dtype, {1}, {value});
+                        value_node = ngraph::opset6::Constant::create(dtype, {1}, {value});
                     }
 
-                    auto shape_node = opset6::Constant::create(element::i64, {shape.size()}, shape);
+                    auto shape_node = ngraph::opset6::Constant::create(element::i64, {shape.size()}, shape);
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Broadcast>(value_node, shape_node)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Broadcast>(value_node, shape_node)}, {"Out"});
                 }
 
             } // namespace op

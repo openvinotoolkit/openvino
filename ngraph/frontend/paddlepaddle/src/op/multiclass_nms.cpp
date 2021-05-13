@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "multiclass_nms.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -35,15 +35,15 @@ namespace ngraph
                     auto max_output_boxes_per_class = node.get_attribute<int>("nms_top_k");
 
                     // TODO: dtype, scaler/vector attr, and more strick attributes check
-                    auto node_max_output_boxes_per_class = opset6::Constant::create<int>(
+                    auto node_max_output_boxes_per_class = ngraph::opset6::Constant::create<int>(
                         element::i32, Shape{1}, {max_output_boxes_per_class});
                     auto node_iou_threshold =
-                        opset6::Constant::create<float>(element::f32, Shape{1}, {iou_threshold});
+                        ngraph::opset6::Constant::create<float>(element::f32, Shape{1}, {iou_threshold});
                     auto node_score_threshold =
-                        opset6::Constant::create<float>(element::f32, Shape{1}, {score_threshold});
+                        ngraph::opset6::Constant::create<float>(element::f32, Shape{1}, {score_threshold});
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::NonMaxSuppression>(
+                        {std::make_shared<ngraph::opset6::NonMaxSuppression>(
                             bboxes,
                             scores,
                             node_max_output_boxes_per_class,

@@ -3,7 +3,7 @@
 //
 
 #include "pad3d.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -55,7 +55,7 @@ namespace ngraph
                     if (mode == "constant")
                     {
                         pad_mode = ngraph::op::PadMode::CONSTANT;
-                        values = opset6::Constant::create(element::f32, Shape{}, {value});
+                        values = ngraph::opset6::Constant::create(element::f32, Shape{}, {value});
                     }
                     else if (mode == "reflect")
                     {
@@ -94,19 +94,19 @@ namespace ngraph
                                            "]");
                     }
 
-                    padding_begin = opset6::Constant::create(
+                    padding_begin = ngraph::opset6::Constant::create(
                         element::i32, Shape{pads_begin.size()}, pads_begin);
                     padding_end =
-                        opset6::Constant::create(element::i32, Shape{pads_end.size()}, pads_end);
+                        ngraph::opset6::Constant::create(element::i32, Shape{pads_end.size()}, pads_end);
 
                     if (mode == "constant")
                         return node.default_single_output_mapping(
-                            {std::make_shared<opset6::Pad>(
+                            {std::make_shared<ngraph::opset6::Pad>(
                                 data, padding_begin, padding_end, values, pad_mode)},
                             {"Out"});
                     else
                         return node.default_single_output_mapping(
-                            {std::make_shared<opset6::Pad>(
+                            {std::make_shared<ngraph::opset6::Pad>(
                                 data, padding_begin, padding_end, pad_mode)},
                             {"Out"});
                 }

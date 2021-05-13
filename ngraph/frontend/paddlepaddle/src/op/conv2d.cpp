@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "conv2d.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/ngraph::opset6.hpp>
 
 namespace ngraph
 {
@@ -34,7 +34,7 @@ namespace ngraph
                     auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
                     auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Convolution>(
+                        {std::make_shared<ngraph::opset6::Convolution>(
                             data,
                             filter,
                             Strides(strides.begin(), strides.end()),
