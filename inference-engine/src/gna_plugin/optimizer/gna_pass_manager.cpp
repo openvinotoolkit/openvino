@@ -899,6 +899,25 @@ void InsertCopyLayerPass::run() {
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
+    // Concat has multiple connections to the same input
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConcat()) continue;
+
+        // Insert copy layers after concat inputs with multiple connections to concat
+        std::set<DataPtr> parents;
+        for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
+            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            auto inputData = l->insData[input_idx].lock();
+            if (parents.find(inputData) != std::end(parents)) {
+                auto parent = getCreatorLayer(inputData);
+                IE_ASSERT(parent.lock() != nullptr);
+                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+            } else {
+                parents.insert(inputData);
+            }
+        }
+    }
+
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
 
