@@ -24,37 +24,37 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-static std::vector<float16> from_float_vector(const std::vector<float>& v_f32)
-{
-    if (v_f32.empty())
-    {
-        return std::vector<float16>();
-    }
-
-    size_t num_of_elems = v_f32.size();
-    std::vector<float16> v_f16(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i)
-    {
-        v_f16[i] = float16(v_f32[i]);
-    }
-    return v_f16;
-}
-
-static std::vector<float> to_float_vector(const std::vector<float16>& v_f16)
-{
-    if (v_f16.empty())
-    {
-        return std::vector<float>();
-    }
-
-    size_t num_of_elems = v_f16.size();
-    std::vector<float> v_f32(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i)
-    {
-        v_f32[i] = float(v_f16[i]);
-    }
-    return v_f32;
-}
+// static std::vector<float16> from_float_vector(const std::vector<float>& v_f32)
+// {
+//     if (v_f32.empty())
+//     {
+//         return std::vector<float16>();
+//     }
+//
+//     size_t num_of_elems = v_f32.size();
+//     std::vector<float16> v_f16(num_of_elems);
+//     for (size_t i = 0; i < num_of_elems; ++i)
+//     {
+//         v_f16[i] = float16(v_f32[i]);
+//     }
+//     return v_f16;
+// }
+//
+// static std::vector<float> to_float_vector(const std::vector<float16>& v_f16)
+// {
+//     if (v_f16.empty())
+//     {
+//         return std::vector<float>();
+//     }
+//
+//     size_t num_of_elems = v_f16.size();
+//     std::vector<float> v_f32(num_of_elems);
+//     for (size_t i = 0; i < num_of_elems; ++i)
+//     {
+//         v_f32[i] = float(v_f16[i]);
+//     }
+//     return v_f32;
+// }
 
 static const std::vector<float> expected_result =  {
     0.85943836,  0.009941814, 0.004292889, 0.54598427,   0.8270831,   0.49770153,  0.9035636,
