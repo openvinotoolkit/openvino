@@ -264,9 +264,11 @@ namespace ngraph
             {
                 PDPD_CHECK(ErrorCode::ERROR_GENERAL,
                            streams.size() == 2,
-                            "Two streams are needed to load a model: model and weights streams");
+                           "Two streams are needed to load a model: model and weights streams");
             }
-            PDPD_CHECK(ErrorCode::ERROR_GENERAL, m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
+            PDPD_CHECK(ErrorCode::ERROR_GENERAL,
+                       m_fw_ptr->ParseFromIstream(streams[0]),
+                       "Model can't be parsed");
 
             loadPlaces();
             if (streams.size() > 1)

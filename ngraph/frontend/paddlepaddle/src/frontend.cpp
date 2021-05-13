@@ -139,8 +139,8 @@ namespace ngraph
 
                         PDPD_CHECK(ErrorCode::NGRAPH_NODE_CREATION_FAILED,
                                    ports.size() == name_to_outputs.second.size(),
-                                    "The number of output tensors must be equal to "
-                                    "the number of outputs of the ngraph node.");
+                                   "The number of output tensors must be equal to "
+                                   "the number of outputs of the ngraph node.");
                         for (size_t idx = 0; idx < ports.size(); ++idx)
                         {
                             const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
@@ -184,17 +184,17 @@ namespace ngraph
                 // The case when .pdmodel and .pdparams files are provided
                 std::ifstream model_stream(paths[0], std::ios::in | std::ifstream::binary);
                 PDPD_CHECK(ngraph::frontend::ErrorCode::INITIALIZATION_ERROR,
-                        model_stream && model_stream.is_open(),
-                        "Cannot open model file.");
+                           model_stream && model_stream.is_open(),
+                           "Cannot open model file.");
                 std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
                 PDPD_CHECK(ngraph::frontend::ErrorCode::INITIALIZATION_ERROR,
-                        weights_stream && weights_stream.is_open(),
-                        "Cannot open weights file.");
+                           weights_stream && weights_stream.is_open(),
+                           "Cannot open weights file.");
                 return loadFromStreams({&model_stream, &weights_stream});
             }
             PDPD_CHECK(ngraph::frontend::ErrorCode::INITIALIZATION_ERROR,
-                    false,
-                    "Model can be loaded either from 1 or 2 files");
+                       false,
+                       "Model can be loaded either from 1 or 2 files");
         }
 
         InputModel::Ptr FrontEndPDPD::loadFromStream(std::istream& model_stream) const

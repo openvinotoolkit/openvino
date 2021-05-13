@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "mul.hpp"
 #include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
-#include "mul.hpp"
 
 namespace ngraph
 {
