@@ -39,6 +39,10 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 
+    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+            {}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -51,6 +55,13 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigsInputOutput)),
+                            BehaviorTestOutput::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTestOutput,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(Autoconfigs)),
                             BehaviorTestOutput::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
@@ -67,6 +78,13 @@ namespace {
                                     ::testing::ValuesIn(MultiConfigs)),
                             BehaviorTests::getTestCaseName);
 
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTests,
+                            ::testing::Combine(
+                                    ::testing::Values(InferenceEngine::Precision::FP32),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(Autoconfigs)),
+                            BehaviorTests::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -79,6 +97,13 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigsInputOutput)),
+                            BehaviorTestInput::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTestInput,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(Autoconfigs)),
                             BehaviorTestInput::getTestCaseName);
 
 }  // namespace
