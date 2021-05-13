@@ -80,20 +80,45 @@ if (NOT USE_SYSTEM_PUGIXML)
     endif()
 endif()
 
-if(ENABLE_MKL_DNN)
-    set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
-    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
-    set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
-    set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
-    set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(DNNL_CPU_RUNTIME "${THREADING}" CACHE BOOL "" FORCE)
-    set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
+function(build_mkldnn)
+    set(DNNL_ENABLE_CONCURRENT_EXEC ON)
+    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF) ## TODO: try it later
+    set(DNNL_ENABLE_MAX_CPU_ISA OFF)     ## TODO: try it later
+    set(DNNL_LIBRARY_TYPE STATIC)
+    set(DNNL_BUILD_EXAMPLES OFF)
+    set(DNNL_BUILD_TESTS OFF)
+    set(DNNL_CPU_RUNTIME "${THREADING}")
+    set(DNNL_BLAS_VENDOR "NONE")
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
-    add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
-    add_library(mkldnn ALIAS dnnl)
+    set(LIB_NAME mkldnn)
+    add_subdirectory(mkl-dnn "${LIB_NAME}" EXCLUDE_FROM_ALL)
+endfunction()
+
+if(ENABLE_MKL_DNN)
+    build_mkldnn()
 endif()
+
+function(build_cldnn)
+    set(DNNL_ENABLE_CONCURRENT_EXEC ON)
+    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF) ## TODO: try it later
+    set(DNNL_ENABLE_MAX_CPU_ISA OFF)     ## TODO: try it later
+    set(DNNL_LIBRARY_TYPE STATIC)
+    set(DNNL_BUILD_EXAMPLES OFF)
+    set(DNNL_BUILD_TESTS OFF)
+    set(DNNL_GPU_RUNTIME "OCL")
+    set(DNNL_CPU_RUNTIME "SEQ")
+    set(DNNL_BLAS_VENDOR "NONE")
+    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
+        set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
+    endif()
+
+    set(LIB_NAME onednn_gpu)
+    add_subdirectory(mkl-dnn "${LIB_NAME}" EXCLUDE_FROM_ALL)
+endfunction()
+
+build_cldnn()
