@@ -99,14 +99,25 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
     auto fullConfig = mergeConfigs(_config, config);
     auto metaDevices = GetDeviceChoice(fullConfig);
 
-    // FIXME: always select CPU device now
-    DeviceInformation selectedDevice = SelectDevice(metaDevices);
+    DeviceInformation selectedDevice;
     IE::SoExecutableNetworkInternal executableNetwork;
-    try {
-        executableNetwork = GetCore()->LoadNetwork(fileName, selectedDevice.deviceName, selectedDevice.config);
-    } catch(const IE::Exception &iie) {
-        IE_THROW() << "Failed to load network to device named " << selectedDevice.deviceName
-                   << " with exception " << iie.what();
+    while (!metaDevices.empty()) {
+        selectedDevice = SelectDevice(metaDevices);
+        try {
+            executableNetwork = GetCore()->LoadNetwork(fileName, selectedDevice.deviceName, config);
+            break;
+        } catch (...) {
+            auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
+                                            [=](const DeviceInformation &d) -> bool { return d.deviceName == selectedDevice.deviceName; });
+            if (eraseDevice == metaDevices.end()) {
+                IE_THROW() << "Didn't find the selected device name";
+            }
+            metaDevices.erase(eraseDevice);
+            executableNetwork = {};
+        }
+    }
+    if (!executableNetwork) {
+        IE_THROW() << "Failed to load network by AUTO plugin";
     }
 
     bool enablePerfCounters = false;
@@ -114,7 +125,8 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
         enablePerfCounters =
             executableNetwork->GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                 IE::PluginConfigParams::YES;
-    } catch (...) {
+    }
+    catch (...) {
     }
 
     return std::make_shared<AutoExecutableNetwork>(executableNetwork,
@@ -141,7 +153,6 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
     while (!metaDevices.empty()) {
         selectedDevice = SelectDevice(network, metaDevices, optCap);;
         try {
-            GetCore()->QueryNetwork(network, selectedDevice.deviceName, selectedDevice.config);
             executableNetwork = GetCore()->LoadNetwork(
                 network, selectedDevice.deviceName, selectedDevice.config);
             break;
