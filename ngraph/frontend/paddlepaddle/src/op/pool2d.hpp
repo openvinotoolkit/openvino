@@ -17,11 +17,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs pool2d(const NodeContext& node);
 
-NamedOutputs pool2d (const NodeContext& node);
-
-}}}}
+            }
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

@@ -17,14 +17,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
-	
-NamedOutputs reshape2(const NodeContext& node);
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs reshape2(const NodeContext& node);
 
-} // namespace op
-} // namespace pdpd
-} // namespace frontend
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
 } // namespace ngraph
