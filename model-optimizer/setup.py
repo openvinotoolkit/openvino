@@ -98,7 +98,7 @@ setup(
     entry_points={
         'console_scripts': [
             'mo = mo.__main__:main',
-         ],
+        ],
     },
     package_data={
       'mo.mo.front.caffe.proto': ['*.proto'],
