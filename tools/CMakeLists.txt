@@ -22,7 +22,7 @@ else()
     set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
 endif()
 
-if(ENABLE_PYTHON)
+if(ENABLE_PYTHON OR NGRAPH_PYTHON_BUILD_ENABLE)
 
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
     add_custom_target(${TARGET_NAME} ALL
@@ -46,7 +46,7 @@ if(ENABLE_PYTHON)
             COMPONENT python_tools_${PYTHON_VERSION})
 
     install(DIRECTORY benchmark/
-            DESTINATION python/${PYTHON_VERSION}/openvino/tools
+            DESTINATION python/${PYTHON_VERSION}/openvino/tools/benchmark
             USE_SOURCE_PERMISSIONS
             COMPONENT python_tools_${PYTHON_VERSION})
     

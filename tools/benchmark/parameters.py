@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys,argparse
-from fnmatch import fnmatch
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
@@ -118,8 +117,8 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-mode', type=str, required=False, default='old',
-                      help="Optional. Choose between old and new python api.")o
+    args.add_argument('-mode', type=str, required=False, default='cython',
+                      help="Optional. Choose between old and new python api.")
     args.add_argument('-ip', '--input_precision', type=str, required=False, default='U8', choices=['U8', 'FP16', 'FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
     args.add_argument('-op', '--output_precision', type=str, required=False, default='FP32', choices=['U8', 'FP16', 'FP32'],

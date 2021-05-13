@@ -9,21 +9,14 @@ from glob import glob
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
-
-def set_inputs(paths_to_input, batch_size, app_input_info, requests, mode):
-    requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
-    inputs = {}
-    for i in range(len(requests)):
-        if mode == "poc":
-            for input, _ in app_input_info.items():
-                inputs[input] = requests[i].get_blob(input)
-        else:
-            inputs = requests[i].input_blobs
-        for k, v in requests_input_data[i].items():
-            if k not in inputs.keys():
-                raise Exception(f"No input with name {k} found!")
-            inputs[k].buffer[:] = v
-
+def set_inputs(paths_to_input, batch_size, app_input_info, requests):
+  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
+  for i in range(len(requests)):
+    inputs = requests[i].input_blobs
+    for k, v in requests_input_data[i].items():
+        if k not in inputs.keys():
+            raise Exception(f"No input with name {k} found!")
+        inputs[k].buffer[:] = v
 
 def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     input_image_sizes = {}
@@ -164,7 +157,6 @@ def get_dtype(precision):
     if precision in format_map.keys():
         return format_map[precision]
     raise Exception("Can't find data type for precision: " + precision)
-
 
 def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, info):
     binaries = np.ndarray(info.shape)

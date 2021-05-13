@@ -14,6 +14,7 @@
 #include "inference_engine/ie_preprocess_info.hpp"
 #include "inference_engine/ie_version.hpp"
 #include "inference_engine/tensor_description.hpp"
+#include "inference_engine/containers.hpp"
 
 #include <ie_common.h>
 #include <ie_iinfer_request.hpp>
@@ -75,6 +76,11 @@ PYBIND11_MODULE(pyopenvino, m)
     regclass_TBlob<uint16_t>(m, "Uint16");
     regclass_TBlob<int8_t>(m, "Int8");
     regclass_TBlob<uint8_t>(m, "Uint8");
+
+    // Registering specific types of containers
+    Containers::regclass_PyConstInputsDataMap(m);
+    Containers::regclass_PyOutputsDataMap(m);
+    Containers::regclass_PyResults(m);
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);

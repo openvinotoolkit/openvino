@@ -264,10 +264,15 @@ def run(args):
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
-        if args.mode == "poc":
-            infer_requests = []
-            for i in range(benchmark.nireq):
-                infer_requests.append(exe_network.create_infer_request())
+        if args.mode == 'pybind':
+            if args.api_type == 'sync':
+                infer_requests = []
+                for i in range(benchmark.nireq):
+                    infer_requests.append(exe_network.create_infer_request())
+            else:
+                from openvino.inference_engine import InferQueue
+                infer_requests = InferQueue(network=exe_network, jobs=benchmark.nireq)
+                benchmark.nireq = len(infer_requests)
         else:
             infer_requests = exe_network.requests
 
@@ -281,7 +286,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests, args.mode)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -313,7 +318,7 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        if args.mode == "poc":
+        if args.mode == 'pybind':
             duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests=infer_requests))
         else:
             duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
@@ -323,7 +328,7 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        if args.mode == "poc":
+        if args.mode == 'pybind':
             fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests=infer_requests,
                                                                              batch_size=batch_size,
                                                                              progress_bar=progress_bar)
