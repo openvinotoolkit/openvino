@@ -17,21 +17,24 @@
 #include "cast.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs cast(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_input("X");
-            auto out_dtype = node.get_attribute<element::Type>("out_dtype");
+            namespace op
+            {
+                NamedOutputs cast(const NodeContext& node)
+                {
+                    auto data = node.get_ng_input("X");
+                    auto out_dtype = node.get_attribute<ngraph::element::Type>("out_dtype");
 
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Convert>(data, out_dtype)}, {"Out"});
-        }
+                    return node.default_single_output_mapping(
+                        {std::make_shared<ngraph::opset6::Convert>(data, out_dtype)}, {"Out"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

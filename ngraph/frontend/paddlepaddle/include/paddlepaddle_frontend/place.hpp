@@ -27,6 +27,7 @@ namespace paddle
         {
             class OpDesc;
             class VarDesc;
+
         } // namespace proto
     }     // namespace framework
 } // namespace paddle

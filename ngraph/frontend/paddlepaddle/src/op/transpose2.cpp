@@ -17,29 +17,35 @@
 #include "transpose2.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs transpose2(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_input("X");
-            auto perm = node.get_attribute<std::vector<int>>("axis");
+            namespace op
+            {
+                NamedOutputs transpose2(const NodeContext& node)
+                {
+                    auto data = node.get_ng_input("X");
+                    auto perm = node.get_attribute<std::vector<int>>("axis");
 
-            auto rank = static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
+                    auto rank =
+                        static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
 
-            std::cout << perm.size() << std::endl;
-            std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
+                    std::cout << perm.size() << std::endl;
+                    std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
 
-            PDPD_ASSERT(perm.size() == rank, "transpose2: axis size must equal to data rank!");
+                    PDPD_ASSERT(perm.size() == rank,
+                                "transpose2: axis size must equal to data rank!");
 
-            auto input_order = opset6::Constant::create(element::i64, {rank}, perm);
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Transpose>(data, input_order)}, {"Out"});
-        }
+                    auto input_order =
+                        ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
+                    return node.default_single_output_mapping(
+                        {std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

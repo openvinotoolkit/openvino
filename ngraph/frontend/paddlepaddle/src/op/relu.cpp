@@ -17,18 +17,21 @@
 #include "relu.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs relu(const NodeContext& node)
+        namespace pdpd
         {
-            return node.default_single_output_mapping(
-                {std::make_shared<opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
-        }
+            namespace op
+            {
+                NamedOutputs relu(const NodeContext& node)
+                {
+                    return node.default_single_output_mapping(
+                        {std::make_shared<ngraph::opset6::Relu>(node.get_ng_input("X"))}, {"Out"});
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph

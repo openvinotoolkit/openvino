@@ -31,48 +31,51 @@
 
 #include "op_table.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    std::map<std::string, CreatorFunction> get_supported_ops()
+    namespace frontend
     {
-        return {{"arg_max", op::argmax},
-                {"assign_value", op::assign_value},
-                {"batch_norm", op::batch_norm},
-                {"bilinear_interp_v2", op::bilinear_interp_v2},
-                {"bilinear_interp", op::bilinear_interp_v2},
-                {"cast", op::cast},
-                {"clip", op::clip},
-                {"concat", op::concat},
-                {"conv2d", op::conv2d},
-                {"elementwise_add", op::elementwise_add},
-                {"elementwise_div", op::elementwise_div},
-                {"elementwise_max", op::elementwise_max},
-                {"elementwise_min", op::elementwise_min},
-                {"elementwise_mul", op::elementwise_mul},
-                {"elementwise_pow", op::elementwise_pow},
-                {"elementwise_sub", op::elementwise_sub},
-                {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
-                {"fill_constant", op::fill_constant},
-                {"flatten_contiguous_range", op::flatten_contiguous_range},
-                {"leaky_relu", op::leaky_relu},
-                {"matmul", op::matmul},
-                {"mul", op::mul},
-                {"nearest_interp_v2", op::nearest_interp_v2},
-                {"nearest_interp", op::nearest_interp_v2},
-                {"pad3d", op::pad3d},
-                {"pool2d", op::pool2d},
-                {"relu", op::relu},
-                {"reshape2", op::reshape2},
-                {"scale", op::scale},
-                {"slice", op::slice},
-                {"softmax", op::softmax},
-                {"split", op::split},
-                {"squeeze2", op::squeeze},
-                {"unsqueeze2", op::unsqueeze},
-                {"yolo_box", op::yolo_box}};
-    };
+        namespace pdpd
+        {
+            std::map<std::string, CreatorFunction> get_supported_ops()
+            {
+                return {{"arg_max", op::argmax},
+                        {"assign_value", op::assign_value},
+                        {"batch_norm", op::batch_norm},
+                        {"bilinear_interp_v2", op::bilinear_interp_v2},
+                        {"bilinear_interp", op::bilinear_interp_v2},
+                        {"cast", op::cast},
+                        {"clip", op::clip},
+                        {"concat", op::concat},
+                        {"conv2d", op::conv2d},
+                        {"elementwise_add", op::elementwise_add},
+                        {"elementwise_div", op::elementwise_div},
+                        {"elementwise_max", op::elementwise_max},
+                        {"elementwise_min", op::elementwise_min},
+                        {"elementwise_mul", op::elementwise_mul},
+                        {"elementwise_pow", op::elementwise_pow},
+                        {"elementwise_sub", op::elementwise_sub},
+                        {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
+                        {"fill_constant", op::fill_constant},
+                        {"flatten_contiguous_range", op::flatten_contiguous_range},
+                        {"leaky_relu", op::leaky_relu},
+                        {"matmul", op::matmul},
+                        {"mul", op::mul},
+                        {"nearest_interp_v2", op::nearest_interp_v2},
+                        {"nearest_interp", op::nearest_interp_v2},
+                        {"pad3d", op::pad3d},
+                        {"pool2d", op::pool2d},
+                        {"relu", op::relu},
+                        {"reshape2", op::reshape2},
+                        {"scale", op::scale},
+                        {"slice", op::slice},
+                        {"softmax", op::softmax},
+                        {"split", op::split},
+                        {"squeeze2", op::squeeze},
+                        {"unsqueeze2", op::unsqueeze},
+                        {"yolo_box", op::yolo_box}};
+            };
 
-} // namespace pdpd
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

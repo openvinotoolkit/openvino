@@ -18,29 +18,33 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
-
-namespace pdpd
+namespace ngraph
 {
-    namespace op
+    namespace frontend
     {
-        NamedOutputs reshape2(const NodeContext& node)
+        namespace pdpd
         {
-            auto data = node.get_ng_input("X");
-            if (!node.has_ng_input("Shape") && !node.has_ng_input("ShapeTensor"))
+            namespace op
             {
-                auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
-                auto shape_node =
-                    opset6::Constant::create(element::i32, {shape_attr.size()}, shape_attr);
-                return node.default_single_output_mapping(
-                    {std::make_shared<opset6::Reshape>(data, shape_node, true)}, {"Out"});
-            }
-            else
-            {
-                NOT_IMPLEMENTED("reshape2 with shape as input");
-            }
-        }
+                NamedOutputs reshape2(const NodeContext& node)
+                {
+                    auto data = node.get_ng_input("X");
+                    if (!node.has_ng_input("Shape") && !node.has_ng_input("ShapeTensor"))
+                    {
+                        auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
+                        auto shape_node = ngraph::opset6::Constant::create(
+                            ngraph::element::i32, {shape_attr.size()}, shape_attr);
+                        return node.default_single_output_mapping(
+                            {std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)},
+                            {"Out"});
+                    }
+                    else
+                    {
+                        NOT_IMPLEMENTED("reshape2 with shape as input");
+                    }
+                }
 
-    } // namespace op
-} // namespace pdpd
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
+} // namespace ngraph
