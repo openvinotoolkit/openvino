@@ -57,18 +57,18 @@ public:
 
     virtual void Serialize();
 
-    static void Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
                         float threshold);
 
-    static void Compare(const std::vector<std::uint8_t> &expected,
+    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
                         float threshold);
 
-    virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
-    virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
+    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
@@ -80,6 +80,26 @@ public:
 
     std::string getRuntimePrecision(const std::string& layerName);
     std::string getRuntimePrecisionByType(const std::string& layerType);
+
+    template<class T1, class T2>
+    static void Compare(const T2 *expected, const T1 *actual, std::size_t size, T1 threshold) {
+        for (std::size_t i = 0; i < size; ++i) {
+            const auto &ref = expected[i];
+            const auto &res = actual[i];
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if (absoluteDifference <= threshold) {
+                continue;
+            }
+
+            const auto max = std::max(CommonTestUtils::ie_abs(static_cast<const T2&>(res)), CommonTestUtils::ie_abs(ref));
+            float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
+            if (max == 0 || (diff > static_cast<float>(threshold))) {
+                IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
+                           << " at index " << i << " with threshold " << threshold
+                           << " failed";
+            }
+        }
+    }
 
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
@@ -136,7 +156,7 @@ protected:
 
     virtual void Validate();
 
-    virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+    virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
 
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 

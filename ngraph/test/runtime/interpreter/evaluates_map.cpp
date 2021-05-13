@@ -1469,7 +1469,6 @@ namespace
             break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
 

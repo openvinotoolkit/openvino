@@ -55,24 +55,25 @@ void NmsLayerTest::GenerateInputs() {
     }
 }
 
-void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<Blob::Ptr> &actualOutputs) {
+void NmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                           const std::vector<Blob::Ptr> &actualOutputs) {
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
 
-        const auto &expectedBuffer = expected.data();
+        const auto &expectedBuffer = expected.second.data();
         auto memory = as<MemoryBlob>(actual);
         IE_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto actualBuffer = lockedMemory.as<const uint8_t *>();
 
         if (outputIndex == 2) {
-            if (expected.size() != actual->byteSize())
+            if (expected.second.size() != actual->byteSize())
                 throw std::runtime_error("Expected and actual size 3rd output have different size");
         }
 
         const auto &precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
+        size_t size = expected.second.size() / actual->getTensorDesc().getPrecision().size();
         switch (precision) {
             case Precision::FP32: {
                 LayerTestsCommon::Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);

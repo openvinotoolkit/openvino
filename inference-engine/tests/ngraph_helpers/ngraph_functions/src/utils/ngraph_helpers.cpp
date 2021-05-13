@@ -81,8 +81,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           const std::vector<ngraph::element::Type> &inputTypes,
-                                                           const std::vector<ngraph::element::Type_t> convertType) {
+                                                           const std::vector<ngraph::element::Type> &inputTypes) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -138,13 +137,6 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
         const auto& outputTensor = outputTensors[resultIndex];
         output.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.data(), output.size());
-        if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
-                outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
-            output = convertOutputPrecision(
-                output,
-                outputTensor->get_element_type(),
-                convertType[resultIndex],
-                shape_size(outputTensors[resultIndex]->get_shape()));
     }
 
     return outputs;

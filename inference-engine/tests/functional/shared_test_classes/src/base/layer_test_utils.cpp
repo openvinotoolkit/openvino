@@ -93,7 +93,8 @@ void LayerTestsCommon::Serialize() {
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
-void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+
+void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
                                float threshold) {
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
@@ -103,11 +104,14 @@ void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &exp
     }
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected,
+void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual,
                                float threshold) {
-    ASSERT_EQ(expected.size(), actual->byteSize());
-    const auto &expectedBuffer = expected.data();
+    ASSERT_FALSE(expected.first.is_integral() == actual->getTensorDesc().getPrecision().is_float());
+    ASSERT_FALSE(expected.first.is_real() == !actual->getTensorDesc().getPrecision().is_float());
+    float k = expected.first.size() / actual->getTensorDesc().getPrecision().size();
+    ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
+    const auto &expectedBuffer = expected.second.data();
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
     IE_ASSERT(memory);
@@ -122,7 +126,8 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected,
                            reinterpret_cast<const float *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I32:
-            Compare<int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
+            Compare<int32_t, int64_t>(
+                             reinterpret_cast<const int64_t *>(expectedBuffer),
                              reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
             break;
         case InferenceEngine::Precision::I64:
@@ -160,10 +165,29 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected,
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
+        case InferenceEngine::Precision::UNSPECIFIED:
+            break;
+        case InferenceEngine::Precision::MIXED:
+            break;
+        case InferenceEngine::Precision::FP64:
+            break;
+        case InferenceEngine::Precision::Q78:
+            break;
+        case InferenceEngine::Precision::U4:
+            break;
+        case InferenceEngine::Precision::I4:
+            break;
+        case InferenceEngine::Precision::U32:
+            break;
+        case InferenceEngine::Precision::BIN:
+            break;
+        case InferenceEngine::Precision::CUSTOM:
+            break;
     }
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                               const InferenceEngine::Blob::Ptr &actual) {
     Compare(expected, actual, threshold);
 }
 
@@ -256,14 +280,10 @@ void LayerTestsCommon::Infer() {
     inferRequest.Infer();
 }
 
-std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
-    // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
-
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
     function->validate_nodes_and_infer_types();
 
-    auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
+    auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
         const auto &input = inputs[i];
@@ -293,7 +313,7 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     std::vector<std::vector<std::uint8_t>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
             break;
         }
         case CONSTANT_FOLDING: {
@@ -307,7 +327,14 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         }
     }
 
-    return expectedOutputs;
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs;
+    for (size_t i = 0; i < function->get_results().size(); ++i) {
+        std::pair<ngraph::element::Type, std::vector<std::uint8_t>> b =
+                {function->get_results()[i]->get_element_type(), expectedOutputs[i]};
+        outputs.push_back({function->get_results()[i]->get_element_type(), expectedOutputs[i]});
+    }
+
+    return outputs;
 }
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
@@ -319,7 +346,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
     return outputs;
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     Compare(expectedOutputs, actualOutputs, threshold);
 }

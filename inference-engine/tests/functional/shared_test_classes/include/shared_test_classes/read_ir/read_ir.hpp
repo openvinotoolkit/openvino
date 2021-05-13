@@ -17,7 +17,7 @@ public:
 protected:
     void SetUp() override;
     void GenerateInputs() override;
-    void Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                  const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 
