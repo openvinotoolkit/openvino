@@ -71,10 +71,20 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                           data_batch_et);
 
     // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API
-    // (#49517)
+    // (#52715)
+
+    Rank result_ps_rank;
+    NODE_VALIDATION_CHECK(
+        this,
+        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
+        "Data batch and filters inputs must have same rank. Got: ",
+        data_batch_pshape,
+        " and ",
+        filters_pshape);
 
     PartialShape result_shape =
         validate_and_infer_convolution_forward_output_shape(this,
+                                                            result_ps_rank,
                                                             data_batch_pshape,
                                                             filters_pshape,
                                                             m_auto_pad,
@@ -117,7 +127,7 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
 namespace ngraph
 {
     template <>
-    EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
+    NGRAPH_API EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
         EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get()
     {
         static auto enum_names = EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>(
@@ -134,7 +144,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::v1::BinaryConvolution::BinaryConvolutionMode
     op::v1::BinaryConvolution::mode_from_string(const std::string& mode) const

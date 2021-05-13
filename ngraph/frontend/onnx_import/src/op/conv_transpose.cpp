@@ -112,61 +112,6 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
-                                                              const PartialShape& filters_pshape,
-                                                              int64_t groups)
-                    {
-                        if (filters_pshape.is_static())
-                        {
-                            Shape new_filters_shape{filters_pshape.to_shape()};
-                            new_filters_shape.at(0) /= groups;
-                            new_filters_shape.insert(std::begin(new_filters_shape), groups);
-                            return builder::opset1::reshape(filters, new_filters_shape);
-                        }
-                        else
-                        {
-                            // TODO: Following should go to some helper like
-                            // split_shape_into_parts(axis)
-                            // Split filters shape into two parts: (first_dim, the_rest_of_dims)
-                            const auto filters_shape =
-                                std::make_shared<default_opset::ShapeOf>(filters);
-                            const auto filters_rank =
-                                std::make_shared<default_opset::ShapeOf>(filters_shape);
-                            const auto one_node =
-                                default_opset::Constant::create(element::i64, Shape{1}, {1});
-                            const auto zero_node =
-                                default_opset::Constant::create(element::i64, Shape{1}, {0});
-
-                            std::shared_ptr<ngraph::Node> in_c_dim =
-                                std::make_shared<default_opset::StridedSlice>(
-                                    filters_shape,
-                                    zero_node,                // begin
-                                    one_node,                 // end
-                                    std::vector<int64_t>{0},  // begin mask
-                                    std::vector<int64_t>{0}); // end mask
-
-                            const auto remaining_dims =
-                                std::make_shared<default_opset::StridedSlice>(
-                                    filters_shape,
-                                    one_node,                 // begin
-                                    filters_rank,             // end
-                                    std::vector<int64_t>{0},  // begin mask
-                                    std::vector<int64_t>{0}); // end mask
-
-                            // Apply shape layout transformation:
-                            const auto groups_node =
-                                default_opset::Constant::create(element::i64, Shape{1}, {groups});
-                            in_c_dim =
-                                std::make_shared<default_opset::Divide>(in_c_dim, groups_node);
-
-                            const auto new_filters_shape = std::make_shared<default_opset::Concat>(
-                                OutputVector{groups_node, in_c_dim, remaining_dims}, 0);
-                            return std::make_shared<default_opset::Reshape>(
-                                       filters, new_filters_shape, false)
-                                ->add_provenance_group_members_above({filters});
-                        }
-                    }
-
                     Output<ngraph::Node> get_prepared_bias(const Output<ngraph::Node>& bias,
                                                            const Output<ngraph::Node>& conv)
                     {
@@ -215,7 +160,7 @@ namespace ngraph
                                    bias, bias_shape_node, false)
                             ->add_provenance_group_members_above({bias});
                     }
-                }
+                } // namespace
 
                 OutputVector conv_transpose(const Node& node)
                 {
@@ -279,12 +224,9 @@ namespace ngraph
 
                     Output<ngraph::Node> conv_node;
 
-                    // reshape filters to match desired shape:
-                    // [GROUPS, C_INPUT, C_OUTPUT, K_D, ..., K_1]
-                    // from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]
                     if (groups > 1)
                     {
-                        filters = get_reshaped_filters(filters, filters_pshape, groups);
+                        filters = convpool::get_reshaped_filters(filters, groups);
                         conv_node = make_group_conv_backprop(data,
                                                              filters,
                                                              strides,

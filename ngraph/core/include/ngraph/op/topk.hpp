@@ -156,5 +156,5 @@ namespace ngraph
                                               const element::Type& k_element_type) const override;
             };
         } // namespace v3
-    }     // op
-} // ngraph
+    }     // namespace op
+} // namespace ngraph

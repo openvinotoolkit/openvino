@@ -11,7 +11,8 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transfo
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
@@ -34,7 +35,8 @@ else()
     list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
 endif()
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
@@ -58,3 +60,5 @@ install(TARGETS ${INSTALLED_TARGETS}
 install(PROGRAMS __init__.py
         DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
         COMPONENT ${PYTHON_VERSION})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

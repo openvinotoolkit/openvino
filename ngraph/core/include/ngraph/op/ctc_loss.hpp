@@ -21,7 +21,7 @@ namespace ngraph
                 /// \brief Constructs a CTCLoss operation
                 ///
                 /// \param logits                         3-D tensor of logits
-                /// \param logit_length                   1-D tensor of lenght for each object from
+                /// \param logit_length                   1-D tensor of length for each object from
                 /// a batch
                 /// \param labels                         2-D tensor of labels for which likelyhood
                 /// is estimated using logist
@@ -68,6 +68,6 @@ namespace ngraph
                 bool ctc_merge_repeated_;
                 bool unique_;
             };
-        }
-    }
-}
+        } // namespace v4
+    }     // namespace op
+} // namespace ngraph

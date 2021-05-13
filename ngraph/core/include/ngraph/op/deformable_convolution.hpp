@@ -25,7 +25,7 @@ namespace ngraph
                 /// \brief Constructs a conversion operation.
                 ///
                 /// \param arg                Node that produces the input tensor.
-                /// \param deformable_values  Node producing the deformable values tensor.
+                /// \param offsets            Node producing the deformable values tensor.
                 /// \param filters            Node producing the filters(kernels) tensor with OIZYX
                 ///                           layout.
                 /// \param strides            Convolution strides.
@@ -44,7 +44,7 @@ namespace ngraph
                 /// \param deformable_group   The number of groups which deformable values and
                 ///                           output should be split into along the channel axis.
                 DeformableConvolution(const Output<Node>& arg,
-                                      const Output<Node>& deformable_values,
+                                      const Output<Node>& offsets,
                                       const Output<Node>& filters,
                                       const Strides& strides,
                                       const CoordinateDiff& pads_begin,
@@ -86,6 +86,6 @@ namespace ngraph
                 int64_t m_group;
                 int64_t m_deformable_group;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

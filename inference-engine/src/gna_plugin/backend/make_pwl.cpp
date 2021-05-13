@@ -6,11 +6,57 @@
 #include <iostream>
 #include <cmath>
 
-#include <runtime/pwl.h>
-#include <gna_slope_scale.h>
+#include "runtime/pwl.h"
+#include "gna_slope_scale.h"
 #include "dnn_types.h"
 #include "backend/gna_types.h"
 #include "round_float_define.hpp"
+
+
+// This function performes emulatation of HW saturation of PWL segments in SW
+// by inserting additional segments when overflow would happen
+static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
+    const int16_t y_min,
+    const int16_t y_max) {
+    std::map<size_t, gna_pwl_segment_t> extra_segments;
+    gna_pwl_segment_t extra_segment;
+    size_t gna_pwl_size = gna_pwl.size();
+
+    if (gna_pwl_size == 0)
+        return;
+
+    // We're adding a segment at the beginning if the first one doesn't cover min value
+    if ((gna_pwl[0].xBase & XBASEMASK) != INT32_MIN) {
+        extra_segment.xBase = INT32_MIN & XBASEMASK;
+        extra_segment.yBase = gna_pwl[0].yBase;
+        extra_segment.slope = 0;
+        extra_segments[0] = extra_segment;
+    }
+
+    // We're checking here if saturation could potentially happen at the trailing segments
+    if (gna_pwl[gna_pwl_size - 1].slope != 0) {
+        int16_t slope = gna_pwl[gna_pwl_size - 1].slope;
+        int32_t xBase = gna_pwl[gna_pwl_size - 1].xBase & XBASEMASK;
+        int16_t yBase = gna_pwl[gna_pwl_size - 1].yBase;
+        float scale = pow(2, ((gna_pwl[gna_pwl_size - 1].xBase & ~XBASEMASK) + 1) * 8);
+        float y_value = ((static_cast<float>(INT32_MAX) - xBase) * slope) / scale + yBase;
+
+        if (y_value > static_cast<float>(INT16_MAX) || y_value < static_cast<float>(INT16_MIN)) {
+            float x_value = ((static_cast<float>(y_max) - yBase) * scale) / slope + xBase;
+            extra_segment.xBase = FLOAT_TO_INT32(x_value) & XBASEMASK;
+            extra_segment.yBase = slope > 0 ? y_max : y_min;
+            extra_segment.slope = 0;
+            extra_segments[gna_pwl_size] = extra_segment;
+        }
+    }
+
+    if (!extra_segments.empty())
+        gnalog() << "Additional segment(s) added to protect against saturation\n";
+
+    for (auto i = extra_segments.rbegin(); i != extra_segments.rend(); i++) {
+        gna_pwl.insert(gna_pwl.begin() + i->first, i->second);
+    }
+}
 
 void make_gna_pwl(const DnnActivation  fun,
                   const std::vector<pwl_t>& pwl,
@@ -37,18 +83,18 @@ void make_gna_pwl(const DnnActivation  fun,
             gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
             if (fun == kActSigmoid) {
                 gnalog() <<  "=========================== Sigmoid Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > 0) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-pwl[0].b / pwl[0].m))) & XBASEMASK;
             } else if (fun == kActTanh) {
                 gnalog() <<  "=========================== Tanh Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
                     static_cast<int16_t>(-1.0 * out_scale);
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
             } else {
                 gnalog() << "=========================== SoftSign Segments ===========================\n";
-                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
+                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
                     static_cast<int16_t>(-1.0 * out_scale);
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
@@ -82,7 +128,7 @@ void make_gna_pwl(const DnnActivation  fun,
                          << "\n";
             }
             // insert extra segment for xvalues > u_bound
-            auto maxVal = fun.fqParams.set ? *fun.fqParams.input_high : 1.0;
+            auto maxVal = (fun.fqParams.set && *fun.fqParams.input_high <= 1) ? *fun.fqParams.input_high : 1.0;
             gna_pwl[n_segments - 1].xBase =
                     ((uint32_t) (in_scale * (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
             gna_pwl[n_segments - 1].yBase = FLOAT_TO_INT16(maxVal * out_scale);
@@ -583,6 +629,7 @@ void make_gna_pwl(const DnnActivation  fun,
         }
         default:
             gnalog() << "Unexpected function activation!\n";
-            std::cerr << "Unexpected function activation!\n";
+            THROW_GNA_EXCEPTION << "Unexpected function activation!" << fun;
     }
+    insert_extra_pwl_segments(gna_pwl, y_min, y_max);
 }

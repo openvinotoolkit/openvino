@@ -62,7 +62,7 @@ namespace ngraph
 
                 return {result};
             }
-        }
+        } // namespace detail
 
         namespace op
         {
@@ -73,8 +73,13 @@ namespace ngraph
 
             namespace set_13
             {
-                OutputVector log_softmax(const Node& node) { return detail::log_softmax(node, -1); }
-            } // namespace set_1
+                OutputVector log_softmax(const Node& node)
+                {
+                    const auto axis = node.get_attribute_value<int64_t>("axis", -1);
+                    return {
+                        std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
+                }
+            } // namespace set_13
 
         } // namespace op
 

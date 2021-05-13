@@ -98,13 +98,13 @@ namespace ngraph
 
             private:
                 ///
-                /// \brief      Gets the masked value according to sequence lenght in a batch.
+                /// \brief      Gets the masked value according to sequence length in a batch.
                 ///
                 /// \note       Zeros out values or sets them to default value for inputs with
-                ///             sequence lenght shorter than currently procssed time step.
+                ///             sequence length shorter than currently procssed time step.
                 ///
                 /// \param[in]  data           The input value.
-                /// \param[in]  time_step      The current time step denoting sequence lenght.
+                /// \param[in]  time_step      The current time step denoting sequence length.
                 /// \param[in]  batch_axis     The batch axis index of data tensor.
                 /// \param[in]  default_value  The default value for masked elements.
                 ///
@@ -134,7 +134,7 @@ namespace ngraph
             };
 
             NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        } // namespace v0
 
         namespace v5
         {
@@ -194,7 +194,7 @@ namespace ngraph
             private:
                 direction m_direction;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 
 } // namespace ngraph

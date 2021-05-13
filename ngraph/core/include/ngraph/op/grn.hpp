@@ -43,9 +43,9 @@ namespace ngraph
             protected:
                 float m_bias = 1.0f;
             };
-        }
+        } // namespace v0
         using v0::GRN;
-    }
-}
+    } // namespace op
+} // namespace ngraph
 
 NGRAPH_SUPPRESS_DEPRECATED_END

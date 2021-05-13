@@ -21,6 +21,7 @@
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
 #include <ngraph/runtime/reference/deformable_convolution.hpp>
+#include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
@@ -922,8 +923,8 @@ namespace
             Shape output_shape;
         };
 
-        std::vector<int64_t> get_signal_size(
-            const std::vector<std::shared_ptr<HostTensor>>& inputs, size_t num_of_axes)
+        std::vector<int64_t> get_signal_size(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                             size_t num_of_axes)
         {
             if (inputs.size() == 3)
             {
@@ -946,9 +947,8 @@ namespace
 
             int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
             int64_t complex_data_rank = input_rank - 1;
-            auto canonicalized_axes = runtime::reference::canonicalize_axes(result.axes_data.data(),
-                                                                            result.axes_data_shape,
-                                                                            complex_data_rank);
+            auto canonicalized_axes = runtime::reference::canonicalize_axes(
+                result.axes_data.data(), result.axes_data_shape, complex_data_rank);
 
             size_t num_of_axes = result.axes_data.size();
             auto signal_size = get_signal_size(inputs, num_of_axes);
@@ -1380,9 +1380,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[0]->get_data_ptr<T>(),
                                                     inputs[1]->get_data_ptr<T>(),
-                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[3]->get_data_ptr<T>(),
                                                     inputs[4]->get_data_ptr<T>(),
                                                     outputs[0]->get_data_ptr<T>(),
@@ -1397,9 +1397,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[1]->get_data_ptr<const T>(),
                                                     inputs[2]->get_data_ptr<const T>(),
-                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[3]->get_data_ptr<const T>(),
                                                     inputs[4]->get_data_ptr<const T>(),
                                                     outputs[0]->get_data_ptr<T>(),
@@ -1545,6 +1545,9 @@ namespace
             break;
         case element::Type_t::f64:
             convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::bf16:
+            convert_v0::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
             break;
         default: return false;
         }
@@ -1971,7 +1974,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::pad(inputs[0]->get_data_ptr<char>(),
                                 inputs[1]->get_data_ptr<char>(),
                                 outputs[0]->get_data_ptr<char>(),
@@ -1989,7 +1991,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gather_tree(inputs[0]->get_data_ptr<const char>(),
                                         inputs[1]->get_data_ptr<const char>(),
                                         inputs[2]->get_data_ptr<const char>(),
@@ -2257,6 +2258,56 @@ namespace
                                              op->get_spatial_bins_x(),
                                              op->get_spatial_bins_y());
 
+        return true;
+    }
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::DeformablePSROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
+                        "2D tensor must be provided as second input. ");
+        outputs[0]->set_shape({inputs[1]->get_shape()[0],
+                               static_cast<size_t>(op->get_output_dim()), 
+                               static_cast<size_t>(op->get_group_size()), 
+                               static_cast<size_t>(op->get_group_size())});
+
+        const bool has_offset_intput = inputs.size() == 3;
+        if (has_offset_intput)
+        {   
+            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                inputs[2]->get_data_ptr<T>(),
+                                                inputs[2]->get_shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
+        else
+        {   
+           runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                nullptr,
+                                                ngraph::Shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
         return true;
     }
 
