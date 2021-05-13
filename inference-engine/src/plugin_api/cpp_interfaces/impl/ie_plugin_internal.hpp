@@ -22,25 +22,6 @@
 
 namespace InferenceEngine {
 
-namespace {
-
-/**
- * @private
- */
-static inline void parsePluginName(std::istream& networkModel) {
-    ExportMagic magic = {};
-    auto currentPos = networkModel.tellg();
-    networkModel.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        networkModel.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    } else {
-        networkModel.seekg(currentPos, networkModel.beg);
-    }
-}
-
-}  // namespace
-
 /**
  * @brief Optimal implementation of IInferencePlugin interface to avoid duplication in all plugins
  * @ingroup ie_dev_api_plugin_api
@@ -87,15 +68,18 @@ public:
 
     IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                   const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
-        return ImportNetworkImpl(networkModel, config);
+        (void)networkModel;
+        (void)config;
+        IE_THROW(NotImplemented);
     }
 
     IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                   const RemoteContext::Ptr& context,
                                                   const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
-        return ImportNetworkImpl(networkModel, context, config);
+        (void)networkModel;
+        (void)context;
+        (void)config;
+        IE_THROW(NotImplemented);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override {
@@ -174,39 +158,6 @@ protected:
     virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const CNNNetwork& network, RemoteContext::Ptr context,
                                                               const std::map<std::string, std::string>& config) {
         (void)network;
-        (void)context;
-        (void)config;
-        IE_THROW(NotImplemented);
-    }
-
-    /**
-     * @brief Creates an executable network from an previously exported network
-     * @note The function is called from
-     * IInferencePlugin::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
-     * performs common steps first and calls this plugin-dependent implementation after.
-     * @param networkModel Reference to network model output stream
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
-                                                             const std::map<std::string, std::string>& config) {
-        (void)networkModel;
-        (void)config;
-        IE_THROW(NotImplemented);
-    }
-
-    /**
-     * @brief Imports network wit RemoteContext
-     * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
-                                                             const RemoteContext::Ptr& context,
-                                                             const std::map<std::string, std::string>& config) {
-        (void)networkModel;
         (void)context;
         (void)config;
         IE_THROW(NotImplemented);

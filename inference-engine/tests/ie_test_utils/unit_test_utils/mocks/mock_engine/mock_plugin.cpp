@@ -55,9 +55,9 @@ MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
     return {};
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const std::map<std::string, std::string>& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                          const std::map<std::string, std::string>& config) {
     if (_target) {
         return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, config));
     } else {
@@ -65,10 +65,10 @@ MockPlugin::ImportNetworkImpl(std::istream& networkModel,
     }
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const InferenceEngine::RemoteContext::Ptr& context,
-                              const std::map<std::string, std::string>& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                         const InferenceEngine::RemoteContext::Ptr& context,
+                         const std::map<std::string, std::string>& config) {
     if (_target) {
         return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, context, config));
     } else {

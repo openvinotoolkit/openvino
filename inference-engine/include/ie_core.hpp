@@ -173,8 +173,20 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @deprecated Use Core::ImportNetwork with explicit device name
+     * @brief Creates an executable network from a previously exported network
+     * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return An executable network reference
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
+    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified

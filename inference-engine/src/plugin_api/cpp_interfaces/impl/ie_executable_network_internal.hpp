@@ -70,11 +70,7 @@ public:
     }
 
     void Export(std::ostream& networkModel) override {
-        std::stringstream strm;
-        strm.write(exportMagic.data(), exportMagic.size());
-        strm << _plugin->GetName() << std::endl;
-        ExportImpl(strm);
-        networkModel << strm.rdbuf();
+        ExportImpl(networkModel);
     }
 
     CNNNetwork GetExecGraphInfo() override {

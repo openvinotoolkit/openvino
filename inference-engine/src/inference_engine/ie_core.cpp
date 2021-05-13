@@ -522,18 +522,6 @@ public:
     ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-
-        if (parsed._deviceName.empty()) {
-            ExportMagic magic = {};
-            auto currentPos = networkModel.tellg();
-            networkModel.read(magic.data(), magic.size());
-            auto exportedWithName = (exportMagic == magic);
-            if (exportedWithName) {
-                std::getline(networkModel, parsed._deviceName);
-            }
-            networkModel.seekg(currentPos, networkModel.beg);
-        }
-
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
@@ -962,6 +950,25 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     return _impl->ImportNetwork(networkModel, deviceName, config);
+}
+
+ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
+    using ExportMagic = std::array<char, 4>;
+    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
+
+    std::string deviceName;
+    ExportMagic magic = {};
+    auto currentPos = networkModel.tellg();
+    networkModel.read(magic.data(), magic.size());
+    if (exportMagic == magic) {
+        std::getline(networkModel, deviceName);
+    } else {
+        IE_THROW() << "Passed compiled stream does not contain device name. "
+            "Please, provide device name manually";
+    }
+    networkModel.seekg(currentPos, networkModel.beg);
+
+    return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, {});
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,

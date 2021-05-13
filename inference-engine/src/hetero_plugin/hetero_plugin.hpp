@@ -37,10 +37,12 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    ImportNetwork(std::istream& heteroModel,
+                  const std::map<std::string, std::string>& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
-        const Configs & localConfig) const;
+                                              const Configs & localConfig) const;
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;

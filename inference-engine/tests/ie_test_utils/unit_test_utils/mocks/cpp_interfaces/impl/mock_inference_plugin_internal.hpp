@@ -35,8 +35,7 @@ public:
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
-    ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& stream, const std::map <std::string, std::string>&) {
-        std::getline(stream, importedString);
+    IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& stream, const std::map <std::string, std::string>&) {
         return {};
     }
 

@@ -30,12 +30,12 @@ public:
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
-    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    ImportNetwork(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
 
-    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    ImportNetwork(std::istream& networkModel,
         const InferenceEngine::RemoteContext::Ptr& context,
         const std::map<std::string, std::string>& config) override;
 
