@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-ConvolutionBackpropData takes the input tensor, weights tensor and output shape and computes the output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined by other attributes implicitly. If output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed.
+ConvolutionBackpropData takes the input tensor, weights tensor and output shape and computes the output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined by other attributes implicitly. If output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed. More thorough explanation can be found in [Transposed Convolutions](https://medium.com/apache-mxnet/transposed-convolutions-explained-with-ms-excel-52d13030c7e8).
 
 ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation and additionally `output_padding` attribute, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular [Convolution](Convolution_1.md) operation for detailed description of each Convolution attribute.
 
