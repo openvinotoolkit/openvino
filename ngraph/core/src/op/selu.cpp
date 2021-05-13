@@ -17,35 +17,30 @@ op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Ou
 }
 
 void op::v0::Selu::validate_and_infer_types()
-
 {
     NGRAPH_OP_SCOPE(v0_Selu_validate_and_infer_types);
     auto data_et = get_input_element_type(0);
     auto alpha_et = get_input_element_type(1);
     auto lambda_et = get_input_element_type(2);
+    auto result_et = element::dynamic;
 
-    // set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     NODE_VALIDATION_CHECK(this,
-                          data_et.is_real() && alpha_et.is_real() && lambda_et.is_real(),
-                          "The data type for input, alpha and lambda is expected to be a floating "
-                          "point type. Got data: ",
+                          element::Type::merge(result_et, result_et, data_et) &&
+                              element::Type::merge(result_et, result_et, alpha_et) &&
+                              element::Type::merge(result_et, result_et, lambda_et),
+                          "Input element types do not match : ",
                           data_et,
-                          ", alpha: ",
+                          " and ",
                           alpha_et,
-                          ", lambda: ",
+                          " and ",
                           lambda_et);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        data_et == alpha_et && alpha_et == lambda_et,
-        "Type of data (inputs), alpha and lambda is expected to be the same. Got: data: ",
-        data_et,
-        ", alpha: ",
-        alpha_et,
-        ", lambda: ",
-        lambda_et);
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_dynamic() || result_et.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          result_et);
 
-    set_output_type(0, data_et, get_input_partial_shape(0));
+    set_output_type(0, result_et, get_input_partial_shape(0));
 }
 
 bool op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
