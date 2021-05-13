@@ -54,29 +54,33 @@ TEST(attributes, convolution_backprop_output_shape_output_padding)
     const auto pads_begin = CoordinateDiff{3, 4};
     const auto pads_end = CoordinateDiff{4, 6};
     const auto dilations = Strides{3, 1};
-    const auto auto_pad = op::PadType::EXPLICIT;
     const auto output_padding = CoordinateDiff{3, 4};
 
-    const auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
-                                                                          filter,
-                                                                          output_shape,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          output_padding);
-    NodeBuilder builder(convolution);
-    const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+    const std::initializer_list<op::PadType> allPadTypes = {op::PadType::EXPLICIT, op::PadType::SAME_UPPER, op::PadType::SAME_LOWER, op::PadType::VALID, op::PadType::AUTO, op::PadType::NOTSET};
 
-    // attribute count
-    const auto expected_attr_count = 6;
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+    for (auto padType : allPadTypes)
+    {
+        const auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
+                                                                            filter,
+                                                                            output_shape,
+                                                                            strides,
+                                                                            pads_begin,
+                                                                            pads_end,
+                                                                            dilations,
+                                                                            padType,
+                                                                            output_padding);
+        NodeBuilder builder(convolution);
+        const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
 
-    EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
-    EXPECT_EQ(g_convolution->get_pads_begin(), convolution->get_pads_begin());
-    EXPECT_EQ(g_convolution->get_pads_end(), convolution->get_pads_end());
-    EXPECT_EQ(g_convolution->get_dilations(), convolution->get_dilations());
-    EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
-    EXPECT_EQ(g_convolution->get_output_padding(), convolution->get_output_padding());
+        // attribute count
+        const auto expected_attr_count = 6;
+        EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+        EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
+        EXPECT_EQ(g_convolution->get_pads_begin(), convolution->get_pads_begin());
+        EXPECT_EQ(g_convolution->get_pads_end(), convolution->get_pads_end());
+        EXPECT_EQ(g_convolution->get_dilations(), convolution->get_dilations());
+        EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
+        EXPECT_EQ(g_convolution->get_output_padding(), convolution->get_output_padding());
+    }
 }
