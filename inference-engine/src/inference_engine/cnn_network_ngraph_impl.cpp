@@ -94,6 +94,28 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 }
 
+void CNNNetworkNGraphImpl::validateFunctionNames() const {
+    // nGraph function parameters and pre-Results operations should have unique names
+    std::unordered_set<std::string> unique_names;
+    for (const auto& param : _ngraph_function->get_parameters()) {
+        if (unique_names.count(param->get_friendly_name())) {
+            IE_THROW() << "Function contains several inputs with one friendly name!";
+        }
+        unique_names.insert(param->get_friendly_name());
+    }
+    for (const auto& result : _ngraph_function->get_results()) {
+        const auto& parent = result->get_input_node_shared_ptr(0);
+        auto name = parent->get_friendly_name();
+        if (parent->get_output_size() > 1) {
+            name += "." + std::to_string(result->get_input_source_output(0).get_index());
+        }
+        if (unique_names.count(name) && !ngraph::op::is_parameter(parent)) {
+            IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
+        }
+        unique_names.insert(name);
+    }
+}
+
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
@@ -112,6 +134,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         info->setPrecision(prc);
         network.setInputInfo(info);
     };
+
+    validateFunctionNames();
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
@@ -148,6 +172,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
+    validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
 
@@ -231,6 +256,13 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
+                // Check that we cannot add Result to layer with non unique friendly name
+                try {
+                    validateFunctionNames();
+                } catch (...) {
+                    _ngraph_function->remove_result(result);
+                    throw;
+                }
 
                 if (_outputData.count(outputName) == 0) {
                     reshape();
