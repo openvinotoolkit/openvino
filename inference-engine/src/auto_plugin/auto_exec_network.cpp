@@ -26,49 +26,34 @@ AutoExecutableNetwork::AutoExecutableNetwork(const ExecutableNetwork& network,
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
-RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
-    try {
-        return _network.GetContext();
-    } catch (...) {
-        IE_THROW(NotImplemented);
-    }
-}
-
 IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                          OutputsDataMap networkOutputs) {
     auto inferRequest = _network.CreateInferRequest();
     return std::make_shared<AutoInferRequest>(networkInputs, networkOutputs, inferRequest);
 }
 
-Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
-    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        unsigned int res = 0u;
-            try {
-              res = _network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-            } catch (const Exception &iie) {
-                  IE_THROW()
-                        << "Every device used with the Auto-Device should "
-                        << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                        << "Failed to query the metric for the " << _deviceInfo.deviceName << " with error:" << iie.what();
-           }
+void AutoExecutableNetwork::Export(std::ostream& networkModel) {
+    _network.Export(networkModel);
+}
 
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
-    } else if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, _network.GetMetric(
-            METRIC_KEY(NETWORK_NAME)).as<std::string>());
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(NETWORK_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
-        });
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = {};
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else {
-        IE_THROW() << "Unsupported Network metric: " << name;
-    }
+RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
+  return _network.GetContext();
+}
+
+InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
+    return _network.GetExecGraphInfo();
+}
+
+Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
+    return _network.GetMetric(name);
+}
+
+void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
+    _network.SetConfig(config);
+}
+
+Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
+    return _network.GetConfig(name);
 }
 
 }  // namespace AutoPlugin

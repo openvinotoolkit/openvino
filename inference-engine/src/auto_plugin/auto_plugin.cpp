@@ -38,7 +38,8 @@ AutoInferencePlugin::AutoInferencePlugin() {
     _pluginName = "AUTO";
 }
 
-IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) {
+IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+                                                                           const ConfigType&     config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
     }
@@ -86,7 +87,6 @@ IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& n
     auto fullConfig = mergeConfigs(_config, config);
     auto metaDevices = GetDeviceChoice(fullConfig);
     std::unordered_set<std::string> supportedLayers;
-    std::unordered_set<std::string> supportedDevices;
     for (auto&& value : metaDevices) {
         try {
             auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
@@ -98,14 +98,9 @@ IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& n
                             ? deviceSupportedLayers : (deviceSupportedLayers.empty()
                             ? supportedLayers : IE::details::Intersection(
                                  supportedLayers, deviceSupportedLayers));
-            supportedDevices.insert(value.deviceName);
             break;
         } catch (...) {
         }
-    }
-
-    if (supportedDevices.empty()) {
-        IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
 
     for (auto&& supportedLayer : supportedLayers) {
@@ -134,16 +129,11 @@ IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
                                              const std::map<std::string, IE::Parameter> & options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
-        metrics.emplace_back(METRIC_KEY(AVAILABLE_DEVICES));
         metrics.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.emplace_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.emplace_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        // FIXME: available devices should get from thirdparty
-        std::vector<std::string> availableDevices = { "" };
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         std::string device_name = {"Inference Engine AUTO device"};
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, device_name);

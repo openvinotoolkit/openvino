@@ -32,4 +32,8 @@ Blob::Ptr AutoInferRequest::GetBlob(const std::string& name) {
     return _inferRequest.GetBlob(name);
 }
 
+void AutoInferRequest::Cancel() {
+    _inferRequest.Cancel();
+}
+
 }  // namespace AutoPlugin

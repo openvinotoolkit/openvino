@@ -21,7 +21,6 @@ class AutoInferencePlugin : public IE::InferencePluginInternal {
 public:
     AutoInferencePlugin();
     ~AutoInferencePlugin() = default;
-
     IE::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;
     IE::Parameter GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const override;

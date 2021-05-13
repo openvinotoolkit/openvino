@@ -31,6 +31,7 @@ public:
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void Cancel() override;
 
 private:
     InferenceEngine::InferRequest _inferRequest;

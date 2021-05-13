@@ -39,7 +39,7 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values("CPU", "AUTO"));
+        ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,

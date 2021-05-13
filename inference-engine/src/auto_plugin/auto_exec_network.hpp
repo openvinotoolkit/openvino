@@ -32,10 +32,14 @@ public:
                           const DeviceInformation&                                              deviceInfo,
                           const bool                                                            needPerfCounters = false);
 
+    void Export(std::ostream& networkModel) override;
+    InferenceEngine::RemoteContext::Ptr GetContext() const override;
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
+    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::RemoteContext::Ptr GetContext() const override;
     ~AutoExecutableNetwork() override;
 
     DeviceInformation                                            _deviceInfo;
