@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/frontend_exceptions.hpp>
 
 namespace ngraph {
 namespace frontend {

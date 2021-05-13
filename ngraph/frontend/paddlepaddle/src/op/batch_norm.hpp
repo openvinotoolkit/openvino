@@ -17,11 +17,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs batch_norm(const NodeContext& node);
 
-NamedOutputs batch_norm (const NodeContext& node);
-
-}}}}
+            }
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph

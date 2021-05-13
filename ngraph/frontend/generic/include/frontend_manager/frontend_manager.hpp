@@ -6,15 +6,15 @@
 
 #include <memory>
 #include <string>
-#include "ngraph/check.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/visibility.hpp"
-#include "frontend_exceptions.hpp"
 
 namespace ngraph
 {
 namespace frontend
 {
+
+
 /// \brief An interface for identifying a place in a graph and iterate over it; can refer to an operation node, tensor, port etc.
 ///
 /// \note Each front end implementation provides specialization of this interface  to represent a place

@@ -14,31 +14,30 @@
 // limitations under the License.
 //*****************************************************************************
 
-
 #pragma once
 
 #include <algorithm>
 #include <chrono>
-#include <memory>
-#include <map>
-#include <string>
-#include <vector>
-#include <utility>
 #include <fstream>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "framework.pb.h"
 
 #include <paddlepaddle_frontend/frontend.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/place.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
 
-namespace ngraph {
-namespace frontend {
-
-extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
+namespace ngraph
+{
+    namespace frontend
+    {
+        extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
 
 class DecoderPDPDProto
 {
@@ -66,5 +65,5 @@ private:
     std::shared_ptr<OpPlacePDPD> op_place;
 };
 
-}
-}
+    } // namespace frontend
+} // namespace ngraph

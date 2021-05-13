@@ -483,6 +483,7 @@ namespace ngraph
 
             std::vector<std::string> availableFrontEnds() const {
                 std::vector<std::string> keys;
+
                 std::transform(m_factories.begin(), m_factories.end(),
                                std::back_inserter(keys),
                                [](const std::pair<std::string, FrontEndFactory>& item) {
@@ -501,7 +502,8 @@ namespace ngraph
             }
         };
 
-        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {}
+        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {
+        }
         FrontEndManager::~FrontEndManager() = default;
 
         FrontEnd::Ptr FrontEndManager::loadByFramework(const std::string& framework, FrontEndCapabilities fec)

@@ -17,7 +17,6 @@
 #pragma once
 #include "decoder.hpp"
 #include <paddlepaddle_frontend/exceptions.hpp>
-#include <paddlepaddle_frontend/place.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -143,6 +142,6 @@ template <>
 inline int64_t NodeContext::get_attribute (const std::string& name, const int64_t& def) const
 { return node.get_long(name, def); }
 
-} // namespace pdpd
-} // namespace frontend
+        } // namespace pdpd
+    }     // namespace frontend
 } // namespace ngraph

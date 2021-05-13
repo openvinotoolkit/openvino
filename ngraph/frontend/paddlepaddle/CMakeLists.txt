@@ -55,6 +55,8 @@ endif()
 
 target_link_libraries(paddlepaddle_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph  PRIVATE ngraph::builder)
 
+add_clang_format_target(paddlepaddle_frontend_clang FOR_TARGETS paddlepaddle_frontend)
+
 # TODO: Consider to remove the following block (inherited from onnx_import just in case).
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     target_compile_options(paddlepaddle_frontend PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
