@@ -142,13 +142,6 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
-#if 0
-    /* disable, since there is no use case for it at the moment
-     * should be enabled after ngraph migration */
-    DropConvertReorder(graph);
-    graph.RemoveDroppedNodes();
-#endif
-
     MergeTransposeAndReorder(graph);
     graph.RemoveDroppedNodes();
 

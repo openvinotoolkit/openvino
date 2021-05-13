@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
     MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSoftMaxNode() override = default;
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
