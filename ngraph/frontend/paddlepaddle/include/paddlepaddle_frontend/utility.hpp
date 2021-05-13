@@ -18,19 +18,16 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        inline void PDPD_ASSERT(bool ex, const std::string& msg = "Unspecified error.")
-        {
-            if (!ex)
-                throw std::runtime_error(msg);
-        }
+namespace ngraph {
+namespace frontend {
+
+inline void PDPD_ASSERT(bool ex, const std::string& msg = "Unspecified error.") {
+    if (!ex) throw std::runtime_error(msg);
+}
 
 #define PDPD_THROW(msg) throw std::runtime_error(std::string("ERROR: ") + msg)
 
 #define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")
 
-    } // namespace frontend
+} // namespace frontend
 } // namespace ngraph

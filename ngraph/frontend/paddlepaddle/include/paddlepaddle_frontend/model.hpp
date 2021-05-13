@@ -18,39 +18,38 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
-namespace ngraph
+namespace ngraph {
+namespace frontend {
+
+class OpPlacePDPD;
+class TensorPlacePDPD;
+
+class NGRAPH_API InputModelPDPD : public InputModel
 {
-    namespace frontend
-    {
-        class OpPlacePDPD;
-        class TensorPlacePDPD;
+    friend class FrontEndPDPD;
+    class InputModelPDPDImpl;
+    std::shared_ptr<InputModelPDPDImpl> _impl;
 
-        class NGRAPH_API InputModelPDPD : public InputModel
-        {
-            friend class FrontEndPDPD;
-            class InputModelPDPDImpl;
-            std::shared_ptr<InputModelPDPDImpl> _impl;
+    std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
+    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
+    std::map<std::string, Output<Node>> getTensorValues() const;
 
-            std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
-            std::map<std::string, Output<Node>> getTensorValues() const;
+public:
+    explicit InputModelPDPD (const std::string& path);
+    explicit InputModelPDPD (const std::vector<std::istream*>& streams);
+    std::vector<Place::Ptr> getInputs () const override;
+    std::vector<Place::Ptr> getOutputs () const override;
+    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const override;
+    void overrideAllOutputs (const std::vector<Place::Ptr>& outputs) override;
+    void overrideAllInputs (const std::vector<Place::Ptr>& inputs) override;
+    void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
+    void setDefaultShape (Place::Ptr place, const ngraph::Shape&) override;
+    void setPartialShape (Place::Ptr place, const ngraph::PartialShape&) override;
+    ngraph::PartialShape getPartialShape (Place::Ptr place) const override;
+    void setElementType (Place::Ptr place, const ngraph::element::Type&) override;
+    void setTensorValue (Place::Ptr place, const void* value) override;
 
-        public:
-            explicit InputModelPDPD(const std::string& path);
-            explicit InputModelPDPD(const std::vector<std::istream*>& streams);
-            std::vector<Place::Ptr> getInputs() const override;
-            std::vector<Place::Ptr> getOutputs() const override;
-            Place::Ptr getPlaceByTensorName(const std::string& tensorName) const override;
-            void overrideAllOutputs(const std::vector<Place::Ptr>& outputs) override;
-            void overrideAllInputs(const std::vector<Place::Ptr>& inputs) override;
-            void extractSubgraph(const std::vector<Place::Ptr>& inputs,
-                                 const std::vector<Place::Ptr>& outputs) override;
-            void setDefaultShape(Place::Ptr place, const ngraph::Shape&) override;
-            void setPartialShape(Place::Ptr place, const ngraph::PartialShape&) override;
-            ngraph::PartialShape getPartialShape(Place::Ptr place) const override;
-            void setElementType(Place::Ptr place, const ngraph::element::Type&) override;
-            void setTensorValue(Place::Ptr place, const void* value) override;
-        };
+};
 
-    } // namespace frontend
+} // namespace frontend
 } // namespace ngraph

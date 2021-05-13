@@ -6,17 +6,14 @@
 
 #include "node_context.hpp"
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        namespace pdpd
-        {
-            namespace op
-            {
-                NamedOutputs fill_constant(const NodeContext& node);
+namespace ngraph {
+    namespace frontend {
+        namespace pdpd {
+            namespace op {
+
+                NamedOutputs fill_constant(const NodeContext &node);
 
             }
-        } // namespace pdpd
-    }     // namespace frontend
-} // namespace ngraph
+        }
+    }
+}
