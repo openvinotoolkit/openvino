@@ -9,16 +9,20 @@
 
 namespace InferenceEngine {
 
-class VariableState2Internal : public VariableStateInternal {
+class VariableState2Internal : public IVariableStateInternal {
     VariableState actual;
 
 public:
     explicit VariableState2Internal(const VariableState & variableState) :
-        VariableStateInternal(variableState.GetName()), actual(variableState) {
+        actual(variableState) {
         // TODO: added a check for emptyness
         // if (!actual) {
         //     IE_THROW(NotAllocated);
         // }
+    }
+
+    virtual std::string GetName() const override {
+        return actual.GetName();
     }
 
     void Reset() override {

@@ -78,7 +78,21 @@ public:
     }
 
     void SetCallback(Callback callback) override {
-        // TODO:
+        // actual.SetCallback([&] (std::exception_ptr exceptionPtr) {
+        //     StatusCode statusCode = StatusCode::OK;
+        //     if (exceptionPtr != nullptr) {
+        //         statusCode = [&] {
+        //             try {
+        //                 std::rethrow_exception(exceptionPtr);
+        //             } CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception& ex) {
+        //                 return GENERAL_ERROR;
+        //             } catch (...) {
+        //                 return UNEXPECTED;
+        //             }
+        //         } ();
+        //     }
+        //     callback(weakThis, statusCode);
+        // });
     }
 
     void checkBlobs() override {

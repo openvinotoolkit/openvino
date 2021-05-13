@@ -17,7 +17,7 @@
 
 namespace InferenceEngine {
 
-class ExecutableNetwork2Internal : public ExecutableNetworkInternal {
+class ExecutableNetwork2Internal : public IExecutableNetworkInternal {
     ExecutableNetwork actual;
 public:
     explicit ExecutableNetwork2Internal(const ExecutableNetwork & exec) : actual(exec) {
@@ -56,11 +56,6 @@ public:
         return actual.GetExecGraphInfo();
     }
 
-    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) override {
-        // should call internal methods
-        IE_THROW(NotImplemented);
-    }
-
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
         IE_SUPPRESS_DEPRECATED_START
         std::vector<IVariableStateInternal::Ptr> states;
@@ -89,18 +84,6 @@ public:
 
     IInferRequestInternal::Ptr CreateInferRequest() override {
         return std::make_shared<InferRequest2Internal>(actual.CreateInferRequest());
-    }
-
-protected:
-    IInferRequestInternal::Ptr CreateInferRequestImpl(InputsDataMap networkInputs,
-                                                      OutputsDataMap networkOutputs) override {
-        // should call internal methods
-        IE_THROW(NotImplemented);
-    }
-
-    void ExportImpl(std::ostream& networkModel) override {
-        // should call internal methods
-        IE_THROW(NotImplemented);
     }
 };
 
