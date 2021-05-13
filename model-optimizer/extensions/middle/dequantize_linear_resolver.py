@@ -15,7 +15,11 @@ from mo.ops.reshape import Reshape
 
 class DequantizeLinearResolver(MiddleReplacementPattern):
     """
-    DequantizeLinear can be replace with the following formula: y = (x - x_zero_point) * x_scale
+    Transformation result depend on from axis value
+    If axis not set or default value equal 1 DequantizeLinear can be replace with the following formula:
+        y = (x - x_zero_point) * x_scale
+    In other cases DequantizeLinear can be replace to formula with addition broadcast x_zero_point and x_scale.
+    Target shape for broadcasting depend on axis.
     """
     enabled = True
 
@@ -45,7 +49,7 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
             assert scale_y_shape is not None
             if axis is not None and len(scale_y_shape) > 0 and scale_y_shape[0] > 1:
                 input_shape = cast.in_port(0).data.get_shape()
-                target_shape = np.ones(len(input_shape), np.int)
+                target_shape = np.ones(len(input_shape), np.int64)
                 target_shape[axis] = input_shape[axis]
 
                 mul_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array(target_shape)},

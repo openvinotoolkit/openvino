@@ -159,6 +159,72 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                                  'scale_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5])},
                                  'zerop_param_dq': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
                                  'zerop_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
+                                 'sub_reshape_const_data': {'shape': np.array([4]), 'value': np.array([1, 1, 4, 1])},
+                                 'mul_reshape_const_data': {'shape': np.array([4]), 'value': np.array([1, 1, 4, 1])},
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'middle'
+        DequantizeLinearResolver().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_dequantize_with_axis_negativ(self):
+        graph = build_graph(nodes1_attributes,
+                            [('input', 'input_data'),
+                             ('input_data', 'dequantize'),
+                             ('dequantize', 'dequantize_data'),
+                             ('scale_param_dq', 'scale_param_dq_data'),
+                             ('zerop_param_dq', 'zerop_param_dq_data'),
+                             ('scale_param_dq_data', 'dequantize'),
+                             ('zerop_param_dq_data', 'dequantize'),
+                             ('dequantize_data', 'out'),
+                             ('out', 'out_data'),
+                             ('out_data', 'result'),
+                             ],
+                            {'input_data': {'shape': int64_array([1, 3, 4, 4])},
+                             'dequantize': {'axis': -2},
+                             'scale_param_dq': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5])},
+                             'scale_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5])},
+                             'zerop_param_dq': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
+                             'zerop_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
+                             }, nodes_with_edges_only=True)
+
+        graph_ref = build_graph(nodes_ref_attributes,
+                                [('input', 'input_data'),
+                                 ('input_data', 'cast'),
+                                 ('cast', 'cast_data'),
+                                 ('cast_data', 'sub'),
+                                 ('zerop_param_dq', 'zerop_param_dq_data'),
+
+                                 ('zerop_param_dq_data', 'sub_reshape'),
+                                 ('sub_reshape_const', 'sub_reshape_const_data'),
+                                 ('sub_reshape_const_data', 'sub_reshape'),
+                                 ('sub_reshape', 'sub_reshape_data'),
+                                 ('sub_reshape_data', 'sub'),
+
+                                 ('sub', 'sub_data'),
+                                 ('sub_data', 'mul'),
+                                 ('scale_param_dq', 'scale_param_dq_data'),
+
+                                 ('scale_param_dq_data', 'mul_reshape'),
+                                 ('mul_reshape_const', 'mul_reshape_const_data'),
+                                 ('mul_reshape_const_data', 'mul_reshape'),
+                                 ('mul_reshape', 'mul_reshape_data'),
+                                 ('mul_reshape_data', 'mul'),
+
+                                 ('mul', 'mul_data'),
+                                 ('mul_data', 'out'),
+                                 ('out', 'out_data'),
+                                 ('out_data', 'result'),
+                                 ],
+                                {'input_data': {'shape': int64_array([1, 3, 4, 4])},
+                                 'scale_param_dq': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5])},
+                                 'scale_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5])},
+                                 'zerop_param_dq': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
+                                 'zerop_param_dq_data': {'shape': np.array([4]), 'value': np.array([2, 3, 4, 5], dtype=np.uint8)},
+                                 'sub_reshape_const_data': {'shape': np.array([4]), 'value': np.array([1, 1, 4, 1])},
+                                 'mul_reshape_const_data': {'shape': np.array([4]), 'value': np.array([1, 1, 4, 1])},
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'middle'
@@ -181,7 +247,7 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                              ('out_data', 'result'),
                              ],
                             {'input_data': {'shape': int64_array([2, 3, 4, 4])},
-                             'dequantize': {'axis': 2},
+                             'dequantize': {'axis': 0},
                              'scale_param_dq': {'shape': np.array([2]), 'value': np.array([2, 3])},
                              'scale_param_dq_data': {'shape': np.array([2]), 'value': np.array([2, 3])},
                              'zerop_param_dq': {'shape': np.array([2]), 'value': np.array([2, 4], dtype=np.uint8)},
@@ -221,6 +287,8 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                                  'scale_param_dq_data': {'shape': np.array([2]), 'value': np.array([2, 3])},
                                  'zerop_param_dq': {'shape': np.array([2]), 'value': np.array([2, 4], dtype=np.uint8)},
                                  'zerop_param_dq_data': {'shape': np.array([2]), 'value': np.array([2, 4], dtype=np.uint8)},
+                                 'sub_reshape_const_data': {'shape': np.array([4]), 'value': np.array([2, 1, 1, 1])},
+                                 'mul_reshape_const_data': {'shape': np.array([4]), 'value': np.array([2, 1, 1, 1])},
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'middle'

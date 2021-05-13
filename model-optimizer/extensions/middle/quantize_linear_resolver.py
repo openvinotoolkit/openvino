@@ -20,13 +20,16 @@ from mo.utils.error import Error
 class QuantizeLinearResolver(MiddleReplacementPattern):
     """
     Replaces QuantizeLinear with FakeQuantize
-    QuantizeLinear -> FakeQuantize(input
-                                   Mul(y_scale, Const(low_value))
-                                   Mul(y_scale, Const(high_value))
-                                   Const(low_value)
-                                   Const(high_value))
-    low_value and high_value depend on from y_zero_point type
-
+    Transformation result depend on from axis value.
+    If axis not set or default value equal 1 QuantizeLinear can be replace with the following subgruph:
+        QuantizeLinear -> FakeQuantize(input
+                                       Mul(y_scale, Const(low_value))
+                                       Mul(y_scale, Const(high_value))
+                                       Const(low_value)
+                                       Const(high_value))
+        low_value and high_value depend on from y_zero_point type
+    In other cases y_scale and y_zero_point with addition broadcasting.
+    Target shape for y_scale and y_zero_point depend on axis value.
     """
     enabled = True
 
