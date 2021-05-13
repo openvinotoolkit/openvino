@@ -73,6 +73,9 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
         }
     }
 
+    if (IsUnsupportedModeForVecCode(ewParams))
+        return false;
+
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
         return false;
     }

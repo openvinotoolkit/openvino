@@ -16,7 +16,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-#include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
@@ -494,9 +493,8 @@ public:
         return res;
     }
 
-    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) {
+                                  const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -512,6 +510,8 @@ public:
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
+        } else if (cacheManager) {
+            res = plugin.LoadNetwork(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);

@@ -119,5 +119,7 @@ protected:
     virtual DispatchData SetDefault(const eltwise_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
     Datatype GetAccumulatorType(const eltwise_params &params) const;
+
+    bool IsUnsupportedModeForVecCode(const eltwise_params& params) const;
 };
 }  // namespace kernel_selector
