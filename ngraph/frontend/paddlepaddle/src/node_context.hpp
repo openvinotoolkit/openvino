@@ -52,7 +52,7 @@ public:
     /// Returns exactly one input with a given name; throws if there is no inputs or there are more than one input
     Output<Node> get_ng_input (const std::string& name) const
     {
-        PDPD_CHECK(name_map.at(name).size() == 1);
+        PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, name_map.at(name).size() == 1);
         return name_map.at(name).at(0);
     }
 
@@ -116,7 +116,7 @@ inline NamedOutputs NodeContext::default_single_output_mapping(const std::shared
     NamedOutputs named_outputs;
     const auto& ngraph_outputs = ngraph_node->outputs();
     const auto& pdpd_op_output_names = this->get_output_names();
-    PDPD_CHECK(ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
     for (const auto& pdpd_name : pdpd_op_output_names) {
         if (std::find(required_pdpd_out_names.begin(), required_pdpd_out_names.end(), pdpd_name) != required_pdpd_out_names.end())
             named_outputs[pdpd_name] = {ngraph_outputs[0]};

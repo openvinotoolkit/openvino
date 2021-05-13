@@ -477,13 +477,12 @@ namespace ngraph
             }
             ~Impl() = default;
             FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec) {
-                FRONT_END_CHECK(m_factories.count(framework));
+                FRONT_END_CHECK(ErrorCode::INITIALIZATION_ERROR, m_factories.count(framework));
                 return m_factories[framework](fec);
             }
 
             std::vector<std::string> availableFrontEnds() const {
                 std::vector<std::string> keys;
-
                 std::transform(m_factories.begin(), m_factories.end(),
                                std::back_inserter(keys),
                                [](const std::pair<std::string, FrontEndFactory>& item) {

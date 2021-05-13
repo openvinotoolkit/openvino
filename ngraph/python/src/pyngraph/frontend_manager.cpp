@@ -18,10 +18,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "frontend_manager.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "pyngraph/function.hpp"
-#include "frontend_manager.hpp"
-
 
 namespace py = pybind11;
 
@@ -104,14 +103,37 @@ void regclass_pyngraph_FEC(py::module m)
         py::is_operator());
 }
 
-void regclass_pyngraph_CheckFailureFrontEnd(py::module m) {
-    static py::exception<ngraph::frontend::CheckFailureFrontEnd> exc(m, "CheckFailureFrontEnd");
+void regclass_pyngraph_ErrorCode(py::module m)
+{
+    py::class_<ngraph::frontend::ErrorCode, std::shared_ptr<ngraph::frontend::ErrorCode>> type(
+        m, "ErrorCode");
+    type.attr("ERROR_GENERAL") = ngraph::frontend::ErrorCode::ERROR_GENERAL;
+    type.attr("NOT_IMPLEMENTED") = ngraph::frontend::ErrorCode::NOT_IMPLEMENTED;
+    type.attr("OP_VALIDATION_FAILED") = ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED;
+    type.attr("INITIALIZATION_ERROR") = ngraph::frontend::ErrorCode::INITIALIZATION_ERROR;
+
+    type.def(
+        "__eq__",
+        [](const ngraph::frontend::ErrorCode& a, const ngraph::frontend::ErrorCode& b) {
+            return a == b;
+        },
+        py::is_operator());
+}
+
+void regclass_pyngraph_CheckFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::CheckFailureFrontEnd> exc(std::move(m),
+                                                                     "CheckFailureFrontEnd");
     py::register_exception_translator([](std::exception_ptr p) {
-        try {
-            if (p) std::rethrow_exception(p);
-        } catch (const ngraph::frontend::CheckFailureFrontEnd &e) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::CheckFailureFrontEnd& e)
+        {
             exc(e.what());
+            exc.attr("ERROR_CODE") = e.getErrorCode();
         }
     });
 }
-

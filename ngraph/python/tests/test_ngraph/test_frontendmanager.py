@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from ngraph import FrontEndManager
+from ngraph import CheckFailureFrontEnd
+from ngraph import ErrorCode
 
 def test_frontendmanager():
     fem = None
@@ -12,3 +14,9 @@ def test_frontendmanager():
 
     frontEnds = fem.availableFrontEnds()
     assert frontEnds is not None
+
+    assert not("UnknownFramework" in frontEnds)
+    try:
+        fem.loadByFramework("UnknownFramework")
+    except CheckFailureFrontEnd as exc:
+        assert exc.ERROR_CODE == ErrorCode.INITIALIZATION_ERROR

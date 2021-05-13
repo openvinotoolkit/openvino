@@ -52,7 +52,7 @@ NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
     const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
-    PDPD_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found for ", op->type(), " node.");
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found for ", op->type(), " node.");
     pdpd::NamedInputs named_inputs;
     const auto& input_ports = op_place->getInputPorts();
     for (const auto& name_to_ports : input_ports) {
@@ -116,7 +116,7 @@ std::shared_ptr<Function>
             for (const auto& name_to_outputs : named_outputs) {
                 const auto& ports = out_ports.at(name_to_outputs.first);
 
-                PDPD_CHECK(ports.size() == name_to_outputs.second.size(),
+                PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, ports.size() == name_to_outputs.second.size(),
                             "The number of output tensors must be equal to "
                             "the number of outputs of the ngraph node.");
                 for (size_t idx = 0; idx < ports.size(); ++idx) {
@@ -154,12 +154,12 @@ InputModel::Ptr FrontEndPDPD::loadFromFiles (const std::vector<std::string>& pat
     } else if (paths.size() == 2) {
         // The case when .pdmodel and .pdparams files are provided
         std::ifstream model_stream(paths[0], std::ios::in | std::ifstream::binary);
-        PDPD_CHECK(model_stream && model_stream.is_open(), "Cannot open model file.");
+        PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, model_stream && model_stream.is_open(), "Cannot open model file.");
         std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
-        PDPD_CHECK(weights_stream && weights_stream.is_open(), "Cannot open weights file.");
+        PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, weights_stream && weights_stream.is_open(), "Cannot open weights file.");
         return loadFromStreams({&model_stream, &weights_stream});
     }
-    PDPD_CHECK(false, "Model can be loaded either from 1 or 2 files");
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, false, "Model can be loaded either from 1 or 2 files");
 }
 
 InputModel::Ptr FrontEndPDPD::loadFromStream (std::istream& model_stream) const {

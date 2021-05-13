@@ -114,7 +114,7 @@ std::vector<proto::OpDesc_Attr> DecoderPDPDProto::decode_attribute_helper(const 
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    PDPD_CHECK(attrs.size() <= 1, "An error occurred while parsing the ", name,  " attribute of ", op.type(),
+    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, attrs.size() <= 1, "An error occurred while parsing the ", name,  " attribute of ", op.type(),
                "node. Unsupported number of attributes. Current number: ", attrs.size(), " Expected number: 0 or 1");
     return attrs;
 }

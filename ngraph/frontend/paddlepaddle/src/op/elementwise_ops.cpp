@@ -30,8 +30,8 @@ NamedOutputs elementwise_ops (const NodeContext& node) {
 
     auto axis = node.get_attribute<int>("axis");
 
-    PDPD_NODE_VALIDATION_CHECK(node, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
-    PDPD_NODE_VALIDATION_CHECK(node, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
+    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, node, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
+    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, node, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
     int64_t x_rank = x.get_partial_shape().rank().get_length();
     int64_t y_rank = y.get_partial_shape().rank().get_length();
 
