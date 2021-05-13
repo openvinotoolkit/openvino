@@ -67,9 +67,8 @@ void op::v7::Gather::validate_and_infer_types()
 
 int64_t op::v7::Gather::get_batch_dims() const
 {
-    Rank indices_rank = get_input_partial_shape(0).rank();
-    if (m_batch_dims < 0 && indices_rank.is_static())
-        return indices_rank.get_length() + m_batch_dims;
+    if (m_batch_dims < 0 && get_input_partial_shape(1).rank().is_static())
+        return m_batch_dims + get_input_partial_shape(1).rank().get_length();
     else
         return m_batch_dims;
 }
