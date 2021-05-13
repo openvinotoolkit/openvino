@@ -68,9 +68,10 @@ public:
    * @brief Writes statistics in map structure.
    */
   void addToTimeStructure(const std::pair<std::string, float> &record) {
+    const std::string tab_const = "  ";
     std::string tabs = "";
     for (int i = 0; i < tab_count - 1; ++i) {
-      tabs += "  ";
+      tabs += tab_const;
     }
     time_structure.insert({std::make_pair(order_structure[record.first], tabs), record});
   }

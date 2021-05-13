@@ -105,7 +105,7 @@ def run_timetest(args: dict, log=None):
 
         # Read statistics from yml
         with open(tmp_stats_path, "r") as file:
-            raw_data = list(yaml.load_all(file, Loader=yaml.FullLoader))
+            raw_data = list(yaml.load_all(file, Loader=yaml.SafeLoader))
 
         os.unlink(tmp_stats_path)
 
@@ -188,3 +188,19 @@ if __name__ == "__main__":
         pprint(aggr_stats)
 
     sys.exit(exit_code)
+
+
+def test_timetest_parser():
+    # Example of timetest yml file
+    raw_data_example = [{'full_run': [1, {'first_inference_latency': [2, {'load_plugin': [3]}, {
+        'create_exenetwork': [4, {'read_network': [5]}, {'load_network': [6]}]}]},
+                              {'first_inference': [7, {'fill_inputs': [8]}]}]}]
+
+    # Refactoring raw data from yml
+    flatten_dict = {}
+    parse_stats(raw_data_example, flatten_dict)
+
+    result_example = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
+                      'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+
+    assert flatten_dict == result_example, "Statistics parsing is performed incorrectly!"
