@@ -5,12 +5,10 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+
+#include <ngraph/ops.hpp>
 #include "ie_parallel.hpp"
-#include <mkldnn_selective_build.h>
 #include "mkldnn_math_node.h"
-#include <nodes/common/tensor_desc_creator.h>
-#include <ngraph/opsets/opset2.hpp>
 #include "utils/general_utils.h"
 
 using namespace MKLDNNPlugin;
@@ -45,24 +43,20 @@ MKLDNNMathNode::MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
 
     initializers[op->get_type_info()](op, *this);
-    typeOp = MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::type_info, ngraph::op::v0::Selu::type_info) ? 3 : 1;
+
+    size_t sizeVector = op->inputs().size();
+    inDataConf.reserve(sizeVector);
+    for (int i = 0; i < sizeVector; ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 }
 
 void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    if (typeOp == 3) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             impl_desc_type::ref_any);
-    } else {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             impl_desc_type::ref_any);
-    }
+    addSupportedPrimDesc({{inDataConf}},
+                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         impl_desc_type::ref_any);
 }
 
 void MKLDNNMathNode::execute(mkldnn::stream strm) {

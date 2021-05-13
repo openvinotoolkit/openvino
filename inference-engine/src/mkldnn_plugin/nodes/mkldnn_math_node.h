@@ -6,9 +6,6 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -31,7 +28,7 @@ private:
     float beta = 0.0f;
     float gamma = 0.0f;
 
-    int typeOp;
+    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 
