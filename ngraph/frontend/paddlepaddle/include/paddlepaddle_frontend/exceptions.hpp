@@ -35,6 +35,7 @@ private:
 } // namespace frontend
 
 /// \brief Macro to check whether a boolean condition holds.
+/// \param error_code Additional indicator of the type of error.
 /// \param node_context Object of NodeContext class
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
@@ -45,6 +46,7 @@ private:
         FRONT_END_CHECK_HELPER(error_code, ::ngraph::frontend::pdpd::NodeValidationFailurePDPD, (node_context), __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
+/// \param error_code Additional indicator of the type of error.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,

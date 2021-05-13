@@ -27,7 +27,7 @@ namespace op {
         auto axis = node.get_attribute<int32_t>("axis");
         if (axis < 0)
         {
-            PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, node, data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
+            PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
             auto data_rank = data.get_partial_shape().rank().get_length();
             axis = data_rank + axis;
         }

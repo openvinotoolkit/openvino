@@ -25,7 +25,7 @@ NamedOutputs slice (const NodeContext& node) {
 
     int n = 0;
     for (auto i : axes) {
-        PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, i < (int32_t)shape_size, "slice: axes must be less than the X rank.");
+        PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, i < (int32_t)shape_size, "slice: axes must be less than the X rank.");
         fixedStarts[i] = starts[n];
         fixedEnds[i] = ends[n];
         n++;

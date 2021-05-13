@@ -22,7 +22,7 @@ NamedOutputs pad3d (const NodeContext& node) {
     //TODO: Only functional support Int padding format, further verify in #55169
     if (node.has_attribute<std::vector<int32_t>>("paddings")) {
         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
-        PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
+        PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
         paddings = paddings_vector;
     } else if (node.has_attribute<int32_t>("paddings")) {
         auto padding_int = node.get_attribute<int32_t>("paddings");

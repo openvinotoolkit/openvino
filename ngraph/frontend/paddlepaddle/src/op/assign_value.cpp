@@ -42,7 +42,7 @@ namespace ngraph {
                         }
                         default:
                         {
-                            PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, false, "assign_value only supports int32, int64, float32, bool");
+                            PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, node, false, "assign_value only supports int32, int64, float32, bool");
                             break;
                         }
                     }

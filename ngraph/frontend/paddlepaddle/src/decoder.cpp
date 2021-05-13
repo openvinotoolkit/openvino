@@ -10,8 +10,9 @@
 #include "framework.pb.h"
 #include "decoder.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+namespace ngraph {
+namespace frontend {
+
 using namespace paddle::framework;
 
 std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
@@ -135,3 +136,6 @@ std::vector<ngraph::element::Type> DecoderPDPDProto::get_out_port_types(const st
     }
     return output_types;
 }
+
+} // frontend
+} // ngraph

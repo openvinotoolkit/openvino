@@ -14,7 +14,7 @@ namespace ngraph {
                 calculate_output_shape_based_on_scales(const Output<ngraph::Node> &data,
                                                        const std::vector<float> &scale,
                                                        Output<ngraph::Node> &scales) {
-                    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL, scale.size() > 0);
+                    PDPD_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED, scale.size() > 0);
                     if (scale.size() == 1)
                         scales = opset6::Constant::create<float>(element::f32, Shape{4}, {1, 1, scale[0], scale[0]});
                     else if (scale.size() == 2)
