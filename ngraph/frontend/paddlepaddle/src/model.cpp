@@ -31,10 +31,10 @@ namespace ngraph
             void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
             void extractSubgraph(const std::vector<Place::Ptr>& inputs,
                                  const std::vector<Place::Ptr>& outputs);
-            void setDefaultShape(Place::Ptr place, const Shape&);
-            void setPartialShape(Place::Ptr place, const PartialShape&);
-            PartialShape getPartialShape(Place::Ptr place) const;
-            void setElementType(Place::Ptr place, const element::Type&);
+            void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
+            void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
+            ngraph::PartialShape getPartialShape(Place::Ptr place) const;
+            void setElementType(Place::Ptr place, const ngraph::element::Type&);
             void setTensorValue(Place::Ptr place, const void* value);
 
             std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
@@ -50,7 +50,7 @@ namespace ngraph
 
         private:
             void loadPlaces();
-            void loadConsts(const std::string& folder_with_weights, std::istream* weight_stream);
+            void loadConsts(std::string folder_with_weights, std::istream* weight_stream);
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -165,7 +165,7 @@ namespace ngraph
 
         } // namespace pdpd
 
-        void InputModelPDPD::InputModelPDPDImpl::loadConsts(const std::string& folder_with_weights,
+        void InputModelPDPD::InputModelPDPDImpl::loadConsts(std::string folder_with_weights,
                                                             std::istream* weight_stream)
         {
             for (const auto& item : m_var_places)
@@ -262,10 +262,15 @@ namespace ngraph
             }
             else
             {
-                PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+                PDPD_CHECK(ErrorCode::ERROR_GENERAL,
                            streams.size() == 2,
-                           "Two streams are needed to load a model: model and weights streams");
+                            "Two streams are needed to load a model: model and weights streams");
             }
+            PDPD_CHECK(ErrorCode::ERROR_GENERAL, m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
+
+            loadPlaces();
+            if (streams.size() > 1)
+                loadConsts("", streams[1]);
         }
 
         std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs() const
@@ -306,6 +311,7 @@ namespace ngraph
                            false,
                            "Cannot cast this Place to TensorPlacePDPD.");
             }
+
         } // namespace pdpd
 
         void InputModelPDPD::InputModelPDPDImpl::overrideAllInputs(
@@ -341,19 +347,21 @@ namespace ngraph
             PDPD_NOT_IMPLEMENTED("setDefaultShape");
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
-                                                                 const PartialShape& p_shape)
+        void
+            InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
+                                                                const ngraph::PartialShape& p_shape)
         {
             pdpd::castToTensorPlace(place)->setPartialShape(p_shape);
         }
 
-        PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const
+        ngraph::PartialShape
+            InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const
         {
             return pdpd::castToTensorPlace(place)->getPartialShape();
         }
 
         void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place,
-                                                                const element::Type& type)
+                                                                const ngraph::element::Type& type)
         {
             pdpd::castToTensorPlace(place)->setElementType(type);
         }
@@ -419,22 +427,22 @@ namespace ngraph
             return _impl->extractSubgraph(inputs, outputs);
         }
 
-        void InputModelPDPD::setDefaultShape(Place::Ptr place, const Shape& shape)
+        void InputModelPDPD::setDefaultShape(Place::Ptr place, const ngraph::Shape& shape)
         {
             return _impl->setDefaultShape(place, shape);
         }
 
-        void InputModelPDPD::setPartialShape(Place::Ptr place, const PartialShape& p_shape)
+        void InputModelPDPD::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape)
         {
             return _impl->setPartialShape(place, p_shape);
         }
 
-        PartialShape InputModelPDPD::getPartialShape(Place::Ptr place) const
+        ngraph::PartialShape InputModelPDPD::getPartialShape(Place::Ptr place) const
         {
             return _impl->getPartialShape(place);
         }
 
-        void InputModelPDPD::setElementType(Place::Ptr place, const element::Type& type)
+        void InputModelPDPD::setElementType(Place::Ptr place, const ngraph::element::Type& type)
         {
             return _impl->setElementType(place, type);
         }

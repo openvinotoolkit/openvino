@@ -23,7 +23,7 @@ namespace ngraph
                     // todo: 'num' can be list of values, in this case we should create
                     // VariadicSplit todo: support VariadicSplit
                     auto num_or_sections = node.get_attribute<int32_t>("num");
-                    auto axis = std::make_shared<Constant>(element::i32, Shape{}, dim);
+                    auto axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
 
                     NamedOutputs named_outputs;
                     auto split_outputs =

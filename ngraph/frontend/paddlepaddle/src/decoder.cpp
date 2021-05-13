@@ -21,21 +21,22 @@ namespace ngraph
     {
         using namespace paddle::framework;
 
-        std::map<paddle::framework::proto::VarType_Type, element::Type> TYPE_MAP{
-            {proto::VarType_Type::VarType_Type_BOOL, element::boolean},
-            {proto::VarType_Type::VarType_Type_INT16, element::i16},
-            {proto::VarType_Type::VarType_Type_INT32, element::i32},
-            {proto::VarType_Type::VarType_Type_INT64, element::i64},
-            {proto::VarType_Type::VarType_Type_FP16, element::f16},
-            {proto::VarType_Type::VarType_Type_FP32, element::f32},
-            {proto::VarType_Type::VarType_Type_FP64, element::f64},
-            {proto::VarType_Type::VarType_Type_UINT8, element::u8},
-            {proto::VarType_Type::VarType_Type_INT8, element::i8},
-            {proto::VarType_Type::VarType_Type_BF16, element::bf16}};
+        std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
+            {proto::VarType_Type::VarType_Type_BOOL, ngraph::element::boolean},
+            {proto::VarType_Type::VarType_Type_INT16, ngraph::element::i16},
+            {proto::VarType_Type::VarType_Type_INT32, ngraph::element::i32},
+            {proto::VarType_Type::VarType_Type_INT64, ngraph::element::i64},
+            {proto::VarType_Type::VarType_Type_FP16, ngraph::element::f16},
+            {proto::VarType_Type::VarType_Type_FP32, ngraph::element::f32},
+            {proto::VarType_Type::VarType_Type_FP64, ngraph::element::f64},
+            {proto::VarType_Type::VarType_Type_UINT8, ngraph::element::u8},
+            {proto::VarType_Type::VarType_Type_INT8, ngraph::element::i8},
+            {proto::VarType_Type::VarType_Type_BF16, ngraph::element::bf16}};
 
-        element::Type DecoderPDPDProto::get_dtype(const std::string& name, element::Type def) const
+        ngraph::element::Type DecoderPDPDProto::get_dtype(const std::string& name,
+                                                          ngraph::element::Type def) const
         {
-            auto dtype = static_cast<paddle::framework::proto::VarType_Type>(get_int(name));
+            auto dtype = (paddle::framework::proto::VarType_Type)get_int(name);
             return TYPE_MAP[dtype];
         }
 

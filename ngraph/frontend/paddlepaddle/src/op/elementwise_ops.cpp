@@ -15,7 +15,7 @@
 //*****************************************************************************
 #include <map>
 
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include "elementwise_ops.hpp"
 
 namespace ngraph
@@ -62,9 +62,12 @@ namespace ngraph
                         for (auto it = y_shape.begin(); it != y_shape.end(); ++i, ++it)
                             broadcast_shape[axis + i] = (*it).get_length();
 
-                        auto reshape_node = ngraph::opset6::Constant::create(
-                            element::i64, Shape{broadcast_shape.size()}, broadcast_shape);
-                        auto y_node = std::make_shared<ngraph::opset6::Reshape>(y, reshape_node, false);
+                        auto reshape_node =
+                            ngraph::opset6::Constant::create(ngraph::element::i64,
+                                                             ngraph::Shape{broadcast_shape.size()},
+                                                             broadcast_shape);
+                        auto y_node =
+                            std::make_shared<ngraph::opset6::Reshape>(y, reshape_node, false);
                         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)},
                                                                   {"Out"});
                     }

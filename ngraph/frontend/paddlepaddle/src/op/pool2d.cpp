@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "pool2d.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -43,10 +43,10 @@ namespace ngraph
                         return node.default_single_output_mapping(
                             {std::make_shared<ngraph::opset6::MaxPool>(
                                 data,
-                                Strides(strides.begin(), strides.end()),
-                                Shape(paddings.begin(), paddings.end()),
-                                Shape(paddings.begin(), paddings.end()),
-                                Shape(kernel_shape.begin(), kernel_shape.end()),
+                                ngraph::Strides(strides.begin(), strides.end()),
+                                ngraph::Shape(paddings.begin(), paddings.end()),
+                                ngraph::Shape(paddings.begin(), paddings.end()),
+                                ngraph::Shape(kernel_shape.begin(), kernel_shape.end()),
                                 rounding_type)},
                             {"Out"});
                     }
@@ -57,9 +57,11 @@ namespace ngraph
                                                   [](int32_t s) { return s == 1; }))))
                     {
                         // TODO : resolve axes according to rank
-                        auto axes = ngraph::opset6::Constant::create(element::i64, {2}, {2, 3});
+                        auto axes =
+                            ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {2, 3});
                         return node.default_single_output_mapping(
-                            {std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true)}, {"Out"});
+                            {std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true)},
+                            {"Out"});
                     }
                     else
                     {

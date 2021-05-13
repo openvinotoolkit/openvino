@@ -4,7 +4,7 @@
 #include <limits> // std::numeric_limits
 #include <numeric>
 
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include "yolo_box.hpp"
 
 namespace ngraph
@@ -15,7 +15,7 @@ namespace ngraph
         {
             namespace op
             {
-                using namespace ngraph::opset6;
+                using namespace opset6;
                 using namespace element;
 
                 NamedOutputs yolo_box(const NodeContext& node_context)
@@ -99,9 +99,9 @@ namespace ngraph
                     auto node_prob = node_split_input->output(5);
 
                     // x/y
-                    std::shared_ptr<Node> node_box_x_sigmoid =
+                    std::shared_ptr<ngraph::Node> node_box_x_sigmoid =
                         std::make_shared<Sigmoid>(node_box_x);
-                    std::shared_ptr<Node> node_box_y_sigmoid =
+                    std::shared_ptr<ngraph::Node> node_box_y_sigmoid =
                         std::make_shared<Sigmoid>(node_box_y);
 
                     if (std::fabs(scale_x_y - default_scale) > 1e-6)
@@ -294,7 +294,7 @@ namespace ngraph
                     // Paddle/paddle/fluid/operators/detection/yolo_box_op.h
                     // Paddle2ONNX/paddle2onnx/op_mapper/detection/yolo_box.py - clip_bbox is not
                     // used by Paddle2ONNX.
-                    std::shared_ptr<Node> node_pred_box_result;
+                    std::shared_ptr<ngraph::Node> node_pred_box_result;
                     if (clip_bbox)
                     {
                         auto node_number_one = Constant::create<float>(f32, {1}, {1.0});

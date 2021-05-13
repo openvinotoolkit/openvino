@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "relu.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {

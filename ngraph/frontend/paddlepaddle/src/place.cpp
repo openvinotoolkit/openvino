@@ -19,7 +19,7 @@
 #include "framework.pb.h"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace frontend;
 
 bool PlacePDPD::isInput() const
 {

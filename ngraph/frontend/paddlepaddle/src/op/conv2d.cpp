@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "conv2d.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -37,10 +37,10 @@ namespace ngraph
                         {std::make_shared<ngraph::opset6::Convolution>(
                             data,
                             filter,
-                            Strides(strides.begin(), strides.end()),
-                            CoordinateDiff(paddings.begin(), paddings.end()),
-                            CoordinateDiff(paddings.begin(), paddings.end()),
-                            Strides(dilations.begin(), dilations.end()))},
+                            ngraph::Strides(strides.begin(), strides.end()),
+                            ngraph::CoordinateDiff(paddings.begin(), paddings.end()),
+                            ngraph::CoordinateDiff(paddings.begin(), paddings.end()),
+                            ngraph::Strides(dilations.begin(), dilations.end()))},
                         {"Output"});
                 }
 

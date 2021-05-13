@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "softmax.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -37,7 +37,6 @@ namespace ngraph
                             node,
                             data.get_partial_shape().rank().is_static(),
                             "Softmax rank must be static");
-
                         auto data_rank = data.get_partial_shape().rank().get_length();
                         axis = data_rank + axis;
                     }

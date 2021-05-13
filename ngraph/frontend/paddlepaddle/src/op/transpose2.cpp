@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "transpose2.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -41,7 +41,8 @@ namespace ngraph
                                                perm.size() == rank,
                                                "transpose2: axis size must equal to data rank!");
 
-                    auto input_order = ngraph::opset6::Constant::create(element::i64, {rank}, perm);
+                    auto input_order =
+                        ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
                 }

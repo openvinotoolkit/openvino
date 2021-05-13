@@ -3,7 +3,7 @@
 //
 
 #include "fill_constant.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -16,23 +16,24 @@ namespace ngraph
                 NamedOutputs fill_constant(const NodeContext& node)
                 {
                     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
-                    auto dtype = node.get_attribute<element::Type>("dtype");
+                    auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
                     // TODO to Support Tensor/Tuple Input add more tests for other data types #55262
                     Output<Node> value_node;
                     if (dtype == element::i32)
                     {
                         int32_t value = node.get_attribute<int32_t>("value");
-                        value_node = ngraph::opset6::Constant::create(dtype, {1}, {value});
+                        value_node = opset6::Constant::create(dtype, {1}, {value});
                     }
                     else if (dtype == element::f32)
                     {
                         float value = node.get_attribute<float>("value");
-                        value_node = ngraph::opset6::Constant::create(dtype, {1}, {value});
+                        value_node = opset6::Constant::create(dtype, {1}, {value});
                     }
 
-                    auto shape_node = ngraph::opset6::Constant::create(element::i64, {shape.size()}, shape);
+                    auto shape_node = opset6::Constant::create(element::i64, {shape.size()}, shape);
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Broadcast>(value_node, shape_node)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Broadcast>(value_node, shape_node)},
+                        {"Out"});
                 }
 
             } // namespace op

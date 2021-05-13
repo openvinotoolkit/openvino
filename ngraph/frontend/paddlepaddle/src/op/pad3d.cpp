@@ -3,7 +3,7 @@
 //
 
 #include "pad3d.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
@@ -40,22 +40,23 @@ namespace ngraph
                     }
                     else
                     {
-                        throw ngraph_error("Unsupported paddings attribute!");
+                        throw ngraph::ngraph_error("Unsupported paddings attribute!");
                     }
 
                     auto pads_begin = std::vector<int32_t>(5, 0);
                     auto pads_end = std::vector<int32_t>(5, 0);
 
-                    Output<Node> values;
-                    Output<Node> padding_begin;
-                    Output<Node> padding_end;
+                    Output<ngraph::Node> values;
+                    Output<ngraph::Node> padding_begin;
+                    Output<ngraph::Node> padding_end;
 
                     ngraph::op::PadMode pad_mode;
                     // TODO Support Circular mode in future #55169
                     if (mode == "constant")
                     {
                         pad_mode = ngraph::op::PadMode::CONSTANT;
-                        values = ngraph::opset6::Constant::create(element::f32, Shape{}, {value});
+                        values = ngraph::opset6::Constant::create(
+                            element::f32, ngraph::Shape{}, {value});
                     }
                     else if (mode == "reflect")
                     {
@@ -67,7 +68,7 @@ namespace ngraph
                     }
                     else
                     {
-                        throw ngraph_error("Unsupported 3d paddings mode: [" + mode + "]");
+                        throw ngraph::ngraph_error("Unsupported 3d paddings mode: [" + mode + "]");
                     }
 
                     if (data_format == "NCDHW")
@@ -90,14 +91,14 @@ namespace ngraph
                     }
                     else
                     {
-                        throw ngraph_error("Unsupported 3d paddings data_format: [" + data_format +
-                                           "]");
+                        throw ngraph::ngraph_error("Unsupported 3d paddings data_format: [" +
+                                                   data_format + "]");
                     }
 
                     padding_begin = ngraph::opset6::Constant::create(
-                        element::i32, Shape{pads_begin.size()}, pads_begin);
-                    padding_end =
-                        ngraph::opset6::Constant::create(element::i32, Shape{pads_end.size()}, pads_end);
+                        element::i32, ngraph::Shape{pads_begin.size()}, pads_begin);
+                    padding_end = ngraph::opset6::Constant::create(
+                        element::i32, ngraph::Shape{pads_end.size()}, pads_end);
 
                     if (mode == "constant")
                         return node.default_single_output_mapping(

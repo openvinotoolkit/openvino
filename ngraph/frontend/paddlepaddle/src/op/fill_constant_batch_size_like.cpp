@@ -35,13 +35,12 @@ namespace ngraph
                                                "should not exceed input dims.");
                     PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
                                                node,
-                                               output_dim_idx < (int32_t)shapes.size(),
                                                "fill_constant_batch_size_like: output_dim_idx "
                                                "should not exceed shapes dims.");
                     shapes[output_dim_idx] = static_shape[input_dim_idx];
                     auto dtype = node.get_attribute<element::Type>("dtype");
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::ngraph::opset6::Constant>(
+                        {std::make_shared<ngraph::opset6::Constant>(
                             dtype, Shape(shapes.begin(), shapes.end()), value)},
                         {"Out"});
                 }

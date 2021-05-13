@@ -3,7 +3,7 @@
 //
 
 #include "interp.hpp"
-#include <ngraph/opsets/ngraph::opset6.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -13,64 +13,68 @@ namespace ngraph
         {
             namespace op
             {
-                std::shared_ptr<Node> calculate_output_shape_based_on_scales(
-                    const Output<Node>& data, const std::vector<float>& scale, Output<Node>& scales)
+                std::shared_ptr<ngraph::Node>
+                    calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
+                                                           const std::vector<float>& scale,
+                                                           Output<ngraph::Node>& scales)
                 {
                     PDPD_CHECK(ErrorCode::OP_VALIDATION_FAILED, scale.size() > 0);
                     if (scale.size() == 1)
-                        scales = ngraph::opset6::Constant::create<float>(
+                        scales = opset6::Constant::create<float>(
                             element::f32, Shape{4}, {1, 1, scale[0], scale[0]});
                     else if (scale.size() == 2)
-                        scales = ngraph::opset6::Constant::create<float>(
+                        scales = opset6::Constant::create<float>(
                             element::f32, Shape{4}, {1, 1, scale[0], scale[1]});
                     else if (scale.size() == 3)
-                        scales = ngraph::opset6::Constant::create<float>(
+                        scales = opset6::Constant::create<float>(
                             element::f32, Shape{4}, {1, scale[0], scale[1], scale[2]});
                     else
-                        scales = ngraph::opset6::Constant::create<float>(
+                        scales = opset6::Constant::create<float>(
                             element::f32,
                             Shape{scale.size()},
                             std::vector<float>(scale.begin(), scale.end()));
-                    const auto shape_of_data = std::make_shared<ngraph::opset6::Convert>(
-                        std::make_shared<ngraph::opset6::ShapeOf>(data), scales.get_element_type());
-                    const auto multiply = std::make_shared<ngraph::opset6::Multiply>(shape_of_data, scales);
+                    const auto shape_of_data = std::make_shared<opset6::Convert>(
+                        std::make_shared<opset6::ShapeOf>(data), scales.get_element_type());
+                    const auto multiply = std::make_shared<opset6::Multiply>(shape_of_data, scales);
                     const auto output_shape =
-                        std::make_shared<ngraph::opset6::Convert>(multiply, element::i64);
+                        std::make_shared<opset6::Convert>(multiply, ngraph::element::i64);
 
                     return output_shape;
                 }
 
-                std::shared_ptr<Node> calculate_scales_based_on_sizes(const Output<Node>& data,
-                                                                      const Output<Node>& sizes)
+                std::shared_ptr<ngraph::Node>
+                    calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
+                                                    const Output<ngraph::Node>& sizes)
                 {
                     const float epsilon = 1.0e-5;
-                    const auto shape_of_data = std::make_shared<ngraph::opset6::Convert>(
-                        std::make_shared<ngraph::opset6::ShapeOf>(data), element::f32);
+                    const auto shape_of_data = std::make_shared<opset6::Convert>(
+                        std::make_shared<opset6::ShapeOf>(data), ngraph::element::f32);
                     const auto converted_sizes =
-                        std::make_shared<ngraph::opset6::Convert>(sizes, element::f32);
+                        std::make_shared<opset6::Convert>(sizes, ngraph::element::f32);
                     const auto divide =
-                        std::make_shared<ngraph::opset6::Divide>(converted_sizes, shape_of_data);
+                        std::make_shared<opset6::Divide>(converted_sizes, shape_of_data);
                     const auto eps_node =
-                        std::make_shared<ngraph::opset6::Constant>(element::f32, Shape{}, epsilon);
-                    const auto scales = std::make_shared<ngraph::opset6::Add>(divide, eps_node);
+                        std::make_shared<opset6::Constant>(ngraph::element::f32, Shape{}, epsilon);
+                    const auto scales = std::make_shared<opset6::Add>(divide, eps_node);
 
                     return scales;
                 }
 
-                std::shared_ptr<Node> extract_out_sizes(const Output<Node>& data,
-                                                        const std::vector<int64_t>& out_sizes)
+                std::shared_ptr<ngraph::Node>
+                    extract_out_sizes(const Output<ngraph::Node>& data,
+                                      const std::vector<int64_t>& out_sizes)
                 {
-                    const auto shape_of_x = std::make_shared<ngraph::opset6::ShapeOf>(data);
-                    auto shape_begin = ngraph::opset6::Constant::create(element::i64, {1}, {0});
-                    auto shape_end = ngraph::opset6::Constant::create(element::i64, Shape{1}, {2});
-                    auto nc_node = std::make_shared<ngraph::opset6::StridedSlice>(shape_of_x,
+                    const auto shape_of_x = std::make_shared<opset6::ShapeOf>(data);
+                    auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
+                    auto shape_end = opset6::Constant::create(element::i64, Shape{1}, {2});
+                    auto nc_node = std::make_shared<opset6::StridedSlice>(shape_of_x,
                                                                           shape_begin,
                                                                           shape_end,
                                                                           std::vector<int64_t>{0},
                                                                           std::vector<int64_t>{0});
                     auto hw_node =
-                        ngraph::opset6::Constant::create<int64_t>(element::i64, Shape{2}, out_sizes);
-                    return std::make_shared<ngraph::opset6::Concat>(OutputVector{nc_node, hw_node}, 0);
+                        opset6::Constant::create<int64_t>(element::i64, Shape{2}, out_sizes);
+                    return std::make_shared<opset6::Concat>(OutputVector{nc_node, hw_node}, 0);
                 }
 
                 // TODO support different data_layout #55170
@@ -80,7 +84,8 @@ namespace ngraph
                 {
                     auto x = node.get_ng_input("X");
                     using InterpolateMode = ngraph::opset6::Interpolate::InterpolateMode;
-                    using CoordinateTransformMode = ngraph::opset6::Interpolate::CoordinateTransformMode;
+                    using CoordinateTransformMode =
+                        ngraph::opset6::Interpolate::CoordinateTransformMode;
                     using Nearest_mode = ngraph::opset6::Interpolate::NearestMode;
                     using InterpolateAttrs = ngraph::opset6::Interpolate::InterpolateAttrs;
                     using ShapeCalcMode = ngraph::opset6::Interpolate::ShapeCalcMode;
@@ -99,18 +104,18 @@ namespace ngraph
                     {
                         attrs.shape_calculation_mode = ShapeCalcMode::sizes;
                         auto hw_shape = node.get_ng_input("OutSize");
-                        const auto shape_of_x = std::make_shared<ngraph::opset6::ShapeOf>(x);
-                        auto shape_begin = ngraph::opset6::Constant::create(element::i64, {1}, {0});
-                        auto shape_end = ngraph::opset6::Constant::create(element::i64, Shape{1}, {2});
+                        const auto shape_of_x = std::make_shared<opset6::ShapeOf>(x);
+                        auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
+                        auto shape_end = opset6::Constant::create(element::i64, Shape{1}, {2});
                         auto nc_node =
-                            std::make_shared<ngraph::opset6::StridedSlice>(shape_of_x,
+                            std::make_shared<opset6::StridedSlice>(shape_of_x,
                                                                    shape_begin,
                                                                    shape_end,
                                                                    std::vector<int64_t>{0},
                                                                    std::vector<int64_t>{0});
-                        target_spatial_shape = std::make_shared<ngraph::opset6::Concat>(
+                        target_spatial_shape = std::make_shared<opset6::Concat>(
                             OutputVector{nc_node,
-                                         std::make_shared<ngraph::opset6::Convert>(hw_shape, element::i64)},
+                                         std::make_shared<opset6::Convert>(hw_shape, element::i64)},
                             0);
                         scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
                     }
