@@ -81,13 +81,13 @@ std::vector<std::string> MyriadMetrics::AvailableDevicesNames(
 
 std::string MyriadMetrics::FullName(std::string deviceName) const {
     std::string nameDelimiter("-ma");
-    unsigned int indexLenght = 4;
+    unsigned int indexLength = 4;
     unsigned int placeOfTypeId = 2;
 
     auto indexStr = deviceName;
     indexStr.erase(0, indexStr.find(nameDelimiter) + nameDelimiter.length());
 
-    if (indexLenght != indexStr.length()) {
+    if (indexLength != indexStr.length()) {
         return deviceName;
     } else {
         auto myriadId = std::string(1, indexStr[placeOfTypeId]);

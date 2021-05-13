@@ -47,7 +47,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
 
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size;
@@ -60,12 +60,12 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lenghts, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
-        m_max_seq_len = seq_lenghts;
+        m_max_seq_len = seq_lengths;
         std::vector<std::vector<size_t>> inputShapes = {
-            {{batch, seq_lenghts, input_size},
+            {{batch, seq_lengths, input_size},
              {batch, num_directions, hidden_size},
              {batch, num_directions, hidden_size},
              {batch},

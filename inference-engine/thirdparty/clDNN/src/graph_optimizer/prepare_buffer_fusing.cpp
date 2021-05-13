@@ -209,7 +209,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
     // apply concatenation in place optimization
     for (auto input : node.get_dependencies()) {
-        auto input_lenght = input->get_output_layout().size.raw[concat_axis];
+        auto input_length = input->get_output_layout().size.raw[concat_axis];
 
         if (input->is_type<concatenation>() && input->can_be_optimized())
             need_reoptimization.push_back(&input->as<concatenation>());
@@ -218,7 +218,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        upper_padd.raw[concat_axis] -= input_lenght;
+        upper_padd.raw[concat_axis] -= input_length;
 
         // set new padding for input
         input->set_output_padding(padding(lower_padd.sizes(), upper_padd.sizes()));
@@ -227,7 +227,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        lower_padd.raw[concat_axis] += input_lenght;
+        lower_padd.raw[concat_axis] += input_length;
     }
 
     node.can_be_optimized(true);
