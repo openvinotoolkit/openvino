@@ -117,9 +117,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             }
             case prior_box_code_type::center_size: {
                 const float prior_width = prior_bbox_xmax - prior_bbox_xmin;
-                assert(prior_width > 0);
                 const float prior_height = prior_bbox_ymax - prior_bbox_ymin;
-                assert(prior_height > 0);
                 const float prior_center_x = (prior_bbox_xmin + prior_bbox_xmax) / 2.f;
                 const float prior_center_y = (prior_bbox_ymin + prior_bbox_ymax) / 2.f;
                 float decode_bbox_center_x, decode_bbox_center_y;
