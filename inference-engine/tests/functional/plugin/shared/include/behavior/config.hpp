@@ -115,8 +115,7 @@ namespace BehaviorTestsDefinitions {
 
         if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-        } else if ((targetDevice == CommonTestUtils::DEVICE_FPGA) ||
-                   (targetDevice == CommonTestUtils::DEVICE_KEEMBAY) ||
+        } else if ((targetDevice == CommonTestUtils::DEVICE_KEEMBAY) ||
                    (targetDevice == CommonTestUtils::DEVICE_MYRIAD)) {
             ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
@@ -141,7 +140,7 @@ namespace BehaviorTestsDefinitions {
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
         execNet.CreateInferRequest();
 
-        if ((targetDevice == CommonTestUtils::DEVICE_FPGA) || (targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
+        if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
             ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
@@ -170,7 +169,7 @@ namespace BehaviorTestsDefinitions {
             auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
             execNet.CreateInferRequest();
 
-            if ((targetDevice == CommonTestUtils::DEVICE_FPGA) || (targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
+            if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                 (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
                 ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
                 ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
