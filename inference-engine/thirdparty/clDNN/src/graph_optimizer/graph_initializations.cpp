@@ -52,7 +52,7 @@ void graph_initializations::handle_split_node(program_impl& p, split_node& node)
 
     std::vector<primitive_id> transformed_ids;
 
-    // create crop for each split ouptut provided
+    // create crop for each split output provided
     for (std::size_t i = 0; i < split_num; i++) {
         primitive_id output_id = node.id() + ":" + split_prim->output_ids[i];
 
@@ -217,12 +217,12 @@ void graph_initializations::handle_lstm_node(program_impl& p, lstm_node& node) {
             primitive_id lstm_gemm_input_id = node.get_dependency(input_idx).get_org_primitive_id();
 
             auto lstm_gemm_node = std::make_shared<lstm_gemm>(lstm_gemm_id,
-                                                                lstm_gemm_input_id,
-                                                                weights_id,
-                                                                recurrent_id,
-                                                                bias_id,
-                                                                hidden_id,
-                                                                (uint32_t)dir);
+                                                              lstm_gemm_input_id,
+                                                              weights_id,
+                                                              recurrent_id,
+                                                              bias_id,
+                                                              hidden_id,
+                                                              (uint32_t)dir);
             auto& n1 = p.get_or_create(lstm_gemm_node);
 
             auto lstm_elt_node = std::make_shared<lstm_elt>(lstm_elt_id,
@@ -313,9 +313,9 @@ void graph_initializations::handle_lstm_node(program_impl& p, lstm_node& node) {
                 concatenate_len++;
 
             tensor output_size{input_size.batch[0],
-                                static_cast<int32_t>(concatenate_len),
-                                hidden_size.spatial[0],
-                                (int32_t)directions};
+                               static_cast<int32_t>(concatenate_len),
+                               hidden_size.spatial[0],
+                               (int32_t)directions};
             auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", concatenation_id, output_size);
             auto& reshape_node = p.get_or_create(reshape_primitive);
             p.add_connection(concatenation_node, reshape_node);
@@ -342,11 +342,11 @@ void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynam
     // [1] Add lstm_dynamic_input
     auto lstm_dynamic_input_primitive =
         std::make_shared<lstm_dynamic_input>(node_id + suffix + "input",
-                                                input_id,
-                                                dyn_length_id,
-                                                weights_id,
-                                                bias_id,
-                                                node.get_primitive()->output_padding);
+                                             input_id,
+                                             dyn_length_id,
+                                             weights_id,
+                                             bias_id,
+                                             node.get_primitive()->output_padding);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
     // connect other deps
@@ -374,8 +374,7 @@ void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynam
                                                 node.input_forget(),
                                                 lstm_dynamic_input_primitive->output_padding);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
-    p.add_connection(lstm_dynamic_input_node,
-                        lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
+    p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
     // connect other deps
     p.add_connection(p.get_node(dyn_length_id), lstm_dynamic_timeloop_node);
     p.add_connection(p.get_node(recurrent_id), lstm_dynamic_timeloop_node);
