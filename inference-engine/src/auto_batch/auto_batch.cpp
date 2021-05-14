@@ -429,10 +429,13 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
 
     for (const InputsDataMap::value_type &item : inputInfo) {
-        if (shapes.at(item.first).size() < 2)
-            THROW_IE_EXCEPTION << "Auto-batching  of the network with no dim 0 on input " <<
-            item.first << " (first input is scalar or channels-only)!";
-        shapes[item.first][0] = metaDevice.batchForDevice;
+        auto layout = item.second->getTensorDesc().getLayout();
+        if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
+                || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
+                || layout == InferenceEngine::Layout::NDHWC) {
+            shapes[item.first][0] = metaDevice.batchForDevice;
+            std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")" << " by the batch" << std::endl;
+        }
     }
     std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
     clonedNetwork.reshape(shapes);
