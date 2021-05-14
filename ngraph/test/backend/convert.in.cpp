@@ -23,6 +23,15 @@ static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 namespace
 {
+    std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+                                             const element::Type& input_type,
+                                             const element::Type& expected_output_type)
+    {
+        const auto in = make_shared<op::Parameter>(input_type, input_shape);
+        const auto convert = make_shared<op::Convert>(in, expected_output_type);
+        return make_shared<Function>(NodeVector{convert}, ParameterVector{in});
+    }
+
     template <typename T_IN, typename T_OUT>
     void ConvertTest(const std::vector<T_IN>& input,
                      const Shape& input_shape,
@@ -30,10 +39,7 @@ namespace
                      const std::vector<T_OUT>& expected_output,
                      const ngraph::element::Type& expected_output_type)
     {
-        const auto in = make_shared<op::Parameter>(input_type, input_shape);
-        const auto convert = make_shared<op::Convert>(in, expected_output_type);
-        const auto f = make_shared<Function>(NodeVector{convert}, ParameterVector{in});
-
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
         auto test_case = test::TestCase<TestEngine>(f);
         test_case.add_input(input);
         test_case.add_expected_output(expected_output);
@@ -180,17 +186,28 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_i64_to_f32)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convert_u1_to_f32_is_not_supported_yet)
+NGRAPH_TEST(${BACKEND_NAME}, convert_u1_to_f32)
 {
-    const std::vector<uint8_t> input{0x00};
+    const std::vector<uint8_t> input{0xA0};
     const Shape input_shape{2, 2};
     const element::Type input_type = ngraph::element::u1;
 
-    const std::vector<float> expected_output{0.0f, 0.0f, 0.0f, 0.0f};
+    const std::vector<float> expected_output{1.0f, 0.0f, 1.0f, 0.0f};
     const element::Type expected_output_type = ngraph::element::f32;
 
-    ASSERT_THROW(ConvertTest(input, input_shape, input_type, expected_output, expected_output_type),
-                 ngraph::NodeValidationFailure);
+    {
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+        auto input_tesnor = backend->create_tensor(input_type, input_shape);
+        copy_data(input_tesnor, input);
+        auto output = backend->create_tensor(expected_output_type, input_shape);
+        auto handle = backend->compile(f);
+        handle->call_with_validate({output}, {input_tesnor});
+
+        std::vector<float> result(expected_output.size());
+        output->read(result.data(), result.size() * sizeof(float));
+        EXPECT_TRUE(test::all_close_f(expected_output, result));
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_u4_to_f32_is_not_supported_yet)
@@ -361,17 +378,28 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i64)
 }
 
 // destination: u1
-NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u1_is_not_supported_yet)
+NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u1)
 {
-    const std::vector<uint8_t> input{0, 0, 0, 0};
+    const std::vector<uint8_t> input{1, 0, 1, 0};
     const Shape input_shape{4};
     const element::Type input_type = ngraph::element::u8;
 
-    const std::vector<uint8_t> expected_output{0x00};
+    const std::vector<uint8_t> expected_output{0xA0};
     const element::Type expected_output_type = ngraph::element::u1;
 
-    ASSERT_THROW(ConvertTest(input, input_shape, input_type, expected_output, expected_output_type),
-                 ngraph::NodeValidationFailure);
+    {
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+        auto input_tesnor = backend->create_tensor(input_type, input_shape);
+        copy_data(input_tesnor, input);
+        auto output = backend->create_tensor(expected_output_type, input_shape);
+        auto handle = backend->compile(f);
+        handle->call_with_validate({output}, {input_tesnor});
+
+        std::vector<uint8_t> result(expected_output.size());
+        output->read(result.data(), result.size() * sizeof(uint8_t));
+        EXPECT_TRUE(test::all_close(expected_output, result));
+    }
 }
 
 // destination: u4

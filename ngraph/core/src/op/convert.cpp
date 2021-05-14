@@ -30,15 +30,13 @@ void op::Convert::validate_and_infer_types()
     const element::Type destination_et = m_destination_type;
 
     NODE_VALIDATION_CHECK(this,
-                          data_et != element::u1 && data_et != element::u4 &&
-                              data_et != element::i4,
+                          data_et != element::u4 && data_et != element::i4,
                           "Input element type '",
                           data_et,
                           "' is not supported.");
 
     NODE_VALIDATION_CHECK(this,
-                          destination_et != element::u1 && destination_et != element::u4 &&
-                              destination_et != element::i4,
+                          destination_et != element::u4 && destination_et != element::i4,
                           "Destination element type '",
                           destination_et,
                           "' is not supported.");
@@ -68,10 +66,26 @@ namespace convert
     {
         out->set_shape(arg->get_shape());
         size_t element_count = shape_size(out->get_shape());
-        return (INPUT_ET == arg->get_element_type()) && OUTPUT_ET == out->get_element_type() &&
-               (runtime::reference::convert(
-                    arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count),
-                true);
+
+        if ((INPUT_ET != arg->get_element_type()) || OUTPUT_ET != out->get_element_type())
+        {
+            return false;
+        }
+        const std::unordered_set<element::Type_t> lp_types{element::u1};
+        if ((lp_types.count(INPUT_ET) || (lp_types.count(OUTPUT_ET))))
+        {
+            runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(),
+                                        out->get_data_ptr<OUTPUT_ET>(),
+                                        element_count,
+                                        INPUT_ET,
+                                        OUTPUT_ET);
+        }
+        else
+        {
+            runtime::reference::convert(
+                arg->get_data_ptr<INPUT_ET>(), out->get_data_ptr<OUTPUT_ET>(), element_count);
+        }
+        return true;
     }
 
 #define TYPE_OUT_CASE(a, ...)                                                                      \
@@ -93,6 +107,7 @@ namespace convert
             TYPE_OUT_CASE(i16, arg, out);
             TYPE_OUT_CASE(i32, arg, out);
             TYPE_OUT_CASE(i64, arg, out);
+            TYPE_OUT_CASE(u1, arg, out);
             TYPE_OUT_CASE(u8, arg, out);
             TYPE_OUT_CASE(u16, arg, out);
             TYPE_OUT_CASE(u32, arg, out);
@@ -112,6 +127,7 @@ namespace convert
         bool rc = true;
         switch (arg->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, u8, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, i8, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
