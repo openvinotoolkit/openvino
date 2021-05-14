@@ -164,7 +164,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     // need to convert to Gather-1 until plugins do not support Gather-7
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
-    // to enhance operation maintenance some plugins my choose to
+    // to enhance operation maintenance some plugins can choose to
     // work with a single general Gather op with batch_dims
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
 
