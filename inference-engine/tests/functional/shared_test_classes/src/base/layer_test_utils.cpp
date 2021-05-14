@@ -194,46 +194,81 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
         k /= 2;
     }
-    ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
+    ASSERT_TRUE(expected.second.size() == actual->byteSize() * k || expected.second.size() == actual->byteSize());
+    bool isTypeDependent = (expected.second.size() == actual->byteSize() * k);
+    // TODO: checks
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
     IE_ASSERT(memory);
     const auto lockedMemory = memory->wmap();
     const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+    const auto expectedBuffer = expected.second.data();
 
     const auto &precision = actual->getTensorDesc().getPrecision();
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
-            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I32:
-            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I64:
-            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const int64_t *>(expectedBuffer), reinterpret_cast<const int64_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I8:
-            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const int8_t *>(expectedBuffer), reinterpret_cast<const int8_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::U16:
-            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const uint16_t *>(expectedBuffer), reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::I16:
-            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const int16_t *>(expectedBuffer), reinterpret_cast<const int16_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::U8:
-            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const uint8_t *>(expectedBuffer), reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::U64:
-            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const uint64_t *>(expectedBuffer), reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::BF16:
-            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                        reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::FP16:
-            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold);
+            if (isTypeDependent)
+                callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold);
+            else
+                Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                        reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
