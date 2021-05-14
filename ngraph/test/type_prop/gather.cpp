@@ -111,7 +111,7 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The axis must be >= 0 and < data_rank. But instead got axis"));
+                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got axis"));
     }
     catch (...)
     {
@@ -358,7 +358,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("The axis must be >= 0 and < data_rank. But instead got"));
+            error.what(), std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
     }
     catch (...)
     {
@@ -416,7 +416,7 @@ TEST(type_prop, gather_7_batch_dims_less_check)
     {
         EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("batch_dims <= axis. But instead got: batch_dims ="));
+                std::string("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
     }
     catch (...)
     {
