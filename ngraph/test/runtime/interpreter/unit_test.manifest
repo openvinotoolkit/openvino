@@ -55,9 +55,6 @@ INTERPRETER.min_to_scalar_int8
 INTERPRETER.max_trivial_int8
 INTERPRETER.max_to_scalar_int8
 INTERPRETER.max_3d_to_scalar_double
-INTERPRETER.gelu_f64
-INTERPRETER.gelu_backprop_factor_f64
-INTERPRETER.backwards_gelu_f64
 INTERPRETER.gather_4d_indices_axis_0_uint8
 INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
