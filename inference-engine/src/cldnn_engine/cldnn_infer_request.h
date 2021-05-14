@@ -76,9 +76,6 @@ protected:
 
     void PrepareInput(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
     void PrepareInputDyn(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
-
-private:
-    static const char fp32_suffix[];
 };
 
 };  // namespace CLDNNPlugin

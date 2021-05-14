@@ -19,7 +19,7 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-const char CLDNNInferRequest::fp32_suffix[] = "_fp32";
+const char fp32_suffix[] = "_fp32";
 const char str_not_allocated[] = "Input data was not allocated.";
 const char cannot_set_compound[] = "cannot set compound blob: supported only for input pre-processing";
 const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
@@ -131,151 +131,53 @@ void CLDNNInferRequest::input_alloc(cldnn::primitive_id name, const cldnn::layou
     input_attach(name, input_mem);
 }
 
-void CLDNNInferRequest::copyOutputData(cldnn::memory::ptr outputMemory,
-                                       Blob::Ptr bptr,
-                                       buf_info* bi) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::copyOutputData");
-    size_t n = (bi == nullptr) ? bptr->size() : bi->buf_size;
+template<typename T>
+void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, buf_info* bi, cldnn::stream& stream) {
+    size_t n = (bi == nullptr) ? dst->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
-    auto layout = outputMemory->get_layout();
+    auto layout = src->get_layout();
     auto size = layout.size;
-    auto l_padd = layout.data_padding.lower_size();
-    auto u_padd = layout.data_padding.upper_size();
 
-    auto h_padding = u_padd.spatial[0] + l_padd.spatial[0];
-    auto v_padding_l = (h_padding + size.spatial[0]) * u_padd.spatial[1];
-    auto v_padding_u = (h_padding + size.spatial[0]) * l_padd.spatial[1];
+    auto locked_dst = dst->buffer();
+    auto dst_ptr = locked_dst.as<T*>();
+    if (dst_ptr == nullptr) {
+        IE_THROW() << "Invalid output blob";
+    }
+    cldnn::mem_lock<T> src_lock{ src, stream };
+    T* src_ptr = src_lock.data();
+    dst_ptr += offset;
 
-    auto locked = bptr->buffer();
-    switch (bptr->getTensorDesc().getPrecision()) {
-    case Precision::FP32: {
-        auto out_f = locked.as<float*>();
-        if (out_f == nullptr) {
-            IE_THROW() << "Invalid output blob";
-        }
-        cldnn::mem_lock<float> res_lock{ outputMemory, m_graph->GetNetwork()->get_stream() };
-        float* resPtr = res_lock.data();
-        float *resVec = out_f + offset;
-
-        if (h_padding || v_padding_l || v_padding_u) {
-            size_t i = 0;
-            for (size_t b = 0; b < size.batch[0]; b++) {
-                for (size_t f = 0; f < size.feature[0]; f++) {
-                    i += v_padding_l;
-                    for (size_t y = 0; y < size.spatial[1]; y++) {
-                        i += l_padd.spatial[0];
-                        for (size_t x = 0; x < size.spatial[0]; x++, i++) {
-                            *resVec++ = resPtr[i];
+    if (layout.data_padding) {
+        for (size_t b = 0; b < size.batch[0]; b++) {
+            for (size_t f = 0; f < size.feature[0]; f++) {
+                for (size_t w = 0; w < size.spatial[3]; w++) {
+                    for (size_t z = 0; z < size.spatial[2]; z++) {
+                        for (size_t y = 0; y < size.spatial[1]; y++) {
+                            for (size_t x = 0; x < size.spatial[0]; x++) {
+                                *dst_ptr++ = src_ptr[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))];
+                            }
                         }
-                        i += u_padd.spatial[0];
                     }
-                    i += v_padding_u;
                 }
             }
-        } else {
-            for (size_t i = 0; i < n; i++) {
-                resVec[i] = resPtr[i];
-            }
+        }
+    } else {
+        for (size_t i = 0; i < n; i++) {
+            dst_ptr[i] = src_ptr[i];
         }
     }
-    break;
-    case Precision::FP16: {
-        auto out_f = locked.as<uint16_t*>();
-        if (out_f == nullptr) {
-            IE_THROW() << "Invalid output blob";
-        }
-        cldnn::mem_lock<uint16_t> res_lock{ outputMemory, m_graph->GetNetwork()->get_stream() };
-        uint16_t* resPtr = res_lock.data();
+}
 
-        uint16_t* resVec = out_f + offset;
-
-        if (h_padding || v_padding_l || v_padding_u) {
-            size_t i = 0;
-            for (size_t b = 0; b < size.batch[0]; b++) {
-                for (size_t f = 0; f < size.feature[0]; f++) {
-                    i += v_padding_l;
-                    for (size_t y = 0; y < size.spatial[1]; y++) {
-                        i += l_padd.spatial[0];
-                        for (size_t x = 0; x < size.spatial[0]; x++, i++) {
-                            *resVec++ = resPtr[i];
-                        }
-                        i += u_padd.spatial[0];
-                    }
-                    i += v_padding_u;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < n; i++) {
-                resVec[i] = resPtr[i];
-            }
-        }
-    }
-    break;
-    case Precision::I32: {
-        auto out_f = locked.as<int32_t*>();
-        if (out_f == nullptr) {
-            IE_THROW() << "Invalid output blob";
-        }
-        cldnn::mem_lock<int32_t> res_lock{ outputMemory, m_graph->GetNetwork()->get_stream() };
-        int32_t* resPtr = res_lock.data();
-        int32_t* resVec = out_f + offset;
-
-        if (h_padding || v_padding_l || v_padding_u) {
-            size_t i = 0;
-            for (size_t b = 0; b < size.batch[0]; b++) {
-                for (size_t f = 0; f < size.feature[0]; f++) {
-                    i += v_padding_l;
-                    for (size_t y = 0; y < size.spatial[1]; y++) {
-                        i += l_padd.spatial[0];
-                        for (size_t x = 0; x < size.spatial[0]; x++, i++) {
-                            *resVec++ = resPtr[i];
-                        }
-                        i += u_padd.spatial[0];
-                    }
-                    i += v_padding_u;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < n; i++) {
-                resVec[i] = resPtr[i];
-            }
-        }
-    }
-    break;
-    case Precision::I64: {
-        auto out_f = locked.as<int64_t*>();
-        if (out_f == nullptr) {
-            IE_THROW() << "Invalid output blob";
-        }
-        cldnn::mem_lock<int64_t> res_lock{ outputMemory, m_graph->GetNetwork()->get_stream() };
-        int64_t* resPtr = res_lock.data();
-        int64_t* resVec = out_f + offset;
-
-        if (h_padding || v_padding_l || v_padding_u) {
-            size_t i = 0;
-            for (size_t b = 0; b < size.batch[0]; b++) {
-                for (size_t f = 0; f < size.feature[0]; f++) {
-                    i += v_padding_l;
-                    for (size_t y = 0; y < size.spatial[1]; y++) {
-                        i += l_padd.spatial[0];
-                        for (size_t x = 0; x < size.spatial[0]; x++, i++) {
-                            *resVec++ = resPtr[i];
-                        }
-                        i += u_padd.spatial[0];
-                    }
-                    i += v_padding_u;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < n; i++) {
-                resVec[i] = resPtr[i];
-            }
-        }
-    }
-    break;
-    default:
-        IE_THROW() << "The plugin does not support output " << bptr->getTensorDesc().getPrecision() << " precision";
+void CLDNNInferRequest::copyOutputData(cldnn::memory::ptr src, Blob::Ptr dst, buf_info* bi) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::copyOutputData");
+    auto& stream = m_graph->GetNetwork()->get_stream();
+    switch (dst->getTensorDesc().getPrecision()) {
+    case Precision::FP32: copyResultToOutputBlob<float>(src, dst, bi, stream);    break;
+    case Precision::FP16: copyResultToOutputBlob<uint16_t>(src, dst, bi, stream); break;
+    case Precision::I32:  copyResultToOutputBlob<int32_t>(src, dst, bi, stream);  break;
+    case Precision::I64:  copyResultToOutputBlob<int64_t>(src, dst, bi, stream);  break;
+    default: IE_THROW(NotImplemented) << "The plugin does not support output " << dst->getTensorDesc().getPrecision() << " precision";
     }
 }
 
