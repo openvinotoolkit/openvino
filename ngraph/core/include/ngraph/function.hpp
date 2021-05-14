@@ -168,16 +168,16 @@ namespace ngraph
         int64_t get_result_index(const Output<Node>& value) const;
 
         /// \brief Evaluate the function on inputs, putting results in outputs.
-        /// \param outputs Tensors for the outputs to compute. One for each result
-        /// \param inputs Tensors for the inputs. One for each inputs.
+        /// \param output_tensors Tensors for the outputs to compute. One for each result
+        /// \param input_tensors Tensors for the inputs. One for each inputs.
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors) const;
 
         /// \brief Evaluate the function on inputs, putting results in outputs.
-        /// \param outputs Tensors for the outputs to compute. One for each result
-        /// \param inputs Tensors for the inputs. One for each inputs.
+        /// \param output_tensors Tensors for the outputs to compute. One for each result
+        /// \param input_tensors Tensors for the inputs. One for each inputs.
         /// \param evaluation_context Storage of additional settings and attributes that can be used
-        /// when evaluating the function.
+        /// when evaluating the function. This additional information can be shared across nodes.
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors,
                       const EvaluationContext& evaluation_context) const;
@@ -250,13 +250,14 @@ namespace ngraph
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
-        /// \brief Checks all the Parameter nodes are registered in the list of Function parameters
-        void check_all_parameters_registered(
-            const std::vector<std::shared_ptr<Node>>& ordered_ops) const;
-        void check_all_variables_registered(
-            const std::vector<std::shared_ptr<Node>>& ordered_ops) const;
-        void auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops);
-        void auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops);
+
+        /// \brief Depending on the options selected,
+        /// checks all the Parameter/Variables are registered in the list of Function parameters/variables or
+        /// finds all Parameters/Variables in a function and registers them.
+        /// \param detect_variables If this flag is true, then it finds all Variables in a function
+        /// and registers them, otherwise checks all the Variables are registered.
+        /// \param detect_parameters If this flag is true, then it finds all Parameters in a function
+        /// and registers them, otherwise checks all the Parameters are registered.
         void prerequirements(bool detect_variables, bool detect_parameters);
 
         static std::atomic<size_t> m_next_instance_id;

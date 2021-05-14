@@ -198,14 +198,14 @@ namespace ngraph
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
         /// \brief Evaluates the op on input_values putting results in output_values
-        /// \param outputs Tensors for the outputs to compute. One for each result
-        /// \param inputs Tensors for the inputs. One for each inputs.
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
         /// \brief Evaluates the op on input_values putting results in output_values
-        /// \param outputs Tensors for the outputs to compute. One for each result
-        /// \param inputs Tensors for the inputs. One for each inputs.
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
         /// \param evaluation_context Storage of additional settings and attributes that can be used
         /// when evaluating the op.
         /// \returns true if successful

@@ -23,6 +23,69 @@ constexpr DiscreteTypeInfo Function::type_info;
 
 atomic<size_t> Function::m_next_instance_id(0);
 
+
+void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered_ops, const VariableVector& variables)
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT, "Function::check_all_variables_registered");
+    std::stringstream unregistered_variables;
+    for (auto& node : ordered_ops)
+    {
+        const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
+        if (variable_op &&
+            std::find(variables.begin(), variables.end(), variable_op->get_variable()) ==
+            variables.end())
+            unregistered_variables << variable_op->get_variable_id() << std::endl;
+    }
+    if (!unregistered_variables.str().empty())
+        throw ngraph_error("Function references undeclared variables: " +
+                           unregistered_variables.str());
+}
+
+void check_all_parameters_registered(
+        const std::vector<shared_ptr<Node>>& ordered_ops, const ParameterVector& parameters)
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
+
+    std::stringstream unregistered_parameters;
+    for (auto& node : ordered_ops)
+    {
+        if (op::is_parameter(node) &&
+            std::find(parameters.begin(), parameters.end(), node) == parameters.end())
+            unregistered_parameters << node << std::endl;
+    }
+    if (!unregistered_parameters.str().empty())
+        throw ngraph_error("Function references undeclared parameters: " +
+                           unregistered_parameters.str());
+}
+
+VariableVector auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops)
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::auto_detect_variables");
+    unordered_set<VariablePtr> variables;
+    for (const auto& op : ordered_ops)
+    {
+        if (const auto& variable_op = dynamic_pointer_cast<VariableExtension>(op))
+        {
+            variables.insert(variable_op->get_variable());
+        }
+    }
+    return VariableVector(variables.begin(), variables.end());
+}
+
+ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops)
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::auto_detect_parameters");
+    ParameterVector parameter_vector;
+    for (const auto& op : ordered_ops)
+    {
+        if (const auto& param = dynamic_pointer_cast<opset7::Parameter>(op))
+        {
+            parameter_vector.push_back(param);
+        }
+    }
+    return parameter_vector;
+}
+
 Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
@@ -144,73 +207,20 @@ Function::Function(const OutputVector& results, const string& name)
 {
 }
 
-void Function::check_all_parameters_registered(
-    const std::vector<shared_ptr<Node>>& ordered_ops) const
-{
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
-
-    std::stringstream unregistered_parameters;
-    for (auto& node : ordered_ops)
-    {
-        if (op::is_parameter(node) &&
-            std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
-            unregistered_parameters << node << std::endl;
-    }
-    if (!unregistered_parameters.str().empty())
-        throw ngraph_error("Function references undeclared parameters: " +
-                           unregistered_parameters.str());
-}
-
-void Function::check_all_variables_registered(
-    const std::vector<shared_ptr<Node>>& ordered_ops) const
-{
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
-                       "Function::check_all_variables_registered");
-    std::stringstream unregistered_variables;
-    for (auto& node : ordered_ops)
-    {
-        const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
-        if (variable_op &&
-            std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
-                m_variables.end())
-            unregistered_variables << variable_op->get_variable_id() << std::endl;
-    }
-    if (!unregistered_variables.str().empty())
-        throw ngraph_error("Function references undeclared variables: " +
-                           unregistered_variables.str());
-}
-
-void Function::auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops)
-{
-    unordered_set<VariablePtr> variables;
-    for (const auto& op : ordered_ops)
-    {
-        if (const auto& variable_op = dynamic_pointer_cast<VariableExtension>(op))
-        {
-            variables.insert(variable_op->get_variable());
-        }
-    }
-    m_variables.assign(variables.begin(), variables.end());
-}
-
-void Function::auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops)
-{
-    for (const auto& op : ordered_ops)
-    {
-        if (const auto& param = dynamic_pointer_cast<opset7::Parameter>(op))
-        {
-            m_parameters.push_back(param);
-        }
-    }
-}
-
 void Function::prerequirements(bool detect_variables, bool detect_parameters)
 {
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::prerequirements");
+
     const auto& ordered_ops = get_ordered_ops();
-    detect_parameters ? auto_detect_parameters(ordered_ops)
-                      : check_all_parameters_registered(ordered_ops);
-    detect_variables ? auto_detect_variables(ordered_ops)
-                     : check_all_variables_registered(ordered_ops);
+    if (detect_parameters)
+        m_parameters = auto_detect_parameters(ordered_ops);
+    else
+        check_all_parameters_registered(ordered_ops, m_parameters);
+
+    if (detect_variables)
+        m_variables = auto_detect_variables(ordered_ops);
+    else
+        check_all_variables_registered(ordered_ops, m_variables);
 }
 
 void Function::validate_nodes_and_infer_types() const
