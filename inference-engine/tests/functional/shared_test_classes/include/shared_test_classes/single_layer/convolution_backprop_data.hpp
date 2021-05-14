@@ -13,7 +13,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-// DEPRECATED, this file shall be removed when kmb plugin will switch to use API from "convolution_backprop.hpp"
+// DEPRECATED, this file shall be removed when kmb_plugin will switch to use new API from "convolution_backprop.hpp" (55568)
 
 namespace LayerTestsDefinitions {
 
