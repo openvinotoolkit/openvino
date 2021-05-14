@@ -32,13 +32,8 @@ class IInferRequestInternal;
  * Wraps IInferRequest
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    std::shared_ptr<IInferRequestInternal>          _impl;
-    std::shared_ptr<details::SharedObjectLoader>    _so;
-
-    InferRequest(const std::shared_ptr<IInferRequestInternal>&         impl,
-                 const std::shared_ptr<details::SharedObjectLoader>&   so);
-
+class INFERENCE_ENGINE_API_CLASS(InferRequest) : protected details::SOPointer<IInferRequestInternal> {
+    using details::SOPointer<IInferRequestInternal>::SOPointer;
     friend class ExecutableNetwork;
 
 public:
@@ -57,16 +52,6 @@ public:
      * @brief A smart pointer to the InferRequest object
      */
     using Ptr = std::shared_ptr<InferRequest>;
-
-    /**
-     * @brief Default constructor
-     */
-    InferRequest() = default;
-
-    /**
-     * @brief Destructor
-     */
-    ~InferRequest();
 
     /**
      * @brief Sets input/output data to infer

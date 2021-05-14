@@ -8,7 +8,7 @@
 #include "exception2status.hpp"
 
 #define VARIABLE_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";                      \
+    if (_ptr == nullptr) IE_THROW() << "VariableState was not initialized.";                       \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -19,13 +19,6 @@
 
 namespace InferenceEngine {
 
-VariableState::VariableState(const std::shared_ptr<IVariableStateInternal>&      impl,
-                             const std::shared_ptr<details::SharedObjectLoader>& so) : _impl(impl), _so(so) {
-    if (impl == nullptr) {
-        IE_THROW(NotAllocated) << "VariableState wrapper was not initialized.";
-    }
-}
-
 IE_SUPPRESS_DEPRECATED_START
 
 Blob::CPtr VariableState::GetLastState() const {
@@ -35,19 +28,19 @@ Blob::CPtr VariableState::GetLastState() const {
 IE_SUPPRESS_DEPRECATED_END
 
 void VariableState::Reset() {
-    VARIABLE_CALL_STATEMENT(_impl->Reset());
+    VARIABLE_CALL_STATEMENT(_ptr->Reset());
 }
 
 std::string VariableState::GetName() const {
-    VARIABLE_CALL_STATEMENT(return _impl->GetName());
+    VARIABLE_CALL_STATEMENT(return _ptr->GetName());
 }
 
 Blob::CPtr VariableState::GetState() const {
-    VARIABLE_CALL_STATEMENT(return _impl->GetState());
+    VARIABLE_CALL_STATEMENT(return _ptr->GetState());
 }
 
 void VariableState::SetState(Blob::Ptr state) {
-    VARIABLE_CALL_STATEMENT(_impl->SetState(state));
+    VARIABLE_CALL_STATEMENT(_ptr->SetState(state));
 }
 
 }  // namespace InferenceEngine

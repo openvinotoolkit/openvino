@@ -7,6 +7,7 @@
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
+#include <iostream>
 
 namespace InferenceEngine {
 namespace details {

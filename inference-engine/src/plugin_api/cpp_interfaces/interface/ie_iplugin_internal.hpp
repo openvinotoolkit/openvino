@@ -275,6 +275,14 @@ protected:
     ~IInferencePlugin() = default;
 };
 
+namespace details {
+template <>
+class SOCreatorTrait<IInferencePlugin> {
+public:
+    static constexpr auto name = "CreatePluginEngine";
+};
+}  // namespace details
+
 }  // namespace InferenceEngine
 
 /**

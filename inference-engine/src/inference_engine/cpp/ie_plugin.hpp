@@ -16,8 +16,8 @@
 #include "file_utils.h"
 #include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ie_plugin_ptr.hpp"
 #include "cpp/exception2status.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
@@ -25,7 +25,7 @@
 #endif
 
 #define PLUGIN_CALL_STATEMENT(...)                                                                \
-    if (!actual) IE_THROW() << "Wrapper used in the PLUGIN_CALL_STATEMENT was not initialized.";  \
+    if (!_ptr) IE_THROW() << "Wrapper used in the PLUGIN_CALL_STATEMENT was not initialized.";    \
     try {                                                                                         \
         __VA_ARGS__;                                                                              \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                      \
@@ -35,117 +35,87 @@
     }
 
 namespace InferenceEngine {
-
 /**
  * @brief This class is a C++ API wrapper for IInferencePlugin.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class InferencePlugin {
-    InferenceEnginePluginPtr actual;
+class InferencePlugin : protected details::SOPointer<IInferencePlugin> {
+    using details::SOPointer<IInferencePlugin>::SOPointer;
+    friend class ICore;
 
 public:
-    InferencePlugin() = default;
-
-    explicit InferencePlugin(const InferenceEnginePluginPtr& pointer): actual(pointer) {
-        if (actual == nullptr) {
-            IE_THROW() << "InferencePlugin wrapper was not initialized.";
-        }
-    }
-
-    explicit InferencePlugin(const FileUtils::FilePath & libraryLocation) :
-        actual(libraryLocation) {
-        if (actual == nullptr) {
-            IE_THROW() << "InferencePlugin wrapper was not initialized.";
-        }
-    }
-
     void SetName(const std::string & deviceName) {
-        PLUGIN_CALL_STATEMENT(actual->SetName(deviceName));
+        PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
     void SetCore(ICore* core) {
-        PLUGIN_CALL_STATEMENT(actual->SetCore(core));
+        PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
     const Version GetVersion() const {
-        PLUGIN_CALL_STATEMENT(return actual->GetVersion());
+        PLUGIN_CALL_STATEMENT(return _ptr->GetVersion());
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
-        PLUGIN_CALL_STATEMENT(actual->AddExtension(extension));
+        PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(actual->SetConfig(config));
+        PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config), actual));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return actual->LoadNetwork(modelPath, config));
+        PLUGIN_CALL_STATEMENT(return _ptr->LoadNetwork(modelPath, config));
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;
-        PLUGIN_CALL_STATEMENT(res = actual->QueryNetwork(network, config));
+        PLUGIN_CALL_STATEMENT(res = _ptr->QueryNetwork(network, config));
         if (res.rc != OK) IE_THROW() << res.resp.msg;
         return res;
     }
 
     ExecutableNetwork ImportNetwork(const std::string& modelFileName,
                                     const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, config), actual));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, context, config), actual));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return actual->GetMetric(name, options));
+        PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return actual->CreateContext(params));
+        PLUGIN_CALL_STATEMENT(return _ptr->CreateContext(params));
     }
 
     RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return actual->GetDefaultContext(params));
+        PLUGIN_CALL_STATEMENT(return _ptr->GetDefaultContext(params));
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return actual->GetConfig(name, options));
+        PLUGIN_CALL_STATEMENT(return _ptr->GetConfig(name, options));
     }
-
-    /**
-     * @brief Converts InferenceEngine to InferenceEnginePluginPtr pointer
-     *
-     * @return Wrapped object
-     */
-    operator InferenceEngine::InferenceEnginePluginPtr() {
-        return actual;
-    }
-
-    /**
-     * @brief Shared pointer on InferencePlugin object
-     *
-     */
-    using Ptr = std::shared_ptr<InferencePlugin>;
 };
 }  // namespace InferenceEngine
 
