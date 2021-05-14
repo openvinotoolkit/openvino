@@ -61,6 +61,7 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
                         CONFIG
                         PATHS ${TBBROOT}/cmake
                               ${_tbb_dir}
+                        NO_CMAKE_FIND_ROOT_PATH
                         NO_DEFAULT_PATH)
 endif()
 
@@ -68,6 +69,7 @@ set_and_check(_ngraph_dir "@PACKAGE_IE_NGRAPH_DIR@")
 _ie_find_dependency(ngraph
                     CONFIG
                     PATHS ${_ngraph_dir}
+                    NO_CMAKE_FIND_ROOT_PATH
                     NO_DEFAULT_PATH)
 
 function(_ie_target_no_deprecation_error)

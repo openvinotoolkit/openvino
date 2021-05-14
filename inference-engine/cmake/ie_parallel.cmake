@@ -20,6 +20,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         if(IEDevScripts_DIR)
             find_package(TBB COMPONENTS tbb tbbmalloc
                          PATHS IEDevScripts_DIR
+                         NO_CMAKE_FIND_ROOT_PATH
                          NO_DEFAULT_PATH)
         else()
             find_dependency(TBB COMPONENTS tbb tbbmalloc)
