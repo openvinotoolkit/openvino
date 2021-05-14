@@ -11,10 +11,6 @@
 
 namespace ngraph
 {
-    class Variable;
-    class VariableValue;
-
-    using VariablePtr = std::shared_ptr<Variable>;
     using VariableValuePtr = std::shared_ptr<VariableValue>;
     using VariableMap = std::unordered_map<VariablePtr, VariableValuePtr>;
 
@@ -77,7 +73,7 @@ namespace ngraph
             return VariableValuePtr();
         }
 
-    public:
+    private:
         /// The values associated with a particular Variable.
         VariableMap m_variable_values;
     };
