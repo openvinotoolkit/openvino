@@ -65,6 +65,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
+
+        // AUTO plugin and QueryNetwork
+        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

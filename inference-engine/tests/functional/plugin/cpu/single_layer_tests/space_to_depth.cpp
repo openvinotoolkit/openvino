@@ -98,7 +98,7 @@ const std::vector<SpaceToDepth::SpaceToDepthMode> spaceToDepthModes = {
 };
 
 const std::vector<std::vector<size_t>> inputShapesBS2_4D = {
-        {1, 16, 2, 2}, {1, 16, 4, 2}, {1, 32, 6, 8}, {2, 32, 4, 6}, {2, 64, 8, 2},
+        {1, 16, 2, 2}, {1, 16, 4, 2}, {1, 32, 6, 8}, {2, 32, 4, 6}, {2, 48, 4, 4}, {2, 64, 8, 2},
 };
 
 const std::vector<std::vector<size_t >> inputShapesBS3_4D = {
@@ -145,7 +145,7 @@ const auto spaceToDepthBS3_4DParams = testing::Combine(
 INSTANTIATE_TEST_CASE_P(smoke_CPUSpaceToDepthBS3_4D, SpaceToDepthLayerCPUTest, spaceToDepthBS3_4DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShapesBS2_5D = {
-        {1, 16, 2, 2, 2}, {1, 16, 4, 4, 2}, {1, 32, 2, 6, 2}, {2, 32, 4, 2, 2}, {2, 64, 2, 2, 6}
+        {1, 16, 2, 2, 2}, {1, 16, 4, 4, 2}, {1, 32, 2, 6, 2}, {2, 32, 4, 2, 2}, {1, 48, 6, 2, 2}, {2, 64, 2, 2, 6}
 };
 
 const std::vector<std::vector<size_t >> inputShapesBS3_5D = {
