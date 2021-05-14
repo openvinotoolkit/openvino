@@ -163,7 +163,8 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    auto bufIter = p.blobMemCache.find(data);
+
+    auto bufIter = p.blobMemCache.find(std::make_pair(data, constDims));
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
@@ -198,7 +199,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
             std::memcpy(&buf[0], &data[0], bufSize);
         }
         p.AddPrimitive(cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[data] = initialconstPrimID;
+        p.blobMemCache[std::make_pair(data, constDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 

@@ -154,7 +154,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
 
         auto data = static_cast<const char *>(meanBlobPtr->buffer());
 
-        auto bufIter = p.blobMemCache.find(data);
+        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims));
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
@@ -166,7 +166,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
             std::memcpy(&buf[0], &data[0], bufSize);
 
             p.AddPrimitive(cldnn::data(meanBlobID, mem));
-            p.blobMemCache[data] = meanBlobID;
+            p.blobMemCache[std::make_pair(data, meanDims)] = meanBlobID;
         }
         break;
     }

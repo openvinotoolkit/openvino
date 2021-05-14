@@ -90,7 +90,8 @@ public:
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
-    std::map<const char *, cldnn::primitive_id> blobMemCache;
+    using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
+    std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     int m_max_batch;
     int m_curBatch;
