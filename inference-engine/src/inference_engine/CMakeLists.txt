@@ -8,11 +8,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4 QUIET)
     if (TBBBIND_2_4_FOUND)
         message(STATUS "Static tbbbind_2_4 package was found")
-
-        # WA: need to update TBBBind_2_4 package
-        set_target_properties(TBBbind::tbbbind_2_4 PROPERTIES
-            MAP_IMPORTED_CONFIG_MINSIZEREL Release
-            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
     endif()
 endif()
 
@@ -32,6 +27,9 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     # "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
     # "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp"
     )
+
+set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
+    COMPILE_DEFINITIONS "USE_STATIC_IE")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
