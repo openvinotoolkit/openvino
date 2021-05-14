@@ -13,6 +13,7 @@
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <unordered_set>
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -49,6 +50,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
@@ -64,6 +66,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/graph_util.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
@@ -121,6 +124,28 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
+    auto get_convert_precisions = []() {
+        precisions_array array = {
+            {ngraph::element::i64,     ngraph::element::i32},
+            {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::i16,     ngraph::element::i32},
+            {ngraph::element::u16,     ngraph::element::i32},
+            {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f64,     ngraph::element::f32},
+            {ngraph::element::f16,     ngraph::element::f32},
+            {ngraph::element::boolean, ngraph::element::u8},
+            {ngraph::element::i4,      ngraph::element::i8},
+            {ngraph::element::u4,      ngraph::element::u8}
+        };
+
+        if (!with_cpu_x86_avx512_core())
+            array.push_back({ngraph::element::bf16, ngraph::element::f32});
+
+        return array;
+    };
+
+    static const auto precisions = get_convert_precisions();
+
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -139,27 +164,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
-            {ngraph::element::i64,     ngraph::element::i32},
-            {ngraph::element::u64,     ngraph::element::i32},
-            {ngraph::element::i16,     ngraph::element::i32},
-            {ngraph::element::u16,     ngraph::element::i32},
-            {ngraph::element::u32,     ngraph::element::i32},
-            {ngraph::element::f64,     ngraph::element::f32},
-            {ngraph::element::f16,     ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
-            {ngraph::element::i4, ngraph::element::i8},
-            {ngraph::element::u4, ngraph::element::u8},
-    };
-
-    // In case BF16 is not supported by the target CPU we explicitly convert it to FP32
-    if (!with_cpu_x86_avx512_core())
-        convert_precision_list.push_back({ngraph::element::bf16, ngraph::element::f32});
-
-    for (auto &precision : convert_precision_list) {
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-    }
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
 
     auto pass_config = manager.get_pass_config();
 
@@ -276,6 +281,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 

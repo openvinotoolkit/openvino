@@ -439,3 +439,22 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u64)
 
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_float32_int8)
+{
+    std::vector<float> f32vec = {-100.5, -20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5, 100.5};
+    std::vector<int8_t> result(f32vec.size());
+    std::vector<int8_t> i8vec(std::begin(f32vec), std::end(f32vec));
+    runtime::reference::convert(f32vec.data(), result.data(), f32vec.size());
+    EXPECT_EQ(result, i8vec);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_fp16_int8)
+{
+    std::vector<float> f32vec = {-100.5, -20.5, -15, -10.5, -0.5, 0, 0.5, 10.5, 15, 20.5, 100.5};
+    std::vector<float16> f16vec(std::begin(f32vec), std::end(f32vec));
+    std::vector<int8_t> i8vec(std::begin(f16vec), std::end(f16vec));
+    std::vector<int8_t> result(i8vec.size());
+    runtime::reference::convert(f16vec.data(), result.data(), f16vec.size());
+    EXPECT_EQ(result, i8vec);
+}

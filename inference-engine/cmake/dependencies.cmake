@@ -38,62 +38,6 @@ if (ENABLE_MYRIAD)
     include(cmake/vpu_dependencies.cmake)
 endif()
 
-## enable cblas_gemm from OpenBLAS package
-if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
-    if(AARCH64)
-        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        elseif(DEFINED THIRDPARTY_SERVER_PATH)
-            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        else()
-            message(WARNING "OpenBLAS is not found!")
-        endif()
-
-        if(DEFINED IE_PATH_TO_DEPS)
-            reset_deps_cache(OpenBLAS_DIR)
-
-            RESOLVE_DEPENDENCY(OpenBLAS
-                    ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
-                    TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
-                    ENVIRONMENT "OpenBLAS_DIR"
-                    SHA256 "c75aac901d5297d6d60a4b1f941f0335d8fd7f52e0dff8c445f644e2e45e6fba")
-
-            update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
-
-            find_package(OpenBLAS QUIET)
-
-            if(OpenBLAS_FOUND)
-                set(BLAS_FOUND TRUE)
-                set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
-                set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
-            endif()
-
-            unset(IE_PATH_TO_DEPS)
-        endif()
-    endif()
-
-    if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)
-        find_package(BLAS REQUIRED)
-
-        if(BLAS_FOUND)
-            find_path(BLAS_INCLUDE_DIRS cblas.h)
-        else()
-            message(ERROR "OpenBLAS not found: install OpenBLAS or set -DBLAS_INCLUDE_DIRS=<path to dir with cblas.h> and -DBLAS_LIBRARIES=<path to libopenblas.so or openblas.lib>")
-        endif()
-    endif()
-
-    debug_message(STATUS "openblas=" ${BLAS_LIBRARIES})
-endif ()
-
-## MKL-ML package
-if (GEMM STREQUAL "MKL")
-    if(NOT MKLROOT)
-        message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
-    endif()
-    set(MKL ${MKLROOT})
-    debug_message(STATUS "mkl_ml=" ${MKLROOT})
-endif ()
-
 ## Intel OMP package
 if (THREADING STREQUAL "OMP")
     reset_deps_cache(OMP)
@@ -145,10 +89,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_win.zip"
+                ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
                 ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "1a3a05082cc5ef1a764d635793be347b82c795f0e9ced771515fc3706a4dc4f0")
+                SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -161,9 +105,9 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_lin.tgz"
+                ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
-                SHA256 "888582a94f81821f9894cc089db36d5a6c2e0b6998cfa1fec0c027f28c597ada")
+                SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"

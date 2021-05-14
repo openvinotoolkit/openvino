@@ -7,9 +7,11 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <functional>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "ie_core.hpp"
 #include "ie_plugin_ptr.hpp"
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
@@ -23,7 +25,6 @@
 #include "common_test_utils/test_constants.hpp"
 
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "functional_test_utils/network_utils.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
