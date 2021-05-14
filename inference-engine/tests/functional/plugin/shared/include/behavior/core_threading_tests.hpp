@@ -175,7 +175,7 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 }
 
 //
-//  Parametrized tests with numfer of parallel threads, iterations
+//  Parameterized tests with number of parallel threads, iterations
 //
 
 using Threads = unsigned int;
