@@ -92,7 +92,8 @@ std::vector<size_t > axes = {1};
 std::vector<std::vector<size_t>> inShapes = {
         {1, 32},
         {1, 128},
-        {8, 64}
+        {8, 64},
+        {1, 16}
 };
 
 std::vector<size_t> inputsNum = {2, 3, 5};

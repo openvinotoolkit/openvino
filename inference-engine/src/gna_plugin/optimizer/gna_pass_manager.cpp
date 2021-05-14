@@ -994,7 +994,7 @@ void InsertCopyLayerPass::run() {
                 }
             }
             if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
-            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - (LayerInfo(l).isInput() ? 0 : 1);
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
                 if (currentCopyIdx < MemoryLayers.size()) {

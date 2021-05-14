@@ -739,6 +739,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
+        passes->registerPass<InsertCopyLayerPass>();
+
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
@@ -748,9 +750,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
+
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
-        passes->registerPass<InsertCopyLayerPass>();
+
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
