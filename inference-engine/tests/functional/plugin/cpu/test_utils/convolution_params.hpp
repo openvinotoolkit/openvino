@@ -37,6 +37,8 @@ namespace CPUTestUtils {
     const auto conv_avx2_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"};
     const auto conv_avx2_dw_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
     const auto conv_avx2_dw_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
+    const auto conv_avx2_planar_2D = CPUSpecificParams{{nchw}, {nchw}, {"jit_avx2"}, "jit_avx2"};
+    const auto conv_avx2_planar_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx2"}, "jit_avx2"};
 
     const auto conv_avx2_plain_to_blocked_2D = CPUSpecificParams{{nchw}, {nChw8c}, {"jit_avx2"}, "jit_avx2"};
     const auto conv_avx2_plain_to_blocked_3D = CPUSpecificParams{{ncdhw}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"};
@@ -50,6 +52,8 @@ namespace CPUTestUtils {
     const auto conv_avx512_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"};
     const auto conv_avx512_dw_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
     const auto conv_avx512_dw_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
+    const auto conv_avx512_planar_2D = CPUSpecificParams{{nchw}, {nchw}, {"jit_avx512"}, "jit_avx512"};
+    const auto conv_avx512_planar_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx512"}, "jit_avx512"};
 
     const auto conv_avx512_plain_to_blocked_2D = CPUSpecificParams{{nchw}, {nChw16c}, {"jit_avx512"}, "jit_avx512"};
     const auto conv_avx512_plain_to_blocked_3D = CPUSpecificParams{{ncdhw}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"};

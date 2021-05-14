@@ -660,7 +660,75 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-/* ========= */
+/* ============= Jit Planar ============= */
+
+/* ============= Convolution planar params (2D) ============= */
+const std::vector<CPUSpecificParams> CPUParams_Jit_Planar_2D = {
+        // sse42 is not supported
+        conv_avx2_planar_2D,
+        conv_avx512_planar_2D,
+};
+
+const auto convParams_Planar_ExplicitPadding_2D = ::testing::Combine(
+        ::testing::ValuesIn(kernels2d),
+        ::testing::Values(SizeVector{1, 1}),
+        ::testing::ValuesIn(padBegins2d),
+        ::testing::ValuesIn(padEnds2d),
+        ::testing::ValuesIn(dilations2d),
+        ::testing::Values(1),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_Planar_ExplicitPadding_2D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapes2d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Jit_Planar_2D)),
+        ::testing::Values(emptyFusingSpec, fusingRelu),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= Convolution planar params (3D) ============= */
+const std::vector<CPUSpecificParams> CPUParams_Jit_Planar_3D = {
+        // sse42 is not supported
+        conv_avx2_planar_3D,
+        conv_avx512_planar_3D,
+};
+
+const auto convParams_Planar_ExplicitPadding_3D = ::testing::Combine(
+        ::testing::ValuesIn(kernels3d),
+        ::testing::Values(SizeVector{1, 1, 1}),
+        ::testing::ValuesIn(padBegins3d),
+        ::testing::ValuesIn(padEnds3d),
+        ::testing::ValuesIn(dilations3d),
+        ::testing::Values(1),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_Planar_ExplicitPadding_3D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::ValuesIn(inputShapes3d),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Jit_Planar_3D)),
+        ::testing::Values(emptyFusingSpec, fusingRelu),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= */
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
