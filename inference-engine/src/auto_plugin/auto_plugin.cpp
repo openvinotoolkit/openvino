@@ -36,6 +36,43 @@ namespace {
         return {};
     }
 
+    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
+        if (metaDevices.empty()) {
+            IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+        }
+        if (metaDevices.size() == 1) {
+            return metaDevices.at(0);
+        }
+
+        std::vector<DeviceInformation> CPU;
+        std::vector<DeviceInformation> GPU;
+
+        for (auto& item : metaDevices) {
+            if (item.deviceName.find("CPU") == 0) {
+                CPU.push_back(item);
+                continue;
+            }
+            if (item.deviceName.find("GPU") == 0) {
+                GPU.push_back(item);
+                continue;
+            }
+        }
+
+        if (CPU.empty() && GPU.empty()) {
+            IE_THROW(NotFound) << "No available device found";
+        }
+
+        std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
+
+        if (!GPU.empty()) {
+            return GPU[0];
+        }
+        if (CPU.empty()) {
+            IE_THROW() << "Cannot select any device";
+        }
+        return CPU[0];
+    }
+
     DeviceInformation SelectDevice(const InferenceEngine::CNNNetwork &network,
                                    const std::vector<DeviceInformation>& metaDevices,
                                    const std::vector<std::string>& optCap) {
