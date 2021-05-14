@@ -232,18 +232,13 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     }
 }
 
-static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, uint32_t id, std::string msg) {
+static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
     std::string filename = layerName;
     std::replace(filename.begin(), filename.end(), '\\', '_');
     std::replace(filename.begin(), filename.end(), '/', '_');
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
-    filename = std::string(DEBUG_DUMP_PATH) + "_s" + std::to_string(id) + "_" + filename + ".txt";
-
-    std::stringstream s;
-    s << msg << " stream " << id << " ptr: " << reinterpret_cast<void*>(mem.get()) << std::endl;
-    std::cerr << s.str();
-
+        filename = DEBUG_DUMP_PATH + filename + ".txt";
 
     std::ofstream file_stream(filename);
     auto mem_dt = mem->get_layout().data_type;
@@ -490,11 +485,10 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
 #if DUMP_SINGLE_LAYER
         if (layer_name == DUMP_LAYER_NAME) {
 #endif
-            // std::cerr << "Dump " << layer_name << " layer" << std::endl;
+            std::cerr << "Dump " << layer_name << " layer" << std::endl;
             for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                // if (get_primitive(inst->id())->dependencies()[i]->type() != data::type_id())
-                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                   layer_name + "_src_" + std::to_string(i), get_id(), "Dump " + layer_name + " layer");
+                log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
+                                   layer_name + "_src_" + std::to_string(i));
             }
 #if DUMP_SINGLE_LAYER
         }
@@ -514,9 +508,7 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
         if (layer_name == DUMP_LAYER_NAME)
 #endif
         {
-            // if (get_primitive(inst->id())->type() != data::type_id())
-                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0", get_id(),
-                "Dump " + layer_name + " layer");
+            log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
         }
 
 #endif
@@ -558,7 +550,7 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
 
     get_stream().reset_events();
 
-    // Using output of previouse network as input to another one may cause hazard (in OOOQ mode) if user would not
+    // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().finish();

@@ -162,9 +162,8 @@ memory::ptr primitive_inst::allocate_output() {
                                  engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
                                                      : allocation_type::usm_device;
 
-    memory::ptr res;
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-        res = engine.get_memory_from_pool(layout,
+        return engine.get_memory_from_pool(layout,
                                            _node.id(),
                                            net_id,
                                            _node.get_memory_dependencies(),
@@ -172,23 +171,21 @@ memory::ptr primitive_inst::allocate_output() {
                                            false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
-        res = engine.allocate_memory(layout, allocation_type::usm_device);
+        return engine.allocate_memory(layout, allocation_type::usm_device, false);
     } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
-        res = engine.allocate_memory(layout, alloc_type, false);
+        return engine.allocate_memory(layout, alloc_type, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
-        res = engine.allocate_memory(layout, alloc_type);
+        return engine.allocate_memory(layout, alloc_type);
     } else {
-        res = engine.get_memory_from_pool(layout,
-                                        _node.id(),
-                                        net_id,
-                                        _node.get_memory_dependencies(),
-                                        alloc_type,
-                                        true);
+        return engine.get_memory_from_pool(layout,
+                                           _node.id(),
+                                           net_id,
+                                           _node.get_memory_dependencies(),
+                                           alloc_type,
+                                           true);
     }
-
-    return res;
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

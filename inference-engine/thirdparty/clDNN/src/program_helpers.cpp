@@ -18,7 +18,7 @@ void program_helpers::merge_buffers(engine& engine,
                                     const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
-    memory::ptr data_to_allocate = engine.allocate_memory(target_layout);
+    memory::ptr data_to_allocate = engine.allocate_memory(target_layout, false);
     auto& stream = node.get_program().get_stream();
 
     for (size_t i = begin_offset; i < end_offset; i++) {
