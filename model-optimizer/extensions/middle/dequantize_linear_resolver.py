@@ -15,13 +15,15 @@ from mo.ops.reshape import Reshape
 
 class DequantizeLinearResolver(MiddleReplacementPattern):
     """
-    Transformation result depend on from axis value
-    If axis not set or default value equal 1 DequantizeLinear can be replace with the following formula:
+    Transformation result depends on the axis value.
+    If the axis is not set or x_scale input is scalar or 1D tensor with one element then DequantizeLinear is
+    replaced with the sub-graph which can be expressed with the following formula:
         y = (x - x_zero_point) * x_scale
-    In other cases DequantizeLinear can be replace to formula with addition broadcast x_zero_point and x_scale.
-    Target shape for broadcasting depend on axis.
+    In other cases DequantizeLinear can be replace to formula with addition reshape x_zero_point and x_scale.
+    Target shape for reshape depend on axis.
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
     def find_and_replace_pattern(self, graph: Graph):
         for dequantize_node in graph.get_op_nodes(op='DequantizeLinear'):

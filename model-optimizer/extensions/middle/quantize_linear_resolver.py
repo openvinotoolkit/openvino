@@ -3,8 +3,6 @@
 
 import numpy as np
 
-from extensions.middle.MulFakeQuantizeFuse import MulFakeQuantizeFuse
-from extensions.middle.ReluQuantizeFuse import ReluFakeQuantizeMark
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.fakequantize import FakeQuantize
@@ -20,21 +18,20 @@ from mo.utils.error import Error
 class QuantizeLinearResolver(MiddleReplacementPattern):
     """
     Replaces QuantizeLinear with FakeQuantize
-    Transformation result depend on from axis value.
-    If axis not set or default value equal 1 QuantizeLinear can be replace with the following subgruph:
+    Transformation result depends on the axis value.
+    If the axis is not set or x_scale input is scalar or 1D tensor with one element then QuantizeLinear is
+    replaced with the sub-graph which can be expressed with the following formula:
         QuantizeLinear -> FakeQuantize(input
                                        Mul(y_scale, Const(low_value))
                                        Mul(y_scale, Const(high_value))
                                        Const(low_value)
                                        Const(high_value))
         low_value and high_value depend on from y_zero_point type
-    In other cases y_scale and y_zero_point with addition broadcasting.
+    In other cases y_scale and y_zero_point can be transform with addition reshape.
     Target shape for y_scale and y_zero_point depend on axis value.
     """
     enabled = True
-
-    def run_after(self):
-         return [MulFakeQuantizeFuse, ReluFakeQuantizeMark]
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
     def find_and_replace_pattern(self, graph: Graph):
         for quantize_node in graph.get_op_nodes(op='QuantizeLinear'):
