@@ -175,7 +175,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
             manager.register_pass<ngraph::pass::ConvertGather0D>();
 
-            std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            static const precisions_array convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},
                     {ngraph::element::u64, ngraph::element::i32},
                     {ngraph::element::u16, ngraph::element::i32},
@@ -185,9 +185,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     {ngraph::element::u4, ngraph::element::u8},
             };
 
-            for (auto& precision : convert_precision_list) {
-                manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-            }
+            manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
             auto pass_config = manager.get_pass_config();
 
@@ -366,7 +364,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
             // With this key users can work-around such issues
             if (!config.enable_fp16_for_quantized_models) {
-                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+                manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             }
             auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
             const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
