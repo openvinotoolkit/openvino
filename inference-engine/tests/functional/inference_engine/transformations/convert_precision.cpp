@@ -54,8 +54,13 @@ TEST(TransformationTests, ConvertPrecision_NMS3) {
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -77,8 +82,13 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -95,8 +105,13 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
         f = std::make_shared<Function>(NodeVector{shape_of}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -113,8 +128,13 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
         f = std::make_shared<Function>(NodeVector{convert}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -132,7 +152,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
         f = std::make_shared<Function>(NodeVector{convert}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
         manager.run_passes(f);
         ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
     }
@@ -158,8 +178,13 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
         f = std::make_shared<Function>(OutputVector{topk->output(0), topk->output(1)}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -176,8 +201,13 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
         f = std::make_shared<Function>(OutputVector{non_zero}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -195,8 +225,13 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
         f = std::make_shared<Function>(OutputVector{b}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -223,8 +258,13 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         f = std::make_shared<Function>(OutputVector{ss}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
         auto casted_end = std::dynamic_pointer_cast<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
@@ -279,8 +319,13 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
                                                ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
         ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
@@ -300,8 +345,13 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -320,8 +370,13 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -340,8 +395,13 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -360,8 +420,13 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -380,8 +445,13 @@ TEST(TransformationTests, ConvertPrecision_Less) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -400,8 +470,13 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
+        static const precisions_array precisions = {
+            { ngraph::element::boolean, ngraph::element::u8 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
 
@@ -420,7 +495,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::u8 }});
         manager.run_passes(f);
     }
 
@@ -438,7 +513,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::u8 }});
         manager.run_passes(f);
     }
 
@@ -456,7 +531,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::u8 }});
         manager.run_passes(f);
     }
 
@@ -473,7 +548,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
         f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::u8 }});
         manager.run_passes(f);
     }
 
@@ -491,7 +566,7 @@ TEST(TransformationTests, ConvertPrecision_Select) {
         f = std::make_shared<Function>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::u8 }});
         manager.run_passes(f);
     }
 
@@ -509,8 +584,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
         f = std::make_shared<Function>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i32, ngraph::element::i64);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::i32 }});
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i32, ngraph::element::i64 }});
         manager.run_passes(f);
     }
 
@@ -529,8 +604,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         f = std::make_shared<Function>(OutputVector{type_relaxed}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32);
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i32, ngraph::element::i64);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::boolean, ngraph::element::i32 }});
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i32, ngraph::element::i64 }});
         manager.run_passes(f);
 
         ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
@@ -555,7 +630,7 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{inp});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
         manager.run_passes(f);
     }
 
@@ -573,7 +648,7 @@ void constant_convert_test(element::Type type_from, element::Type type_to, const
         f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(type_from, type_to);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ type_from, type_to }});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
@@ -603,7 +678,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(type_from, type_to);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ type_from, type_to }});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();

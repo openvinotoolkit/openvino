@@ -67,7 +67,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Template plugin handles only FP32 networks
-    passManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+    passManager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ngraph::element::f16, ngraph::element::f32 }});
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
