@@ -11,6 +11,7 @@
 
 namespace cldnn {
 
+/// @brief Represents detected GPU device object. Use device_query to get list of available objects.
 struct device {
 public:
     using ptr = std::shared_ptr<device>;

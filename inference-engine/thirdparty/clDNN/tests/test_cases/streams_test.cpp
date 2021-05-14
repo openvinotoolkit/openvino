@@ -11,20 +11,10 @@
 using namespace cldnn;
 using namespace ::tests;
 
-static engine_configuration streams_config(false,
-                                           queue_types::out_of_order,
-                                           "",
-                                           priority_mode_types::disabled,
-                                           throttle_mode_types::disabled,
-                                           true,
-                                           true,
-                                           2);
+TEST(gpu_streams, can_create_networks_for_stream) {
+    auto& engine = get_test_engine();
 
-TEST(gpu_streams, can_create_networks_for_stream)
-{
-    auto _engine = engine::create(engine_types::ocl, runtime_types::ocl, streams_config);
-
-    auto input = _engine->allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
                  2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -39,7 +29,7 @@ TEST(gpu_streams, can_create_networks_for_stream)
     topology topology(
             input_layout("input", input->get_layout()),
             activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(*_engine, topology, build_options());
+    network network(engine, topology, build_options());
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -66,9 +56,9 @@ TEST(gpu_streams, can_create_networks_for_stream)
 }
 
 TEST(gpu_streams, check_networks_can_use_the_same_weights) {
-    auto _engine = engine::create(engine_types::ocl, runtime_types::ocl, streams_config);
+    auto& engine = get_test_engine();
 
-    auto weights = _engine->allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
 
     VVF<float> output_vec = {
             { 20.0f, 27.0f, 38.0f },
@@ -82,12 +72,12 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    program prog(*_engine, topology, build_options());
+    program prog(engine, topology, build_options());
     network network0(prog, 0);
     network network1(prog, 1);
 
-    auto input0 = _engine->allocate_memory(input0_layout);
-    auto input1 = _engine->allocate_memory(input0_layout);
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto input1 = engine.allocate_memory(input0_layout);
     set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
 
@@ -130,9 +120,9 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
 }
 
 TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
-    auto _engine = engine::create(engine_types::ocl, runtime_types::ocl, streams_config);
+    auto& engine = get_test_engine();
 
-    auto weights = _engine->allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
 
     VVF<float> output_vec = {
             { 20.0f, 27.0f, 38.0f },
@@ -146,12 +136,12 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    program prog(*_engine, topology, build_options());
+    program prog(engine, topology, build_options());
     network network0(prog, 0);
     network network1(prog, 1);
 
-    auto input0 = _engine->allocate_memory(input0_layout);
-    auto input1 = _engine->allocate_memory(input0_layout);
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto input1 = engine.allocate_memory(input0_layout);
     set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
 

@@ -18,7 +18,7 @@
 namespace cldnn {
 namespace ocl {
 
-struct ocl_engine : public engine {
+class ocl_engine : public engine {
 public:
     ocl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf);
     engine_types type() const override { return engine_types::ocl; };
@@ -41,6 +41,7 @@ public:
     stream_ptr create_stream() const override;
     stream& get_program_stream() const override;
 
+    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
 private:
     std::string _extensions;
     std::unique_ptr<stream> _program_stream;

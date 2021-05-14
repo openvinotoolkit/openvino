@@ -280,12 +280,10 @@ void CLDNNInferRequest::copyOutputData(cldnn::memory::ptr outputMemory,
 }
 
 void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
-                                    const cldnn::primitive_id &inputName,
-                                    const cldnn::layout& inputLayout,
-                                    const Blob &inputBlob, buf_info* bi) {
+                                      const cldnn::primitive_id &inputName,
+                                      const cldnn::layout& inputLayout,
+                                      const Blob &inputBlob, buf_info* bi) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::copyInputData");
-    // size_t n = (bi == nullptr) ? inputBlob.size() : bi->buf_size;
-    // assert(n == inputLayout.count());
 
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -1040,4 +1038,4 @@ void CLDNNInferRequest::PrepareInputDyn(const cldnn::primitive_id &inputName, co
     }
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace CLDNNPlugin

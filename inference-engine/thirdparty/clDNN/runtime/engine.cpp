@@ -7,6 +7,9 @@
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/stream.hpp"
 #include "cldnn/runtime/device_query.hpp"
+
+#include "ocl/ocl_engine.hpp"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -65,11 +68,11 @@ allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_im
 }
 
 memory::ptr engine::get_memory_from_pool(const layout& layout,
-                                                   primitive_id id,
-                                                   uint32_t network_id,
-                                                   std::set<primitive_id> dependencies,
-                                                   allocation_type type,
-                                                   bool reusable) {
+                                         primitive_id id,
+                                         uint32_t network_id,
+                                         std::set<primitive_id> dependencies,
+                                         allocation_type type,
+                                         bool reusable) {
     if (_configuration.use_memory_pool)
         return _memory_pool->get_memory(layout, id, network_id, dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
@@ -140,7 +143,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const device::ptr device,
                                               const engine_configuration& configuration) {
     switch (engine_type) {
-        case engine_types::ocl: return create_ocl_engine(device, runtime_type, configuration);
+        case engine_types::ocl: return ocl::ocl_engine::create(device, runtime_type, configuration);
         default: throw std::runtime_error("Invalid engine type");
     }
 }

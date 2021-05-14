@@ -119,13 +119,13 @@ struct mem_lock {
     T* data() const & { return _ptr; }
 
     /// Prevents to use mem_lock as temporary object
-    void data() && {}
+    T* data() && = delete;
     /// Prevents to use mem_lock as temporary object
-    void begin() && {}
+    T* begin() && = delete;
     /// Prevents to use mem_lock as temporary object
-    void end() && {}
+    T* end() && = delete;
     /// Prevents to use mem_lock as temporary object
-    void operator[](size_t idx) && {}
+    T& operator[](size_t idx) && = delete;
 
 private:
     memory::ptr _mem;
