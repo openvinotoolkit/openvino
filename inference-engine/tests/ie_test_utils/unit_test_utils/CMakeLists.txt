@@ -18,6 +18,9 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             inference_engine_tests
+        INCLUDES
+            PRIVATE
+                $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )

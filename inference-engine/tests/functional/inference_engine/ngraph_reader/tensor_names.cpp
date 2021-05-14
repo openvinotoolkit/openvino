@@ -3,6 +3,8 @@
 //
 
 #include <string>
+#include <ngraph/function.hpp>
+
 #include "ngraph_reader_tests.hpp"
 
 TEST_F(NGraphReaderTests, ReadNetworkWithTensorNames) {
