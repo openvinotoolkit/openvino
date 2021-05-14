@@ -254,6 +254,7 @@ set(SRC
     visitors/op/region_yolo.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
+    visitors/op/result.cpp
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
