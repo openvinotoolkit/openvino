@@ -940,10 +940,6 @@ topk_max_sort_index
 topk_min_sort_index
 topk_1d_i32_max_all
 topk_int64
-gelu_f32
-gelu_f64
-gelu_backprop_factor_f32
-gelu_backprop_factor_f64
 
 backwards_abs
 backwards_acos
