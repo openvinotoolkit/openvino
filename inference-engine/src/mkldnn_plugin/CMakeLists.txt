@@ -16,25 +16,16 @@ if (ENABLE_CPU_DEBUG_CAPS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
 endif()
 
-file(GLOB_RECURSE SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+                          ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-file(GLOB HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
-
-addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER MKL_VERSION)
+addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 
 include_directories(
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_BINARY_DIR}/include
-)
-
-if (GEMM STREQUAL "MKL")
-    log_rpath_from_dir(MKL "${MKL}/lib")
-endif()
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 # create plugin
 
@@ -99,17 +90,3 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# install
-
-if(GEMM STREQUAL "MKL")
-    install(DIRECTORY "${MKL}/include"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx
-            COMPONENT cpu)
-    install(FILES "${MKLLIB}"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx/lib
-            COMPONENT cpu)
-    install(FILES "${MKL}/version.info"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx
-            COMPONENT cpu)
-endif()

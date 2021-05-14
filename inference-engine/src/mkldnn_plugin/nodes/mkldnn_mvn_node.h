@@ -86,11 +86,11 @@ public:
 
     inline bool getAcrossChannels() const {
         return acrossChannels_;
-    };
+    }
 
     inline bool getNormalizeVariance() const {
         return normalizeVariance_;
-    };
+    }
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
 

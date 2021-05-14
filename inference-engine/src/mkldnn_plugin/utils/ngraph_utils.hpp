@@ -18,7 +18,7 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
     } else {
         return "";
     }
-};
+}
 
 inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
