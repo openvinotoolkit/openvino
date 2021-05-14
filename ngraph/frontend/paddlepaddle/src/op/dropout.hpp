@@ -5,11 +5,17 @@
 #pragma once
 #include "node_context.hpp"
 
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
-namespace op {
+namespace ngraph
+{
+    namespace frontend
+    {
+        namespace pdpd
+        {
+            namespace op
+            {
+                NamedOutputs dropout(const NodeContext& node);
 
-NamedOutputs dropout (const NodeContext& node);
-
-}}}}
+            }
+        } // namespace pdpd
+    }     // namespace frontend
+} // namespace ngraph
