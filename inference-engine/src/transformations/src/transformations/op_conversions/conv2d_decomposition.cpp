@@ -381,7 +381,7 @@ bool pass::Conv2dDecomposition::run_on_function(std::shared_ptr<Function> f) {
             continue;
 
         // GNA supported features - there is no need to decompose such convolution
-        if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1 && !disable_nhwc_to_nchw_option)
+        if (conv_count == 1 && (input_height == 1 || input_width == 1) && filter_dilation_x == 1 && filter_dilation_y == 1 && !disable_nhwc_to_nchw_option)
             continue;
 
         // All checks applied - now we may start to do transformations
