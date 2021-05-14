@@ -113,9 +113,10 @@ else:
 * *T1*: any numeric type.
 * *T2*: any integer type.
 
-**Example**
+**Examples**
 
-2D ConvolutionBackpropData
+*Example 1: 2D ConvolutionBackpropData*
+
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
     <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0" auto_pad="explicit"/>
@@ -144,7 +145,8 @@ else:
 </layer>
 ```
 
-2D ConvolutionBackpropData with output_padding
+*Example 2: 2D ConvolutionBackpropData with output_padding*
+
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
     <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="3,3" output_padding="2,2" auto_pad="explicit"/>
@@ -173,7 +175,8 @@ else:
 </layer>
 ```
 
-2D ConvolutionBackpropData with output_shape input
+*Example 3: 2D ConvolutionBackpropData with output_shape input*
+
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
     <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="1,1" output_padding="0,0" auto_pad="valid"/>
