@@ -14,7 +14,7 @@
 #include "common_test_utils/unicode_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "functional_test_utils/network_utils.hpp"
+#include "network_utils.hpp"
 
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT

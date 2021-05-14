@@ -14,9 +14,12 @@
 #include <string>
 
 #include "ie_icnn_network.hpp"
-#include <legacy/cnn_network_impl.hpp>
 
 IE_SUPPRESS_DEPRECATED_START
+
+namespace InferenceEngine {
+class CNNLayer;
+}  // namespace InferenceEngine
 
 /**
  * @class MockICNNNetwork
@@ -33,7 +36,7 @@ class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
     MOCK_QUALIFIED_METHOD0(getName, const noexcept, const std::string&());
     MOCK_QUALIFIED_METHOD3(addOutput, noexcept, InferenceEngine::StatusCode(const std::string &, size_t, InferenceEngine::ResponseDesc*));
      MOCK_QUALIFIED_METHOD3(getLayerByName, const noexcept, InferenceEngine::StatusCode(const char* ,
-            InferenceEngine::CNNLayerPtr&,
+            std::shared_ptr<InferenceEngine::CNNLayer>&,
             InferenceEngine::ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, InferenceEngine::StatusCode(const size_t size, InferenceEngine::ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());

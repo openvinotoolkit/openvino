@@ -11,7 +11,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/common_layers_params.hpp"
 #include "ie_core.hpp"
 
 namespace LayerTestsDefinitions {

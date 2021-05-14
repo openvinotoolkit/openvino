@@ -10,6 +10,7 @@
 #include <legacy/ie_layers_internal.hpp>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
+#include "single_layer_common.hpp"
 
 #include "conv_ref.hpp"
 #include "deconv_ref.hpp"

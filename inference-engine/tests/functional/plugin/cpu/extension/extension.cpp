@@ -8,74 +8,71 @@
 #include <onnx_import/onnx_utils.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <onnx_custom_op.hpp>
 
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
-    public:
-        explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
+public:
+    explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
 
-        InferenceEngine::StatusCode
-        init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            return InferenceEngine::StatusCode::OK;
+    InferenceEngine::StatusCode
+    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        return InferenceEngine::StatusCode::OK;
+    }
+
+    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
+                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        InferenceEngine::LayerConfig layerConfig;
+        layerConfig.dynBatchSupport = true;
+
+        if (node->outputs().size() != 1 && node->inputs().size() != 1)
+            return InferenceEngine::GENERAL_ERROR;
+
+        InferenceEngine::DataConfig cfg;
+        cfg.constant = false;
+        cfg.inPlace = 0;
+
+        InferenceEngine::SizeVector order;
+        auto partialShape = node->get_output_partial_shape(0);
+        if (partialShape.is_dynamic())
+            return InferenceEngine::GENERAL_ERROR;
+
+        auto shape = node->get_output_shape(0);
+        for (size_t i = 0; i < shape.size(); i++) {
+            order.push_back(i);
         }
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                shape, {shape, order});
+        layerConfig.outConfs.push_back(cfg);
+        layerConfig.inConfs.push_back(cfg);
+        conf.push_back(layerConfig);
+        return InferenceEngine::OK;
+    }
 
-        InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                               InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            InferenceEngine::LayerConfig layerConfig;
-            layerConfig.dynBatchSupport = true;
-
-            if (node->outputs().size() != 1 && node->inputs().size() != 1)
-                return InferenceEngine::GENERAL_ERROR;
-
-            InferenceEngine::DataConfig cfg;
-            cfg.constant = false;
-            cfg.inPlace = 0;
-
-            InferenceEngine::SizeVector order;
-            auto partialShape = node->get_output_partial_shape(0);
-            if (partialShape.is_dynamic())
-                return InferenceEngine::GENERAL_ERROR;
-
-            auto shape = node->get_output_shape(0);
-            for (size_t i = 0; i < shape.size(); i++) {
-                order.push_back(i);
+    InferenceEngine::StatusCode
+    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
+            InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
+            if (!moutput || !minput) {
+                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
             }
-            cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                   shape, {shape, order});
-            layerConfig.outConfs.push_back(cfg);
-            layerConfig.inConfs.push_back(cfg);
-            conf.push_back(layerConfig);
-            return InferenceEngine::OK;
-        }
+            // locked memory holder should be alive all time while access to its buffer happens
+            auto minputHolder = minput->rmap();
+            auto moutputHolder = moutput->wmap();
 
-        InferenceEngine::StatusCode
-        execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-                InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            for (size_t i = 0; i < inputs.size(); i++) {
-                InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
-                InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
-                if (!moutput || !minput) {
-                    return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
-                }
-                // locked memory holder should be alive all time while access to its buffer happens
-                auto minputHolder = minput->rmap();
-                auto moutputHolder = moutput->wmap();
-
-                auto inputData = minputHolder.as<const float *>();
-                auto outputData = moutputHolder.as<float  *>();
-                for (size_t j = 0; j < minput->size(); j++) {
-                    outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
-                }
+            auto inputData = minputHolder.as<const float *>();
+            auto outputData = moutputHolder.as<float  *>();
+            for (size_t j = 0; j < minput->size(); j++) {
+                outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
             }
-            return InferenceEngine::StatusCode::OK;
         }
+        return InferenceEngine::StatusCode::OK;
+    }
 
-
-
-    private:
-        const std::shared_ptr<ngraph::Node> node;
+private:
+    const std::shared_ptr<ngraph::Node> node;
 };
 
 class CustomAbs : public ngraph::op::Op {
@@ -100,31 +97,28 @@ public:
 constexpr ngraph::NodeTypeInfo CustomAbs::type_info;
 
 class CustomAbsExtension : public InferenceEngine::IExtension {
-    public:
-        CustomAbsExtension() {
-        }
+public:
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-        void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
+    void Unload() noexcept override {}
 
-        void Unload() noexcept override {}
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<CustomAbs>();
+        opsets["custom_opset"] = opset;
+        return opsets;
+    }
 
-        std::map<std::string, ngraph::OpSet> getOpSets() override {
-            std::map<std::string, ngraph::OpSet> opsets;
-            ngraph::OpSet opset;
-            opset.insert<CustomAbs>();
-            opsets["custom_opset"] = opset;
-            return opsets;
-        }
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        if (node->description() != CustomAbs::type_info.name)
+            return {};
+        return {"CPU"};
+    }
 
-        std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-            if (node->description() != CustomAbs::type_info.name)
-                return {};
-            return {"CPU"};
-        }
-
-        InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-            return std::make_shared<CustomAbsKernel>(node);
-        }
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        return std::make_shared<CustomAbsKernel>(node);
+    }
 };
 
 void infer_model(InferenceEngine::Core& ie, const std::string& model,

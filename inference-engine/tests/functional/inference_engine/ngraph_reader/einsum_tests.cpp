@@ -4,7 +4,6 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-#include "common_test_utils/xml_net_builder/ir_net.hpp"
 
 TEST_F(NGraphReaderTests, ReadEinsumNetwork) {
     std::string model = R"V0G0N(

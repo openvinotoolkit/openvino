@@ -8,8 +8,6 @@
 #include <tuple>
 #include <memory>
 
-#include <legacy/ie_util_internal.hpp>
-
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <low_precision/transformer.hpp>
 

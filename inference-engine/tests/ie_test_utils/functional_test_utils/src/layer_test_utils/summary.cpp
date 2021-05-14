@@ -7,6 +7,9 @@
 
 using namespace LayerTestsUtils;
 
+#ifdef _WIN32
+# define getpid _getpid
+#endif
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;

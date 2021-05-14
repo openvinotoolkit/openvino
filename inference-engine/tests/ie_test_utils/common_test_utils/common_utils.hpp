@@ -11,11 +11,29 @@
 #include <vector>
 #include <set>
 #include <chrono>
+#include <ostream>
+#include <memory>
 
 #include <cpp/ie_cnn_network.h>
-#include <legacy/details/ie_cnn_network_iterator.hpp>
+
+namespace InferenceEngine {
+class CNNLayer;
+}
 
 namespace CommonTestUtils {
+
+enum class OpType {
+    SCALAR,
+    VECTOR
+};
+
+std::ostream& operator<<(std::ostream & os, OpType type);
+
+IE_SUPPRESS_DEPRECATED_START
+std::shared_ptr<InferenceEngine::CNNLayer>
+getLayerByName(const InferenceEngine::CNNNetwork & network, const std::string & layerName);
+IE_SUPPRESS_DEPRECATED_END
+
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
     if (!vec.empty()) {
@@ -47,19 +65,6 @@ inline std::string set2str(const std::set<vecElementType> &set) {
         return result.str();
     }
     return std::string("()");
-}
-
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
-                                                   const std::string & layerName) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::CNNNetworkIterator i(network), end;
-    while (i != end) {
-        auto layer = *i;
-        if (layer->name == layerName)
-            return layer;
-        ++i;
-    }
-    IE_THROW(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>

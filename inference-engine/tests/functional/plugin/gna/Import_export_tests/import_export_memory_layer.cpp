@@ -65,6 +65,7 @@ public:
         }
         auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
         std::vector<std::string> queryToState;
+        IE_SUPPRESS_DEPRECATED_START
         for (const auto &query_state : executableNetwork.QueryState()) {
             queryToState.push_back(query_state.GetName());
         }
@@ -72,6 +73,7 @@ public:
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
+        IE_SUPPRESS_DEPRECATED_END
         InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
         importInfer.Infer();
     }

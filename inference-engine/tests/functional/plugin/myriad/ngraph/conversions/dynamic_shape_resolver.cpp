@@ -13,7 +13,6 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <gtest/gtest.h>
 

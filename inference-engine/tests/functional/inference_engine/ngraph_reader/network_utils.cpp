@@ -9,10 +9,11 @@
 #include <map>
 #include <algorithm>
 
-#include "functional_test_utils/network_utils.hpp"
+#include "network_utils.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "functional_test_utils/blob_utils.hpp"
 #include <legacy/net_pass.h>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 namespace FuncTestUtils {
 
