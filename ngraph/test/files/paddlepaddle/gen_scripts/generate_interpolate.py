@@ -32,7 +32,7 @@ def pdpd_interpolate(x, sizes=None, scale_factor=None, mode='nearest', align_cor
         interp = interpolate(node_x, size=sizes, scale_factor=scale_factor,
                              mode=mode, align_corners=align_corners, align_mode=align_mode,
                              data_format=data_format, name=name)
-        out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+        out = pdpd.static.nn.batch_norm(interp, use_global_stats=True)
     outs = run_and_save_model(x, name, node_x, out, main_program, startup_program)
     return outs[0]
 
@@ -127,7 +127,7 @@ def nearest_upsample_tensor_size():
             interp = interpolate(node_x, size=node_sizes, scale_factor=None,
                                  mode='nearest', align_corners=test['align_corners'], align_mode=test['align_mode'],
                                  data_format='NCHW', name=test['name'])
-            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True)
             cpu = pdpd.static.cpu_places(1)
             exe = pdpd.static.Executor(cpu[0])
             exe.run(startup_program)
@@ -158,7 +158,7 @@ def bilinear_upsample_tensor_size():
             interp = interpolate(node_x, size=node_sizes, scale_factor=None,
                                  mode='bilinear', align_corners=test['align_corners'], align_mode=test['align_mode'],
                                  data_format='NCHW', name=test['name'])
-            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True)
             cpu = pdpd.static.cpu_places(1)
             exe = pdpd.static.Executor(cpu[0])
             exe.run(startup_program)
