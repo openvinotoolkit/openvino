@@ -22,7 +22,7 @@ the number of batch dimensions. `N` and `M` are numbers of dimensions of `data` 
   representing the batches, and *Gather* starts to gather from the `b` dimension. It requires the first `b` 
   dimensions in `data` and `indices` tensors to be equal. If `batch_dims` is less than zero, normalized value is used 
   `batch_dims = indices.rank + batch_dims`.
-  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank))` and `batch_dims' <= axis'`.
+  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank)]` and `batch_dims' <= axis'`.
   Where `batch_dims'` and `axis'` stand for normalized `batch_dims` and `axis` values.
   * **Type**: *T_AXIS*
   * **Default value**: 0
@@ -136,8 +136,9 @@ output_shape = (2, 3)
 
 * **1**:  `data` tensor of type *T* with arbitrary data. **Required**.
 
-* **2**:  `indices` tensor of type *T_IND* with indices to gather. The values for indices are in the range `[0, data[axis] - 1]`. 
-**Required**.
+* **2**:  `indices` tensor of type *T_IND* with indices to gather. 0D tensor (scalar) for indices is also allowed. 
+  The values for indices are in the range `[0, data[axis] - 1]`.
+  **Required**.
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
 *axis* equal to 1 means that gathering is performed over the first dimension. Negative `axis` means reverse indexing and 

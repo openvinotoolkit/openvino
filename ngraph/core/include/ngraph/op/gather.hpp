@@ -17,6 +17,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
+                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 Gather() = default;
                 /// \param params The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
@@ -26,6 +27,7 @@ namespace ngraph
                        const Output<Node>& axis);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
+                int64_t get_axis() const override;
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -52,6 +54,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
+                int64_t get_batch_dims() const;
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

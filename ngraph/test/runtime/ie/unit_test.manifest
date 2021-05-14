@@ -1614,6 +1614,7 @@ evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
 # not yet implemented on CPU/GPU Gather 7
+gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims
 gather_v7_1d_int32
 gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
 gather_v7_data_int32_2d_indices_axis_1_batch_dims_1

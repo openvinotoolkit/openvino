@@ -1181,7 +1181,34 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
 
     test_case.add_input<int64_t>({0, 0, 4,    // batch 0
                                   4, 0, 0});  // batch 1
-    test_case.add_expected_output<int32_t>(out_shape, {1, 1, 5,    // batch 0
+    test_case.add_expected_output<int32_t>(out_shape, {1, 1, 5,     // batch 0
+                                                       10, 6, 6});  // batch 1
+    test_case.run();
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims)
+{
+    Shape data_shape{2, 5};
+    Shape indices_shape{2, 3};
+    Shape out_shape{2, 3};
+    int64_t batch_dims = -1;
+    int64_t axis = 1;
+
+    auto P = make_shared<op::Parameter>(element::i32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = op::Constant::create(element::i64, Shape{}, {axis});
+    auto G = make_shared<op::v7::Gather>(P, I, A, batch_dims);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
+
+    // clang-format off
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5,    // batch 0
+                                  6, 7, 8, 9, 10}); // batch 1
+
+    test_case.add_input<int64_t>({0, 0, 4,    // batch 0
+                                  4, 0, 0});  // batch 1
+    test_case.add_expected_output<int32_t>(out_shape, {1, 1, 5,     // batch 0
                                                        10, 6, 6});  // batch 1
     test_case.run();
     // clang-format on
