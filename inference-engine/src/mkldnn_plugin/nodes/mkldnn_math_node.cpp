@@ -44,7 +44,7 @@ MKLDNNMathNode::MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mk
 
     initializers[op->get_type_info()](op, *this);
 
-    size_t sizeVector = op->inputs().size();
+    size_t sizeVector = op->get_input_size();
     inDataConf.reserve(sizeVector);
     for (int i = 0; i < sizeVector; ++i)
         inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
@@ -54,7 +54,7 @@ void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{inDataConf}},
+    addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
