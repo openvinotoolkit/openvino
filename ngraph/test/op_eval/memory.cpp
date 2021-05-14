@@ -9,7 +9,7 @@
 
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/op/util/variable.hpp"
-#include <ngraph/variant.hpp>
+#include "ngraph/variant.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/op/util/evaluation_context.hpp"
 
@@ -19,6 +19,8 @@
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::opset7;
+
+constexpr ngraph::VariantTypeInfo ngraph::VariantWrapper<ngraph::VariableContext>::type_info;
 
 shared_ptr<ngraph::Function> AssignReadGraph() {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3});

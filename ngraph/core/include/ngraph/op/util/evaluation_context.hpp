@@ -82,7 +82,6 @@ namespace ngraph
         VariableMap m_variable_values;
     };
 
-    extern template class VariantImpl<VariableContext>;
     template <>
     class VariantWrapper<VariableContext> : public VariantImpl<VariableContext>
     {
@@ -110,7 +109,11 @@ namespace ngraph
         using ContextMap = std::map<std::string, std::shared_ptr<Variant>>;
 
         /// \brief Constructs an uninitialized EvaluationContext.
-        EvaluationContext() = default;
+        EvaluationContext()
+        {
+            m_context["VariableContext"] =
+                std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+        }
 
         /// \brief Sets a new context for Variables.
         /// \param variable_context The new context for Variables.
