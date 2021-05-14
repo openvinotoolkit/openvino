@@ -29,7 +29,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38722,
                    xfail_issue_38723,
                    xfail_issue_38724,
-                   xfail_issue_38725,
                    xfail_issue_38732,
                    xfail_issue_38734,
                    xfail_issue_38735,
@@ -60,7 +59,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49752,
                    xfail_issue_49753,
                    xfail_issue_49754,
-                   xfail_issue_52463)
+                   xfail_issue_52463,
+                   xfail_issue_51993)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -298,9 +298,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_qlinearconv_cpu"),
     (xfail_issue_38724,
      "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
-    (xfail_issue_38725,
-     "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu"),
     (xfail_issue_33512,
      "OnnxBackendNodeModelTest.test_einsum_transpose_cpu",
      "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu",
@@ -358,7 +355,9 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
      "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",),
     (xfail_issue_44956,
-     "OnnxBackendNodeModelTest.test_loop11_cpu"),
+     "OnnxBackendNodeModelTest.test_loop11_cpu",
+     "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
+     "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu"),
     (xfail_issue_44957,
      "OnnxBackendNodeModelTest.test_compress_0_cpu",
      "OnnxBackendNodeModelTest.test_compress_1_cpu",
@@ -383,6 +382,8 @@ tests_expected_to_fail = [
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
+    (xfail_issue_51993,
+     "OnnxBackendNodeModelTest.test_prelu_broadcast_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:

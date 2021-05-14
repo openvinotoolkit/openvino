@@ -92,6 +92,8 @@ void MatMulTransformation::validate() {
 }
 
 void MatMulTransformation::Run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     LayerTestsCommon::Run();
 
     const auto params = std::get<3>(GetParam());
