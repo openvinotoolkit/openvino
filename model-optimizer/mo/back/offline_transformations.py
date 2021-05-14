@@ -9,7 +9,7 @@ from mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
         return {
             'LowLatency': ApplyLowLatencyTransformation,
         }
@@ -22,8 +22,8 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.inference_engine import read_network  # pylint: disable=import-error
-    from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile  # pylint: disable=import-error
+    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
     net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
 

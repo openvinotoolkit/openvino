@@ -6,15 +6,19 @@ import datetime
 import logging as log
 import os
 import platform
-import sys
 import subprocess
+import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
 
-import telemetry.telemetry as tm
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
+
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.graph.graph import Graph
@@ -107,7 +111,6 @@ def prepare_ir(argv: argparse.Namespace):
     log.debug(str(argv))
     log.debug("Model Optimizer started")
     t = tm.Telemetry()
-    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -373,7 +376,7 @@ def driver(argv: argparse.Namespace):
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
-    telemetry.start_session()
+    telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -391,7 +394,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if ov_update_message:
             print(ov_update_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session()
+        telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -418,7 +421,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error("-------------------------------------------------")
 
     telemetry.send_event('mo', 'conversion_result', 'fail')
-    telemetry.end_session()
+    telemetry.end_session('mo')
     telemetry.force_shutdown(1.0)
     return 1
 
