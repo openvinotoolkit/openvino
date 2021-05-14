@@ -12,7 +12,7 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-#include "ie_plugin_cpp.hpp"
+#include "cpp/ie_plugin.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -35,9 +35,9 @@ class VariableStateTests : public ::testing::Test {
         mockInferRequestInternal = make_shared<MockIInferRequestInternal>();
         mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
         ON_CALL(*mockExeNetworkInternal, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
-        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockExeNetworkInternal));
-        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
         net = plugin.LoadNetwork(CNNNetwork{}, {});
         req = net.CreateInferRequest();
     }
@@ -144,6 +144,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
     std::string name;
     EXPECT_NO_THROW(name = pState.GetName());
     EXPECT_EQ(name, "someName");
+    EXPECT_EQ(name, "");
     IE_SUPPRESS_DEPRECATED_END
 }
 

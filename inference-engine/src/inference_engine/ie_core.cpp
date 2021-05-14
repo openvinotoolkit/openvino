@@ -17,7 +17,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "compilation_context.hpp"
-#include "ie_plugin_cpp.hpp"
+#include "cpp/ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_cache_guard.hpp"
@@ -661,7 +661,7 @@ public:
             PluginDescriptor desc = it->second;
 
             try {
-                InferencePlugin plugin(desc.libraryLocation);
+                InferencePlugin plugin{desc.libraryLocation};
 
                 {
                     plugin.SetName(deviceName);

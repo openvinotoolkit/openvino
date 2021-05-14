@@ -21,36 +21,17 @@
 
 namespace InferenceEngine {
 
-namespace details {
-class SharedObjectLoader;
-}
-
 class IExecutableNetworkInternal;
 class IExecutableNetwork;
 
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<IExecutableNetworkInternal> _impl;
-    std::shared_ptr<details::SharedObjectLoader> _so;
-
-    ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
-                      const std::shared_ptr<details::SharedObjectLoader>&  so);
-
+class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPointer<IExecutableNetworkInternal> {
+    using details::SOPointer<IExecutableNetworkInternal>::SOPointer;
     friend class InferencePlugin;
 
 public:
-    /**
-     * @brief Default constructor
-     */
-    ExecutableNetwork() = default;
-
-    /**
-     * @brief Default destructor
-     */
-    ~ExecutableNetwork();
-
     /**
      * @brief Gets the Executable network output Data node information.
      *

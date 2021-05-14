@@ -9,7 +9,7 @@
 
 #include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_executable_network_base.hpp"
-#include "ie_plugin_cpp.hpp"
+#include "cpp/ie_plugin.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
@@ -43,7 +43,6 @@ protected:
     MockIInferencePlugin*                 mockIPlugin;
     InferencePlugin                       plugin;
 
-
     virtual void TearDown() {
         mockIExeNet.reset();
         exeNetwork = {};
@@ -52,9 +51,9 @@ protected:
 
     virtual void SetUp() {
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
-        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
         exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
     }
 };
@@ -70,8 +69,6 @@ TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
 TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
     InferenceEngine::ConstOutputsDataMap data;
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstOutputsDataMap{}));
-
-    ASSERT_NO_THROW(data = exeNetwork.GetOutputsInfo());
     ASSERT_EQ(data, InferenceEngine::ConstOutputsDataMap{});
 }
 

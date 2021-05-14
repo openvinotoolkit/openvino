@@ -8,7 +8,7 @@
 
 #include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
-#include <ie_plugin_cpp.hpp>
+#include <cpp/ie_plugin.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
@@ -198,9 +198,9 @@ protected:
         mock_request = make_shared<MockIInferRequestInternal>();
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mock_request));
-        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
         exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
         request = exeNetwork.CreateInferRequest();
         _incorrectName = "incorrect_name";
@@ -222,9 +222,9 @@ protected:
         mockInferRequestInternal = make_shared<MockIInferRequestInternal>(inputsInfo, outputsInfo);
         auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
-        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        auto plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        auto plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
         auto exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
         return exeNetwork.CreateInferRequest();
     }
