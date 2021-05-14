@@ -42,7 +42,6 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParam
 void ConvolutionBackpropDataLayerTest::SetUp() {
     convBackpropDataSpecificParams convBackpropDataParams;
     std::vector<size_t> inputShape;
-    std::vector<size_t> outputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
@@ -56,7 +55,7 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                        padEnd, dilation, padType, convOutChannels));
+                                                         padEnd, dilation, padType, convOutChannels));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
 }
