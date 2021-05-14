@@ -268,6 +268,7 @@ set(SRC
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unsqueeze.cpp
     uint4.cpp
     util.cpp
 )
@@ -425,6 +426,7 @@ set(MULTI_TEST_SRC
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
+    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
 )
