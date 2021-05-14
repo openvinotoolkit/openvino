@@ -5,16 +5,18 @@ import argparse
 import datetime
 import logging as log
 import os
-import sys
 import platform
+import sys
 import subprocess
 import traceback
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 
 import telemetry.telemetry as tm
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -22,16 +24,17 @@ from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
-from mo.utils.error import Error, FrameworkError, classify_error_type
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
+    parse_transform, check_available_transforms
+from mo.utils.error import Error, FrameworkError
+from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
-from mo.utils.versions_checker import check_requirements
-from mo.utils.find_ie_version import find_ie_version
+from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -139,14 +142,22 @@ def prepare_ir(argv: argparse.Namespace):
     # This try-except is additional reinsurance that the IE
     # dependency search does not break the MO pipeline
     try:
-        if not find_ie_version(silent=argv.silent) and not argv.silent:
+        argv.ie_is_available = find_ie_version(silent=argv.silent)
+
+        if not argv.ie_is_available and not argv.silent:
             print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
             print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
             # If the IE was not found, it will not print the MO version, so we have to print it manually
             print("{}: \t{}".format("Model Optimizer version", get_version()))
     except Exception as e:
-        pass
+        argv.ie_is_available = False
+
+    # This is just to check that transform key is valid and transformations are available
+    check_available_transforms(parse_transform(argv.transform), argv.ie_is_available)
+
+    if argv.legacy_ir_generation and len(argv.transform) != 0:
+        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -245,13 +256,24 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
+    mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
+    input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+
+    # Remove temporary ie_is_available key from argv no to have it in IR
+    ie_is_available = argv.ie_is_available
+    del argv.ie_is_available
+
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
                     output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                    meta_info=get_meta_info(argv))
+                    mean_data=mean_data,
+                    input_names=input_names,
+                    meta_info=get_meta_info(argv),
+                    use_temporary_path=True)
+
+    # This graph cleanup is required to avoid double memory consumption
+    graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
@@ -261,15 +283,17 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if find_ie_version(silent=True):
+            if not argv.legacy_ir_generation and ie_is_available:
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
+                status = subprocess.run([sys.executable, path_to_offline_transformations,
+                                         "--input_model", orig_model_name,
+                                         "--framework", argv.framework,
+                                         "--transform", argv.transform], env=os.environ)
                 return_code = status.returncode
-                if return_code != 0 and not argv.silent:
-                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
         except Exception as e:
-            pass
+            return_code = "failed"
+            log.error(e, extra={'is_warning': True})
 
         message = str(dict({
             "platform": platform.system(),
@@ -280,6 +304,40 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         }))
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
+
+        # if IR wasn't produced by offline_transformations step we need to fallback to IR
+        # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
+        suffixes = [".xml", ".bin", ".mapping"]
+        if return_code != 0:
+            if len(argv.transform) != 0:
+                # Remove temporary IR before throwing exception
+                for suf in suffixes:
+                    path_to_file = orig_model_name + "_tmp" + suf
+                    if os.path.exists(path_to_file):
+                        os.remove(path_to_file)
+                raise Error("Failed to apply transformations: {}".format(argv.transform))
+
+            log.error("Using fallback to produce IR.", extra={'is_warning': True})
+            for suf in suffixes:
+                # remove existing files
+                path_to_file = orig_model_name + suf
+                if os.path.exists(path_to_file):
+                    os.remove(path_to_file)
+
+                # rename tmp IR to original name
+                os.rename(orig_model_name + "_tmp" + suf, orig_model_name + suf)
+        else:
+            for suf in suffixes:
+                # remove existing files
+                path_to_file = orig_model_name + "_tmp" + suf
+                if os.path.exists(path_to_file):
+                    os.remove(path_to_file)
+
+            # add meta information to IR
+            append_ir_info(file=orig_model_name,
+                           meta_info=get_meta_info(argv),
+                           mean_data=mean_data,
+                           input_names=input_names)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
@@ -363,3 +421,8 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
     telemetry.end_session()
     telemetry.force_shutdown(1.0)
     return 1
+
+
+if __name__ == "__main__":
+    from mo.utils.cli_parser import get_all_cli_parser
+    sys.exit(main(get_all_cli_parser(), None))

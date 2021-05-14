@@ -35,6 +35,14 @@ namespace ngraph
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
 
+    void validate_conv_params_spatial_dimensions(const Node* node,
+                                                 const size_t num_spatial_dims,
+                                                 const op::PadType auto_pad,
+                                                 Strides& strides,
+                                                 Strides& dilations,
+                                                 CoordinateDiff& pads_begin,
+                                                 CoordinateDiff& pads_end);
+
     /// \brief      Validates input shape ranks and infers convolution forward output shape.
     ///
     /// \param[in] node              Node with convolution operation.
@@ -49,6 +57,7 @@ namespace ngraph
     /// \return Partial shape of the output.
     PartialShape
         validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const Rank& result_ps_rank,
                                                             const PartialShape& data_batch_pshape,
                                                             const PartialShape& filters_pshape,
                                                             const op::PadType auto_pad,
