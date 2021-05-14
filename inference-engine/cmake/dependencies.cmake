@@ -159,10 +159,12 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
                 ARCHIVE_LIN "tbbbind_2_4_static_lin.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
                 SHA256 "888582a94f81821f9894cc089db36d5a6c2e0b6998cfa1fec0c027f28c597ada")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB

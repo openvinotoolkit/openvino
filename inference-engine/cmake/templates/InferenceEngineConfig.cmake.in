@@ -25,7 +25,7 @@ include(CMakeFindDependencyMacro)
 set(IE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
     set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
     find_dependency(TBB
                     COMPONENTS tbb tbbmalloc
