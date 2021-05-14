@@ -30,9 +30,9 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const int seed = 0;
-        std::mt19937 gen(static_cast<float>(seed));
+        std::mt19937 gen(seed);
         std::uniform_real_distribution<float> dist(-0.2f, 0.2f);
-        for (int i = 0; i < hiddenSize; ++i)
+        for (size_t i = 0; i < hiddenSize; ++i)
             memory_init.emplace_back(static_cast<float>(dist(gen)));
 
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });

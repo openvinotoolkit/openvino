@@ -53,7 +53,7 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
  */
 template<typename T>
 inline std::vector<T>  fill_vector(std::vector<T> &res, double min, double max, int seed = 0) {
-    std::mt19937 gen(static_cast<T>(seed));
+    std::mt19937 gen(seed);
 
     std::uniform_real_distribution<double> dist(min, max);
     for (std::size_t i = 0; i < res.size(); i++)
@@ -231,9 +231,9 @@ void inline fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t ra
  */
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
-                                        uint32_t range,
-                                        int32_t start_from = 0,
-                                        const int32_t k = 1,
+                                        uint64_t range,
+                                        int64_t start_from = 0,
+                                        const int64_t k = 1,
                                         const int32_t seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
@@ -247,7 +247,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
     }
 
     std::mt19937 generator(seed);
-    std::uniform_int_distribution<int32_t> dist(k * start_from, k * (start_from + range));
+    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
 
     std::set<dataType> elems;
     while (elems.size() != blob->size()) {
