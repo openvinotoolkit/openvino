@@ -459,7 +459,7 @@ namespace ngraph
         /// \brief Frontend management class, loads available frontend plugins on construction
         /// Allows load of frontends for particular framework, register new and list available
         /// frontends This is a main frontend entry point for client applications
-        class FRONTEND_API FrontEndManager
+        class FRONTEND_API FrontEndManager final
         {
         public:
             FrontEndManager();
