@@ -404,6 +404,7 @@ set(MULTI_TEST_SRC
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
+    backend/result.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roi_pooling.in.cpp
