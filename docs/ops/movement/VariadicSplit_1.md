@@ -8,7 +8,7 @@
 
 **Detailed Description**
 
-*VariadicSplit* operation splits a given input tensor `data` into chunks along a scalar `axis`. It produces multiple output tensors based on additional input tensor `split_lengths`.
+*VariadicSplit* operation splits a given input tensor `data` into chunks along a scalar (or tensor with shape `[1]`) `axis`. It produces multiple output tensors based on additional input tensor `split_lengths`.
 The i-th output tensor shape is equal to the input tensor `data` shape, except for dimension along `axis` which is `split_lengths[i]`.
 
 \f[
