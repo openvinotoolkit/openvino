@@ -34,33 +34,37 @@ namespace ngraph
             std::shared_ptr<ngraph::Node>
                 ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const
             {
-                const auto k_node =
-                    default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
-                auto topk = std::make_shared<default_opset::TopK>(
-                    m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
-
                 if (m_select_last_index == 1)
                 {
                     const auto axis_node =
                         default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
+
                     const auto reverse = std::make_shared<default_opset::Reverse>(
                         m_input_node, axis_node, default_opset::Reverse::Mode::INDEX);
 
-                    topk = std::make_shared<default_opset::TopK>(
-                        reverse, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
-                }
+                    
 
-                if (m_keep_dims == 0)
+                }
+                else
                 {
-                    const auto axis_to_remove =
-                        default_opset::Constant::create(element::u64, Shape{}, {topk->get_axis()});
-                    const auto reshaped_indices =
-                        std::make_shared<default_opset::Squeeze>(topk->output(1), axis_to_remove);
+                    const auto k_node =
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+                    auto topk = std::make_shared<default_opset::TopK>(
+                        m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
-                    return std::make_shared<default_opset::Convert>(reshaped_indices, element::i64);
+                    if (m_keep_dims == 0)
+                    {
+                        const auto axis_to_remove = default_opset::Constant::create(
+                            element::u64, Shape{}, {topk->get_axis()});
+                        const auto reshaped_indices = std::make_shared<default_opset::Squeeze>(
+                            topk->output(1), axis_to_remove);
+
+                        return std::make_shared<default_opset::Convert>(reshaped_indices,
+                                                                        element::i64);
+                    }
+
+                    return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
                 }
-
-                return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
             }
         } // namespace utils
     }     // namespace onnx_import
