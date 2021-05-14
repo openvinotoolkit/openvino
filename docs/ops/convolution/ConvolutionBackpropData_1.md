@@ -194,8 +194,7 @@ else:
             <dim>3</dim>
         </port>
         <port id="2">
-            <dim>450</dim>
-            <dim>450</dim>
+            <dim>2</dim> <!-- output_shape value is: [450, 450]-->
         </port>
     </input>
     <output>
