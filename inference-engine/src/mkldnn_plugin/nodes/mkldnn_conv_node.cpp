@@ -777,9 +777,9 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than the specific value
         size_t activationSize = ndims - 2; //two means batch dim plus channels dim
 
-        bool is1x1 = !isGrouped;
+        bool is1x1 = false;
 
-        if (is1x1) {
+        if (!isGrouped) {
             auto weightDimsReversItr = weightDims.crbegin();
             auto inpDimsReversItr = inpDims.crbegin();
             auto outDimsReversItr = outDims.crbegin();
@@ -787,7 +787,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
             auto paddingRreversItr = paddingR.crbegin();
 
             for (size_t i = 0; i < activationSize; ++i) {
-                is1x1 = is1x1
+                is1x1 = true
                         && *(weightDimsReversItr++) == 1
                         && *(inpDimsReversItr++) == *(outDimsReversItr++)
                         && *(paddingLreversItr++) == 0
