@@ -1881,13 +1881,13 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
         case ReduceMax:
             if (output_prec == Precision::FP32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::min(); });
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::lowest(); });
             } else if (output_prec == Precision::I32) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::min(); });
             } else if (output_prec == Precision::BF16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::min(); });
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::lowest(); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::min(); });
@@ -1972,7 +1972,7 @@ inline void MKLDNNReduceNode::reduce_ref(const float *in_ptr, float *out_ptr) {
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + expf(y); });
             break;
         case ReduceMax:
-            reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::min(),
+            reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::lowest(),
                                                     [](float x, float y)->float { return x > y ? x : y; });
             break;
         case ReduceMean:
