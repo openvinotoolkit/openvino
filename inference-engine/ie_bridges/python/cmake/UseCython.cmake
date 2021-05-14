@@ -90,7 +90,6 @@ mark_as_advanced( CYTHON_ANNOTATE CYTHON_NO_DOCSTRINGS CYTHON_FLAGS )
 
 find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
-              NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
 find_package( PythonLibs REQUIRED )
 
