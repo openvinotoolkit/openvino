@@ -23,13 +23,65 @@ namespace {
         return config;
     }
 
-    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
+    std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
+        for (auto&& layer : network.getInputsInfo()) {
+            auto precision = layer.second->getPrecision();
+            auto name = std::string(precision.name());
+            if (name == "I8") {
+                name = "INT8";
+            }
+            return name;
+        }
+        return {};
+    }
+
+    DeviceInformation SelectDevice(const InferenceEngine::CNNNetwork &network,
+                                   const std::vector<DeviceInformation>& metaDevices,
+                                   const std::vector<std::string>& optCap) {
+        if (metaDevices.empty()) {
+            IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+        }
+        if (metaDevices.size() == 1) {
+            return metaDevices.at(0);
+        }
+
+        std::vector<DeviceInformation> CPU;
+        std::vector<DeviceInformation> GPU;
+
         for (auto& item : metaDevices) {
             if (item.deviceName.find("CPU") == 0) {
-              return item;
+                CPU.push_back(item);
+                continue;
+            }
+            if (item.deviceName.find("GPU") == 0) {
+                GPU.push_back(item);
+                continue;
             }
         }
-        IE_THROW(NotFound) << "No available device could be used";
+
+        auto networkPrecision = GetNetworkPrecision(network);
+        auto getCap = [&](std::string&& substr){
+        auto capability = std::find_if(optCap.begin(), optCap.end(),
+                                    [&](const std::string& c)->bool{ return (c.find(substr) != std::string::npos);});
+            return capability;
+        };
+
+        if (CPU.empty() && GPU.empty()) {
+            IE_THROW(NotFound) << "No available device found";
+        }
+
+        std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
+
+        if (!GPU.empty()) {
+            auto capability = getCap("GPU");
+            if (capability != optCap.end() && capability->find(networkPrecision) != std::string::npos) {
+                return GPU[0];
+            }
+        }
+        if (CPU.empty()) {
+            IE_THROW() << "Cannot select any device";
+        }
+        return CPU[0];
     }
 }  // namespace
 
@@ -81,9 +133,9 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
 
     auto fullConfig = mergeConfigs(_config, config);
     auto metaDevices = GetDeviceChoice(fullConfig);
+    auto optCap = GetOptimizationCapabilities();
 
-    // FIXME: always select CPU device now
-    DeviceInformation selectedDevice = SelectDevice(metaDevices);
+    DeviceInformation selectedDevice = SelectDevice(network, metaDevices, optCap);
     IE::SoExecutableNetworkInternal executableNetwork;
     try {
         executableNetwork = GetCore()->LoadNetwork(network, selectedDevice.deviceName, selectedDevice.config);
@@ -208,6 +260,23 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     }
 
     return metaDevices;
+}
+
+std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() const {
+    // FIXME: workaround to get devicelist.
+    std::unordered_set<std::string> capabilities;
+    std::vector<std::string> queryDeviceLists{"CPU", "GPU"};
+    for (auto &item : queryDeviceLists) {
+        try {
+            std::vector<std::string> device_cap =
+                GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            for (auto &dc : device_cap) {
+                capabilities.insert(dc);
+            }
+        } catch (...) {
+        }
+    }
+    return {capabilities.begin(), capabilities.end()};
 }
 
 //////////////////////////////////// private & protected functions ///////////////////
