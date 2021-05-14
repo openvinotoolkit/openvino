@@ -486,15 +486,14 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program_impl::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
-    if (node.is_type<prior_box>())
-        return;
+    }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->constant) {
+        if (!dep->is_constant()) {
             node.constant = false;
-            break;
+            return;
         }
     }
 }
@@ -976,12 +975,14 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node,
     fused_node.recalc_output_layout(true);
 }
 
-void program_impl::remove_nodes(std::list<program_node*>& to_remove) {
+void program_impl::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {
             get_inputs().remove(node);
         } else {
-            for (auto& dep : node->dependencies) dep->users.remove(node);
+            for (auto& dep : node->dependencies) {
+                dep->users.remove(node);
+            }
         }
         for (auto& user : node->users) {
             user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
