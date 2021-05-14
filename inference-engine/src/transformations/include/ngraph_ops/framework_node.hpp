@@ -10,30 +10,35 @@
 
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/strides.hpp"
 #include "ngraph/partial_shape.hpp"
 
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API FrameworkNodeAttrs {
+class FrameworkNodeAttrs: public std::unordered_map<std::string, std::string> {
 public:
-    void set_opset_name(const std::string& opset_name) { m_opset_name = opset_name; }
+    TRANSFORMATIONS_API FrameworkNodeAttrs();
 
-    void set_type_name(const std::string& type_name) { m_type_name = type_name; }
+    TRANSFORMATIONS_API FrameworkNodeAttrs(const std::unordered_map<std::string, std::string>&);
 
-    const std::string& get_opset_name() const { return m_opset_name; }
+    TRANSFORMATIONS_API FrameworkNodeAttrs(const FrameworkNodeAttrs&);
 
-    const std::string& get_type_name() const { return m_type_name; }
+    TRANSFORMATIONS_API FrameworkNodeAttrs& operator=(const FrameworkNodeAttrs&);
 
-    const std::map<std::string, std::string>& get_attrs() const { return m_attrs; }
+    TRANSFORMATIONS_API FrameworkNodeAttrs& operator=(FrameworkNodeAttrs&&) noexcept;
 
-    void set_attrs(const std::map<std::string, std::string>& attrs) { m_attrs = attrs; }
+    TRANSFORMATIONS_API void set_opset_name(const std::string& opset_name) { m_opset_name = opset_name; }
+
+    TRANSFORMATIONS_API void set_type_name(const std::string& type_name) { m_type_name = type_name; }
+
+    TRANSFORMATIONS_API const std::string& get_opset_name() const { return m_opset_name; }
+
+    TRANSFORMATIONS_API const std::string& get_type_name() const { return m_type_name; }
 
 private:
     std::string m_type_name;
     std::string m_opset_name;
-
-    std::map<std::string, std::string> m_attrs;
 };
 
 class TRANSFORMATIONS_API FrameworkNode : public Op {
@@ -48,6 +53,10 @@ public:
         visitor.on_attribute("framework_node_attrs", m_attrs);
         return true;
     }
+
+    const FrameworkNodeAttrs & get_attrs() const { return m_attrs; }
+
+    void set_attrs(const FrameworkNodeAttrs & attrs) { m_attrs = attrs; }
 
     std::shared_ptr<Node>
         clone_with_new_inputs(const OutputVector& new_args) const override;

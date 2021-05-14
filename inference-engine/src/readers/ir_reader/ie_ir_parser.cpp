@@ -528,7 +528,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
     } else if (auto a = ngraph::as_type<
                         ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         const auto & type = XMLParseUtils::GetStrAttr(node, "type");
-        const auto & version = XMLParseUtils::GetStrAttr(node, "version");
+        const auto & version = XMLParseUtils::GetStrAttr(node, "version", "");
 
         ngraph::op::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
@@ -537,11 +537,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         pugi::xml_node dn = node.child("data");
 
         if (!dn.empty()) {
-            std::map<std::string, std::string> attrs;
             for (const auto & data_attr : dn.attributes()) {
-                attrs[data_attr.name()] = data_attr.as_string();
+                node_attrs[data_attr.name()] = data_attr.as_string();
             }
-            node_attrs.set_attrs(attrs);
         }
 
         a->set(node_attrs);
