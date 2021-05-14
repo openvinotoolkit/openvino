@@ -222,6 +222,7 @@ set(SRC
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/gather.cpp
+    visitors/op/gelu.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
