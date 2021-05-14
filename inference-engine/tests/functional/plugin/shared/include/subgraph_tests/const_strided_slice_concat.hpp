@@ -9,9 +9,6 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(ConstStridedSliceConcatTest, CompareWithRefImpl) {
-    LoadNetwork();
-    GenerateInputs();
-    Infer();
-    Validate();
+    Run();
 };
 }  // namespace SubgraphTestsDefinitions
