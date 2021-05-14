@@ -214,8 +214,8 @@ namespace Common
         } else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob)) {
             return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>> &>();
         } else {
-            // Throw error
-            py::print("Error when casting.");
+            IE_THROW() << "Unsupported data type for when casting to blob!";
+            // return nullptr;
         }
     }
 
@@ -241,7 +241,7 @@ namespace Common
         } else if (py::isinstance<py::array_t<uint64_t>>(arr)) {
             Common::fill_blob<uint64_t>(arr, blob);
         } else {
-            py::print("Error when creating.");
+            IE_THROW() << "Unsupported data type for when filling blob!";
         }
     }
 
@@ -249,14 +249,12 @@ namespace Common
         for (auto&& pair : dictonary) {
             const std::string& name = pair.first.cast<std::string>();
             if (py::isinstance<py::array>(pair.second)) {
-                // py::print("Numpy array path.");
                 Common::blob_from_numpy(pair.second, request.GetBlob(name));
             }
             else if (is_TBlob(pair.second)) {
-                // py::print("Custom Blob path.");
                 request.SetBlob(name, Common::cast_to_blob(pair.second));
             } else {
-                py::print("Error when setting.");
+                IE_THROW() << "Unable to set blob " << name << "!";
             }
         }
     }
