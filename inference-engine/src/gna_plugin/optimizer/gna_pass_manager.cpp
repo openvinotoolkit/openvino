@@ -1100,32 +1100,6 @@ void InsertConcatAligningFilterPass::run() {
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
 
-        // Check if this concat has multiple inputs coming from the same layer
-        // and if so, then add a copy layer for all inputs but one (in such input group).
-        // This is to avoid loop detection errors during the next passes.
-        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto getLayerByIndex = [&concatLayer](int idx) {
-                auto input = concatLayer->insData[idx];
-                auto lockedInput = input.lock();
-                if (!lockedInput) {
-                    THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
-                }
-                return lockedInput;
-            };
-
-            auto concatInput = getLayerByIndex(input_idx);
-
-            for (auto dup_input_idx = input_idx + 1; dup_input_idx != concatLayer->insData.size(); dup_input_idx++) {
-                auto dupConcatInput = getLayerByIndex(dup_input_idx);
-                if (!concatInput->getName().compare(dupConcatInput->getName())) {
-                    auto prevLayer = getCreatorLayer(concatInput).lock();
-                    InsertCopyLayer(prevLayer, l, input_idx, this->getPassManager(), CopyLayerName);
-                    gnalog() << "Inserted Copy Layer between: " << prevLayer->name << " and " << l->name << std::endl;
-                    break;
-                }
-            }
-        }
-
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
                 auto input = concatLayer->insData[idx];

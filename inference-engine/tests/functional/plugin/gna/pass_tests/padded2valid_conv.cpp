@@ -179,7 +179,7 @@ protected:
     }
 };
 
-class GnaPadded2ValidConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
+class GnaPadded2Valid2DConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
 protected:
     void Run() override {
         GnaLayerTestCheck::SkipTestCheck();
@@ -198,12 +198,13 @@ TEST_P(Padded2ValidConvTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(GnaPadded2ValidConvTest, CompareWithRefs) {
+TEST_P(GnaPadded2Valid2DConvTest, CompareWithRefs) {
     Run();
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
+    //TODO: some tests fail for FP16
     //InferenceEngine::Precision::FP16
 };
 
@@ -294,7 +295,7 @@ INSTANTIATE_TEST_CASE_P(smoke_1DTranspConvTransp, Padded2ValidConvTest,
         ::testing::ValuesIn(models)),
     Padded2ValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_2DTranspConvTransp, GnaPadded2ValidConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_2DTranspConvTransp, GnaPadded2Valid2DConvTest,
     ::testing::Combine(
         conv2DParams,
         ::testing::ValuesIn(netPrecisions),
@@ -302,6 +303,6 @@ INSTANTIATE_TEST_CASE_P(smoke_2DTranspConvTransp, GnaPadded2ValidConvTest,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
-    GnaPadded2ValidConvTest::getTestCaseName);
+    GnaPadded2Valid2DConvTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions

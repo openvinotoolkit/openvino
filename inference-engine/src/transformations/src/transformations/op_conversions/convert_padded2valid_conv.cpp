@@ -16,7 +16,7 @@
 using namespace ngraph;
 using namespace op;
 
-bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<int64_t> order) {
+static bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<int64_t> order) {
     if (!transpose)
         return false;
     const Output<Node>& transpose_order = transpose->input_value(1);
@@ -41,7 +41,7 @@ bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<i
     return true;
 }
 
-std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset, size_t size) {
+static std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset, size_t size) {
     auto shape = input.get_shape();
     if (shape.size() == 1) {
         return std::make_shared<ngraph::opset1::StridedSlice>(
@@ -98,7 +98,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS (output of MO --disable_nhwc_to_nchw option)
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS => AF (output of MO --disable_nhwc_to_nchw option)
         auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
-        if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, { 0, 3, 1, 2 }))
+        if (!leading_transpose || !TransposeOrderMatches(leading_transpose, { 0, 3, 1, 2 }))
             continue;
 
         // check if convolution output port is connected with only one Op
@@ -195,7 +195,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             }
         }
 
-        if (!last_op_in_sequence_for_replacement || !trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, { 0, 2, 3, 1 }))
+        if (!last_op_in_sequence_for_replacement || !trailing_transpose || !TransposeOrderMatches(trailing_transpose, { 0, 2, 3, 1 }))
             continue;
 
         size_t filter_dilation_x = conv->get_dilations()[1];
