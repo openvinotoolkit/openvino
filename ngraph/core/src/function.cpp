@@ -11,6 +11,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/evaluation_context.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/variable_extension.hpp"
 #include "ngraph/opsets/opset7.hpp"
@@ -23,17 +24,18 @@ constexpr DiscreteTypeInfo Function::type_info;
 
 atomic<size_t> Function::m_next_instance_id(0);
 
-
-void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered_ops, const VariableVector& variables)
+void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered_ops,
+                                    const VariableVector& variables)
 {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT, "Function::check_all_variables_registered");
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
+                       "Function::check_all_variables_registered");
     std::stringstream unregistered_variables;
     for (auto& node : ordered_ops)
     {
         const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
         if (variable_op &&
             std::find(variables.begin(), variables.end(), variable_op->get_variable()) ==
-            variables.end())
+                variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
     }
     if (!unregistered_variables.str().empty())
@@ -41,8 +43,8 @@ void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered
                            unregistered_variables.str());
 }
 
-void check_all_parameters_registered(
-        const std::vector<shared_ptr<Node>>& ordered_ops, const ParameterVector& parameters)
+void check_all_parameters_registered(const std::vector<shared_ptr<Node>>& ordered_ops,
+                                     const ParameterVector& parameters)
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
 

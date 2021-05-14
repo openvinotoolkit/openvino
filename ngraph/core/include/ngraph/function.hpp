@@ -18,7 +18,6 @@
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
-#include "ngraph/op/util/evaluation_context.hpp"
 #include "ngraph/op/util/variable.hpp"
 
 namespace ngraph
@@ -252,12 +251,12 @@ namespace ngraph
         Function& operator=(const Function&) = delete;
 
         /// \brief Depending on the options selected,
-        /// checks all the Parameter/Variables are registered in the list of Function parameters/variables or
-        /// finds all Parameters/Variables in a function and registers them.
+        /// checks all the Parameter/Variables are registered in the list of Function
+        /// parameters/variables or finds all Parameters/Variables in a function and registers them.
         /// \param detect_variables If this flag is true, then it finds all Variables in a function
         /// and registers them, otherwise checks all the Variables are registered.
-        /// \param detect_parameters If this flag is true, then it finds all Parameters in a function
-        /// and registers them, otherwise checks all the Parameters are registered.
+        /// \param detect_parameters If this flag is true, then it finds all Parameters in a
+        /// function and registers them, otherwise checks all the Parameters are registered.
         void prerequirements(bool detect_variables, bool detect_parameters);
 
         static std::atomic<size_t> m_next_instance_id;

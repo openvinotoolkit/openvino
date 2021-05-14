@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <ngraph/output_vector.hpp>
+#include <ngraph/variant.hpp>
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
 
@@ -80,29 +82,51 @@ namespace ngraph
         VariableMap m_variable_values;
     };
 
+    extern template class VariantImpl<VariableContext>;
+    template <>
+    class VariantWrapper<VariableContext> : public VariantImpl<VariableContext>
+    {
+    public:
+        static constexpr VariantTypeInfo type_info{"Variant::EvaluationContext::VariableContext",
+                                                   0};
+
+        const VariantTypeInfo& get_type_info() const override { return type_info; }
+
+        explicit VariantWrapper(const value_type& value)
+            : VariantImpl<value_type>(value)
+        {
+        }
+
+    private:
+        using Variant::init;
+        using Variant::merge;
+    };
+
     /// EvaluationContext stores and manages a context (additional parameters, values and
     /// environment) for evaluating ngraph::function.
     class NGRAPH_API EvaluationContext
     {
     public:
+        using ContextMap = std::map<std::string, std::shared_ptr<Variant>>;
+
         /// \brief Constructs an uninitialized EvaluationContext.
         EvaluationContext() = default;
 
         /// \brief Sets a new context for Variables.
         /// \param variable_context The new context for Variables.
-        void set_variable_context(const std::shared_ptr<VariableContext>& variable_context)
+        void set_context(const std::string& name, const std::shared_ptr<Variant>& context)
         {
-            m_variable_context = variable_context;
+            m_context[name] = context;
         };
 
-        /// \brief Returns the current variable context.
-        const std::shared_ptr<VariableContext>& get_variable_context() const
+        /// \brief Finds and returns a context by provided name.
+        std::shared_ptr<Variant> get_context_by_name(const std::string& name) const
         {
-            return m_variable_context;
+            const auto& context = m_context.find(name);
+            return context != m_context.end() ? context->second : std::shared_ptr<Variant>();
         }
 
     private:
-        /// Required values for evaluating ngraph::function containing Variables.
-        std::shared_ptr<VariableContext> m_variable_context = std::make_shared<VariableContext>();
+        ContextMap m_context;
     };
 } // namespace ngraph

@@ -29,7 +29,6 @@
 #include "ngraph/node_input.hpp"
 #include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/evaluation_context.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
