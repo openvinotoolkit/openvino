@@ -50,6 +50,9 @@ public:
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool isDepthWise() const {
+        return isGrouped && 1 == groupOC && 1 == groupIC;
+    }
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
