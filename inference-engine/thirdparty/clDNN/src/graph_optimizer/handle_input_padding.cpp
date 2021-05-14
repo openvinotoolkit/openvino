@@ -24,15 +24,16 @@ void handle_input_padding::run(program_impl& p) {
         }
         convolution_node& convolution_node = node->as<convolution>();
         auto convolution_prim = const_cast<convolution*>(&(*convolution_node.get_primitive()));
-        tensor& padding_above = convolution_prim->padding_above;
-        tensor& padding_below = convolution_prim->padding_below;
 
-        if (padding_above.spatial[0] != 0 || padding_above.spatial[1] != 0 ||
-            padding_below.spatial[0] != 0 || padding_below.spatial[1] != 0) {
+        if (convolution_prim->padding_above.spatial[0] != 0 || convolution_prim->padding_above.spatial[1] != 0 ||
+            convolution_prim->padding_below.spatial[0] != 0 || convolution_prim->padding_below.spatial[1] != 0) {
             // Asymmetric padding
-            if (padding_above.spatial[0] != padding_below.spatial[0] ||
-                padding_above.spatial[1] != padding_below.spatial[1]) {
+            if (convolution_prim->padding_above.spatial[0] != convolution_prim->padding_below.spatial[0] ||
+                convolution_prim->padding_above.spatial[1] != convolution_prim->padding_below.spatial[1]) {
                 const primitive_id& convolution_node_id = convolution_node.id();
+                tensor padding_above = convolution_prim->padding_above;
+                tensor padding_below = convolution_prim->padding_below;
+
                 CLDNN_ERROR_NOT_EQUAL(convolution_node_id,
                                       "Padding above feature",
                                       padding_above.feature[0],
@@ -84,8 +85,8 @@ void handle_input_padding::run(program_impl& p) {
                                       "Padding below in Y cannot be negative");
 
                 // set padding_above/padding_below to zeros - border primitive do the job
-                padding_above = tensor(0, 0, 0, 0);
-                padding_below = tensor(0, 0, 0, 0);
+                convolution_prim->padding_above = tensor(0, 0, 0, 0);
+                convolution_prim->padding_below = tensor(0, 0, 0, 0);
 
                 // create border primitive
                 primitive_id input_id = convolution_prim->input[0];
@@ -102,11 +103,11 @@ void handle_input_padding::run(program_impl& p) {
                 p.add_intermediate(b_prim_node, convolution_node, 0, true);
             } else {            // Symmetric padding
                 // set input_offset
-                convolution_prim->input_offset = padding_above.negate().add(convolution_prim->input_offset);
+                convolution_prim->input_offset = convolution_prim->padding_above.negate().add(convolution_prim->input_offset);
 
                 // set padding_above/padding_below to zeros - input_offset do the job
-                padding_above = tensor(0, 0, 0, 0);
-                padding_below = tensor(0, 0, 0, 0);
+                convolution_prim->padding_above = tensor(0, 0, 0, 0);
+                convolution_prim->padding_below = tensor(0, 0, 0, 0);
 
                 convolution_node.recalc_output_layout(true);
             }
