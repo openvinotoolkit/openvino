@@ -3,7 +3,6 @@
 //
 
 #include "fill_constant_batch_size_like.hpp"
-#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
 {
@@ -23,17 +22,17 @@ namespace ngraph
                     auto input = node.get_ng_input("Input");
                     auto partial_shape = input.get_partial_shape();
                     PDPD_NODE_VALIDATION_CHECK(
-                        ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                        ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                         node,
                         partial_shape.is_static(),
                         "fill_constant_batch_size_like: must use static shape.");
                     auto static_shape = partial_shape.get_shape();
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                input_dim_idx < (int32_t)static_shape.size(),
                                                "fill_constant_batch_size_like: input_dim_idx "
                                                "should not exceed input dims.");
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                "fill_constant_batch_size_like: output_dim_idx "
                                                "should not exceed shapes dims.");

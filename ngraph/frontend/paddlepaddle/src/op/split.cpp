@@ -4,7 +4,7 @@
 
 #include "split.hpp"
 #include <ngraph/opsets/opset7.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
+
 
 namespace ngraph
 {
@@ -29,13 +29,13 @@ namespace ngraph
                     auto split_outputs =
                         std::make_shared<Split>(data, axis, num_or_sections)->outputs();
                     auto out_names = node.get_output_names();
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                out_names.size() == 1,
                                                "Unexpected number of outputs");
 
                     auto it = std::find(out_names.begin(), out_names.end(), "Out");
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                it != out_names.end(),
                                                "Expected output not found");

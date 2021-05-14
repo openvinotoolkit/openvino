@@ -3,7 +3,6 @@
 //
 
 #include "slice.hpp"
-#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
 {
@@ -30,7 +29,7 @@ namespace ngraph
                     for (auto i : axes)
                     {
                         PDPD_NODE_VALIDATION_CHECK(
-                            ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                            ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                             node,
                             i < (int32_t)shape_size,
                             "slice: axes must be less than the X rank.");

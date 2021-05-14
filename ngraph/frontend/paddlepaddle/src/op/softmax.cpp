@@ -16,7 +16,6 @@
 
 #include "softmax.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
 {
@@ -33,7 +32,7 @@ namespace ngraph
                     if (axis < 0)
                     {
                         PDPD_NODE_VALIDATION_CHECK(
-                            ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                            ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                             node,
                             data.get_partial_shape().rank().is_static(),
                             "Softmax rank must be static");

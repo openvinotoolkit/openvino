@@ -106,16 +106,16 @@ void regclass_pyngraph_FEC(py::module m)
 
 void regclass_pyngraph_ErrorCode(py::module m)
 {
-    py::class_<ngraph::frontend::ErrorCode, std::shared_ptr<ngraph::frontend::ErrorCode>> type(
-        m, "ErrorCode");
-    type.attr("ERROR_GENERAL") = ngraph::frontend::ErrorCode::ERROR_GENERAL;
-    type.attr("NOT_IMPLEMENTED") = ngraph::frontend::ErrorCode::NOT_IMPLEMENTED;
-    type.attr("OP_VALIDATION_FAILED") = ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED;
-    type.attr("INITIALIZATION_ERROR") = ngraph::frontend::ErrorCode::INITIALIZATION_ERROR;
+    py::class_<ngraph::frontend::FrontEndErrorCode, std::shared_ptr<ngraph::frontend::FrontEndErrorCode>> type(
+        m, "FrontEndErrorCode");
+    type.attr("GENERAL_ERROR") = ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR;
+    type.attr("NOT_IMPLEMENTED") = ngraph::frontend::FrontEndErrorCode::NOT_IMPLEMENTED;
+    type.attr("OP_VALIDATION_FAILED") = ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED;
+    type.attr("INITIALIZATION_ERROR") = ngraph::frontend::FrontEndErrorCode::INITIALIZATION_ERROR;
 
     type.def(
         "__eq__",
-        [](const ngraph::frontend::ErrorCode& a, const ngraph::frontend::ErrorCode& b) {
+        [](const ngraph::frontend::FrontEndErrorCode& a, const ngraph::frontend::FrontEndErrorCode& b) {
             return a == b;
         },
         py::is_operator());

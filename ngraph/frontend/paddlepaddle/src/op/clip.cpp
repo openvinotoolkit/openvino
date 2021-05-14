@@ -4,7 +4,7 @@
 
 #include "clip.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
+
 
 namespace ngraph
 {
@@ -19,7 +19,7 @@ namespace ngraph
                     auto data = node.get_ng_input("X");
                     auto min = node.get_attribute<float>("min");
                     auto max = node.get_attribute<float>("max");
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                max >= min,
                                                "clip: max value must greater than min value!");

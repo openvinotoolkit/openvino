@@ -3,7 +3,8 @@
 
 from ngraph import FrontEndManager
 from ngraph import CheckFailureFrontEnd
-from ngraph import ErrorCode
+from ngraph import FrontEndErrorCode
+
 
 def test_frontendmanager():
     fem = None
@@ -19,4 +20,4 @@ def test_frontendmanager():
     try:
         fem.loadByFramework("UnknownFramework")
     except CheckFailureFrontEnd as exc:
-        assert exc.ERROR_CODE == ErrorCode.INITIALIZATION_ERROR
+        assert exc.ERROR_CODE == FrontEndErrorCode.INITIALIZATION_ERROR

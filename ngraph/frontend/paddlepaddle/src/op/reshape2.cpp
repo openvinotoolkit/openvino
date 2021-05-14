@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "reshape2.hpp"
-#include <paddlepaddle_frontend/exceptions.hpp>
+
 
 namespace ngraph
 {

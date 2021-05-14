@@ -11,8 +11,8 @@
 namespace ngraph {
 namespace frontend {
 
-enum class ErrorCode {
-    ERROR_GENERAL,
+enum class FrontEndErrorCode {
+    GENERAL_ERROR,
     NOT_IMPLEMENTED,
     OP_VALIDATION_FAILED,
     NGRAPH_NODE_CREATION_FAILED,
@@ -23,7 +23,7 @@ enum class ErrorCode {
 class CheckFailureFrontEnd : public CheckFailure {
 public:
 
-    CheckFailureFrontEnd(ErrorCode error_code,
+    CheckFailureFrontEnd(FrontEndErrorCode error_code,
                          const CheckLocInfo &check_loc_info,
                          const std::string &context,
                          const std::string &explanation)
@@ -31,9 +31,9 @@ public:
               m_error_code(error_code) {
     }
 
-    ErrorCode getErrorCode() const { return m_error_code; }
+    FrontEndErrorCode getErrorCode() const { return m_error_code; }
 private:
-    ErrorCode m_error_code;
+    FrontEndErrorCode m_error_code;
 };
 
 #define FRONT_END_CHECK_HELPER2(error_code, exc_class, ctx, check, ...)                            \
@@ -73,7 +73,7 @@ private:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
 #define FRONT_END_CHECK(error_code, ...) FRONT_END_CHECK_HELPER(error_code, ::ngraph::frontend::CheckFailureFrontEnd, "", __VA_ARGS__)
-#define FRONT_END_NOT_IMPLEMENTED(NAME) FRONT_END_CHECK(ErrorCode::NOT_IMPLEMENTED, false, #NAME" is not implemented for this FrontEnd class")
+#define FRONT_END_NOT_IMPLEMENTED(NAME) FRONT_END_CHECK(FrontEndErrorCode::NOT_IMPLEMENTED, false, #NAME" is not implemented for this FrontEnd class")
 
 } // frontend
 } // ngraph

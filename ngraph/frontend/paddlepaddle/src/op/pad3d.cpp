@@ -4,7 +4,6 @@
 
 #include "pad3d.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
 {
@@ -27,7 +26,7 @@ namespace ngraph
                     if (node.has_attribute<std::vector<int32_t>>("paddings"))
                     {
                         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
-                        PDPD_CHECK(ErrorCode::OP_VALIDATION_FAILED,
+                        PDPD_CHECK(FrontEndErrorCode::OP_VALIDATION_FAILED,
                                    paddings_vector.size() == 6,
                                    "paddings Params size should be 6 in pad3d!");
                         paddings = paddings_vector;

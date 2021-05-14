@@ -177,7 +177,7 @@ namespace ngraph
                 if (!var_desc->persistable())
                     continue;
 
-                PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                            var_desc->type().type() ==
                                paddle::framework::proto::VarType::LOD_TENSOR);
                 const auto& tensor = var_desc->type().lod_tensor().tensor();
@@ -195,14 +195,14 @@ namespace ngraph
                 {
                     std::ifstream is(folder_with_weights + "/" + name,
                                      std::ios::in | std::ifstream::binary);
-                    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+                    PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                                is && is.is_open(),
                                "Cannot open file for constant value.");
                     pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else
                 {
-                    PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+                    PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                                false,
                                "Either folder with weights or stream must be provided.");
                 }
@@ -241,7 +241,7 @@ namespace ngraph
             }
 
             std::ifstream pb_stream(model_file, std::ios::binary);
-            PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+            PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                        m_fw_ptr->ParseFromIstream(&pb_stream),
                        "Model can't be parsed");
 
@@ -262,11 +262,11 @@ namespace ngraph
             }
             else
             {
-                PDPD_CHECK(ErrorCode::ERROR_GENERAL,
+                PDPD_CHECK(FrontEndErrorCode::GENERAL_ERROR,
                            streams.size() == 2,
                            "Two streams are needed to load a model: model and weights streams");
             }
-            PDPD_CHECK(ErrorCode::ERROR_GENERAL,
+            PDPD_CHECK(FrontEndErrorCode::GENERAL_ERROR,
                        m_fw_ptr->ParseFromIstream(streams[0]),
                        "Model can't be parsed");
 
@@ -309,7 +309,7 @@ namespace ngraph
                 {
                     return out_port_place->getTargetTensorPDPD();
                 }
-                PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                            false,
                            "Cannot cast this Place to TensorPlacePDPD.");
             }

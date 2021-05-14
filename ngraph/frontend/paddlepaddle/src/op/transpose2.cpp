@@ -36,7 +36,7 @@ namespace ngraph
                     std::cout << perm.size() << std::endl;
                     std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
 
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::ErrorCode::OP_VALIDATION_FAILED,
+                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
                                                node,
                                                perm.size() == rank,
                                                "transpose2: axis size must equal to data rank!");

@@ -21,7 +21,7 @@ from ngraph.impl import FrontEnd
 from ngraph.impl import InputModel
 from ngraph.impl import Place
 from ngraph.impl import CheckFailureFrontEnd
-from ngraph.impl import ErrorCode
+from ngraph.impl import FrontEndErrorCode
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
 

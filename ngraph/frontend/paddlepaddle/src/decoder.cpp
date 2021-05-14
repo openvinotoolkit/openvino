@@ -145,7 +145,7 @@ namespace ngraph
                 if (attr.name() == name)
                     attrs.push_back(attr);
             }
-            PDPD_CHECK(ngraph::frontend::ErrorCode::ERROR_GENERAL,
+            PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
                        attrs.size() <= 1,
                        "An error occurred while parsing the ",
                        name,

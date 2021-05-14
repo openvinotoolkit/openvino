@@ -17,7 +17,7 @@ namespace ngraph
             class CheckFailurePDPD : public CheckFailureFrontEnd
             {
             public:
-                CheckFailurePDPD(const ErrorCode error_code,
+                CheckFailurePDPD(const FrontEndErrorCode error_code,
                                  const CheckLocInfo& check_loc_info,
                                  const std::string& context,
                                  const std::string& explanation)
@@ -32,7 +32,7 @@ namespace ngraph
             class NodeValidationFailurePDPD : public CheckFailurePDPD
             {
             public:
-                NodeValidationFailurePDPD(const ErrorCode error_code,
+                NodeValidationFailurePDPD(const FrontEndErrorCode error_code,
                                           const CheckLocInfo& check_loc_info,
                                           const pdpd::NodeContext& node,
                                           const std::string& explanation)
@@ -72,8 +72,12 @@ namespace ngraph
     FRONT_END_CHECK_HELPER(error_code, ::ngraph::frontend::pdpd::CheckFailurePDPD, "", __VA_ARGS__)
 
 #define PDPD_NOT_IMPLEMENTED(msg)                                                                  \
-    PDPD_CHECK(::ngraph::frontend::ErrorCode::NOT_IMPLEMENTED,                                     \
+    PDPD_CHECK(::ngraph::frontend::FrontEndErrorCode::NOT_IMPLEMENTED,                             \
                false,                                                                              \
                std::string(msg) + " is not implemented")
 
+#define PDPD_THROW(msg)                                                                            \
+    PDPD_CHECK(::ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,                               \
+               false,                                                                              \
+               msg)
 } // namespace ngraph

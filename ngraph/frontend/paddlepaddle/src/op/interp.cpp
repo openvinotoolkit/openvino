@@ -18,7 +18,7 @@ namespace ngraph
                                                            const std::vector<float>& scale,
                                                            Output<ngraph::Node>& scales)
                 {
-                    PDPD_CHECK(ErrorCode::OP_VALIDATION_FAILED, scale.size() > 0);
+                    PDPD_CHECK(FrontEndErrorCode::OP_VALIDATION_FAILED, scale.size() > 0);
                     if (scale.size() == 1)
                         scales = opset6::Constant::create<float>(
                             element::f32, Shape{4}, {1, 1, scale[0], scale[0]});

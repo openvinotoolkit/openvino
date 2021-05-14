@@ -16,7 +16,6 @@
 
 #include "matmul.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace ngraph
 {
