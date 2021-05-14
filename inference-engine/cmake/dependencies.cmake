@@ -133,18 +133,6 @@ if (THREADING STREQUAL "OMP")
     
 endif ()
 
-## pre-production package for hybrid support (windows/macos/linux only)
-if (NOT ANDROID AND NOT(LINUX AND AARCH64))
-    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-    elseif(DEFINED THIRDPARTY_SERVER_PATH)
-        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-    else()
-        message(WARNING "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB (with Hybrid support) cannot be loaded!")
-    endif()
-    message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
-endif()
-
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
@@ -157,7 +145,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_win_v5.zip"
+                ARCHIVE_WIN "tbbbind_2_4_static_win.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
                 ENVIRONMENT "TBBBIND_2_4_ROOT"
                 SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
@@ -173,7 +161,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_lin_v5.tgz"
+                ARCHIVE_LIN "tbbbind_2_4_static_lin.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
                 SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
     elseif(LINUX AND AARCH64)
