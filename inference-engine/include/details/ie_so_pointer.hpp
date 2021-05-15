@@ -24,7 +24,13 @@ namespace details {
  * parameter
  */
 template <class T>
-class SOCreatorTrait {};
+class SOCreatorTrait {
+public:
+    /**
+     * @brief A dummy name for fabric
+     */
+    static constexpr auto name = "";
+};
 
 /**
  * @brief Enables only `char` or `wchar_t` template specializations
