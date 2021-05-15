@@ -73,12 +73,12 @@ public:
     }
 
     /**
-     * @deprecated Use SOPointer::SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr)
+     * @deprecated Use SOPointer::SOPointer(const std::basic_string<C>& name)
      * @brief Constructs an object with existing loader
      * @param so_loader Existing pointer to a library loader
      */
-    INFERENCE_ENGINE_DEPRECATED("SOPointer::SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr)")
-    explicit SOPointer(const SharedObjectLoader& so_loader)
+    INFERENCE_ENGINE_DEPRECATED("Use SOPointer(const std::basic_string<C>& name)")
+    SOPointer(const SharedObjectLoader& so_loader)
         : _so{so_loader} {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
@@ -104,13 +104,6 @@ public:
      */
     T* operator->() const noexcept {
         return _ptr.get();
-    }
-
-    /**
-     * @brief Standard dereference operator
-     */
-    const T* operator*() const noexcept {
-        return this->operator->();
     }
 
     /**
