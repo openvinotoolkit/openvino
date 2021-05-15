@@ -122,6 +122,7 @@ if(SPEECH_LIBS_AND_DEMOS)
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing
             DESTINATION .
+            USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)
 endif()
 
