@@ -25,11 +25,11 @@ public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     InferenceEngine::InferRequest request_to_share_blobs_with);
+                                     const InferenceEngine::IInferRequestInternal::Ptr & request_to_share_blobs_with);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
+    void SetBlobsToAnotherRequest(const InferenceEngine::IInferRequestInternal::Ptr& req);
 };
 
 }  // namespace MultiDevicePlugin

@@ -29,7 +29,10 @@ class IExecutableNetwork;
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPointer<IExecutableNetworkInternal> {
     using details::SOPointer<IExecutableNetworkInternal>::SOPointer;
-    friend class InferencePlugin;
+    // TODO: remove?
+    ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj) :
+        details::SOPointer<IExecutableNetworkInternal>::SOPointer(obj) { }
+    friend class Core;
 
 public:
     /**

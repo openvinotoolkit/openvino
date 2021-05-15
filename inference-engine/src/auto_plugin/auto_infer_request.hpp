@@ -24,9 +24,9 @@ namespace AutoPlugin {
 class AutoInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<AutoInferRequest>;
-    explicit AutoInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
-                              const InferenceEngine::OutputsDataMap& networkOutputs,
-                              const InferenceEngine::InferRequest&   inferRequest);
+    explicit AutoInferRequest(const InferenceEngine::InputsDataMap&                networkInputs,
+                              const InferenceEngine::OutputsDataMap&               networkOutputs,
+                              const InferenceEngine::IInferRequestInternal::Ptr&   inferRequest);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -34,7 +34,7 @@ public:
     void Cancel() override;
 
 private:
-    InferenceEngine::InferRequest _inferRequest;
+    InferenceEngine::IInferRequestInternal::Ptr _inferRequest;
 };
 
 }  // namespace AutoPlugin

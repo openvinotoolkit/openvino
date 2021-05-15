@@ -65,15 +65,15 @@ public:
         PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
-    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
     }
 
@@ -85,17 +85,17 @@ public:
         return res;
     }
 
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
                                     const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});

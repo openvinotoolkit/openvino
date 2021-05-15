@@ -23,9 +23,9 @@ public:
     typedef std::shared_ptr<HeteroInferRequest> Ptr;
 
     struct SubRequestDesc {
-        InferenceEngine::ExecutableNetwork  _network;
-        InferenceEngine::InferRequest       _request;
-        openvino::itt::handle_t             _profilingTask;
+        InferenceEngine::SoExecutableNetworkInternal  _network;
+        InferenceEngine::IInferRequestInternal::Ptr   _request;
+        openvino::itt::handle_t                       _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;
 

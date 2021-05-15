@@ -26,6 +26,7 @@
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
@@ -223,15 +224,15 @@ class Core::Impl : public ICore {
         return supported;
     }
 
-    ExecutableNetwork LoadNetworkImpl(const CNNNetwork& network,
-                                      InferencePlugin& plugin,
-                                      const std::map<std::string, std::string>& parsedConfig,
-                                      const RemoteContext::Ptr& context,
-                                      const std::string& blobID,
-                                      const std::string& modelPath = std::string(),
-                                      bool forceDisableCache = false) {
+    SoExecutableNetworkInternal LoadNetworkImpl(const CNNNetwork& network,
+                                                InferencePlugin& plugin,
+                                                const std::map<std::string, std::string>& parsedConfig,
+                                                const RemoteContext::Ptr& context,
+                                                const std::string& blobID,
+                                                const std::string& modelPath = std::string(),
+                                                bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
-        ExecutableNetwork execNetwork;
+        SoExecutableNetworkInternal execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
@@ -242,7 +243,7 @@ class Core::Impl : public ICore {
                 cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
                     networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber,
                                                         NetworkCompilationContext::calculateFileInfo(modelPath));
-                    execNetwork.Export(networkStream);
+                    execNetwork->Export(networkStream);
                 });
             } catch (...) {
                 cacheManager->removeCacheEntry(blobID);
@@ -252,14 +253,14 @@ class Core::Impl : public ICore {
         return execNetwork;
     }
 
-    ExecutableNetwork LoadNetworkFromCache(const std::shared_ptr<ICacheManager>& cacheManager,
-                                           const std::string& blobId,
-                                           InferencePlugin& plugin,
-                                           const std::map<std::string, std::string>& config,
-                                           const RemoteContext::Ptr& context,
-                                           bool& networkIsImported,
-                                           const std::string& modelPath = std::string()) {
-        ExecutableNetwork execNetwork;
+    SoExecutableNetworkInternal LoadNetworkFromCache(const std::shared_ptr<ICacheManager>& cacheManager,
+                                                     const std::string& blobId,
+                                                     InferencePlugin& plugin,
+                                                     const std::map<std::string, std::string>& config,
+                                                     const RemoteContext::Ptr& context,
+                                                     bool& networkIsImported,
+                                                     const std::string& modelPath = std::string()) {
+        SoExecutableNetworkInternal execNetwork;
         struct HeaderException {};
 
         IE_ASSERT(cacheManager != nullptr);
@@ -446,15 +447,15 @@ public:
     }
 
     // TODO: In future this method can be added to ICore interface
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
-                                  const std::map<std::string, std::string>& config) {
+    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
+                                            const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ExecutableNetwork res;
+        SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
@@ -470,8 +471,8 @@ public:
         return res;
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) override {
+    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+                                            const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -480,7 +481,7 @@ public:
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ExecutableNetwork res;
+        SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
@@ -496,12 +497,12 @@ public:
         return res;
     }
 
-    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) override {
+    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+                                            const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ExecutableNetwork res;
+        SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
@@ -522,8 +523,8 @@ public:
         return res;
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
-                                    const std::map<std::string, std::string>& config) override {
+    SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+                                              const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
 
         if (parsed._deviceName.empty()) {
@@ -924,7 +925,6 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
     if (deviceName.find("AUTO") == 0) {
         IE_THROW() << "AUTO device does not support remote context";
     }
-
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, params);
     return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);

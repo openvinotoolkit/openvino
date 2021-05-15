@@ -16,7 +16,7 @@
 #include <string>
 #include <limits>
 
-#include "cpp_interfaces/impl/ie_executable_network_2_internal.hpp"
+#include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 
@@ -75,8 +75,7 @@ public:
     IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
                                                 const std::map<std::string, std::string>& config) override {
         auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-        auto exec = GetCore()->LoadNetwork(cnnNet, GetName(), config);
-        return std::make_shared<ExecutableNetwork2Internal>(exec);
+        return GetCore()->LoadNetwork(cnnNet, GetName(), config);
     }
 
     IExecutableNetworkInternal::Ptr ImportNetwork(const std::string& modelFileName,

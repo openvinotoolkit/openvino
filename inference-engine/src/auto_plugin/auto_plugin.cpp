@@ -49,7 +49,7 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
 
     // FIXME: always select CPU device now
     DeviceInformation selectedDevice = SelectDevice(metaDevices);
-    IE::ExecutableNetwork executableNetwork;
+    IE::SoExecutableNetworkInternal executableNetwork;
     try {
         executableNetwork = GetCore()->LoadNetwork(fileName, selectedDevice.deviceName, selectedDevice.config);
     } catch(const IE::Exception &iie) {
@@ -60,7 +60,7 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
     bool enablePerfCounters = false;
     try {
         enablePerfCounters =
-            executableNetwork.GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+            executableNetwork->GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                 IE::PluginConfigParams::YES;
     } catch (...) {
     }
@@ -85,7 +85,7 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
 
     // FIXME: always select CPU device now
     DeviceInformation selectedDevice = SelectDevice(metaDevices);
-    IE::ExecutableNetwork executableNetwork;
+    IE::SoExecutableNetworkInternal executableNetwork;
     try {
         executableNetwork = GetCore()->LoadNetwork(network, selectedDevice.deviceName, selectedDevice.config);
     } catch(const IE::Exception &iie) {
@@ -96,7 +96,7 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
     bool enablePerfCounters = false;
     try {
         enablePerfCounters =
-            executableNetwork.GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+            executableNetwork->GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                 IE::PluginConfigParams::YES;
     } catch (...) {
     }
