@@ -255,6 +255,8 @@ std::shared_ptr<Node> fold(Args&&... args) {
     return node;
 }
 
+std::shared_ptr<Node> foldConvert(const Output<Node>& node, const element::Type targetPrecision);
+
 template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);

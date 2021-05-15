@@ -70,6 +70,10 @@ public:
             return -1.0e15f;
         } else if (precision == element::f32) {
             return std::numeric_limits<float>::lowest();
+        } else if (precision == element::i4) {
+            return -8.f;
+        } else if (precision == element::u4) {
+            return 0.f;
         } else {
             NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
@@ -88,6 +92,10 @@ public:
             return 1.0e15f;
         } else if (precision == element::f32) {
             return std::numeric_limits<float>::max();
+        } else if (precision == element::i4) {
+            return 7.f;
+        } else if (precision == element::u4) {
+            return 15.f;
         } else {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected precision " << precision;
         }

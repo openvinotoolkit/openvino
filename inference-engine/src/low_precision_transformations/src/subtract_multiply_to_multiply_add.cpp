@@ -101,9 +101,9 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
         std::shared_ptr<Node> subtractConstant = fold<opset1::Multiply>(
             fold<opset1::Multiply>(
-                fold<opset1::Convert>(originalSubtractConstant, deqPrecision),
+                foldConvert(originalSubtractConstant, deqPrecision),
                 std::make_shared<opset1::Constant>(deqPrecision, Shape{}, std::vector<float>{ -1.f })),
-            fold<opset1::Convert>(dequantization.multiply->get_input_node_shared_ptr(1), deqPrecision));
+            foldConvert(dequantization.multiply->get_input_node_shared_ptr(1), deqPrecision));
 
         if (is_type<opset1::Constant>(subtractConstant)) {
             std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(subtractConstant);

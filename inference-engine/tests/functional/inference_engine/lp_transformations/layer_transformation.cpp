@@ -99,10 +99,12 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
         subtract = dequantization.subtractConstant != nullptr ?
             ngraph::builder::subgraph::DequantizationOperations::Subtract(
                 dequantization.subtractConstant->cast_vector<float>(),
-                dequantization.subtractConstant->output(0).get_element_type(),
+                dequantization.subtract->output(0).get_element_type(),
                 dequantization.subtractConstant->output(0).get_shape(),
                 addDequantizationAttribute,
-                constantIndex) :
+                constantIndex,
+                dequantization.subtractConstant->output(0).get_element_type(),
+                dequantization.subtractConvert != nullptr) :
             ngraph::builder::subgraph::DequantizationOperations::Subtract();
     }
 

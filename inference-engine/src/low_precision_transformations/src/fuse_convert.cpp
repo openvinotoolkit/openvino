@@ -60,7 +60,7 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
     std::shared_ptr<Node> parent = convert->get_input_node_shared_ptr(0);
 
     if (is_type<opset1::Constant>(parent)) {
-        auto convertedConstant = fold<opset1::Convert>(parent, convert->get_convert_element_type());
+        auto convertedConstant = foldConvert(parent, convert->get_convert_element_type());
         NetworkHelper::copyInfo(parent, convertedConstant);
         replace_node(convert, convertedConstant);
     } else {

@@ -74,8 +74,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(
                 fold<opset1::Multiply>(
-                    fold<opset1::Convert>(multiplyParentConst, element::f32),
-                    fold<opset1::Convert>(constParent, element::f32)),
+                    foldConvert(multiplyParentConst, element::f32),
+                    foldConvert(constParent, element::f32)),
                 element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);

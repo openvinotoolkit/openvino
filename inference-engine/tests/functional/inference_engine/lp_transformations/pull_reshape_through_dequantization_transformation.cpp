@@ -154,6 +154,7 @@ const std::vector<ngraph::Shape> multiplyShapes = {
 };
 
 const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
+    // Subtract with Constant (no Convert)
     // Actual:
     //                        Constant
     //                         |I8
@@ -239,6 +240,103 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
             {
                 { ngraph::element::f32, false },
                 { {127.f}, element::f32, {/* from parameter */}, false },
+                { {0.06f}, element::f32, {/* from parameter */}, false }
+            },
+            {},
+            {},
+            {},
+            {{960, 1, 1, 3, 3}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+
+    // Subtract with Convert + Constant
+    // Actual:
+    //                        Constant Constant
+    //                         |I8      |I8
+    //                         |        |
+    //                        Convert  Convert
+    //                         |FP32   /FP32
+    //                         |      /
+    //                        Subtract Constant
+    //                         |FP32   /FP32
+    //                         |      /
+    //                        Multiply Constant
+    //                         |FP32   /FP32
+    //                         |      /
+    // Parameter   Constant   Reshape  Constant
+    //  |U8         |U8        |FP32   /FP32
+    //  |           |          |      /
+    // Convert    Convert     Multiply  Constant
+    //   \FP32    /FP32        |FP32   /FP32
+    //    \      /             |      /
+    //    Subtract  Constant  Transpose  Constant
+    //      \FP32   /FP32      |FP32   /I64
+    //       \     /           |      /
+    //       Multiply         Reshape
+    //         \FP32         /FP32
+    //          \           /
+    //        GroupConvolution
+    //
+    //
+    // Transformed:
+    //
+    //                      Constant
+    //                       |I8
+    //                       |
+    // Parameter Constant   Convert  Constant
+    //  |U8       |U8        |FP32   /FP32
+    //  |         |          |      /
+    // Convert   Convert    Subtract  Constant
+    //  \FP32   /FP32        |FP32   /FP32
+    //   \     /             |      /
+    //   Subtract  Constant  Multiply Constant
+    //     \FP32   /FP32     |FP32   /I64
+    //      \     /          |      /
+    //       Multiply       Reshape
+    //         \FP32        /FP32
+    //          \          /
+    //       GroupConvolution  Constant
+    //            \FP32       /FP32
+    //             \         /
+    //               Multiply
+    //
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8, {9, 960}},
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true },
+                { {0.03f}, element::f32, {/* from parameter */}, false }
+            },
+            { {3, 3, 960, 1} },
+            { {2}, element::f32, {/* from parameter: multiplyShapes */}, false },
+            { {2, 3, 0, 1} },
+            { {960, 1, 1, 3, 3} },
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8, {960, 1, 3, 3}},
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true },
                 { {0.06f}, element::f32, {/* from parameter */}, false }
             },
             {},
