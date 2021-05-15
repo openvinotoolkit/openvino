@@ -6,6 +6,8 @@
 
 #include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
+#include "device_cache_reader.h"
+#include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -87,7 +89,8 @@ program_impl::program_impl(engine& engine_ref,
       _stream(_engine.create_stream()),
       program_state(_engine),
       options(options),
-      processing_order() {
+      processing_order(),
+      tuning_cache(nullptr) {
     init_primitives();
     kernel_selector::KernelBase::ResetCounter();
     set_options();
@@ -107,7 +110,8 @@ program_impl::program_impl(engine& engine_ref,
     : _engine(engine_ref),
       program_state(_engine),
       options(options),
-      processing_order() {
+      processing_order(),
+      tuning_cache(nullptr) {
     init_primitives();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -135,6 +139,15 @@ void program_impl::init_kernels() {
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
             n->get_selected_impl()->init_kernels();
+    }
+}
+
+void program_impl::load_tuning_cache() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    try {
+        tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
+    } catch (...) {
+        tuning_cache = std::make_shared<kernel_selector::TuningCache>();
     }
 }
 
@@ -425,6 +438,10 @@ void program_impl::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program_impl::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
+
+    if (!is_internal)
+        load_tuning_cache();
+
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
 

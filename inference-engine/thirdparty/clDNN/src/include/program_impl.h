@@ -19,6 +19,10 @@
 #include <utility>
 #include <set>
 
+namespace kernel_selector {
+class TuningCache;
+}  // namespace kernel_selector
+
 namespace cldnn {
 
 struct topology_impl;
@@ -235,6 +239,9 @@ public:
     kernel_id add_kernel(const std::shared_ptr<kernel_string> kernel_sring);
     kernel::ptr get_kernel(kernel_id id);
 
+    void load_tuning_cache();
+    std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;
@@ -245,6 +252,7 @@ private:
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
+    std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
 
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;

@@ -45,6 +45,5 @@ protected:
     ForceList forceKernels;
 
     static AutoTuner autoTuner;
-    static std::unique_ptr<TuningCache> offlineCache;
 };
 }  // namespace kernel_selector
