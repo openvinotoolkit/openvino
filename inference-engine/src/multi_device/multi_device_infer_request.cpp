@@ -16,7 +16,7 @@ using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 const IInferRequestInternal::Ptr & request_to_share_blobs_with)
+                                                 const SoIInferRequestInternal & request_to_share_blobs_with)
         : IInferRequestInternal(networkInputs, networkOutputs) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
@@ -48,7 +48,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
     }
 }
 
-void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const IInferRequestInternal::Ptr& req) {
+void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely

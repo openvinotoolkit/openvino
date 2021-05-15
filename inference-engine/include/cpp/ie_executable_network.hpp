@@ -35,6 +35,8 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPoint
     friend class Core;
 
 public:
+    ExecutableNetwork() = default;
+
     /**
      * @brief Gets the Executable network output Data node information.
      *

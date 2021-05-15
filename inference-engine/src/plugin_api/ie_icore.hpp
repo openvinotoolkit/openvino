@@ -15,14 +15,11 @@
 
 #include <ie_parameter.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp/ie_executable_network.hpp>
-#include <details/ie_so_pointer.hpp>
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
-
-using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
 
 /**
  * @interface ICore

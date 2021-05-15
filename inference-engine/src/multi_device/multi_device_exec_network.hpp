@@ -99,9 +99,9 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
-        InferenceEngine::IInferRequestInternal::Ptr  _inferRequest;
-        InferenceEngine::Task                        _task;
-        std::exception_ptr                           _exceptionPtr = nullptr;
+        InferenceEngine::SoIInferRequestInternal  _inferRequest;
+        InferenceEngine::Task                     _task;
+        std::exception_ptr                        _exceptionPtr = nullptr;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 

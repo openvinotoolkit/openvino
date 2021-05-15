@@ -24,7 +24,7 @@ public:
 
     struct SubRequestDesc {
         InferenceEngine::SoExecutableNetworkInternal  _network;
-        InferenceEngine::IInferRequestInternal::Ptr   _request;
+        InferenceEngine::SoIInferRequestInternal      _request;
         openvino::itt::handle_t                       _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;

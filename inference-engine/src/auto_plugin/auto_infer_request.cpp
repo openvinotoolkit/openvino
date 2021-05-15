@@ -9,9 +9,9 @@
 namespace AutoPlugin {
     using namespace InferenceEngine;
 
-AutoInferRequest::AutoInferRequest(const InputsDataMap&                 networkInputs,
-                                   const OutputsDataMap&                networkOutputs,
-                                   const IInferRequestInternal::Ptr&    inferRequest)
+AutoInferRequest::AutoInferRequest(const InputsDataMap&              networkInputs,
+                                   const OutputsDataMap&             networkOutputs,
+                                   const SoIInferRequestInternal&    inferRequest)
     : IInferRequestInternal(networkInputs, networkOutputs)
     , _inferRequest(inferRequest) {
 }

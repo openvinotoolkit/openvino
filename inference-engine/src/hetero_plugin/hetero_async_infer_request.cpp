@@ -17,7 +17,7 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const IInferRequestInternal::Pt
     _pipeline.clear();
     for (std::size_t requestId = 0; requestId < _heteroInferRequest->_inferRequests.size(); ++requestId) {
         struct RequestExecutor : ITaskExecutor {
-            explicit RequestExecutor(IInferRequestInternal::Ptr & inferRequest) : _inferRequest(inferRequest) {
+            explicit RequestExecutor(SoIInferRequestInternal & inferRequest) : _inferRequest(inferRequest) {
                 _inferRequest->SetCallback(
                 [this] (std::exception_ptr exceptionPtr) mutable {
                     _exceptionPtr = exceptionPtr;
@@ -29,9 +29,9 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const IInferRequestInternal::Pt
                 _task = std::move(task);
                 _inferRequest->StartAsync();
             };
-            IInferRequestInternal::Ptr &  _inferRequest;
-            std::exception_ptr            _exceptionPtr;
-            Task                          _task;
+            SoIInferRequestInternal &  _inferRequest;
+            std::exception_ptr         _exceptionPtr;
+            Task                       _task;
         };
 
         auto requestExecutor = std::make_shared<RequestExecutor>(_heteroInferRequest->_inferRequests[requestId]._request);

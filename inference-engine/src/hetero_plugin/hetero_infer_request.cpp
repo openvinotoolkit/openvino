@@ -26,7 +26,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
         IE_THROW() << "Internal error: no information about network's output/input";
     }
 
-    auto requestBlob([&](const std::string& blobName, InferenceEngine::IInferRequestInternal::Ptr & r) {
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::SoIInferRequestInternal& r) {
         std::string intermediateBlobName = blobName;
         auto itName = subgraphInputToOutputBlobNames.find(blobName);
         if (itName != subgraphInputToOutputBlobNames.end()) {
@@ -49,7 +49,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
 
     // go over all subnet and create requests
     for (auto&& desc : _inferRequests) {
-        desc._request = desc._network->CreateInferRequest();
+        desc._request = { desc._network, desc._network->CreateInferRequest() };
         // go over all inputs and get blobs from subnet infer requests
         for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             requestBlob(outputInfo.first, desc._request);

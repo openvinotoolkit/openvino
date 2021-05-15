@@ -82,7 +82,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
         idleWorkerRequests.set_capacity(numRequests);
         for (auto&& workerRequest : workerRequests) {
-            workerRequest._inferRequest = network->CreateInferRequest();
+            workerRequest._inferRequest = { network, network->CreateInferRequest() };
             auto* workerRequestPtr = &workerRequest;
             IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
             workerRequest._inferRequest->SetCallback(
@@ -177,7 +177,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
     size_t sum = 0;
-    InferenceEngine::IInferRequestInternal::Ptr request_to_share_blobs_with;
+    InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
     for (const auto& device : _devicePrioritiesInitial) {
