@@ -24,6 +24,11 @@ class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
     std::shared_ptr<Impl> _impl;
 
 public:
+    /**
+     * @brief A shared pointer to SharedObjectLoader
+     */
+    using Ptr = std::shared_ptr<SharedObjectLoader>;
+
     SharedObjectLoader() = default;
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
