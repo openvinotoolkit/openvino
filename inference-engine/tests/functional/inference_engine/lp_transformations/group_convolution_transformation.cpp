@@ -595,7 +595,16 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {
                 {},
-                {std::vector<float>(24ul, 127.f), ngraph::element::f32, {24, 1, 1, 1}, false, 1, ngraph::element::i8, false, {"DISABLED_CONSTANT_FOLDING"}},
+                {
+                    std::vector<float>(24ul, 127.f),
+                    ngraph::element::f32,
+                    {24, 1, 1, 1},
+                    false,
+                    1,
+                    ngraph::element::i8,
+                    false,
+                    {"DEQUANTIZATION", "DISABLED_CONSTANT_FOLDING"}
+                },
                 {}
             },
             ngraph::element::f32,
