@@ -47,13 +47,14 @@ template <class T>
 class SOPointer {
     template <class U>
     friend class SOPointer;
-IE_SUPPRESS_DEPRECATED_START
+
+    IE_SUPPRESS_DEPRECATED_START
     struct HasRelease {
         template <typename C> static char test(decltype(&C::Release));
         template <typename C> static long test(...);
         constexpr static const bool value = sizeof(test<T>(nullptr)) == sizeof(char);
     };
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 
 public:
     /**
@@ -65,15 +66,27 @@ public:
      * @brief Constructs an object using name to load library
      * @param name Existing pointer to a library loader
      */
-    template<typename C, typename = enableIfSupportedChar<C>>
+    template <typename C, typename = enableIfSupportedChar<C>>
     SOPointer(const std::basic_string<C>& name) :
         _so{name.c_str()} {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
     /**
+     * @deprecated Use SOPointer::SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr)
      * @brief Constructs an object with existing loader
-     * @param soLoader Existing pointer to a library loader
+     * @param so_loader Existing pointer to a library loader
+     */
+    INFERENCE_ENGINE_DEPRECATED("SOPointer::SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr)")
+    explicit SOPointer(const SharedObjectLoader& so_loader)
+        : _so{so_loader} {
+        Load(std::integral_constant<bool, HasRelease::value>{});
+    }
+
+    /**
+     * @brief Constructs an object with existing loader
+     * @param so Existing pointer to a library loader
+     * @param ptr A shared pointer to the object
      */
     SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
 

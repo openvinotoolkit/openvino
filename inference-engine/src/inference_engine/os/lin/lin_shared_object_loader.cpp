@@ -65,6 +65,9 @@ SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
 SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    if (_impl == nullptr) {
+        IE_THROW() << "SharedObjectLoader is";
+    }
     return _impl->get_symbol(symbolName);
 }
 
