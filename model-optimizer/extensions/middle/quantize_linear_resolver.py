@@ -33,6 +33,10 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
+    def run_after(self):
+        from extensions.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize
+        return [MarkNodesToFuseUpToFakeQuantize]
+
     def find_and_replace_pattern(self, graph: Graph):
         for quantize_node in graph.get_op_nodes(op='QuantizeLinear'):
             node_name = quantize_node.soft_get('name', quantize_node.id)
@@ -42,7 +46,8 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
             if quantize_node.is_in_port_connected(2):
                 zerop = quantize_node.in_port(2).get_source().node
             else:
-                zerop = Const(graph, {'value': np.array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
+                zerop = Const(graph,
+                              {'value': np.array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
 
             assert zerop.soft_get('type') == 'Const', 'only constant for zero_point is supported for QuantizeLinear'
             zero_point_type = zerop.value.dtype
@@ -85,9 +90,9 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
                 target_shape = np.ones(len(input_shape), np.int)
                 target_shape[axis] = input_shape[axis]
                 mul_low_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array(target_shape)},
-                                                                      {'name': node_name + '/Reshape/Mul/Low'})
+                                                              {'name': node_name + '/Reshape/Mul/Low'})
                 mul_high_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array(target_shape)},
-                                                                               {'name': node_name + '/Reshape/Mul/high'})
+                                                               {'name': node_name + '/Reshape/Mul/high'})
 
                 fake_quantize.in_port(1).get_connection().set_destination(mul_low_reshape.in_port(0))
                 fake_quantize.in_port(2).get_connection().set_destination(mul_high_reshape.in_port(0))
