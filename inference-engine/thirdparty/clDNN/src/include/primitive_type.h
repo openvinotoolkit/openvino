@@ -14,7 +14,7 @@
 
 namespace cldnn {
 struct network_impl;
-struct engine;
+class engine;
 struct program_node;
 struct primitive_impl;
 class primitive_inst;

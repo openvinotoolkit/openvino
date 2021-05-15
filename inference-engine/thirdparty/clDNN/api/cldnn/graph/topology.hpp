@@ -82,7 +82,7 @@ struct topology {
     const std::shared_ptr<primitive>& at(const primitive_id& id) const;
 
 private:
-    friend struct engine;
+    friend class engine;
     friend struct network;
     std::shared_ptr<topology_impl> _impl;
 };

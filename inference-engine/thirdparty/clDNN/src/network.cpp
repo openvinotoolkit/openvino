@@ -8,21 +8,21 @@
 #include "cldnn/primitives/mutable_data.hpp"
 #include "cldnn/primitives/input_layout.hpp"
 
+#include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/engine.hpp"
+#include "cldnn/runtime/event.hpp"
+#include "cldnn/runtime/stream.hpp"
+
 #include "network_impl.h"
 #include "program_impl.h"
 #include "to_string_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "kernel_selector_helper.h"
 #include "runtime/cldnn_itt.hpp"
-
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
 
 #include <algorithm>
 #include <string>

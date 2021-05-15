@@ -11,7 +11,7 @@
 
 namespace cldnn {
 
-struct engine;
+class engine;
 class stream;
 
 struct memory {

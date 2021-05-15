@@ -18,7 +18,7 @@ namespace cldnn {
 
 struct memory;
 struct shared_mem_params;
-struct engine;
+class engine;
 struct memory_user;
 struct memory_user_comparer;
 using memory_set = std::set<memory_user, memory_user_comparer>;
