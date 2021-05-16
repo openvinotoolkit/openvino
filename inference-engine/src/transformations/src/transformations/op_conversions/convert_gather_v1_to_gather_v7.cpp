@@ -25,7 +25,7 @@ ngraph::pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
         auto indices_input = gather_v1_node->input_value(1);
         auto axis_input = gather_v1_node->input_value(2);
 
-        auto gather_v7  = std::make_shared<ngraph::opset7::Gather>(data_input, indices_input, axis_input);
+        auto gather_v7  = std::make_shared<ngraph::opset7::Gather>(data_input, indices_input, axis_input, 0);
         gather_v7->set_friendly_name(gather_v1_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v1_node, gather_v7);
         ngraph::replace_node(gather_v1_node, gather_v7);

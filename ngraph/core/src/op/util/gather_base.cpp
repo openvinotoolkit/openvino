@@ -79,7 +79,7 @@ void op::util::GatherBase::validate_and_infer_types()
 
         NODE_VALIDATION_CHECK(
             this,
-            (axis >= 0 && axis < data_rank.get_length()) || data_rank.is_dynamic(),
+            data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
             "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
             axis,
             " data_rank = ",

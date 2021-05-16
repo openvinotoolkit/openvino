@@ -266,6 +266,23 @@ TEST(type_prop, gather_7_dynamic_rank)
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
+TEST(type_prop, gather_7_axis_boundcheck_for_dynamic_data_rank)
+{
+    PartialShape data_shape = PartialShape::dynamic();
+    PartialShape indices_shape{7, 3, 8};
+    PartialShape out_shape = PartialShape::dynamic();
+    int64_t axis = 3;
+    int64_t batch_dims = 2;
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+}
+
 TEST(type_prop, gather_7_dynamic_rank_negative_batch_dims)
 {
     PartialShape data_shape{Dimension(1, 7), Dimension(1, 3), 200, 400};
