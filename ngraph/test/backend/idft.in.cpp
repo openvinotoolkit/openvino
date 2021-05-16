@@ -1697,111 +1697,65 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_1)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
     size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft2d_signal_size_results_1.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft2d_signal_size_results_1)
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_1[j], 0.000001);
     }
-    std::cout << "]\n";
-//    EXPECT_TRUE(test::all_close_f(expected_idft2d_signal_size_results_1, result));
-//    ASSERT_TRUE(true);
-     for (std::size_t j = 0; j < num_of_elems; ++j)
-     {
-         EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_1[j], 0.000001);
-     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_2)
 {
-   auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-   auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 1});
-   auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 6});
-   auto dft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 1});
+    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 6});
+    auto dft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
 
-   auto f = make_shared<Function>(dft, ParameterVector{data});
+    auto f = make_shared<Function>(dft, ParameterVector{data});
 
-   auto backend = runtime::Backend::create("${BACKEND_NAME}");
-   auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
 
-   auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-   copy_data(backend_data, data_1);
+    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
+    copy_data(backend_data, data_1);
 
-   auto handle = backend->compile(f);
+    auto handle = backend->compile(f);
 
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
     size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft2d_signal_size_results_2.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft2d_signal_size_results_2)
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_2[j], 0.000001);
     }
-    std::cout << "]\n";
-//    EXPECT_TRUE(test::all_close_f(expected_idft2d_signal_size_results_2, result));
-     for (std::size_t j = 0; j < num_of_elems; ++j)
-     {
-         EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_2[j], 0.000001);
-     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_3)
 {
-   auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-   auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-   auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {3, 4});
-   auto dft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
+    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {3, 4});
+    auto dft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
 
-   auto f = make_shared<Function>(dft, ParameterVector{data});
+    auto f = make_shared<Function>(dft, ParameterVector{data});
 
-   auto backend = runtime::Backend::create("${BACKEND_NAME}");
-   auto dft_output = backend->create_tensor(element::f32, Shape{3, 6, 4, 2});
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto dft_output = backend->create_tensor(element::f32, Shape{3, 6, 4, 2});
 
-   auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-   copy_data(backend_data, data_1);
+    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
+    copy_data(backend_data, data_1);
 
-   auto handle = backend->compile(f);
+    auto handle = backend->compile(f);
 
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
     size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft2d_signal_size_results_3.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft2d_signal_size_results_3)
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_3[j], 0.000001);
     }
-    std::cout << "]\n";
-//    EXPECT_TRUE(test::all_close_f(expected_dft2d_signal_size_results_3, result));
-     for (std::size_t j = 0; j < num_of_elems; ++j)
-     {
-         EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_3[j], 0.000001);
-     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_4)
@@ -1824,26 +1778,11 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_4)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_4[j], 0.000001);
     }
-    std::cout << "]\n";
-     size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft2d_signal_size_results_4.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft2d_signal_size_results_4)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
-//    EXPECT_TRUE(test::all_close_f(expected_idft2d_signal_size_results_4, result));
-     for (std::size_t j = 0; j < num_of_elems; ++j)
-     {
-         EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_4[j], 0.000001);
-     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_5)
@@ -1866,26 +1805,11 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_signal_size_eval_5)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_5[j], 0.000001);
     }
-    std::cout << "]\n";
-     size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft2d_signal_size_results_5.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft2d_signal_size_results_5)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
-//    EXPECT_TRUE(test::all_close_f(expected_idft2d_signal_size_results_5, result));
-     for (std::size_t j = 0; j < num_of_elems; ++j)
-     {
-         EXPECT_NEAR(result[j], expected_idft2d_signal_size_results_5[j], 0.000001);
-     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft3d_signal_size_eval)
@@ -1908,26 +1832,11 @@ NGRAPH_TEST(${BACKEND_NAME}, idft3d_signal_size_eval)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft3d_signal_size_results[j], 0.000001);
     }
-    std::cout << "]\n";
-      size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft3d_signal_size_results.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft3d_signal_size_results)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
-//   EXPECT_TRUE(test::all_close_f(expected_idft3d_signal_size_results, result));
-      for (std::size_t j = 0; j < num_of_elems; ++j)
-      {
-          EXPECT_NEAR(result[j], expected_idft3d_signal_size_results[j], 0.000001);
-      }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft1d_signal_size_eval)
@@ -1950,24 +1859,9 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_signal_size_eval)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual results: [";
-    for (auto x : result)
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", " ;
+        EXPECT_NEAR(result[j], expected_idft1d_signal_size_results[j], 0.000001);
     }
-    std::cout << "]\n";
-      size_t num_of_elems = result.size();
-    std::cout << "Actual size of results:   " << result.size() << "\n";
-    std::cout << "Expected size of results: " << expected_idft1d_signal_size_results.size() << "\n";
-    std::cout << "Expected results: [";
-    for (auto x : expected_idft1d_signal_size_results)
-    {
-        std::cout << x << ", " ;
-    }
-    std::cout << "]\n";
-//   EXPECT_TRUE(test::all_close_f(expected_idft1d_signal_size_results, result));
-      for (std::size_t j = 0; j < num_of_elems; ++j)
-      {
-          EXPECT_NEAR(result[j], expected_idft1d_signal_size_results[j], 0.000001);
-      }
 }
