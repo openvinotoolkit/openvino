@@ -553,7 +553,7 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    get_stream().finish();
+    get_stream().flush();
 }
 
 std::vector<primitive_id> network_impl::get_input_ids() const {
