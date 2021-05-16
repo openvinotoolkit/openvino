@@ -91,7 +91,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     if (dequantization.subtract != nullptr) {
         lastNode = std::make_shared<opset1::Add>(
             convolution,
-            fold<opset1::Negative>(fold<opset1::Convert>(dequantization.subtractConstant, element::f32)));
+            fold<opset1::Negative>(foldConvert(dequantization.subtractConstant, element::f32)));
         lastNode->set_friendly_name(convolution->get_friendly_name() + "/Add");
     }
 
