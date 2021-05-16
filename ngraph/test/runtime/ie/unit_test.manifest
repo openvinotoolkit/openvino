@@ -1181,6 +1181,8 @@ IE_CPU.dft2d_signal_size_eval_1
 IE_CPU.dft2d_signal_size_eval_2
 IE_CPU.dft2d_signal_size_eval_3
 IE_CPU.dft2d_signal_size_eval_4
+IE_CPU.dft2d_signal_size_eval_5
+IE_CPU.dft3d_signal_size_eval
 
 # IDFT is not implemented yet in plugins
 IE_CPU.idft1d_eval
@@ -1198,6 +1200,13 @@ IE_CPU.idft3d_eval_float16
 IE_CPU.idft1d_eval_1
 IE_CPU.idft2d_eval_1
 IE_CPU.idft3d_eval_1
+IE_CPU.idft2d_signal_size_eval_1
+IE_CPU.idft2d_signal_size_eval_2
+IE_CPU.idft2d_signal_size_eval_3
+IE_CPU.idft2d_signal_size_eval_4
+IE_CPU.idft2d_signal_size_eval_5
+IE_CPU.idft3d_signal_size_eval
+IE_CPU.idft1d_signal_size_eval
 
 #-------------------------------------------------------------------------------
 #
