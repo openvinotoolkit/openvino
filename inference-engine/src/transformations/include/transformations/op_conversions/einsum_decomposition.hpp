@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API EinsumDecomposition;
 /**
  * @ingroup ie_transformation_common_api
  * @brief EinsumDecomposition transformation decomposes Einsum-7 operation into a sub-graph with more simple operations:
- *        Transpose, Reshape, MatMul, ReduceSum and Unsqueeze
+ *        Transpose, Reshape, MatMul, ReduceSum, Unsqueeze, ShapeOf, ReduceProd, StridedSlice, and Concat
  */
 class ngraph::pass::EinsumDecomposition : public ngraph::pass::MatcherPass {
 public:

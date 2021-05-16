@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 #include "common_test_utils/xml_net_builder/ir_net.hpp"
 
-TEST_F(NGraphReaderTests, ReadEinsumNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_ReadEinsumNetwork) {
     std::string model = R"V0G0N(
 <net name="saved_model" version="10">
     <layers>
@@ -119,7 +119,7 @@ TEST_F(NGraphReaderTests, ReadEinsumNetwork) {
     compareIRs(model, modelV7);
 }
 
-TEST_F(NGraphReaderTests, ReadEinsumNetwork2) {
+TEST_F(NGraphReaderTests, DISABLED_ReadEinsumNetwork2) {
     std::string model = R"V0G0N(
 <net name="saved_model" version="10">
     <layers>

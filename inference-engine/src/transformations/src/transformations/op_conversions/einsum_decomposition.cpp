@@ -50,7 +50,7 @@ std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const
 }
 
 /// \brief      Check if the dimension with a given label is reduced. The dimension is reduced
-/// iff. the corresponding label is met in neither the output subscript nor the input subscripts
+/// if the corresponding label is met in neither the output subscript nor the input subscripts
 /// excluding ones specified by a vector excluded_indices
 ///
 /// \param      input_subscripts         The vector of the input subscripts
@@ -91,8 +91,8 @@ bool is_dimension_reduced(const std::vector<std::string>& input_subscripts, cons
 std::string generate_grouping_subscript(const std::string& input_subscript, const std::vector<int64_t>& common_labels_inds,
                                         const std::vector<int64_t>& separate_labels_inds, const std::vector<int64_t>& reduced_labels_inds,
                                         bool& is_separate_first) {
-    // transpose is not needed if common labels, reduced labels and separate labels indices go
-    // concurrently
+    // transpose is not needed if common labels, reduced labels
+    // and separate labels indices go concurrently
     bool is_transpose_needed = false;
     std::vector<int64_t> labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), reduced_labels_inds.begin(), reduced_labels_inds.end());
@@ -110,8 +110,8 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
         return input_subscript;
     }
 
-    // transpose is not needed if common labels, separate labels and reduced labels indices go
-    // concurrently
+    // transpose is not needed if common labels, separate labels
+    // and reduced labels indices go concurrently
     is_transpose_needed = false;
     labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), separate_labels_inds.begin(), separate_labels_inds.end());
@@ -147,7 +147,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
 /// \param      input_ind1          An index of item to be removed
 /// \param      input_ind2          An index of item to be removed
 /// \param      new_node            New input node to be inserted in the tail
-///  \param     new_subscript       New input subscript to be inserted in the tail
+/// \param      new_subscript       New input subscript to be inserted in the tail
 ///
 void update_operands(ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, size_t input_ind1, size_t input_ind2,
                      const ngraph::Output<ngraph::Node>& new_node, const std::string& new_subscript) {
@@ -232,9 +232,9 @@ ngraph::Output<ngraph::Node> unsqueeze_input(const ngraph::Output<ngraph::Node>&
 /// \param      separate_sub_shape      A sub-shape corresponding to the separate dimensions
 /// \param      reduced_sub_shape_prod  A product of the separate dimensions sizes
 /// \param      is_separate_first       true - the separate dimensions placed before reduced
-/// dimensions, otherwise, it is after them \param      subgraph_nodes          A vector of
-/// operation nodes that is included into a sub-graph decomposing Einsum that is needed for
-/// copy_runtime_info
+/// dimensions, otherwise, it is after them
+/// \param      subgraph_nodes          A vector of operation nodes that is included into
+/// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
 /// \return     Reshaped input node
 ///
@@ -292,8 +292,9 @@ ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngrap
 /// \param      input_nodes         A vector of input nodes to Einsum
 /// \param      input_subscripts    A vector of corresponding subscripts for input nodes
 /// \param      required_subscript  The required subscript that defines layout to which the
-/// input is to transpose \param      input_ind           An index of the input node to be
-/// transposed \param      subgraph_nodes      A vector of operation nodes that is included into
+/// input is to transpose
+/// \param      input_ind           An index of the input node to be transposed
+/// \param      subgraph_nodes      A vector of operation nodes that is included into
 /// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
 void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, const std::string& required_subscript, size_t input_ind,
@@ -303,8 +304,8 @@ void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>
     NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
     NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
 
-    // generate permutation vector by searching for bijection between input_subscripts and
-    // required_subscript
+    // generate permutation vector by searching for bijection between input_subscripts
+    // and required_subscript
     std::vector<int64_t> permutation;
     const auto& input_subscript = input_subscripts[input_ind];
 
@@ -313,8 +314,8 @@ void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>
         return;
     }
 
-    // find permutation that establishes bijection between the input subscript and the required
-    // one
+    // find permutation that establishes bijection between the input subscript
+    // and the required one
     auto labels = ngraph::op::v7::Einsum::extract_labels(input_subscript);
     auto required_labels = ngraph::op::v7::Einsum::extract_labels(required_subscript);
     NGRAPH_CHECK(labels.size() == required_labels.size());
@@ -341,15 +342,18 @@ void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>
 /// \brief      Find labels (in a given input subscript) that are met once in the equation
 /// and reduce dimensions corresponding to such labels
 ///
-/// \param      input_nodes         A vector of input nodes to Einsum operation
-/// \param      input_subscripts    A vector of corresponding subscripts for the input nodes
-/// \param      output_subscript    The output subscript
-/// \param      input_ind           An index of the input node for which it will check
-/// dimensions to be reduced \param      subgraph_nodes      A vector of operation nodes that is
-/// included into a sub-graph decomposing Einsum that is needed for copy_runtime_info
+/// \param      einsum_decompose_ptr    A pointer to Einsum decomposing pass
+/// \param      input_nodes             A vector of input nodes to Einsum operation
+/// \param      input_subscripts        A vector of corresponding subscripts for the input nodes
+/// \param      output_subscript        The output subscript
+/// \param      input_ind               An index of the input node for which it will check
+/// dimensions to be reduced
+/// \param      subgraph_nodes          A vector of operation nodes that is included into
+/// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
-void reduce_input(ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, const std::string& output_subscript, size_t input_ind,
-                  ngraph::NodeVector& subgraph_nodes) {
+void reduce_input(ngraph::pass::EinsumDecomposition *einsum_decompose_ptr,
+    ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts,
+    const std::string& output_subscript, size_t input_ind, ngraph::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     auto num_inputs = input_nodes.size();
     NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
@@ -361,12 +365,11 @@ void reduce_input(ngraph::OutputVector& input_nodes, std::vector<std::string>& i
     for (size_t dim_ind = 0; dim_ind < labels.size(); ++dim_ind) {
         const auto& label = labels[dim_ind];
 
-        // check if the current label is met in the other input subscripts or the output
-        // subscript
+        // check if the current label is met in the other input subscripts
+        // or the output subscript
         bool is_dim_reduced = is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
 
-        // if label is not met, dimension corresponding to the label is a candidate for
-        // reduction
+        // if label is not met, dimension corresponding to the label is to reduce
         if (is_dim_reduced) {
             reduced_axes.push_back(dim_ind);
         } else {
@@ -382,7 +385,7 @@ void reduce_input(ngraph::OutputVector& input_nodes, std::vector<std::string>& i
     // reduce by summed up elements along dimension for which label is met just once
     const auto& input_node = input_nodes[input_ind];
     auto axes_const = ngraph::opset7::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape {reduced_axes.size()}, reduced_axes);
-    auto reduce_sum = std::make_shared<ngraph::opset7::ReduceSum>(input_node, axes_const, false);
+    auto reduce_sum = einsum_decompose_ptr->register_new_node<ngraph::opset7::ReduceSum>(input_node, axes_const, false);
 
     // update a vector of inputs and input subscripts
     input_nodes[input_ind] = reduce_sum->output(0);
@@ -397,16 +400,19 @@ void reduce_input(ngraph::OutputVector& input_nodes, std::vector<std::string>& i
 /// The input nodes for these two operands are removed from input_nodes along with their input
 /// subscripts
 ///
-/// \param      input_nodes         A vector of input nodes to Einsum operation
-/// \param      input_subscripts    A vector of corresponding subscripts for the input nodes
-/// \param      output_subscript    The output subscript
-/// \param      input_ind1          An index of the first operand
-/// \param      input_ind2          An index of the second operand
-/// \param      subgraph_nodes      A vector of operation nodes that is included into a
+/// \param      einsum_decompose_ptr    A pointer to Einsum decomposing pass
+/// \param      input_nodes             A vector of input nodes to Einsum operation
+/// \param      input_subscripts        A vector of corresponding subscripts for the input nodes
+/// \param      output_subscript        The output subscript
+/// \param      input_ind1              An index of the first operand
+/// \param      input_ind2              An index of the second operand
+/// \param      subgraph_nodes          A vector of operation nodes that is included into a
 /// sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
-void contract_two_inputs(ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, const std::string& output_subscript, size_t input_ind1,
-                         size_t input_ind2, ngraph::NodeVector& subgraph_nodes) {
+void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr,
+    ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts,
+    const std::string& output_subscript, size_t input_ind1,
+    size_t input_ind2, ngraph::NodeVector& subgraph_nodes) {
     // assume that input_ind1 < input_ind2 without loss of generality, otherwise, just swap them
     if (input_ind2 < input_ind1) {
         std::swap(input_ind1, input_ind2);
@@ -421,8 +427,8 @@ void contract_two_inputs(ngraph::OutputVector& input_nodes, std::vector<std::str
     const auto& input_node2 = input_nodes[input_ind2];
 
     // reduce dimensions for input operands if possible
-    reduce_input(input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
-    reduce_input(input_nodes, input_subscripts, output_subscript, input_ind2, subgraph_nodes);
+    reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
+    reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind2, subgraph_nodes);
 
     // step 0. split dimensions of both operands into three groups:
     // 1. dimension indices with the same labels (in both subscripts) that are NOT reduced -
@@ -470,13 +476,13 @@ void contract_two_inputs(ngraph::OutputVector& input_nodes, std::vector<std::str
         }
     }
 
-    // if no common dimension is to reduce, apply eltwise multiplication
+    // if there is no common dimension to reduce, apply eltwise multiplication
     if (reduced_labels_inds1.empty()) {
         std::string convenient_subscript = common_part + separate_part2;
         std::string resultant_subscript = input_subscript1 + separate_part2;
 
-        // transpose the second operand in order to get the convenient layout for further
-        // unsqueezing
+        // transpose the second operand in order to get the convenient layout
+        // for further unsqueezing
         transpose_input(input_nodes, input_subscripts, convenient_subscript, input_ind2, subgraph_nodes);
 
         // unsqueeze the first operand with new dimensions in the tail
@@ -516,9 +522,9 @@ void contract_two_inputs(ngraph::OutputVector& input_nodes, std::vector<std::str
 
     // step 2. reshape both operands so that separate labels and reduced labels are represented
     // with just one dimension this is needed by MatMul operation requirement to operands
-    // format. For example, the shape must be in a format [B1, ..., Bm, X, Y] or [B1, ..., Bm,
-    // Y, X], where B1, ..., Bm are common dimensions, X is collapsed dimension for separate
-    // labels and Y is collapsed dimension for reduced labels
+    // format. For example, the shape must be in a format [B1, ..., Bm, X1, Y] or [B1, ..., Bm,
+    // Y, X2], where B1, ..., Bm are common dimensions, X1 and X2 are collapsed dimensions
+    // for separate labels and Y is collapsed dimension for reduced labels
     auto data_shape1 = std::make_shared<ngraph::opset7::ShapeOf>(input_node1);
     auto data_shape2 = std::make_shared<ngraph::opset7::ShapeOf>(input_node2);
 
@@ -577,16 +583,16 @@ void contract_two_inputs(ngraph::OutputVector& input_nodes, std::vector<std::str
 NGRAPH_RTTI_DEFINITION(ngraph::pass::EinsumDecomposition, "EinsumDecomposition", 0);
 
 ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
-    // NOTE: The transformation is applicable iff Einsum equation does not contain ellipsis label
+    // NOTE: The transformation is applicable if Einsum equation does not contain ellipsis label
     // and does not contain subscripts with repeated labels.
     // For example, the transformation is applicable to Einsum with equation="abc,bd->ad"
-    // but not applicable to a case with equation="aabc,bd->ad" due to repeated labels in one
-    // subscript.
+    // but not applicable to a case with equation="aabc,bd->ad" due to repeated labels
+    // in the first input subscript.
     MATCHER_SCOPE(EinsumDecomposition);
     auto einsum = ngraph::pattern::wrap_type<opset7::Einsum>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto einsum_node = std::dynamic_pointer_cast<ngraph::opset7::Einsum>(m.get_match_root());
-        if (!einsum_node || transformation_callback(einsum_node)) {
+        if (!einsum_node) {
             return false;
         }
 
@@ -602,22 +608,23 @@ ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
             }
         }
 
-        // create a list of input nodes with preserving their order and a vector of sub-graph nodes
-        // for copy_runtime_info
+        // create a list of input nodes with preserving their order
+        // and a vector of sub-graph nodes for copy_runtime_info
         ngraph::OutputVector input_nodes = einsum_node->input_values();
         ngraph::NodeVector subgraph_nodes;
 
-        // compute einsum path
+        // compute einsum path that is used to contract a pair of operands
+        // in more optimal order
         auto einsum_path = compute_einsum_path(einsum_node);
 
         // contract inputs by Einsum until just one is remained
         for (auto const& inds_pair : einsum_path) {
-            contract_two_inputs(input_nodes, input_subscripts, output_subscript, inds_pair.first, inds_pair.second, subgraph_nodes);
+            contract_two_inputs(this, input_nodes, input_subscripts, output_subscript, inds_pair.first, inds_pair.second, subgraph_nodes);
         }
 
         // reduce dimensions for the remained input node
         NGRAPH_CHECK(input_nodes.size() == 1);
-        reduce_input(input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
+        reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
 
         // transpose dimensions to layout required by the output subscript
         transpose_input(input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
