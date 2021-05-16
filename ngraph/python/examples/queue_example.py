@@ -89,9 +89,6 @@ def get_results(request, userdata):
                                   pred_class=int(pred_class))
     connection.execute(query)
 
-    del engine
-    del connection
-
     times[userdata['index']] = (end_time - userdata['start_time']) * 1000
 
 
