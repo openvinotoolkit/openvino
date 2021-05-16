@@ -41,7 +41,6 @@ MKLDNN_EXTENSION_NODE(ExperimentalDetectronROIFeatureExtractorImpl, Experimental
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronGenerateProposalsSingleImageImpl, ExperimentalDetectronGenerateProposalsSingleImage);
 MKLDNN_EXTENSION_NODE(NonMaxSuppressionImpl, NonMaxSuppressionIEInternal);
 MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
-MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
 MKLDNN_EXTENSION_NODE(BucketizeImpl, Bucketize);
