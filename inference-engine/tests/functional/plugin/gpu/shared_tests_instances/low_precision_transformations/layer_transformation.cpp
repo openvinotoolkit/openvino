@@ -14,7 +14,6 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <legacy/net_pass.h>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -114,8 +113,6 @@ InferenceEngine::CNNNetwork convert(std::shared_ptr<ngraph::Function> function) 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
