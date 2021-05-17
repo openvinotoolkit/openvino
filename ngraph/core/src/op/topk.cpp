@@ -306,7 +306,8 @@ void op::v1::TopK::validate_and_infer_types()
         }
         else
         {
-            output_shape[m_normalized_axis] = -1;
+            output_shape[m_normalized_axis] =
+                Dimension(0, input_partial_shape[m_normalized_axis].get_max_length());
         }
     }
 

@@ -23,5 +23,7 @@ protected:
 
 private:
     std::string pathToModel;
+    std::string sourceModel;
+    std::vector<std::pair<std::string, size_t>> ocuranceInModels;
 };
 } // namespace LayerTestsDefinitions

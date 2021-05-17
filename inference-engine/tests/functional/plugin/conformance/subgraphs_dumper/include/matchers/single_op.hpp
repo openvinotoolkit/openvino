@@ -17,18 +17,29 @@ class SingleOpMatcher : public Matcher {
 public:
     SingleOpMatcher();
 
-    bool match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const override;
+    bool match(const std::shared_ptr<ngraph::Node> &node,
+               const std::shared_ptr<ngraph::Node> &ref,
+               const LayerTestsUtils::OPInfo &op_info) const override;
+    bool same_op_type(const std::shared_ptr<ngraph::Node> &node,
+                      const std::shared_ptr<ngraph::Node> &ref,
+                      const LayerTestsUtils::OPInfo &op_info) const;
 
-    static const char *name;
+    virtual bool match_inputs(const std::shared_ptr<ngraph::Node> &node,
+                      const std::shared_ptr<ngraph::Node> &ref,
+                      const LayerTestsUtils::OPInfo &op_info) const;
+    bool match_outputs(const std::shared_ptr<ngraph::Node> &node,
+                       const std::shared_ptr<ngraph::Node> &ref,
+                       const LayerTestsUtils::OPInfo &op_info) const;
+    bool same_attrs(const std::shared_ptr<ngraph::Node> &node,
+                    const std::shared_ptr<ngraph::Node> &ref,
+                    const LayerTestsUtils::OPInfo &op_info) const;
+    bool match_ports(const std::shared_ptr<ngraph::Node> &node,
+                     const std::shared_ptr<ngraph::Node> &ref,
+                     const LayerTestsUtils::OPInfo &op_info) const;
+
 protected:
-    const char *get_name() override { return name; }
-
     void configure(const pugi::xml_document &cfg) override {}
-private:
-    bool same_op_type(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
-    bool match_inputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
-    bool match_outputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
-    bool same_attrs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
-    bool match_ports(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
+
+    bool match_only_configured_ops() const override { return false; }
 };
 }  // namespace SubgraphsDumper
