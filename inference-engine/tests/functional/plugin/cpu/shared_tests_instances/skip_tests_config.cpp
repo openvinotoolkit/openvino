@@ -83,6 +83,11 @@ std::vector<std::string> disabledTestPatterns() {
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
         });
+#ifdef __APPLE__
+        retVector.insert(retVector.end(), {
+              // TODO: Issue 55717
+              R"(.*smoke_LPT.*ReduceMinTransformation.CompareWithRefImpl.*f32_Shape.*)",
+        });
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
