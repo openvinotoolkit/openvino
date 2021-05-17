@@ -28,8 +28,7 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         }
         Output<Node> cond{ if_node->input_value(0) };
         const auto cond_is_const = ngraph::get_constant_from_source(cond);
-        if(!cond_is_const)
-        {
+        if (!cond_is_const) {
             continue;
         }
         auto cond_value = cond_is_const->cast_vector<bool>();
@@ -37,16 +36,14 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
         //connect inputs instead of body parameters
-        for (const auto& input_descr : input_descriptions)
-        {
+        for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_values()[input_descr->m_input_index];
             const auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
             for (auto& output : param->outputs()) {
                 output.replace(in_data);
             }
         }
-        for (const auto& output_desc : output_descriptions)
-        {
+        for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<opset6::Result> result = body->get_results()[output_desc->m_body_value_index];
             const auto& in_value = result->input_value(0);
 
