@@ -352,10 +352,6 @@ PartialShape ngraph::infer_reduction_output_shape(const Node* node,
     {
         AxisSet reduction_axes;
         auto reduction_axes_val = axes->cast_vector<int64_t>();
-        bool unique_axes_val =
-            std::set<int64_t>(reduction_axes_val.begin(), reduction_axes_val.end()).size() ==
-            reduction_axes_val.size();
-        NODE_VALIDATION_CHECK(node, unique_axes_val, "Axes input must have unique axis values.");
         for (auto axis : reduction_axes_val)
         {
             try

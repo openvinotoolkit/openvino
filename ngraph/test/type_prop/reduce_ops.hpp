@@ -236,33 +236,6 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range)
     }
 }
 
-TYPED_TEST_P(ReduceTest, reduce_invalid_axes_not_unique)
-{
-    PartialShape data_ps{1, 2, 3, 4};
-    element::Type data_et = element::dynamic;
-
-    Shape axes_ps{3};
-    element::Type axes_et = element::i64;
-    std::vector<int64_t> axes{0, 1, 1};
-
-    bool keep_dims = false;
-
-    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
-    try
-    {
-        auto reduce_op = makeReduceOp<TypeParam>(params);
-        FAIL() << "Axes input with duplicate elements not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axes input must have unique axis values.");
-    }
-    catch (...)
-    {
-        FAIL() << "Axes input with unique elements validaton check failed for unexpected reason";
-    }
-}
-
 TYPED_TEST_P(ReduceTest, reduce_invalid_axes_shape)
 {
     PartialShape data_ps{1, 2, 3};
@@ -302,7 +275,6 @@ REGISTER_TYPED_TEST_CASE_P(
     reduce_dynamic_shape_reduced_axes_not_static,
     reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
     reduce_invalid_axis_out_of_range,
-    reduce_invalid_axes_not_unique,
     reduce_invalid_axes_shape);
 
 template<class T>
