@@ -5,8 +5,6 @@
 #pragma once
 
 #include <atomic>
-#include <cpp/ie_executable_network.hpp>
-#include <cpp/ie_infer_request.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>

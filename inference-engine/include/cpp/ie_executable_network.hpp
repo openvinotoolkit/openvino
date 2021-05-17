@@ -29,14 +29,11 @@ class IExecutableNetwork;
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPointer<IExecutableNetworkInternal> {
     using details::SOPointer<IExecutableNetworkInternal>::SOPointer;
-    // TODO: remove?
     ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj) :
         details::SOPointer<IExecutableNetworkInternal>::SOPointer(obj) { }
     friend class Core;
 
 public:
-    ExecutableNetwork() = default;
-
     /**
      * @brief Gets the Executable network output Data node information.
      *

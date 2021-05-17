@@ -14,7 +14,6 @@
 #include <string>
 
 #include "file_utils.h"
-#include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"

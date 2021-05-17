@@ -166,7 +166,7 @@ public:
      * @return raw pointer
      */
     const T* get() const noexcept {
-        return this->get();
+        return _ptr.get();
     }
 
     explicit operator bool() const noexcept {
@@ -275,7 +275,7 @@ public:
      * @return raw pointer
      */
     const T* get() const noexcept {
-        return this->get();
+        return _ptr.get();
     }
 
     explicit operator bool() const noexcept {

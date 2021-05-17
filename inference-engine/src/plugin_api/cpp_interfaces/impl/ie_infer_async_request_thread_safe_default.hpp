@@ -8,6 +8,7 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_istreams_executor.hpp>
 
+#include <cpp/ie_infer_request.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <ie_system_conf.h>
 
