@@ -50,14 +50,14 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         return false;
     }
 
-    DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
-    if (dataPrecision.precision == ngraph::element::undefined) {
+    std::vector<element::Type> concatParentsChildrensPrecisions = precisionsOnActivations;
+    fillAvailablePrecisions(subgraph.quantizationLayers[0], concatParentsChildrensPrecisions);
+    if (concatParentsChildrensPrecisions.empty()) {
         return false;
     }
 
-    std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
-        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
+        fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
         if (fq == nullptr) {
             return false;
         }
@@ -72,21 +72,20 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         if (quantizationDetails.inputHighValues.size() != 1ul) {
             return false;
         }
+        std::vector<element::Type> fqChildrensPrecisions = precisionsOnActivations;
+        fillAvailablePrecisions(subgraph.quantizationLayers[i], fqChildrensPrecisions);
+        concatParentsChildrensPrecisions = NetworkHelper::precisionIntersection(concatParentsChildrensPrecisions, fqChildrensPrecisions);
 
-        const DataPrecision dataPrecision2 = getDataPrecision(subgraph.quantizationLayers[i]->shared_from_this(), quantizationDetails, false);
-        if (dataPrecision2.precision == ngraph::element::undefined) {
+        if (concatParentsChildrensPrecisions.empty()) {
             return false;
-        }
-
-        if (dataPrecision.precision != dataPrecision2.precision) {
-            // quantization levels are the same, difference can be in sign
-            // wider interval (precision) is preferable: use signed if least one interval is signed
-            dataPrecision = dataPrecision.precision.is_signed() ? dataPrecision : dataPrecision2;
         }
     }
 
-    if (dataPrecision.precision == ngraph::element::undefined) {
-        return false;
+    DataPrecision dataPrecision;
+    if (std::find(concatParentsChildrensPrecisions.begin(), concatParentsChildrensPrecisions.end(), element::i8) != concatParentsChildrensPrecisions.end()) {
+        dataPrecision = DataPrecision(element::i8);
+    } else {
+        dataPrecision = DataPrecision(concatParentsChildrensPrecisions[0]);
     }
 
     std::vector<QuantizationDetails> quantizationLayersDetails;
