@@ -2,14 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-from collections import deque
+from collections import deque, Counter
 from re import match, compile
 
 import networkx as nx
+import numpy as np
 
 from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
 
 
 def backward_bfs_for_operation(start_node: Node, op_names: list):
@@ -306,3 +312,50 @@ def clear_tensor_names_info(nodes: list):
                     new_fw_info.append((fw_info[0], fw_info[1], None))
             set_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info', new_fw_info)
 
+
+def send_op_names_info(framework: str, graph: Graph):
+    op_counter = Counter()
+    for node_name in graph.nodes:
+        node = Node(graph, node_name)
+        pb_info = node.soft_get('pb', None)
+        op_name = None
+        if pb_info is not None:
+            try:
+                if framework == 'tf':
+                    op_name = pb_info.op
+                elif framework == 'caffe':
+                    op_name = pb_info.type
+                elif framework == 'onnx':
+                    op_name = pb_info.op_type
+            except AttributeError:
+                pass
+        elif node.soft_get('op', None) is not None:
+            op_name = node.op
+
+        if op_name is not None:
+            op_counter[op_name] += 1
+
+    t = tm.Telemetry()
+    for op_name in op_counter:
+        t.send_event('mo', 'op_count', "{}_{}".format(framework, op_name), op_counter[op_name])
+
+
+def send_shapes_info(framework: str, graph: Graph):
+    shapes = []
+    for node in graph.get_op_nodes():
+        op_type = node.soft_get('type', None)
+        if op_type == 'Parameter':
+            if 'shape' in node:
+                shapes.append(node['shape'])
+    t = tm.Telemetry()
+
+    if shapes:
+        shape_str = ""
+        is_dynamic = "0"
+        for shape in shapes:
+            shape_str += np.array2string(shape) + ","
+            if not all(shape > 0):
+                is_dynamic = "1"
+        message_str = "{fw:" + framework + ",shape:\"" + shape_str[:-1] + "\"}"
+        t.send_event('mo', 'input_shapes', message_str)
+        t.send_event('mo', 'dynamic_input_shape', "{dynamic_input_shape:" + is_dynamic + ",fw:" + framework + "}")

@@ -36,7 +36,7 @@ from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
-from mo.utils.utils import refer_to_faq_msg
+from mo.utils.utils import refer_to_faq_msg, send_params_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
@@ -384,6 +384,8 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         init_logger('ERROR', False)
 
         argv = cli_parser.parse_args()
+        send_params_info(argv, cli_parser)
+
         if framework:
             argv.framework = framework
 

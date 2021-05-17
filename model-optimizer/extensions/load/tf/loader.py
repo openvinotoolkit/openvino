@@ -25,6 +25,7 @@ from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
+from mo.utils.graph import send_op_names_info, send_shapes_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -85,6 +86,7 @@ class TFLoader(Loader):
         del variables_values
 
         used_tensors = restore_edges(graph, get_tf_edges)
+        send_op_names_info('tf', graph)
 
         # Tensor names information corresponding to a node is stored on outgoing edges.
         # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -98,3 +100,4 @@ class TFLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        send_shapes_info('tf', graph)

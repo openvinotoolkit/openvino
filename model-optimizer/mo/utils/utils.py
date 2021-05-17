@@ -1,14 +1,19 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import functools
 import os
 import re
 import warnings
-
 from typing import Callable
 
 import numpy as np
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
 
 
 def refer_to_faq_msg(question_num: int):
@@ -133,3 +138,21 @@ def unique_by(xs: list, predicate: Callable) -> list:
     """
     groups = group_by_with_binary_predicate(xs, predicate)
     return [group[0] for group in groups]
+
+
+def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentParser):
+    t = tm.Telemetry()
+    params_with_paths = ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+                         'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+                         'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+                         'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+                         'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+                         'transformations_config']
+    for arg in vars(argv):
+        arg_value = getattr(argv, arg)
+        if arg_value != cli_parser.get_default(arg):
+            if arg in params_with_paths:
+                param_str = arg + ":" + str(1)
+            else:
+                param_str = arg + ":" + str(arg_value)
+            t.send_event('mo', 'cli_parameters', param_str)

@@ -17,6 +17,7 @@ from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_ne
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
 from mo.utils.error import Error
+from mo.utils.graph import send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -99,7 +100,6 @@ def load_kaldi_model(graph, nnet_path):
         file_desc = nnet_path
     else:
         raise Error('Unsupported type of Kaldi model')
-
     tag = find_next_tag(file_desc)
     # start new model / submodel
     if tag == '<Nnet>':
@@ -163,6 +163,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         output_layer = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
 
+    send_op_names_info('kaldi', graph)
+
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
     # for each output Identity node is added, and tensor name for the output is kept
@@ -180,6 +182,8 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     prev_layer_id = input_name
 
     all_components = load_components(file_descr, graph)
+    
+    send_op_names_info('kaldi', graph)
 
     used_layers = set()
     for layer_id in all_components:
@@ -208,6 +212,9 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
 def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     file_descr.read(1)
     component_layer_map = load_topology_map(file_descr, graph)
+
+    send_op_names_info('kaldi', graph)
+
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph
