@@ -28,6 +28,10 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 
+    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
+        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestOutputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -47,5 +51,12 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoConfigs)),
+                            InferRequestOutputTests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, InferRequestOutputTests,
+                            ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
                             InferRequestOutputTests::getTestCaseName);
 }  // namespace

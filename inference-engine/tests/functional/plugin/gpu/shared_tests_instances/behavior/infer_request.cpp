@@ -22,6 +22,10 @@ namespace {
             {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}}
     };
 
+    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
+        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -41,5 +45,12 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoconfigs)),
+                            InferRequestTests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, InferRequestTests,
+                            ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
                             InferRequestTests::getTestCaseName);
 }  // namespace
