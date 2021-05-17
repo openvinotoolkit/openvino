@@ -5,7 +5,6 @@ import sys
 pdpd.enable_static()
 
 
-
 def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
     cpu = pdpd.static.cpu_places(1)
     exe = pdpd.static.Executor(cpu[0])
@@ -15,9 +14,6 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         fetch_list=fetch_list,
         program=main_prog)
 
-    print(outs)
-    pdpd.static.save_inference_model("../models/" + name,
-                                     [feed], [fetch_list], exe, program=main_prog)
     with pdpd.static.program_guard(main_prog, start_prog):
         saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x],
                   outputs=[outs[0]], target_dir=sys.argv[1])

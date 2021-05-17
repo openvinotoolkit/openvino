@@ -185,8 +185,8 @@ namespace ngraph
                                   {};
 
                         ngraph::op::RecurrentSequenceDirection m_direction;
-                        std::int32_t m_hidden_size;
-                        std::int32_t m_layers;
+                        int32_t m_hidden_size;
+                        int32_t m_layers;
                     };
                 } // namespace
                 NamedOutputs lstm(const NodeContext& node)
