@@ -10,7 +10,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
-#include "ngraph/util.hpp"
+#include "util/evaluate_helpers.hpp"
 
 using namespace std;
 using namespace ngraph;
