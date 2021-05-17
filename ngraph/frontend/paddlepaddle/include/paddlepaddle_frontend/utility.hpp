@@ -18,6 +18,13 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
+// Defined if we are building the plugin DLL (instead of using it)
+#ifdef paddlepaddle_ngraph_frontend_EXPORTS
+#define PDPD_API NGRAPH_HELPER_DLL_EXPORT
+#else
+#define PDPD_API NGRAPH_HELPER_DLL_IMPORT
+#endif // paddlepaddle_ngraph_frontend_EXPORTS
+
 namespace ngraph
 {
     namespace frontend

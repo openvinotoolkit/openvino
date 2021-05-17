@@ -97,6 +97,9 @@ FrontEndManager::FrontEndManager()
 {
 }
 
+FrontEndManager::FrontEndManager(FrontEndManager&&) = default;
+FrontEndManager& FrontEndManager::operator=(FrontEndManager&&) = default;
+
 FrontEndManager::~FrontEndManager() = default;
 
 FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework, FrontEndCapFlags fec)

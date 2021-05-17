@@ -464,6 +464,9 @@ namespace ngraph
         public:
             FrontEndManager();
 
+            FrontEndManager(FrontEndManager&&);
+            FrontEndManager& operator=(FrontEndManager&&);
+
             ~FrontEndManager();
 
             /// \brief Loads frontend by name of framework and capabilities

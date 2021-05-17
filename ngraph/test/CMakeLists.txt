@@ -480,6 +480,7 @@ set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit 
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # TODO: try to find a way to move it out of common CMakeLists
@@ -614,6 +615,6 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_dependencies(unit-test pdpd_test_models)
 
     target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
-    target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+    target_link_libraries(unit-test PRIVATE paddlepaddle_ngraph_frontend)
     target_link_libraries(unit-test PRIVATE libnpy)
 endif()
