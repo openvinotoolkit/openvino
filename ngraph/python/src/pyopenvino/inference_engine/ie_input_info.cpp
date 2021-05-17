@@ -10,42 +10,36 @@
 
 namespace py = pybind11;
 
-template <typename T>
-class ConstWrapper {
+class ConstInputInfoWrapper
+{
 public:
-    ConstWrapper() = default;
-    ~ConstWrapper() = default;
-    const T& cref() const { return value; }
+    ConstInputInfoWrapper() = default;
+    ~ConstInputInfoWrapper() = default;
+    const InferenceEngine::InputInfo& cref() const { return value; }
 
 protected:
-    T& ref() { return this->value; }
-    T value;
+    const InferenceEngine::InputInfo& ref() { return this->value; }
+    const InferenceEngine::InputInfo value = InferenceEngine::InputInfo();
 };
 
-void regclass_InputInfo(py::module m) {
+void regclass_InputInfo(py::module m)
+{
     // Workaround for constant class
-    py::class_<ConstWrapper<const InferenceEngine::InputInfo>,
-               std::shared_ptr<ConstWrapper<const InferenceEngine::InputInfo>>>
-        cls_const(m, "InputInfoCPtr");
+    py::class_<ConstInputInfoWrapper, std::shared_ptr<ConstInputInfoWrapper>> cls_const(
+        m, "InputInfoCPtr");
 
     cls_const.def(py::init<>());
 
-    cls_const.def_property_readonly("input_data",
-                                    [](const ConstWrapper<const InferenceEngine::InputInfo>& self) {
-                                        return self.cref().getInputData();
-                                    });
-    cls_const.def_property_readonly("precision",
-                                    [](const ConstWrapper<const InferenceEngine::InputInfo>& self) {
-                                        return self.cref().getPrecision().name();
-                                    });
-    cls_const.def_property_readonly("tensor_desc",
-                                    [](const ConstWrapper<const InferenceEngine::InputInfo>& self) {
-                                        return self.cref().getTensorDesc();
-                                    });
-    cls_const.def_property_readonly("name",
-                                    [](const ConstWrapper<const InferenceEngine::InputInfo>& self) {
-                                        return self.cref().name();
-                                    });
+    cls_const.def_property_readonly(
+        "input_data", [](const ConstInputInfoWrapper& self) { return self.cref().getInputData(); });
+    cls_const.def_property_readonly("precision", [](const ConstInputInfoWrapper& self) {
+        return self.cref().getPrecision().name();
+    });
+    cls_const.def_property_readonly("tensor_desc", [](const ConstInputInfoWrapper& self) {
+        return self.cref().getTensorDesc();
+    });
+    cls_const.def_property_readonly(
+        "name", [](const ConstInputInfoWrapper& self) { return self.cref().name(); });
     // Mutable version
     py::class_<InferenceEngine::InputInfo, std::shared_ptr<InferenceEngine::InputInfo>> cls(
         m, "InputInfoPtr");
