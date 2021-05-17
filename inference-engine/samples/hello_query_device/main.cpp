@@ -3,6 +3,7 @@
 //
 
 #include <cstdlib>
+#include <ie_plugin_config.hpp>
 #include <inference_engine.hpp>
 #include <iomanip>
 #include <memory>
@@ -11,7 +12,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <ie_plugin_config.hpp>
 
 using namespace InferenceEngine;
 

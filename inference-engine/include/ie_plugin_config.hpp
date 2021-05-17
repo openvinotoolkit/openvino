@@ -99,7 +99,6 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "BIN" - device can support models with BIN layers
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
  *  - "BATCHED_BLOB" - device can support BatchedBlob
- *  - "HW_MATMUL" - device has hardware block for matrix multiplication
  */
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
@@ -110,7 +109,6 @@ DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);
 DECLARE_METRIC_VALUE(WINOGRAD);
 DECLARE_METRIC_VALUE(BATCHED_BLOB);
-DECLARE_METRIC_VALUE(HW_MATMUL);
 
 /**
  * @brief Metric to provide information about a range for streams on platforms where streams are supported.
@@ -179,19 +177,9 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics
 DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
 
 /**
- * @brief Metric which defines size of memory in bytes available for the device
- */
-DECLARE_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
-
-/**
  * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
  */
 DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
-
-/**
- * @brief Metric to get microarchitecture identifier in arbitrary device specific format
- */
-DECLARE_METRIC_KEY(UARCH_VERSION, std::string);
 
 /**
  * @brief Metric which defines support of import/export functionality by plugin
