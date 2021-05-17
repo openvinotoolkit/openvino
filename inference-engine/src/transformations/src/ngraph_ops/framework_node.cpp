@@ -63,16 +63,22 @@ op::FrameworkNodeAttrs::FrameworkNodeAttrs(const std::unordered_map<std::string,
 }
 
 op::FrameworkNodeAttrs::FrameworkNodeAttrs(const FrameworkNodeAttrs & v)
-        : std::unordered_map<std::string, std::string>(v) {
+        : std::unordered_map<std::string, std::string>(v)
+        , m_type_name(v.m_type_name)
+        , m_opset_name(v.m_opset_name) {
 }
 
 op::FrameworkNodeAttrs& op::FrameworkNodeAttrs::operator=(const FrameworkNodeAttrs& v) {
     static_cast<std::unordered_map<std::string, std::string>*>(this)->operator=(v);
+    m_type_name = v.m_type_name;
+    m_opset_name = v.m_opset_name;
     return *this;
 }
 
 op::FrameworkNodeAttrs& op::FrameworkNodeAttrs::operator=(FrameworkNodeAttrs&& v) noexcept {
     static_cast<std::unordered_map<std::string, std::string>*>(this)->operator=(v);
+    m_type_name = v.m_type_name;
+    m_opset_name = v.m_opset_name;
     return *this;
 }
 

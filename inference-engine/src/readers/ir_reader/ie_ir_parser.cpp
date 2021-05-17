@@ -528,7 +528,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
     } else if (auto a = ngraph::as_type<
                         ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         const auto & type = XMLParseUtils::GetStrAttr(node, "type");
-        const auto & version = XMLParseUtils::GetStrAttr(node, "version", "");
+        const auto & version = XMLParseUtils::GetStrAttr(node, "version");
 
         ngraph::op::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
