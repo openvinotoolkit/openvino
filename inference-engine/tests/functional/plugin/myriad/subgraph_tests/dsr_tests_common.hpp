@@ -59,6 +59,8 @@ protected:
     virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
 
     void SetUp() override {
+        // TODO: Replace CONSTANT_FOLDING to INTERPRETER
+        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         if (CommonTestUtils::vpu::CheckMyriad2()) {
             configuration[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);

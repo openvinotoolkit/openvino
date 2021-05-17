@@ -79,9 +79,10 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
     return outs;
 }
 
-std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
-                                                           const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           const std::vector<ngraph::element::Type> &inputTypes) {
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
+        interpreterFunction(const std::shared_ptr<Function> &function,
+                            const std::vector<std::vector<std::uint8_t>> &inputs,
+                            const std::vector<ngraph::element::Type> &inputTypes) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -131,14 +132,88 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-    auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
     for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
         auto& output = outputs[resultIndex];
+        output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
-        outputTensors[resultIndex]->read(output.data(), output.size());
+        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
+        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
 
+    return outputs;
+}
+
+std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
+                                       const std::vector<std::vector<std::uint8_t>> &inputs,
+                                       const std::vector<ngraph::element::Type> &inputTypes) {
+    const auto &parameters = function->get_parameters();
+    const auto &parametersNumber = parameters.size();
+    const auto &inputsNumber = inputs.size();
+    NGRAPH_CHECK(parametersNumber == inputsNumber,
+                 "Got function (", function->get_friendly_name(), ") with ", parametersNumber, " parameters, but ",
+                 inputsNumber, " input blobs");
+    if (!inputTypes.empty()) {
+        NGRAPH_CHECK(inputTypes.size() == inputsNumber,
+                     "Got function (", function->get_friendly_name(), ") with ", inputsNumber, " inputs, but ",
+                     inputTypes.size(), " types");
+    }
+
+    std::vector<element::Type> paramElementTypes;
+    std::vector<PartialShape> paramShapes;
+    std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
+    vecTmpConvertedInputs.reserve(inputs.size());
+
+    std::vector<void *> inBuffers;
+    inBuffers.reserve(inputs.size());
+
+    for (size_t i = 0; i < parametersNumber; ++i) {
+        const auto &param = parameters[i];
+        paramElementTypes.emplace_back(param->get_element_type());
+        paramShapes.emplace_back(param->get_shape());
+        auto parameterIndex = function->get_parameter_index(param);
+        auto& input = inputs[parameterIndex];
+
+        const auto inpType = inputTypes.empty() ? element::undefined : inputTypes[i];
+
+        if (inpType != element::undefined && inpType != paramElementTypes.back()) {
+            vecTmpConvertedInputs.emplace_back(convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
+            inBuffers.push_back(vecTmpConvertedInputs.back().data());
+        } else {
+            // const_cast added to satisfy specialize_function interface
+            // which requires inputs as std::vector<void *>
+            inBuffers.push_back(const_cast<std::uint8_t *>(input.data()));
+        }
+    }
+
+    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
+    for (const auto &op : foldedFunc->get_ops()) {
+        NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
+                     "Function was not fully folded to constant state!\n",
+                     "At least one non constant node with type ", op->get_type_name(),
+                     " present in function.");
+    }
+    return foldedFunc;
+}
+
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(const std::shared_ptr<Function> &function) {
+    size_t numOutputs = function->get_output_size();
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
+    auto funcResults = function->get_results();
+    for (size_t i = 0; i < numOutputs; i++) {
+        outputs[i].first = funcResults[i]->get_element_type();
+        const auto &output = function->output(i).get_node_shared_ptr();
+        NGRAPH_CHECK(output->inputs().size() == 1);
+        auto parrentNode = output->input_value(0).get_node_shared_ptr();
+        NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
+                     "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
+
+        const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
+        const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
+        outputs[i].second.resize(dataSize);
+        std::copy(data, data + dataSize, outputs[i].second.data());
+    }
     return outputs;
 }
 
@@ -151,6 +226,8 @@ std::string toString(const NodeTypeInfo& typeInfo) {
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
     NGRAPH_CHECK(actual.relaxes(expected) && actual.refines(expected), "Functions compare: Different shape detected ", actual, " and ", expected);
 }
+
+
 
 void CompareNodes(const Node& actual, const Node& expected) {
     const auto& actualType   = actual.get_type_info();

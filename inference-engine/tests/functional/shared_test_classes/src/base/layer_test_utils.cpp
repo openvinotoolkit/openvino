@@ -180,6 +180,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
         }
         case ngraph::element::Type_t::dynamic:
         case ngraph::element::Type_t::undefined:
+            LayerTestsCommon::Compare<T_IE, T_IE>(reinterpret_cast<const T_IE *>(expectedBuffer), actualBuffer, size, threshold);
             break;
         default: FAIL() << "Comparator for " << expected.first << " precision isn't supported";
     }
@@ -193,6 +194,8 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     // W/A for int4, uint4
     if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
         k /= 2;
+    } else if (expected.first == ngraph::element::Type_t::undefined || expected.first == ngraph::element::Type_t::dynamic) {
+        k = 1;
     }
     ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
 
@@ -368,10 +371,15 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
                         output.second->getTensorDesc().getPrecision()));
         }
 
-    std::vector<std::vector<std::uint8_t>> expectedOutputs;
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
             expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
+            break;
+        }
+        case CONSTANT_FOLDING: {
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
+            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
             break;
         }
         case IE: {
@@ -380,12 +388,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
         }
     }
 
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs;
-    for (size_t i = 0; i < expectedOutputs.size(); ++i) {
-        outputs.push_back({function->get_results()[i]->get_element_type(), expectedOutputs[i]});
-    }
-
-    return outputs;
+    return expectedOutputs;
 }
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
