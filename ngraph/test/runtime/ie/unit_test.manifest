@@ -131,12 +131,6 @@ arg_max_dyn_shape
 # Result mismatch
 onnx_model_argmax_float
 onnx_model_argmin_float
-
-# Result mismatch 
-# Failure 
-# Value of: res 
-# Actual: false 
-# Expected: true
 onnx_model_argmax_select_last_index
 onnx_model_argmin_select_last_index
 
