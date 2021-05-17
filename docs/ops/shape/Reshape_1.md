@@ -28,7 +28,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 
 *   **1**: `data` a tensor of type T and arbitrary shape. **Required**.
 
-*   **2**: `shape` 1D tensor of type *T_INT* describing output shape. **Required**.
+*   **2**: `shape` 1D tensor of type *T_SHAPE* describing output shape. **Required**.
 
 **Outputs**:
 
@@ -38,7 +38,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 
 * *T*: any numeric type.
 
-* *T_INT*: any supported integer type.
+* *T_SHAPE*: any supported integer type.
 
 **Examples**
 
