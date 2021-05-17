@@ -106,9 +106,9 @@ TEST(loop_gpu, basic_concat)
 
     auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 5 } }); // b,f,x,y
     auto operand_mem = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 1 } }); // b,f,x,y
-    auto trip_count_mem = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
-    auto initial_condition_mem = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
-    auto num_iteration_mem = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
+    auto trip_count_mem = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
+    auto initial_condition_mem = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
+    auto num_iteration_mem = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
 
     std::vector<float> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
@@ -121,7 +121,7 @@ TEST(loop_gpu, basic_concat)
     };
     set_values(operand_mem, eltwise_operand);
 
-    int trip_count = input_data.size()/eltwise_operand.size();
+    size_t trip_count = input_data.size()/eltwise_operand.size();
     set_values(trip_count_mem, {trip_count});
 
     int initial_condition = 1;

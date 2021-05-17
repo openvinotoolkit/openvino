@@ -1,18 +1,8 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "api/loop.hpp"
@@ -69,9 +59,9 @@ public:
         max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
 
     mutable size_t iteration_axis;
-    int32_t max_iteration;
+    int64_t max_iteration;
 
-    int32_t get_max_iteration() const { return max_iteration; }
+    int64_t get_max_iteration() const { return max_iteration; }
     program_impl::ptr get_body_program() const { return body_program; }
     bool is_output_working_as_backedge() const { return output_is_backedge; }
     bool is_current_iteration_used() const { return use_current_iteration; }
@@ -107,7 +97,7 @@ public:
         return ret;
     }
 
-    static size_t convert_to_raw_axis(const int axis, const int ndim) {
+    static size_t convert_to_raw_axis(size_t axis, size_t ndim) {
         // convert between bfyx, bfzyx, bfzyxw and tensor.size.raw
         assert(axis < ndim);
         if (axis < 2) {
@@ -126,7 +116,7 @@ public:
         auto shape = calculated_layout.size.sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {
-            iteration_axis = convert_to_raw_axis(inputDesc.axis, static_cast<int>(shape.size()));
+            iteration_axis = convert_to_raw_axis(static_cast<size_t>(inputDesc.axis), shape.size());
             calculated_layout.size.raw[iteration_axis] = 1; // cropped inputs shape
         }
 
@@ -235,7 +225,6 @@ public:
         }
 
         // setup internal output
-        // TODO: handle multiple output_primitive_map
         std::set<primitive_id> output_names;
         output_names.insert(output_primitive_maps.begin()->internal_id);
         const auto& back_edges_list = this->get_primitive()->back_edges;
@@ -366,25 +355,21 @@ private:
     };
 
     struct concatenated_memory_mapping {
-        concatenated_memory_mapping(const primitive_id& concat_data_id,
-                             const primitive_id& sliced_data_id,
-                             memory_impl::ptr concatenated_mem,
+        concatenated_memory_mapping(memory_impl::ptr concatenated_mem,
                              std::vector<memory_impl::ptr> sliced_mems,
-                             int iteration_elements = 0,
-                             int stride = 0,
-                             int initial_offset = 0) :
-            concat_data_id(concat_data_id),
-            sliced_data_id(sliced_data_id),
+                             int64_t iteration_elements = 0,
+                             int64_t stride = 0,
+                             int64_t initial_offset = 0) :
             concatenated_mem(concatenated_mem),
             sliced_mems(sliced_mems),
-            bytes_per_element(static_cast<int>(data_type_traits::size_of(concatenated_mem->get_layout().data_type))),
+            bytes_per_element(data_type_traits::size_of(concatenated_mem->get_layout().data_type)),
             bytes_per_iteration(iteration_elements * bytes_per_element),
             bytes_stride(stride * bytes_per_element),
             bytes_initial_offset(initial_offset * bytes_per_element) {}
 
         void restore_concatenated_mem() const {
             mem_lock<uint8_t> concat_mem_lock{ concatenated_mem };
-            int output_offset = bytes_initial_offset;
+            int64_t output_offset = bytes_initial_offset;
             for (const auto& sliced_mem : sliced_mems) {
                 mem_lock<uint8_t> sliced_mem_lock{ sliced_mem };
                 uint8_t* src = sliced_mem_lock.data();
@@ -399,8 +384,8 @@ private:
             concat_data_prim->set_output_memory(*sliced_output_mem);
         }
 
-        memory_impl::ptr get_sliced_mem(int iteration) const {
-            const int offset = bytes_initial_offset + bytes_stride * iteration;
+        memory_impl::ptr get_sliced_mem(int64_t iteration) const {
+            const int64_t offset = bytes_initial_offset + bytes_stride * iteration;
             {
                 mem_lock<uint8_t> from_lock{ concatenated_mem };
                 mem_lock<uint8_t> to_lock{ sliced_mems.at(iteration) };
@@ -411,16 +396,14 @@ private:
             return sliced_mems.at(iteration);
         }
 
-        primitive_id concat_data_id;
-        primitive_id sliced_data_id;
         std::shared_ptr<primitive_inst> concat_data_prim;
         std::shared_ptr<primitive_inst> sliced_data_prim;
         memory_impl::ptr concatenated_mem;
         std::vector<memory_impl::ptr> sliced_mems;
-        const int bytes_per_element;
-        const int bytes_per_iteration;
-        const int bytes_stride;
-        const int bytes_initial_offset;
+        const int64_t bytes_per_element;
+        const int64_t bytes_per_iteration;
+        const int64_t bytes_stride;
+        const int64_t bytes_initial_offset;
     };
 
     static layout calc_output_layout(const loop_node& node);
@@ -434,9 +417,14 @@ private:
 public:
     typed_primitive_inst(network_impl& network, const loop_node& node);
     network_impl::ptr get_body_network() const { return body_network; }
+    void preprocess_input_memory();
+    void preprocess_output_memory();
+    void preprocess_backedge_memory();
 
 private:
     network_impl::ptr body_network;
+    memory_impl::ptr get_external_memory(const primitive_id& external_id) const;
+    std::vector<memory_impl::ptr> get_sliced_mem(const primitive_id& internal_id) const;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

@@ -141,6 +141,54 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
     return false;
 }
 
+static bool canTensorIteratorUseLoop(const std::shared_ptr<const ngraph::op::TensorIterator> &op) {
+    using TensorIterator = ngraph::op::TensorIterator;
+    const auto& input_descs = op->get_input_descriptions();
+    const auto& output_descs = op->get_output_descriptions();
+    const auto& inputs = op->inputs();
+    const auto& outputs = op->outputs();
+
+    for (const auto& input_desc : input_descs) {
+        const auto& input = inputs.at(input_desc->m_input_index);
+        const auto& shape = input.get_shape();
+        int64_t axis = -1;
+        if (const auto& sliceInfo =
+            std::dynamic_pointer_cast<TensorIterator::SliceInputDescription>(input_desc)) {
+            axis = sliceInfo->m_axis;
+        }
+        if (axis < 0) {
+            continue;
+        }
+        size_t batch = 1;
+        for (int64_t i = 0; i < axis; ++i) {
+            batch *= shape.at(i);
+        }
+        if (batch > 1) {
+            return false;
+        }
+    }
+    for (const auto& output_desc : output_descs) {
+        const auto& output = outputs.at(output_desc->m_output_index);
+        const auto& shape = output.get_shape();
+        int64_t axis = -1;
+        if (const auto& sliceInfo =
+            std::dynamic_pointer_cast<TensorIterator::ConcatOutputDescription>(output_desc)) {
+            axis = sliceInfo->m_axis;
+        }
+        if (axis < 0) {
+            continue;
+        }
+        size_t batch = 1;
+        for (int64_t i = 0; i < axis; ++i) {
+            batch *= shape.at(i);
+        }
+        if (batch > 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                                   const CLDNNPlugin::Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::CloneAndTransformNetwork");
@@ -161,9 +209,13 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
-            manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+
+            if (!config.enable_loop_unrolling) {
+                manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+            }
+
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
@@ -176,6 +228,13 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
             manager.register_pass<ngraph::pass::GRUCellDecomposition>();
             manager.register_pass<ngraph::pass::RNNCellDecomposition>();
+
+            if (config.enable_loop_unrolling) {
+                manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+            }
+
             manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
@@ -348,9 +407,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            if (!config.enable_loop_unrolling) {
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            }
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -407,6 +468,20 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
             manager.register_pass<ngraph::pass::ConstantFolding>();
+
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            auto pass_config = manager.get_pass_config();
+            pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
+                [config](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                    if (config.enable_loop_unrolling) {
+                        return false;
+                    }
+                    if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                        return canTensorIteratorUseLoop(ti_op);
+                    }
+                    return true;
+                });
+
             manager.run_passes(nGraphFunc);
         }
     }
@@ -506,7 +581,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id &&
-               context_config.n_threads == current_config.n_threads;
+               context_config.n_threads == current_config.n_threads &&
+               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
     };
 
     {

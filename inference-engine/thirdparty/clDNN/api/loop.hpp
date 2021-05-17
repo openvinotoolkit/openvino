@@ -9,7 +9,7 @@
 #include "primitive.hpp"
 #include "topology.hpp"
 
-#define DEFAULT_MAX_NUM_ITERATION 128
+#define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -23,6 +23,8 @@ namespace cldnn {
 /// @details
 /// @n   The body topology for recurrent execution is described in the body
 /// @n   The execution of the body topology iterates through the data in the given axis.
+/// @n   Note: that only loops with fixed iteration count are being validated and supported currently.
+/// @n
 /// @n\b Example:
 /// \code{.cpp}
 /// topology body(
@@ -66,7 +68,7 @@ struct loop : public primitive_base<loop> {
         /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
         io_primitive_map(primitive_id external_id, primitive_id internal_id,
-            int32_t axis = -1, int32_t start = 0, int32_t end = -1, int32_t stride = 1) :
+            int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
             external_id(external_id),
             internal_id(internal_id),
             axis(axis),
@@ -76,10 +78,10 @@ struct loop : public primitive_base<loop> {
             {}
         primitive_id external_id;
         primitive_id internal_id;
-        int32_t axis;
-        int32_t start;
-        int32_t end;
-        int32_t stride;
+        int64_t axis;
+        int64_t start;
+        int64_t end;
+        int64_t stride;
     };
 
     struct backedge_mapping {
@@ -125,7 +127,7 @@ struct loop : public primitive_base<loop> {
         const std::vector<io_primitive_map>& input_primitive_maps,
         const std::vector<io_primitive_map>& output_primitive_maps,
         const std::vector<backedge_mapping>& back_edges,
-        int32_t max_iteration = -1,
+        int64_t max_iteration = -1,
         const primitive_id& current_iteration_id = primitive_id(),
         const primitive_id& condition_id = primitive_id(),
         const padding& output_padding = padding())
@@ -167,7 +169,7 @@ struct loop : public primitive_base<loop> {
     /// @brief Rules to transfer data from body outputs at one iteration to body input at the next iteration.
     std::vector<backedge_mapping> back_edges;
 
-    int32_t max_iteration;
+    int64_t max_iteration;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

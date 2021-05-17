@@ -61,9 +61,8 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     }
 }
 
-template<class LSTMCELL_TYPE>
-void CreateLSTMCellOp(Program& p, const std::shared_ptr<LSTMCELL_TYPE>& op, InferenceEngine::SizeVector validInputsCount) {
-    p.ValidateInputs(op, validInputsCount);
+void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
+    p.ValidateInputs(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
     bool hasBias = true;
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -175,14 +174,6 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<LSTMCELL_TYPE>& op, Infe
     p.primitiveIDs[outputCellID] = outputCellID;         // LSTMCell:LSTMCell:1 - cell state
 
     p.AddPrimitiveToProfiler(layerName, op, outputHiddenID);
-}
-
-void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v0::LSTMCell>& op) {
-    CreateLSTMCellOp<ngraph::op::v0::LSTMCell>(p, op, {6, 7});
-}
-
-void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
-    CreateLSTMCellOp<ngraph::op::v4::LSTMCell>(p, op, {6});
 }
 
 void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
@@ -326,7 +317,6 @@ void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTM
     p.AddPrimitiveToProfiler(layerName, op);
 }
 
-REGISTER_FACTORY_IMPL(v0, LSTMCell);
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
 REGISTER_FACTORY_IMPL(v5, LSTMSequence);
 

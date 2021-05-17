@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "cldnn_program.h"
 #include "cldnn_common_utils.h"
 #include "cldnn_engine.h"
@@ -26,10 +27,10 @@ using TensorIterator = ngraph::op::v0::TensorIterator;
 namespace CLDNNPlugin {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateIntData(Program &p, const cldnn::primitive_id& id, int32_t num) {
+static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
     auto mem = cldnn::memory::allocate(p.GetEngine(),
-        { cldnn::data_types::i32, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    auto ptr = mem.pointer<int32_t>();
+        { cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    auto ptr = mem.pointer<int64_t>();
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -120,7 +121,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     const int64_t num_iterations = op->get_num_iterations();
     assert(num_iterations >= 0);
     {
-        cldnn::data trip_count = CreateIntData<cldnn::data>(p, trip_count_id, num_iterations);
+        cldnn::data trip_count = CreateScalarData<cldnn::data>(p, trip_count_id, num_iterations);
         p.primitivesToIRLayersMap[trip_count_id] = { op->get_friendly_name() };
         p.primitiveIDs[trip_count_id] = trip_count_id;
         p.AddPrimitive(trip_count);
@@ -128,7 +129,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     }
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
-        cldnn::mutable_data execution_condition = CreateIntData<cldnn::mutable_data>(p, execution_condition_id, 1);
+        cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
         p.primitivesToIRLayersMap[execution_condition_id] = { op->get_friendly_name() };
         p.primitiveIDs[execution_condition_id] = execution_condition_id;
         p.AddPrimitive(execution_condition);
@@ -136,7 +137,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
-        cldnn::mutable_data num_iteration = CreateIntData<cldnn::mutable_data>(p, num_iteration_id, 0);
+        cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0);
         p.primitivesToIRLayersMap[num_iteration_id] = { op->get_friendly_name() };
         p.primitiveIDs[num_iteration_id] = num_iteration_id;
         p.AddPrimitive(num_iteration);
@@ -144,9 +145,8 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     }
 
     // set output mapping
-    const auto& ti_outputs = op->outputs();
     for (const auto& loop_output_desc : loop_output_descs) {
-        const int output_idx = loop_output_desc->m_output_index;
+        const uint64_t output_idx = loop_output_desc->m_output_index;
 
         // Add additional mutable_data for multiple outputs
         // primitive ID should be <TI primitive ID>.<output_idx> if output_idx > 0
@@ -174,8 +174,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
             output_primitive_maps.emplace_back(external_id, internal_id, concatOutput->m_axis,
                 concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
         }
-        if (const auto& body_desc =
-            std::dynamic_pointer_cast<TensorIterator::BodyOutputDescription>(loop_output_desc)) {
+        if (std::dynamic_pointer_cast<TensorIterator::BodyOutputDescription>(loop_output_desc)) {
             // output which requires no concatenation
             output_primitive_maps.emplace_back(external_id, internal_id);
         }

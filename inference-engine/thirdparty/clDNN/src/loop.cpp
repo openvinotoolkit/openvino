@@ -1,19 +1,8 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "loop_inst.h"
 
 #include "error_handler.h"
@@ -71,13 +60,6 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
         if (dep == dependencies.end()) {
             return false;
         }
-
-        // TODO(cldnn loop): need this check? all axis size should be 1 except iteration axis
-        // tensor size = node.get_dependency(input.from).get_output_layout().size;
-        // for (int i = translate_between_bfyx_and_raw_axis(input.axis) - 1; i >= 0; i--) {
-        //     if (size.raw[translate_between_bfyx_and_raw_axis(i)] != 1)
-        //         return false;
-        // }
     }
     return true;
 }
@@ -130,12 +112,12 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
 
     // set body output layout
     layout loop_output_layout = (*target)->get_output_layout();
-    const int axis_to_iterate_throgh = output_mapping.axis;
+    const int64_t axis_to_iterate_throgh = output_mapping.axis;
     if (axis_to_iterate_throgh != -1) {
         const auto shape = loop_output_layout.size.sizes(loop_output_layout.format);
         const size_t ndim = shape.size();
         const size_t raw_axis = node.convert_to_raw_axis(axis_to_iterate_throgh, static_cast<int>(ndim));
-        loop_output_layout.size.raw[raw_axis] = node.get_max_iteration();
+        loop_output_layout.size.raw[raw_axis] = static_cast<int32_t>(node.get_max_iteration());
     }
     return loop_output_layout;
 }
@@ -207,6 +189,145 @@ static void validate_mappings(loop_node const & node) {
             CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
         }
     }
+}
+
+void loop_inst::preprocess_output_memory() {
+    auto& engine = _network.get_engine();
+    const auto& output_primitive_maps = node.get_output_primitive_maps();
+    concatenated_output_mem_mappings.reserve(output_primitive_maps.size());
+    for (size_t i = 0; i < output_primitive_maps.size(); ++i) {
+        const auto& output_mapping = output_primitive_maps.at(i);
+        const primitive_id& external_id = output_mapping.external_id;
+        const primitive_id& internal_id = output_mapping.internal_id;
+        if (output_mapping.axis < 0) {
+            memory_impl::ptr memory = get_external_memory(external_id);
+            body_network->get_primitive(internal_id)->set_output_memory(*memory);
+        } else {
+            memory_impl::ptr to_mem = get_external_memory(external_id);
+            auto output_prim = body_network->get_primitive(internal_id);
+            layout sliced_layout = output_prim->output_memory().get_layout();
+
+            const int64_t max_iteration = node.get_max_iteration();
+            std::vector<memory_impl::ptr> sliced_mems;
+            sliced_mems.reserve(max_iteration);
+            for (int j=0; j < max_iteration; ++j) {
+                memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+                sliced_mems.push_back(sliced_mem);
+            }
+
+            const int64_t linear_size = static_cast<int>(sliced_layout.get_linear_size());
+            const int64_t stride = linear_size * output_mapping.stride;
+            const int64_t start = output_mapping.start < 0? node.get_max_iteration() - 1: output_mapping.start;
+            const int64_t offset = linear_size * start;
+            concatenated_memory_mapping memory_mapping_info(
+                to_mem, sliced_mems, linear_size, stride, offset);
+            memory_mapping_info.concat_data_prim = body_network->get_primitive(internal_id);
+            concatenated_output_mem_mappings.push_back(memory_mapping_info);
+        }
+    }
+}
+
+void loop_inst::preprocess_input_memory() {
+    auto& engine = _network.get_engine();
+    auto& iteration_mem = concatenated_input_mem_mappings;
+    const size_t inputs_memory_count = this->inputs_memory_count();
+    for (size_t memory_num = 0; memory_num < inputs_memory_count; memory_num++) {
+        const primitive_id& input_external_id = dependencies().at(memory_num)->id();
+        if (input_external_id == node.get_trip_count_id() ||
+            input_external_id == node.get_initial_execution_id()) {
+            continue;
+        }
+        memory_impl& memory = input_memory(memory_num);
+        auto input_map_ptrs = node.find_io_primitive_maps(input_external_id, true);
+        if (input_map_ptrs.size() == 0) {
+            CLDNN_ERROR_MESSAGE(id(), "loop primitive_map is incomplete");
+        }
+        for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
+            const auto input_map = input_map_ptrs.at(i);
+            bool is_concatenated_input = (input_map->axis >= 0);
+            if (is_concatenated_input) {
+                layout sliced_layout
+                    = body_network->get_primitive(input_map->internal_id)->output_memory().get_layout();
+                const int64_t max_iteration = node.get_max_iteration();
+                std::vector<memory_impl::ptr> sliced_mems;
+                sliced_mems.reserve(max_iteration);
+                for (int j=0; j < max_iteration; ++j) {
+                    memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+                    sliced_mems.push_back(sliced_mem);
+                }
+                const int64_t linear_size = sliced_layout.get_linear_size();
+                const int64_t stride = linear_size * input_map->stride;
+                const int64_t start = input_map->start < 0? node.get_max_iteration() - 1: input_map->start;
+                const int64_t offset = linear_size * start;
+                concatenated_memory_mapping concatenated_input_mem_mapping_info(
+                    (memory_impl::ptr)&memory, sliced_mems, linear_size, stride, offset);
+                concatenated_input_mem_mapping_info.sliced_data_prim = body_network->get_primitive(input_map->internal_id);
+                iteration_mem.push_back(concatenated_input_mem_mapping_info);
+            } else {
+                if (memory.get_layout().data_type != body_network->get_primitive(input_map->internal_id)->output_memory().get_layout().data_type) {
+                    CLDNN_ERROR_MESSAGE(id(), "incompatible datatypes");
+                }
+                body_network->set_input_data(input_map->internal_id, memory);
+            }
+        }
+    }
+}
+
+void loop_inst::preprocess_backedge_memory() {
+    const auto& back_edges = node.get_back_edges();
+    auto& backedge_memory_mappgins = backedge_memory_mappings;
+    // checking if memory is a destination of a backedge
+    for (const auto& back_edge : back_edges) {
+        //find corresponding input of the backedge
+        const auto input_map_ptrs = node.find_io_primitive_maps(back_edge.to, false);
+        assert(input_map_ptrs.size() == 1);
+        const auto& input_map = input_map_ptrs.front();
+        auto backedged_sliced_output_mems = get_sliced_mem(back_edge.from);
+        const auto backedge_to_prim = body_network->get_primitive(back_edge.to);
+        const auto backedge_from_prim = body_network->get_primitive(back_edge.from);
+        memory_impl::ptr initial_mem = get_external_memory(input_map->external_id);
+        if (backedged_sliced_output_mems.empty()) {
+            // backedge output which does not need concatenation
+            // input memory = output memory = loop output memory
+            const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
+            memory_impl::ptr backedge_mem;
+            if (output_mapping.empty()) {
+                auto output_prim = body_network->get_primitive(back_edge.from);
+                layout output_layout = output_prim->output_memory().get_layout();
+                backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
+            } else {
+                backedge_mem = get_external_memory(output_mapping.front()->external_id);
+            }
+            body_network->set_input_data(back_edge.to, *backedge_mem);
+            body_network->set_output_memory(back_edge.from, *backedge_mem);
+            backedge_memory_mappgins.emplace_back(
+                backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem);
+        } else {
+            // backedge output which needs concatenation
+            backedge_memory_mappgins.emplace_back(
+                backedge_from_prim, backedge_to_prim, backedged_sliced_output_mems, initial_mem);
+        }
+    }
+}
+
+std::vector<memory_impl::ptr> loop_inst::get_sliced_mem(const primitive_id& internal_id) const {
+        for (const auto& mem_mapping : concatenated_input_mem_mappings) {
+            if (mem_mapping.sliced_data_prim->id() == internal_id) {
+                return mem_mapping.sliced_mems;
+            }
+        }
+        for (const auto& mem_mapping : concatenated_output_mem_mappings) {
+            if (mem_mapping.concat_data_prim->id() == internal_id) {
+                return mem_mapping.sliced_mems;
+            }
+        }
+        return {}; // not found
+    }
+
+memory_impl::ptr loop_inst::get_external_memory(const primitive_id& external_id) const {
+    const auto outputPrim = _network.get_primitive(external_id);
+    memory_impl& memory = outputPrim->output_memory();
+    return (memory_impl::ptr) &memory;
 }
 
 loop_inst::typed_primitive_inst(network_impl & network, loop_node const & node)
