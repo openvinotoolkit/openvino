@@ -66,7 +66,7 @@ SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
     if (_impl == nullptr) {
-        IE_THROW() << "SharedObjectLoader is";
+        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
     }
     return _impl->get_symbol(symbolName);
 }
