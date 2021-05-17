@@ -1235,14 +1235,14 @@ def check_positive(value):
 
 
 def depersonalize(value: str, key: str):
-    metadata_directory_keys = [
+    dir_keys = [
         'output_dir', 'o', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path) and key in metadata_directory_keys:
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
