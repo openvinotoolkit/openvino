@@ -77,14 +77,16 @@ void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
 {
     auto input_index = input_for_value(value).get_index();
     size_t body_index = 0;
-    for (auto& param : bodies_parameters) {
-        if (param == nullptr) 
+    for (auto& param : bodies_parameters)
+    {
+        if (param == nullptr)
         {
             body_index++;
             continue;
         }
-        m_input_descriptions[body_index].push_back(std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
-            input_index, m_bodies[body_index]->get_parameter_index(param)));
+        m_input_descriptions[body_index].push_back(
+            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
+                input_index, m_bodies[body_index]->get_parameter_index(param)));
         body_index++;
     }
 }
@@ -92,8 +94,9 @@ void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
 Output<Node> op::util::MultiSubGraphOp::set_body_outputs(ResultVector bodies_results)
 {
     auto output_index = m_output_descriptions[0].size();
-    size_t body_index = 0; 
-    for (auto& body_result : bodies_results) {
+    size_t body_index = 0;
+    for (auto& body_result : bodies_results)
+    {
         m_output_descriptions[body_index].push_back(std::make_shared<BodyOutputDescription>(
             m_bodies[body_index]->get_result_index(body_result), output_index));
         body_index++;

@@ -19,7 +19,6 @@ namespace ngraph
             /// \brief  If operation.
             class NGRAPH_API If : public util::MultiSubGraphOp
             {
-                
             public:
                 enum BodyIndexes
                 {
@@ -39,7 +38,7 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                
+
                 /// \return then_body as ngraph::Function.
                 std::shared_ptr<Function> get_then_body() const
                 {
@@ -64,7 +63,7 @@ namespace ngraph
                 {
                     m_bodies[else_body_index] = body;
                 }
-                /// \brief     sets new input to the operation associated with parameters 
+                /// \brief     sets new input to the operation associated with parameters
                 /// of each sub-graphs
                 ///
                 /// \param     value           input to operation
@@ -85,6 +84,7 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
             private:
                 void validate_and_infer_type_body(
                     std::shared_ptr<Function> body,
@@ -94,5 +94,5 @@ namespace ngraph
                                const OutputVector& new_args) const;
             };
         } // namespace v7
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

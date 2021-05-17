@@ -19,9 +19,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::op::v7::If, "If", 7);
 
-op::v7::If::If()
-{
-}
+op::v7::If::If() {}
 
 op::v7::If::If(const OutputVector& values)
     : op::util::MultiSubGraphOp(values, 2)
@@ -34,8 +32,8 @@ op::v7::If::If(const Output<Node>& execution_condition)
     set_argument(0, execution_condition);
 }
 
-ngraph::PartialShape resolve_shape(ngraph::PartialShape then_pshape, 
-    ngraph::PartialShape else_pshape)
+ngraph::PartialShape resolve_shape(ngraph::PartialShape then_pshape,
+                                   ngraph::PartialShape else_pshape)
 {
     auto then_rank = then_pshape.rank();
     auto else_rank = else_pshape.rank();
@@ -304,14 +302,14 @@ bool op::v7::If::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 }
 
 void op::v7::If::set_input(const Output<Node>& value,
-               const std::shared_ptr<Parameter> then_parameter,
-               const std::shared_ptr<Parameter> else_parameter)
+                           const std::shared_ptr<Parameter> then_parameter,
+                           const std::shared_ptr<Parameter> else_parameter)
 {
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
 Output<Node> op::v7::If::set_output(const std::shared_ptr<Result> then_result,
-    const std::shared_ptr<Result> else_result)
+                                    const std::shared_ptr<Result> else_result)
 {
     return set_body_outputs({then_result, else_result});
 }

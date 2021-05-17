@@ -13,13 +13,15 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief Abstract base class for sub-graph based ops, i.e ops that have some sub-graphs
+            /// \brief Abstract base class for sub-graph based ops, i.e ops that have some
+            /// sub-graphs
             ///
             class NGRAPH_API MultiSubGraphOp : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                /// \brief Abstract class describes a connection between a MultiSubGraphOp input and the body.
+                /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
+                /// the body.
                 class InputDescription
                 {
                 protected:
@@ -43,7 +45,8 @@ namespace ngraph
                     uint64_t m_body_parameter_index{0};
                 };
 
-                /// \brief Abstract class describes how a MultiSubGraphOp output is produced from the body.
+                /// \brief Abstract class describes how a MultiSubGraphOp output is produced from
+                /// the body.
                 class OutputDescription
                 {
                 protected:
@@ -107,7 +110,7 @@ namespace ngraph
                 using MultiSubgraphOutputDescriptionVector =
                     std::vector<MultiSubgraphOutputDescriptionPtr>;
 
-                /// \brief     Gets internal sub-graph by index in MultiSubGraphOp 
+                /// \brief     Gets internal sub-graph by index in MultiSubGraphOp
                 ///
                 /// \param     index sub-graph's index in op
                 /// \return pointer to ngraph::Function with sub-graph
@@ -158,7 +161,7 @@ namespace ngraph
                 }
                 /// \brief     Gets vector with connections beewtwen operation outputs
                 /// and internal sub-graph results
-                /// 
+                ///
                 /// \param index   index of internal sub-graph
                 /// \return vector of output descriptions
                 const MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) const
@@ -195,14 +198,14 @@ namespace ngraph
                 {
                     m_output_descriptions[index] = outputs;
                 }
-                
+
                 ///
                 /// \brief     Set input decriptions for MultiSubGraphOp input.
                 ///
                 /// \param      value              The value supplied as an input to the block.
                 /// \param      bodies_parameters  vector of bodies parameters.
                 virtual void set_invariant_inputs(const Output<Node>& value,
-                                          const ParameterVector bodies_parameters);
+                                                  const ParameterVector bodies_parameters);
                 ///
                 /// \brief     Set output decriptions for MultiSubGraphOp output.
                 ///
