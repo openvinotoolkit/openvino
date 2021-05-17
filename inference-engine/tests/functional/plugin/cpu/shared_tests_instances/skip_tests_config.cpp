@@ -83,6 +83,7 @@ std::vector<std::string> disabledTestPatterns() {
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
         });
+#endif
 #ifdef __APPLE__
         retVector.insert(retVector.end(), {
               // TODO: Issue 55717
