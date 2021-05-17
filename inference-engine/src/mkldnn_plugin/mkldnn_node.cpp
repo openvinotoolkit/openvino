@@ -177,6 +177,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "RegionYolo", RegionYolo},
         { "Select", Select},
         { "ShuffleChannels", ShuffleChannels},
+        { "DFT", DFT},
+        { "IDFT", DFT}
 };
 
 Type TypeFromName(const std::string type) {

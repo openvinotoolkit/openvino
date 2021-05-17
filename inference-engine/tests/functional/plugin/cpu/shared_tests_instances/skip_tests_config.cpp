@@ -68,6 +68,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
+        // incorrect reference implementation. Issues: 55384, 54528, 54529
+        R"(.*DFTLayerTest.*)",
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
