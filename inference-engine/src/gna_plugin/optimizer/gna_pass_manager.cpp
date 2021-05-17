@@ -314,6 +314,7 @@ void HandleMultipleActivationsForTheLayerPass::run() {
                 LayerInfo info(inputTo.second);
 
                 if (info.isActivation()) {
+                    if (odata->getDims().empty()) continue;
                     if (!activations.empty() && odata->getDims()[0] != 1) {
                         THROW_GNA_EXCEPTION << "Unsupported batch size " << odata->getDims()[0]
                                             << " for diagonal layer insertion";
@@ -741,12 +742,17 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         IE_ASSERT(!input_to.empty());
         auto current_layer = input_to.begin()->second;
         setNHWCOrder(current_layer->input());
-        while (current_layer != pattern_end) {
-            setNHWCOrder(current_layer->outData[0]);
-            input_to = getInputTo(current_layer->outData[0]);
-            IE_ASSERT(!input_to.empty());
-            current_layer = input_to.begin()->second;
-        }
+        std::function<void(CNNLayerPtr)> propogateNHWCOrderRecursive =
+            [pattern_end, &propogateNHWCOrderRecursive, &setNHWCOrder](CNNLayerPtr current_layer) {
+            if (current_layer == pattern_end) return;
+            for (int i = 0; i < current_layer->outData.size(); ++i) {
+                setNHWCOrder(current_layer->outData[i]);
+                auto input_to = getInputTo(current_layer->outData[i]);
+                IE_ASSERT(!input_to.empty());
+                propogateNHWCOrderRecursive(input_to.begin()->second);
+            }
+        };
+        propogateNHWCOrderRecursive(current_layer);
 
         if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
@@ -1447,21 +1453,19 @@ void EltwiseSplitOverChannelsPass::run() {
             THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
         }
         auto oData = l->outData.front();
+        auto out_width = GetDataDimSize(oData, DataDimName::W);
         auto totalElementsForOutput = details::product(oData->getDims().begin(), oData->getDims().end());
         auto maxAffineElements = getPassManager()->getPolicy().GNAAffineDiagonalPolicy.limitedTo;
         if (totalElementsForOutput <= maxAffineElements) {
             continue;
         }
 
-        // TODO: for now lets put split of 2 elements as restrictions
         auto totalSplits = 1 + totalElementsForOutput / maxAffineElements;
-        if (totalSplits > 2) {
-            THROW_GNA_LAYER_EXCEPTION(l) << "split layer over output channels on more than 2 layers unsupported";
-        }
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
 
+        bool sameInputs = l->insData[0].lock() == l->insData[1].lock();
         std::vector<CNNLayerPtr> splitLayers(2);
         for (size_t kThEltwiseInput = 0; kThEltwiseInput != 2; kThEltwiseInput++) {
             // create split layer
@@ -1472,31 +1476,38 @@ void EltwiseSplitOverChannelsPass::run() {
 
             split->insData.push_back(l->insData[kThEltwiseInput]);
             auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
-            // need to split this desc
-            if (inputDesc.getLayout() != Layout::NC) {
-                THROW_GNA_LAYER_EXCEPTION(l)
-                << "cannot split over channel: input " << std::to_string(kThEltwiseInput)
-                << " layout need to be NC";
-            }
 
             // create split layer outputs
-            for (size_t i = 0;; i++) {
-                auto elements_num = std::min(totalElementsForOutput - i * maxAffineElements,
+            size_t usedElements = 0;
+            for (size_t i = 0; i < totalSplits; i++) {
+                SizeVector newDims;
+                size_t elements_num = std::min(totalElementsForOutput - usedElements,
                         static_cast<size_t>(maxAffineElements));
+                if (inputDesc.getLayout() == Layout::NC) {
+                    newDims = SizeVector{1, elements_num};
+                } else {
+                    elements_num = elements_num - elements_num % out_width;
+                    newDims = SizeVector{1, elements_num / out_width, out_width};
+                }
 
-                SizeVector newDims = {1, elements_num};
                 auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
                 auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
                 getCreatorLayer(data) = split;
                 split->outData.push_back(data);
 
-                if (elements_num != maxAffineElements) {
+                usedElements += elements_num;
+                if (usedElements == totalElementsForOutput) {
                     break;
                 }
             }
             // replacing connection X->eltwise to X->split
             auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
             oData.second->second = split;
+
+            if (sameInputs) {
+                splitLayers[1] = splitLayers[0];
+                break;
+            }
         }
 
         // create concatlayer
@@ -1507,8 +1518,6 @@ void EltwiseSplitOverChannelsPass::run() {
         concat->outData.push_back(masterEltwise->outData.front());
         getCreatorLayer(masterEltwise->outData.front()) = concat;
 
-
-        // create new eltwise layers - here 2 hardcode
         for (size_t k = 0; k != totalSplits; k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
@@ -1516,7 +1525,6 @@ void EltwiseSplitOverChannelsPass::run() {
             eltwiseRaw->_operation = masterEltwise->_operation;
             eltwiseRaw->coeff = masterEltwise->coeff;
             auto eltwise = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(eltwiseRaw) : eltwiseRaw;
-
 
             eltwise->insData.push_back(splitLayers[0]->outData[k]);
             eltwise->insData.push_back(splitLayers[1]->outData[k]);
@@ -1529,6 +1537,15 @@ void EltwiseSplitOverChannelsPass::run() {
             auto data = std::make_shared<Data>(l->name + "/elwise/out/" + std::to_string(k), newDesc);
             getCreatorLayer(data) = eltwise;
             eltwise->outData.push_back(data);
+            if (quantized) {
+                auto eltwiseQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(eltwise);
+                if (quantized->_src_quant.IsStatsSet()) {
+                    eltwiseQuant->_src_quant.CopyStats(quantized->_src_quant);
+                }
+                if (quantized->_dst_quant.IsStatsSet()) {
+                    eltwiseQuant->_dst_quant.CopyStats(quantized->_dst_quant);
+                }
+            }
             getInputTo(data)[concat->name] = concat;
             concat->insData.push_back(data);
         }
@@ -1925,7 +1942,7 @@ void FuseFQIntoWeightsPass::run() {
             if (!LayerInfo(weightableLayer).isWeightable()) {
                 continue;
             }
-            if (weightableLayer->insData.size() != 3) {
+            if (weightableLayer->insData.size() < 2) {
                 continue;
             }
 
@@ -1942,7 +1959,8 @@ void FuseFQIntoWeightsPass::run() {
             pass_trace() << "found " << LAYER_NAME(fqLayer) << " that will be converted to weights of "
                 << LAYER_NAME(weightableLayer) << "\n";
 
-            auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx);
+            auto biases = weightableLayer->insData.size() == 3 ?
+                LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx) : nullptr;
             auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
             // 1. broke existing connections - by detaching fq subgraph from rest of graph
@@ -2149,8 +2167,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
         GNAFakeQuantizeLayer fqLayer(l);
         auto prevLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, donotSkip);
-        if (prevLayer->outData.size() != 1) {
-            THROW_GNA_LAYER_EXCEPTION(prevLayer) << " fake quantize input that connected to something else not supported";
+        auto prevDataIt = std::find_if(std::begin(prevLayer->outData), std::end(prevLayer->outData), [l](DataPtr data) {
+            return getInputTo(data).find(l->name) != std::end(getInputTo(data));
+        });
+        if (prevDataIt == std::end(prevLayer->outData)) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "Invalid connection between " << prevLayer->name << " and " << l->name;
         }
 
         auto inputRange = fqLayer.getInputRange();
@@ -2181,8 +2202,18 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         quantParamsPrevLayer->_dst_quant.SetMinValues({ outputRange.first[0] }, false);
         quantParamsPrevLayer->_dst_quant.SetMaxValues({ outputRange.second[0] }, false);
 
+        // Propogate destination statistics to multiply layer if it's set for the next sum/sub layer (is considered as bias)
+        if (LayerInfo(prevLayer).isEltwiseSum() || LayerInfo(prevLayer).isEltwiseSub()) {
+            auto eltwPrevLayer = CNNNetPrevLayerSkipCertain(prevLayer, 0, donotSkip);
+            auto constLayer = CNNNetPrevLayerSkipCertain(prevLayer, 1, donotSkip);
+            if (LayerInfo(eltwPrevLayer).isEltwise() && LayerInfo(constLayer).isConst()) {
+                auto quantParamsEltwLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(eltwPrevLayer);
+                quantParamsEltwLayer->_dst_quant.CopyStats(quantParamsPrevLayer->_dst_quant);
+            }
+        }
+
         auto fqQauntParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
-        fqQauntParams->_dst_quant.SetLevels(fqLevels);
+        fqQauntParams->_dst_quant.SetLevels(UINT16_MAX);
         fqQauntParams->_dst_quant.SetMinValues({ inputRange.first[0] }, true);
         fqQauntParams->_dst_quant.SetMaxValues({ inputRange.second[0] }, true);
         fqQauntParams->_dst_quant.SetMinValues({ outputRange.first[0] }, false);
@@ -2198,7 +2229,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // FQ Layer is fused only when previous layer is const, memory or activation layer
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
-        auto prevData = prevLayer->outData.front();
+        auto prevData = *prevDataIt;
 
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
@@ -2207,7 +2238,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         if (isFQFuseAllowed) {
-            getInputTo(prevLayer->outData.front()).clear();
+            getInputTo(prevData).clear();
         }
 
         // Connect all next layers after FQ to the layer that is before FQ
@@ -2222,7 +2253,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                 for (int insDataIdx : insDatas) {
                     nextLayers[i]->insData[insDataIdx] = prevData;
                 }
-                getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+                getInputTo(prevData)[nextLayers[i]->name] = nextLayers[i];
             }
 
             propagateStatistics(quantParamsPrevLayer, nextLayers[i]);
