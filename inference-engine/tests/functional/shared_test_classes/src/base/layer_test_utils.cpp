@@ -194,8 +194,9 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
         k /= 2;
     }
-    ASSERT_TRUE(expected.second.size() == actual->byteSize() * k || expected.second.size() == actual->byteSize());
     bool isTypeDependent = (expected.second.size() == actual->byteSize() * k);
+    if (!isTypeDependent)
+        ASSERT_EQ(expected.second.size(), actual->byteSize());
     // TODO: checks
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
