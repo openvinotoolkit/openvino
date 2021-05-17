@@ -7,6 +7,9 @@
 
 using namespace LayerTestsUtils;
 
+#ifdef _WIN32
+# define getpid _getpid
+#endif
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
@@ -114,25 +117,31 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
 }
 
 void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+    bool isFunctionalGraph = false;
     for (const auto &op : function->get_ordered_ops()) {
-        if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
+        }
+    }
+
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
             ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) {
+            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
             auto ti_body = ti->get_function();
-            for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                updateOPsStats(ti_op->get_type_info(), status);
-            }
+            updateOPsStats(ti_body, status);
         } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
-            for (const auto &loop_op : loop_body->get_ordered_ops()) {
-                updateOPsStats(loop_op->get_type_info(), status);
-            }
+            updateOPsStats(loop_body, status);
         } else {
             updateOPsStats(op->get_type_info(), status);
         }

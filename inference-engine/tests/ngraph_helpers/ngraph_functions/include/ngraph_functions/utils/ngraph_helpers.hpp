@@ -180,6 +180,11 @@ enum ReductionType {
     L2
 };
 
+enum class DFTOpType {
+    FORWARD,
+    INVERSE
+};
+
 enum class InputLayerType {
     CONSTANT,
     PARAMETER,

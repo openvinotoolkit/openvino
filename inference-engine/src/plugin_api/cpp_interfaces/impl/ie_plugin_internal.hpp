@@ -16,7 +16,6 @@
 #include <string>
 #include <limits>
 
-#include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
@@ -71,6 +70,12 @@ public:
         impl->SetPointerToPlugin(shared_from_this());
 
         return impl;
+    }
+
+    ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                  const std::map<std::string, std::string>& config) override {
+        auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
+        return GetCore()->LoadNetwork(cnnNet, GetName(), config);
     }
 
     IExecutableNetworkInternal::Ptr ImportNetwork(const std::string& modelFileName,

@@ -1,7 +1,7 @@
 Using Dynamic Batching {#openvino_docs_IE_DG_DynamicBatching}
 ======================
 
-Dynamic Batching feature allows you+ to dynamically change batch size for inference calls
+Dynamic Batching feature allows you to dynamically change batch size for inference calls
 within preset batch size limit.
 This feature might be useful when batch size is unknown beforehand, and using extra large batch size is
 undesired or impossible due to resource limitations.

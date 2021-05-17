@@ -14,6 +14,7 @@
 #include <legacy/ie_layers.h>
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
+#include "layers/gna_convolution_layer.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
@@ -834,6 +835,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     THROW_GNA_EXCEPTION << "Two Input layers " << (*sourceLayerIt)->name
                         << " and " << (*nextInputIt)->name << " have different scales in concat!!! \n";
                 }
+                ++nextInputIt;
             }
         }
 
@@ -858,8 +860,8 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 auto minScaleFactor = quantParamsFirst->_dst_quant.GetScale();
                 for (auto it = inputLayers.begin(); it != inputLayers.end(); ++it) {
                     auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*it);
-                    if (quantParams->_dst_quant.GetScale() < minScaleFactor &&
-                        !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f) ||
+                    if ((quantParams->_dst_quant.GetScale() < minScaleFactor &&
+                         !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f)) ||
                         fp32eq(minScaleFactor, 1.0f)) {
                         minScaleFactor = quantParams->_dst_quant.GetScale();
                         sourceLayerIt = it;
@@ -1107,8 +1109,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
             if (conv) {
-                auto channels_num = GetDataDimSize(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
-                weights_reducer = MAX_VAL_2B_FEAT * scaleRange * channels_num / std::numeric_limits<int32_t>::max();
+                const auto inDepth = GetDataDimSize(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
+                weights_reducer = GNAConvolutionLayer::getWeightsReducer(*conv);
+                weights_reducer *= MAX_VAL_2B_FEAT * scaleRange * inDepth / std::numeric_limits<int32_t>::max();
                 weights_reducer = std::max(1.0, weights_reducer);
             }
             quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
