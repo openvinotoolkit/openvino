@@ -651,6 +651,7 @@ public:
 protected:
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
+    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
     void setType(Type type) {
         this->type = type;
