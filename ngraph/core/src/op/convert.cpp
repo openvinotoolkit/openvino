@@ -26,17 +26,6 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 void op::Convert::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types);
-    const element::Type data_et = get_input_element_type(0);
-    const element::Type destination_et = m_destination_type;
-
-    NODE_VALIDATION_CHECK(
-        this, data_et != element::i4, "Input element type '", data_et, "' is not supported.");
-
-    NODE_VALIDATION_CHECK(this,
-                          destination_et != element::i4,
-                          "Destination element type '",
-                          destination_et,
-                          "' is not supported.");
 
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
 }
@@ -69,7 +58,8 @@ namespace convert
             return false;
         }
         if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
-            ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)))
+            ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
+            ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4)))
         {
             runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(),
                                         out->get_data_ptr<OUTPUT_ET>(),
@@ -100,6 +90,7 @@ namespace convert
 
         switch (out->get_element_type())
         {
+            TYPE_OUT_CASE(i4, arg, out);
             TYPE_OUT_CASE(i8, arg, out);
             TYPE_OUT_CASE(i16, arg, out);
             TYPE_OUT_CASE(i32, arg, out);
@@ -128,6 +119,7 @@ namespace convert
             NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, u4, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, u8, arg, out);
+            NGRAPH_TYPE_CASE(evaluate_convert, i4, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, i8, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, i16, arg, out);

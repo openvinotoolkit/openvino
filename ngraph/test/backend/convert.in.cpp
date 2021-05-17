@@ -125,17 +125,28 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_f16)
 }
 
 // destination: f32
-NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_f32_is_not_supported_yet)
+NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_f32)
 {
-    const std::vector<int8_t> input{0x00, 0x00};
+    const std::vector<uint8_t> input{0xFE, 0xF2};
     const Shape input_shape{2, 2};
     const element::Type input_type = ngraph::element::i4;
 
-    const std::vector<float> expected_output{0.0f, 0.0f, 0.0f, 0.0f};
+    const std::vector<float> expected_output{-1.0f, -2.0f, -1.0f, 2.0f};
     const element::Type expected_output_type = ngraph::element::f32;
 
-    ASSERT_THROW(ConvertTest(input, input_shape, input_type, expected_output, expected_output_type),
-                 ngraph::NodeValidationFailure);
+    {
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+        auto input_tesnor = backend->create_tensor(input_type, input_shape);
+        copy_data(input_tesnor, input);
+        auto output = backend->create_tensor(expected_output_type, input_shape);
+        auto handle = backend->compile(f);
+        handle->call_with_validate({output}, {input_tesnor});
+
+        std::vector<float> result(expected_output.size());
+        output->read(result.data(), result.size() * sizeof(float));
+        EXPECT_TRUE(test::all_close_f(expected_output, result));
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, convert_i8_to_f32)
@@ -323,17 +334,28 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_f32)
 // not supported by IE, hence no tests
 
 // destination: i4
-NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i4_is_not_supported_yet)
+NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i4)
 {
-    const std::vector<uint8_t> input{0, 0, 0, 0};
+    const std::vector<uint8_t> input{1, 2, 0, 3};
     const Shape input_shape{4};
     const element::Type input_type = ngraph::element::u8;
 
-    const std::vector<uint8_t> expected_output{0x00, 0x00};
+    const std::vector<uint8_t> expected_output{0x12, 0x03};
     const element::Type expected_output_type = ngraph::element::i4;
 
-    ASSERT_THROW(ConvertTest(input, input_shape, input_type, expected_output, expected_output_type),
-                 ngraph::NodeValidationFailure);
+    {
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+        auto input_tesnor = backend->create_tensor(input_type, input_shape);
+        copy_data(input_tesnor, input);
+        auto output = backend->create_tensor(expected_output_type, input_shape);
+        auto handle = backend->compile(f);
+        handle->call_with_validate({output}, {input_tesnor});
+
+        std::vector<uint8_t> result(expected_output.size());
+        output->read(result.data(), result.size() * sizeof(uint8_t));
+        EXPECT_TRUE(test::all_close(expected_output, result));
+    }
 }
 
 // destination: i8

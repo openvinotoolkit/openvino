@@ -45,6 +45,26 @@ namespace ngraph
                     const int bit_shift = 4 * (++idx % 2);
                     return (buf[byte_idx] >> bit_shift) & 0xF;
                 }
+
+                inline void set_i4(uint8_t* buf, size_t idx, int8_t val)
+                {
+                    const int byte_idx = idx / 2;
+                    const int bit_shift = 4 * (++idx % 2);
+                    buf[byte_idx] &= ~(0xF << bit_shift); // half byte zeroed
+                    buf[byte_idx] |= (val << bit_shift);  // set 1's
+                }
+
+                inline int8_t get_i4(const uint8_t* buf, size_t idx)
+                {
+                    const int byte_idx = idx / 2;
+                    const int bit_shift = 4 * (++idx % 2);
+                    uint8_t val = (buf[byte_idx] >> bit_shift) & 0xF;
+                    if (val & 0x08)
+                    { // negative number
+                        val |= 0xF0;
+                    }
+                    return val;
+                }
             } // namespace detail
 
             template <typename TI, typename TO>
@@ -87,6 +107,20 @@ namespace ngraph
                     for (size_t i = 0; i < count; ++i)
                     {
                         out[i] = detail::get_u4(reinterpret_cast<const uint8_t*>(arg), i);
+                    }
+                }
+                else if (dst_type == element::i4) // TODO: fix for LP source types
+                {
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        detail::set_i4(reinterpret_cast<uint8_t*>(out), i, arg[i]);
+                    }
+                }
+                else if (src_type == element::i4) // TODO: fix for LP dst types
+                {
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        out[i] = detail::get_i4(reinterpret_cast<const uint8_t*>(arg), i);
                     }
                 }
                 else
