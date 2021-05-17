@@ -124,6 +124,10 @@ def parse_args():
                       help='Optional. Specifies precision for all output layers of the network.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
                       help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
+    args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
+                      help="Optional. Enable model caching to specified directory")
+    args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
+                      help="Optional. Loads model from file directly without read_network.")
     parsed_args = parser.parse_args()
 
     return parsed_args
