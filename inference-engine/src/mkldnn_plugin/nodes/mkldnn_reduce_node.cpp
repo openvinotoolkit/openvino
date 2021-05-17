@@ -1427,7 +1427,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     Precision inputPrecision = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
-    jit_mode = (mayiuse(cpu::x64::sse41)) && getParentEdgeAt(REDUCE_DATA)->getDims().ndims() <= 5 &&
+    jit_mode = (mayiuse(cpu::x64::sse41)) && (mayiuse(cpu::x64::avx2)) && getParentEdgeAt(REDUCE_DATA)->getDims().ndims() <= 5 &&
                std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), inputPrecision) != std::end(supportedPrecisions) &&
                std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), outputPrecision) != std::end(supportedPrecisions);
 
