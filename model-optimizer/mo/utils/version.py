@@ -65,7 +65,9 @@ def get_simplified_ie_version(env=dict(), version=None):
             version = subprocess.check_output([sys.executable, os.path.join(os.path.dirname(__file__), "ie_version.py")], timeout=2, env=env).strip().decode()
         except:
             return "ie not found"
+
+    # To support legacy IE versions
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
-    return "custom"
+    return simplify_version(version)

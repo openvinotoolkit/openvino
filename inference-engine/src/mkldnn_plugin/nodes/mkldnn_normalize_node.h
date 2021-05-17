@@ -74,7 +74,6 @@ struct jit_uni_normalize_kernel {
 class MKLDNNNormalizeL2Node : public MKLDNNNode {
 public:
     MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNNormalizeL2Node() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

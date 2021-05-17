@@ -65,7 +65,6 @@ struct jit_uni_def_conv_kernel {
 class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDeformableConvolutionNode() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

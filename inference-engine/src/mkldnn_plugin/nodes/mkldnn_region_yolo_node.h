@@ -40,7 +40,6 @@ struct jit_uni_logistic_kernel {
 class MKLDNNRegionYoloNode : public MKLDNNNode {
 public:
     MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNRegionYoloNode() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
