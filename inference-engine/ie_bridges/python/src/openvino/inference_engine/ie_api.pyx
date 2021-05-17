@@ -1269,7 +1269,6 @@ cdef class InferRequest:
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
-            self.set_shape(k, v.shape)
             assert k in self._inputs_list, f"No input with name {k} found in network"
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
