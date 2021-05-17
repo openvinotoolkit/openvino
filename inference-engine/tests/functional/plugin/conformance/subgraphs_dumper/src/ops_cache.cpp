@@ -42,7 +42,12 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, co
     for (const auto &op : func->get_ordered_ops()) {
         if (ngraph::is_type<ngraph::op::Parameter>(op) ||
             ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) {
+            ngraph::is_type<ngraph::op::Result>(op) ||
+            // ReadValue and Assign have to be handled in pair
+            // Will be handled as part of 48838
+            ngraph::is_type<ngraph::op::AssignBase>(op) ||
+            ngraph::is_type<ngraph::op::ReadValueBase>(op)
+                    ) {
             continue;
         }
         update_ops_cache(op, source_model);
