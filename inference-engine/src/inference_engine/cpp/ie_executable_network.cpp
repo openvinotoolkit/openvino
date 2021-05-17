@@ -20,6 +20,12 @@ namespace InferenceEngine {
         IE_THROW(Unexpected);                                                                      \
     }
 
+ExecutableNetwork::ExecutableNetwork() :
+    details::SOPointer<IExecutableNetworkInternal>() { }
+
+ExecutableNetwork::ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj) :
+    details::SOPointer<IExecutableNetworkInternal>::SOPointer(obj) { }
+
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
     EXEC_NET_CALL_STATEMENT(return _ptr->GetOutputsInfo());
 }

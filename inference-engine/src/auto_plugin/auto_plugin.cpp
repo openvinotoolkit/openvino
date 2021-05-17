@@ -9,7 +9,6 @@
 #include <unordered_set>
 
 #include <ie_metric_helpers.hpp>
-#include <ie_core.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
 

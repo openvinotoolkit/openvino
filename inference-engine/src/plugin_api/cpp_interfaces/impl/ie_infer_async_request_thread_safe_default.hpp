@@ -8,9 +8,7 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_istreams_executor.hpp>
 
-#include <cpp/ie_infer_request.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <ie_system_conf.h>
 
 #include <exception>
 #include <future>
@@ -167,10 +165,10 @@ public:
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {
-        if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
+        if (millis_timeout < -1) {
             IE_THROW(ParameterMismatch)
                 << " Timeout can't be less "
-                << InferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
+                << -1 << " for InferRequest::Wait\n";
         }
         auto status = std::future_status::deferred;
 
@@ -185,11 +183,11 @@ public:
         }
 
         switch (millis_timeout) {
-        case InferRequest::WaitMode::RESULT_READY: {
+        case -1: {
             future.wait();
             status = std::future_status::ready;
         } break;
-        case InferRequest::WaitMode::STATUS_ONLY: {
+        case 0: {
             status = future.wait_for(std::chrono::milliseconds {0});
         } break;
         default: {
@@ -212,7 +210,7 @@ public:
     void Infer() override {
         DisableCallbackGuard disableCallbackGuard{this};
         InferImpl([&] {Infer_ThreadUnsafe();});
-        Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+        Wait(-1);
     }
 
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {

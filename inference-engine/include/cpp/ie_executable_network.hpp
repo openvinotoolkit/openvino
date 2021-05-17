@@ -29,15 +29,14 @@ class IExecutableNetwork;
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPointer<IExecutableNetworkInternal> {
     using details::SOPointer<IExecutableNetworkInternal>::SOPointer;
-    ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj) :
-        details::SOPointer<IExecutableNetworkInternal>::SOPointer(obj) { }
+    ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj);
     friend class Core;
 
 public:
     /**
      * @brief A default constructor.
      */
-    ExecutableNetwork() = default;
+    ExecutableNetwork();
 
     /**
      * @brief Gets the Executable network output Data node information.
@@ -187,6 +186,8 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<VariableState> QueryState();
     IE_SUPPRESS_DEPRECATED_END
+
+    ~ExecutableNetwork();
 };
 
 }  // namespace InferenceEngine
