@@ -30,6 +30,7 @@ class IfConstCondition(MiddleReplacementPattern):
             mapping_dict[internal_node.name] = external_node.name
             internal_nodes[internal_node.name] = internal_node
             external_nodes[external_node.name] = external_node
+
         # Create edges
 
         for internal_node in internal_nodes.values():
@@ -38,6 +39,7 @@ class IfConstCondition(MiddleReplacementPattern):
                 internal_connection = internal_input.get_connection()
                 internal_input_node = internal_connection.get_source().node
                 internal_input_node_name = internal_input_node.name
+
                 external_input_node = external_nodes[mapping_dict[internal_input_node_name]]
                 in_port_id = internal_connection.get_destination().idx
                 external_node.add_input_port(in_port_id, True)
@@ -48,7 +50,6 @@ class IfConstCondition(MiddleReplacementPattern):
                 out_port.get_connection().add_destination(external_node_input)
 
         for external_node in external_nodes.values():
-
             if external_node.has('input_id'):
                 input_port_id = external_node['input_id']
                 input_port = if_node.in_port(input_port_id)
@@ -74,7 +75,6 @@ class IfConstCondition(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for if_node in graph.get_op_nodes(type='If'):
-            pass
             if if_node.in_port(0).get_source().node.soft_get('type') != 'Const':
                 continue
             IfConstCondition.reduce_if(if_node)

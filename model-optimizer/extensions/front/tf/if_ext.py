@@ -48,7 +48,6 @@ def extract_method(cls, if_node: Node):
             then_graph.graph['library'] = main_graph.graph['library']
     if_node['then_graph'] = then_graph
 
-    # TODO refactor to have one function doing this
     # create "else" graph
     else_graph = Graph()
     # fill the body graph
@@ -90,7 +89,7 @@ def extract_method(cls, if_node: Node):
         for idx in range(len(body_results)):
             If.connect_body_output(if_node, not input_index, idx, body_results[idx])
 
-        # # run function to parse body nodes attributes similar to the main graph
+        # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
     return cls.enabled
 
