@@ -576,7 +576,12 @@ public:
     /**
      *@brief Virtual destructor.
      */
+#ifdef __ANDROID__
     virtual ~TBlob();
+#else
+    virtual ~TBlob() { free(); }
+#endif
+
 
     /**
      * @brief Gets the size of the given type.
@@ -798,6 +803,23 @@ protected:
         _handle = origBlob._handle;
     }
 };
+
+#ifdef __ANDROID__
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint8_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int16_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint16_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int32_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint32_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+#endif
 
 /**
  * @brief Creates a blob with the given tensor descriptor.

@@ -113,7 +113,6 @@ template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 template struct Parameter::RealData<Blob::Ptr>;
-#endif
 
 //
 // ie_blob.h
@@ -124,19 +123,21 @@ TBlob<T, U>::~TBlob() {
     free();
 }
 
-}  // namespace InferenceEngine
+template class TBlob<float>;
+template class TBlob<double>;
+template class TBlob<int8_t>;
+template class TBlob<uint8_t>;
+template class TBlob<int16_t>;
+template class TBlob<uint16_t>;
+template class TBlob<int32_t>;
+template class TBlob<uint32_t>;
+template class TBlob<long>;
+template class TBlob<long long>;
+template class TBlob<unsigned long>;
+template class TBlob<unsigned long long>;
+template class TBlob<bool>;
+template class TBlob<char>;
 
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint8_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int16_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint16_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int32_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint32_t>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+#endif
+
+}  // namespace InferenceEngine
