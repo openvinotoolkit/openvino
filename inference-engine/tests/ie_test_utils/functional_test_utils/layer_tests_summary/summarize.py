@@ -22,9 +22,11 @@ def parse_arguments():
         report is be kept.
     """
     out_help = "Path where to save html report"
+    report_tag = "Report tag"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
+    parser.add_argument("--report_tag", help=report_tag, default="")
 
     return parser.parse_args()
 
@@ -137,7 +139,7 @@ def collect_statistic(root: ET.Element):
     return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops
 
 
-def create_summary(summary_root: ET.Element, output_folder: str):
+def create_summary(summary_root: ET.Element, output_folder: str, report_tag: str):
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops = \
         collect_statistic(summary_root)
 
@@ -157,7 +159,7 @@ def create_summary(summary_root: ET.Element, output_folder: str):
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
                                   verified_operations=verified_operations, trusted_ops=trusted_ops,
-                                  general_test_count=general_test_count)
+                                  general_test_count=general_test_count, report_tag=report_tag)
 
     report_path = os.path.join(output_folder, "report.html")
     with open(report_path, "w") as f:
@@ -168,4 +170,4 @@ def create_summary(summary_root: ET.Element, output_folder: str):
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out)
+    create_summary(summary_root, args.out, args.report_tag)
