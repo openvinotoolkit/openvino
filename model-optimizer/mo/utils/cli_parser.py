@@ -636,7 +636,7 @@ def get_all_cli_parser():
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
     fem = create_fem()
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (fem.availableFrontEnds() if fem else [])))
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (fem.get_available_front_ends() if fem else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',

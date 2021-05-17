@@ -92,7 +92,7 @@ def prepare_ir(argv: argparse.Namespace):
     fem = argv.feManager
     new_front_ends = []
     if not argv.use_legacy_frontend and fem is not None:
-        new_front_ends = fem.availableFrontEnds()
+        new_front_ends = fem.get_available_front_ends()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']

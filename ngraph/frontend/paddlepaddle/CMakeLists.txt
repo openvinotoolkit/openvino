@@ -42,6 +42,7 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph  PRIVATE ngraph::builder)
+target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE frontend_manager)
 
 add_clang_format_target(paddlepaddle_ngraph_frontend_clang FOR_TARGETS paddlepaddle_ngraph_frontend
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
