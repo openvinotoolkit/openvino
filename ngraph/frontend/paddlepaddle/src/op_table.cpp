@@ -12,6 +12,7 @@
 #include "op/conv2d_transpose.hpp"
 #include "op/dropout.hpp"
 #include "op/elementwise_ops.hpp"
+#include "op/expand_v2.hpp"
 #include "op/fill_constant.hpp"
 #include "op/fill_constant_batch_size_like.hpp"
 #include "op/flatten_contiguous_range.hpp"
@@ -21,10 +22,12 @@
 #include "op/mul.hpp"
 #include "op/pad3d.hpp"
 #include "op/pool2d.hpp"
+#include "op/range.hpp"
 #include "op/relu.hpp"
 #include "op/reshape2.hpp"
 #include "op/rnn.hpp"
 #include "op/scale.hpp"
+#include "op/shape.hpp"
 #include "op/slice.hpp"
 #include "op/softmax.hpp"
 #include "op/split.hpp"
@@ -61,6 +64,7 @@ namespace ngraph
                         {"elementwise_mul", op::elementwise_mul},
                         {"elementwise_pow", op::elementwise_pow},
                         {"elementwise_sub", op::elementwise_sub},
+                        {"expand_v2", op::expand_v2},
                         {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
                         {"fill_constant", op::fill_constant},
                         {"flatten_contiguous_range", op::flatten_contiguous_range},
@@ -72,10 +76,12 @@ namespace ngraph
                         {"nearest_interp", op::nearest_interp_v2},
                         {"pad3d", op::pad3d},
                         {"pool2d", op::pool2d},
+                        {"range", op::range},
                         {"relu", op::relu},
                         {"reshape2", op::reshape2},
                         {"rnn", op::rnn},
                         {"scale", op::scale},
+                        {"shape", op::shape},
                         {"slice", op::slice},
                         {"softmax", op::softmax},
                         {"split", op::split},

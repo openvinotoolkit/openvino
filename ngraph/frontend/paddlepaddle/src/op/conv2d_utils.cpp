@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
 #include "conv2d_utils.hpp"
+#include "node_context.hpp"
 
 namespace ngraph
 {
@@ -18,11 +18,10 @@ namespace ngraph
                     // Default value means use explicitly provided padding values.
                     ngraph::op::PadType pad_type{ngraph::op::PadType::NOTSET};
                     auto padding_algorithm = node.get_attribute<std::string>("padding_algorithm");
-                    static std::unordered_map<std::string, ngraph::op::PadType>
-                            auto_pad_values{
-                            {"VALID", ngraph::op::PadType::VALID},
-                            {"SAME", ngraph::op::PadType::SAME_UPPER},
-                            {"NOTSET", ngraph::op::PadType::NOTSET},
+                    static std::unordered_map<std::string, ngraph::op::PadType> auto_pad_values{
+                        {"VALID", ngraph::op::PadType::VALID},
+                        {"SAME", ngraph::op::PadType::SAME_UPPER},
+                        {"NOTSET", ngraph::op::PadType::NOTSET},
                     };
 
                     const auto pad_val_it = auto_pad_values.find(padding_algorithm);
@@ -80,38 +79,36 @@ namespace ngraph
 
                     return get_pads(node, data_spatial_dims);
                 }
-                std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int32_t groups)
+                std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters,
+                                                          const int32_t groups)
                 {
                     auto shape_of_filters = std::make_shared<opset6::ShapeOf>(filters);
 
-                    auto num_begin = opset6::Constant::create(element::i64, {1}, {0});
+                    auto num_begin = opset6::Constant::create(element::i64, Shape{1}, {0});
                     auto num_end = opset6::Constant::create(element::i64, Shape{1}, {1});
-                    auto num_node =
-                            std::make_shared<opset6::StridedSlice>(shape_of_filters,
-                                                                   num_begin,
-                                                                   num_end,
-                                                                   std::vector<int64_t>{0},
-                                                                   std::vector<int64_t>{0});
+                    auto num_node = std::make_shared<opset6::StridedSlice>(shape_of_filters,
+                                                                           num_begin,
+                                                                           num_end,
+                                                                           std::vector<int64_t>{0},
+                                                                           std::vector<int64_t>{0});
 
                     auto hw_begin = opset6::Constant::create(element::i64, {1}, {1});
                     auto hw_end = opset6::Constant::create(element::i64, Shape{1}, {4});
                     auto filter_hw_node =
-                            std::make_shared<opset6::StridedSlice>(shape_of_filters,
-                                                                   hw_begin,
-                                                                   hw_end,
-                                                                   std::vector<int64_t>{0},
-                                                                   std::vector<int64_t>{0});
+                        std::make_shared<opset6::StridedSlice>(shape_of_filters,
+                                                               hw_begin,
+                                                               hw_end,
+                                                               std::vector<int64_t>{0},
+                                                               std::vector<int64_t>{0});
 
-                    auto groups_node =
-                            opset6::Constant::create(element::i64, Shape{1}, {groups});
-                    auto grouped_num_node =
-                            std::make_shared<opset6::Divide>(num_node, groups_node);
+                    auto groups_node = opset6::Constant::create(element::i64, Shape{1}, {groups});
+                    auto grouped_num_node = std::make_shared<opset6::Divide>(num_node, groups_node);
                     auto target_filter_shape = std::make_shared<opset6::Concat>(
-                            OutputVector{groups_node, grouped_num_node, filter_hw_node}, 0);
+                        OutputVector{groups_node, grouped_num_node, filter_hw_node}, 0);
                     return std::make_shared<opset6::Reshape>(filters, target_filter_shape, false);
                 }
 
-            }
-        } // namespace pdpd
-    }     // namespace frontend
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
 } // namespace ngraph

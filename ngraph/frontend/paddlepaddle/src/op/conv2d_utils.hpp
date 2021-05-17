@@ -15,9 +15,10 @@ namespace ngraph
             {
                 ngraph::op::PadType get_auto_pad(const NodeContext& node);
                 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node);
-                std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, int32_t groups);
+                std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters,
+                                                          int32_t groups);
 
-            }
-        } // namespace pdpd
-    }     // namespace frontend
+            } // namespace op
+        }     // namespace pdpd
+    }         // namespace frontend
 } // namespace ngraph

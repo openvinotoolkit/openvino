@@ -3,9 +3,9 @@
 //
 
 #include "conv2d.hpp"
-#include "conv2d_utils.hpp"
 #include <ngraph/builder/reshape.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include "conv2d_utils.hpp"
 
 namespace ngraph
 {
