@@ -276,7 +276,6 @@ extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
 extensions/front/onnx/depth_to_space_ext.py
 extensions/front/onnx/dequantize_linear_ext.py
-extensions/front/onnx/dequantize_linear_resolver.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
@@ -328,7 +327,6 @@ extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
-extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
@@ -580,6 +578,7 @@ extensions/middle/DecomposeBidirectionalRNNSequence.py
 extensions/middle/Deconvolution3rdInputNormalization.py
 extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
+extensions/middle/dequantize_linear_resolver.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
@@ -614,6 +613,7 @@ extensions/middle/permute_tensor_iterator.py
 extensions/middle/PoolV2ToAttributedPool.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
+extensions/middle/quantize_linear_resolver.py
 extensions/middle/ReluQuantizeFuse.py
 extensions/middle/RemoveDuplicationMemory.py
 extensions/middle/RemoveIdentity.py
