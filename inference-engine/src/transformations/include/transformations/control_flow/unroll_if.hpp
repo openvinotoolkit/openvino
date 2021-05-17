@@ -11,11 +11,11 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
-    namespace pass {
-
+namespace ngraph
+{
+    namespace pass
+    {
         class TRANSFORMATIONS_API UnrollIf;
-
     }  // namespace pass
 }  // namespace ngraph
 
