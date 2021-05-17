@@ -34,21 +34,36 @@ namespace ngraph
             std::shared_ptr<ngraph::Node>
                 ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const
             {
+                const auto k_node =
+                    default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+
                 if (m_select_last_index == 1)
                 {
                     const auto axis_node =
                         default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
 
-                    const auto reverse = std::make_shared<default_opset::Reverse>(
+                    auto reverse = std::make_shared<default_opset::Reverse>(
                         m_input_node, axis_node, default_opset::Reverse::Mode::INDEX);
 
-                    
+                    auto topk = std::make_shared<default_opset::TopK>(
+                        reverse, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
+                    auto data_shape = std::make_shared<default_opset::ShapeOf>(m_input_node);
+
+                    auto dims_on_axis = std::make_shared<default_opset::Gather>(
+                        data_shape,
+                        axis_node,
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {0}));
+
+                    auto result = std::make_shared<default_opset::Subtract>(
+                        dims_on_axis,
+                        std::make_shared<default_opset::Convert>(topk->output(1), element::i64));
+                    return std::make_shared<default_opset::Subtract>(
+                        result,
+                        default_opset::Constant::create(ngraph::element::i64, Shape{1}, {1}));
                 }
                 else
                 {
-                    const auto k_node =
-                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
                     auto topk = std::make_shared<default_opset::TopK>(
                         m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
