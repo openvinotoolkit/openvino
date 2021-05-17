@@ -32,11 +32,12 @@ void regclass_pyngraph_FrontEndManager(py::module m)
 
     fem.def(py::init<>());
 
-    fem.def("availableFrontEnds", &ngraph::frontend::FrontEndManager::availableFrontEnds);
-    fem.def("loadByFramework",
-            &ngraph::frontend::FrontEndManager::loadByFramework,
+    fem.def("get_available_front_ends",
+            &ngraph::frontend::FrontEndManager::get_available_front_ends);
+    fem.def("load_by_framework",
+            &ngraph::frontend::FrontEndManager::load_by_framework,
             py::arg("framework"),
-            py::arg("capabilities") = ngraph::frontend::FEC_DEFAULT);
+            py::arg("capabilities") = ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT);
 }
 
 void regclass_pyngraph_FrontEnd(py::module m)
@@ -45,7 +46,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
         m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("loadFromFile", &ngraph::frontend::FrontEnd::loadFromFile, py::arg("path"));
+    fem.def("load_from_file", &ngraph::frontend::FrontEnd::load_from_file, py::arg("path"));
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
                 ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert));
@@ -60,10 +61,10 @@ void regclass_pyngraph_Place(py::module m)
         m, "Place", py::dynamic_attr());
     place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 
-    place.def("isInput", &ngraph::frontend::Place::isInput);
-    place.def("isOutput", &ngraph::frontend::Place::isOutput);
-    place.def("getNames", &ngraph::frontend::Place::getNames);
-    place.def("isEqual", &ngraph::frontend::Place::isEqual);
+    place.def("is_input", &ngraph::frontend::Place::is_input);
+    place.def("is_output", &ngraph::frontend::Place::is_output);
+    place.def("get_names", &ngraph::frontend::Place::get_names);
+    place.def("is_equal", &ngraph::frontend::Place::is_equal);
 }
 
 void regclass_pyngraph_InputModel(py::module m)
@@ -71,33 +72,37 @@ void regclass_pyngraph_InputModel(py::module m)
     py::class_<ngraph::frontend::InputModel, std::shared_ptr<ngraph::frontend::InputModel>> im(
         m, "InputModel", py::dynamic_attr());
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
-    im.def("extractSubgraph", &ngraph::frontend::InputModel::extractSubgraph);
-    im.def("getPlaceByTensorName", &ngraph::frontend::InputModel::getPlaceByTensorName);
-    im.def("setPartialShape", &ngraph::frontend::InputModel::setPartialShape);
-    im.def("getPartialShape", &ngraph::frontend::InputModel::getPartialShape);
-    im.def("getInputs", &ngraph::frontend::InputModel::getInputs);
-    im.def("getOutputs", &ngraph::frontend::InputModel::getOutputs);
-    im.def("overrideAllInputs", &ngraph::frontend::InputModel::overrideAllInputs);
-    im.def("overrideAllOutputs", &ngraph::frontend::InputModel::overrideAllOutputs);
-    im.def("setElementType", &ngraph::frontend::InputModel::setElementType);
+    im.def("extract_subgraph", &ngraph::frontend::InputModel::extract_subgraph);
+    im.def("get_place_by_tensor_name", &ngraph::frontend::InputModel::get_place_by_tensor_name);
+    im.def("set_partial_shape", &ngraph::frontend::InputModel::set_partial_shape);
+    im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape);
+    im.def("get_inputs", &ngraph::frontend::InputModel::get_inputs);
+    im.def("get_outputs", &ngraph::frontend::InputModel::get_outputs);
+    im.def("override_all_inputs", &ngraph::frontend::InputModel::override_all_inputs);
+    im.def("override_all_outputs", &ngraph::frontend::InputModel::override_all_outputs);
+    im.def("set_element_type", &ngraph::frontend::InputModel::set_element_type);
 }
 
 void regclass_pyngraph_FEC(py::module m)
 {
-    py::class_<ngraph::frontend::FrontEndCapabilities,
-               std::shared_ptr<ngraph::frontend::FrontEndCapabilities>>
-        type(m, "FrontEndCapabilities");
+    class FeCaps
+    {
+    public:
+        int get_caps() const { return m_caps; }
+
+    private:
+        int m_caps;
+    };
+
+    py::class_<FeCaps, std::shared_ptr<FeCaps>> type(m, "FrontEndCapabilities");
     // type.doc() = "FrontEndCapabilities";
-    type.attr("DEFAULT") = ngraph::frontend::FEC_DEFAULT;
-    type.attr("CUT") = ngraph::frontend::FEC_CUT;
-    type.attr("NAMES") = ngraph::frontend::FEC_NAMES;
-    type.attr("REPLACE") = ngraph::frontend::FEC_REPLACE;
-    type.attr("TRAVERSE") = ngraph::frontend::FEC_TRAVERSE;
-    type.attr("WILDCARDS") = ngraph::frontend::FEC_WILDCARDS;
+    type.attr("DEFAULT") = ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT;
+    type.attr("CUT") = ngraph::frontend::FrontEndCapabilities::FEC_CUT;
+    type.attr("NAMES") = ngraph::frontend::FrontEndCapabilities::FEC_NAMES;
+    type.attr("WILDCARDS") = ngraph::frontend::FrontEndCapabilities::FEC_WILDCARDS;
 
     type.def(
         "__eq__",
-        [](const ngraph::frontend::FrontEndCapabilities& a,
-           const ngraph::frontend::FrontEndCapabilities& b) { return a == b; },
+        [](const FeCaps& a, const FeCaps& b) { return a.get_caps() == b.get_caps(); },
         py::is_operator());
 }

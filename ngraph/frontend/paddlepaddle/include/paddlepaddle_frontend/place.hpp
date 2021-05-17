@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -55,13 +43,13 @@ namespace ngraph
 
             ~PlacePDPD() override = default;
 
-            bool isInput() const override;
+            bool is_input() const override;
 
-            bool isOutput() const override;
+            bool is_output() const override;
 
-            bool isEqual(Ptr another) const override { return this == another.get(); }
+            bool is_equal(Ptr another) const override { return this == another.get(); }
 
-            std::vector<std::string> getNames() const override { return m_names; }
+            std::vector<std::string> get_names() const override { return m_names; }
 
         private:
             const InputModel& m_input_model;
@@ -188,9 +176,9 @@ namespace ngraph
                 m_consuming_ports.push_back(in_port);
             }
 
-            std::vector<Place::Ptr> getConsumingPorts() const override;
+            std::vector<Place::Ptr> get_consuming_ports() const override;
 
-            Ptr getProducingPort() const override;
+            Ptr get_producing_port() const override;
 
             const PartialShape& getPartialShape() const { return m_pshape; }
 

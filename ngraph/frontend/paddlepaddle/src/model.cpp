@@ -362,7 +362,7 @@ namespace ngraph
             auto p_shape = tensor_place->getPartialShape();
             auto type = tensor_place->getElementType();
             auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
-            auto name = tensor_place->getNames()[0];
+            auto name = tensor_place->get_names()[0];
             constant->set_friendly_name(name);
             m_tensor_values[name] = constant;
         }
@@ -392,52 +392,48 @@ namespace ngraph
             return _impl->getTensorValues();
         }
 
-        std::vector<Place::Ptr> InputModelPDPD::getInputs() const { return _impl->getInputs(); }
+        std::vector<Place::Ptr> InputModelPDPD::get_inputs() const { return _impl->getInputs(); }
 
-        std::vector<Place::Ptr> InputModelPDPD::getOutputs() const { return _impl->getOutputs(); }
+        std::vector<Place::Ptr> InputModelPDPD::get_outputs() const { return _impl->getOutputs(); }
 
-        Place::Ptr InputModelPDPD::getPlaceByTensorName(const std::string& tensorName) const
+        Place::Ptr InputModelPDPD::get_place_by_tensor_name(const std::string& tensorName) const
         {
             return _impl->getPlaceByTensorName(tensorName);
         }
 
-        void InputModelPDPD::overrideAllOutputs(const std::vector<Place::Ptr>& outputs)
+        void InputModelPDPD::override_all_outputs(const std::vector<Place::Ptr>& outputs)
         {
             return _impl->overrideAllOutputs(outputs);
         }
 
-        void InputModelPDPD::overrideAllInputs(const std::vector<Place::Ptr>& inputs)
+        void InputModelPDPD::override_all_inputs(const std::vector<Place::Ptr>& inputs)
         {
             return _impl->overrideAllInputs(inputs);
         }
 
-        void InputModelPDPD::extractSubgraph(const std::vector<Place::Ptr>& inputs,
-                                             const std::vector<Place::Ptr>& outputs)
+        void InputModelPDPD::extract_subgraph(const std::vector<Place::Ptr>& inputs,
+                                              const std::vector<Place::Ptr>& outputs)
         {
             return _impl->extractSubgraph(inputs, outputs);
         }
 
-        void InputModelPDPD::setDefaultShape(Place::Ptr place, const ngraph::Shape& shape)
-        {
-            return _impl->setDefaultShape(place, shape);
-        }
-
-        void InputModelPDPD::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape)
+        void InputModelPDPD::set_partial_shape(Place::Ptr place,
+                                               const ngraph::PartialShape& p_shape)
         {
             return _impl->setPartialShape(place, p_shape);
         }
 
-        ngraph::PartialShape InputModelPDPD::getPartialShape(Place::Ptr place) const
+        ngraph::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const
         {
             return _impl->getPartialShape(place);
         }
 
-        void InputModelPDPD::setElementType(Place::Ptr place, const ngraph::element::Type& type)
+        void InputModelPDPD::set_element_type(Place::Ptr place, const ngraph::element::Type& type)
         {
             return _impl->setElementType(place, type);
         }
 
-        void InputModelPDPD::setTensorValue(Place::Ptr place, const void* value)
+        void InputModelPDPD::set_tensor_value(Place::Ptr place, const void* value)
         {
             return _impl->setTensorValue(place, value);
         }

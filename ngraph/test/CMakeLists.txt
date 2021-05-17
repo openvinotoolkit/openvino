@@ -477,7 +477,7 @@ endforeach()
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
 # --- END OF --DO_NOT_RELEASE--
 
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
@@ -486,6 +486,7 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 # TODO: try to find a way to move it out of common CMakeLists
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
+    find_package(Python3 COMPONENTS Interpreter)
     set(PDPD_PYTHON_OK TRUE)
     if(NOT Python3_FOUND)
         message("Python3 is required to build the PDPD frontend unit tests")
@@ -586,15 +587,13 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
-MESSAGE("HERE2" ${ONNX_IMPORT_INCLUDE_DIR})
-
 ############ FRONTEND ############
-# TODO: try to find a way to move it outside of general CMAKE
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
+add_subdirectory(frontend)
+
+### END FRONTEND ###
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
@@ -615,9 +614,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     endforeach()
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
+    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 
-    target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
-    target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
     target_link_libraries(unit-test PRIVATE libnpy)
 endif()
-### END FRONTEND ###

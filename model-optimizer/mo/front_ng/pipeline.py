@@ -13,10 +13,10 @@ def moc_pipeline(argv: argparse.Namespace):
     from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
     log.info('New MOC pipeline')
     fem = argv.feManager
-    log.info(f'fem.availableFrontEnds: {str(fem.availableFrontEnds())}')
+    log.info(f'fem.availableFrontEnds: {str(fem.get_available_front_ends())}')
     log.info(f'Initializing new FE for framework {argv.framework}')
-    fe = fem.loadByFramework(argv.framework)
-    inputModel = fe.loadFromFile(argv.input_model)
+    fe = fem.load_by_framework(argv.framework)
+    inputModel = fe.load_from_file(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         inputModel, argv.placeholder_shapes, argv.placeholder_data_types,
@@ -26,7 +26,7 @@ def moc_pipeline(argv: argparse.Namespace):
         eq = len(old) == len(new)
         if eq:
             for item in old:
-                found = [x for x in new if x['node'].isEqual(item)]
+                found = [x for x in new if x['node'].is_equal(item)]
                 if not found:
                     eq = False
                     break
@@ -34,11 +34,11 @@ def moc_pipeline(argv: argparse.Namespace):
 
     inputsEqual = True
     if user_shapes:
-        inputsEqual = compare_nodes(inputModel.getInputs(), user_shapes)
+        inputsEqual = compare_nodes(inputModel.get_inputs(), user_shapes)
 
     outputsEqual = True
     if outputs:
-        outputsEqual = compare_nodes(inputModel.getOutputs(), outputs)
+        outputsEqual = compare_nodes(inputModel.get_outputs(), outputs)
     log.debug(f"Inputs are same: {inputsEqual}, outputs are same: {outputsEqual}")
 
     if not inputsEqual and not outputsEqual:
@@ -48,35 +48,35 @@ def moc_pipeline(argv: argparse.Namespace):
         log.debug("Using extract subgraph")
         log.debug(f"Inputs: {newInputPlaces}")
         log.debug(f"Outputs: {newOutputPlaces}")
-        inputModel.extractSubgraph(newInputPlaces, newOutputPlaces)
+        inputModel.extract_subgraph(newInputPlaces, newOutputPlaces)
     elif not inputsEqual:
         newInputPlaces = [x['node'] for x in user_shapes]
-        log.debug("Using overrideAllInputs")
+        log.debug("Using override_all_inputs")
         log.debug(f"Inputs: {newInputPlaces}")
-        inputModel.overrideAllInputs(newInputPlaces)
+        inputModel.override_all_inputs(newInputPlaces)
     elif not outputsEqual:
         newOutputPlaces = [x['node'] for x in outputs]
-        log.debug("Using overrideAllOutputs")
+        log.debug("Using override_all_outputs")
         log.debug(f"Outputs: {newOutputPlaces}")
-        inputModel.overrideAllOutputs(newOutputPlaces)
+        inputModel.override_all_outputs(newOutputPlaces)
 
     if user_shapes:
         for user_shape in user_shapes:
             if 'shape' in user_shape and user_shape['shape'] is not None:
-                inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
+                inputModel.set_partial_shape(user_shape['node'], PartialShape(user_shape['shape']))
             if 'data_type' in user_shape and user_shape['data_type'] is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug(f"Set data type: {data_type}")
-                inputModel.setElementType(user_shape['node'], data_type)
+                inputModel.set_element_type(user_shape['node'], data_type)
 
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
         log.debug(f"Setting batch size to {argv.batch}")
-        for place in inputModel.getInputs():
-            oldPartShape = inputModel.getPartialShape(place)
+        for place in inputModel.get_inputs():
+            oldPartShape = inputModel.get_partial_shape(place)
             newshape = []
             oldshape_converted = []
-            joinedName = ' '.join(place.getNames())
+            joinedName = ' '.join(place.get_names())
             if oldPartShape.rank.is_static:
                 for i in range(oldPartShape.rank.get_length()):
                     # Assume batch size is always 1-st dimension in shape
@@ -91,7 +91,7 @@ def moc_pipeline(argv: argparse.Namespace):
 
             newPartShape = PartialShape(newshape)
             log.debug(f"Input: {joinedName}, Old shape: {oldshape_converted}, New shape: {newshape}")
-            inputModel.setPartialShape(place, newPartShape)
+            inputModel.set_partial_shape(place, newPartShape)
 
     nGraphFunction = fe.convert(inputModel)
     return nGraphFunction
