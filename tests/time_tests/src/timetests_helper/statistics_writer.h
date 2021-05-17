@@ -12,7 +12,7 @@
 #include <map>
 #include <vector>
 
-#define TAB "  "
+#define TAB 2
 
 /**
  * @brief Class response for writing provided statistics
@@ -75,8 +75,8 @@ public:
       throw std::runtime_error("Statistic file path isn't set");
     for (auto& timer: time_struct_order) {
       std::string tabs = "";
-      for (int i = 0; i < time_structure[timer].first - 1; ++i) {
-        tabs += TAB;
+      for (int i = 0; i < time_structure[timer].first; ++i) {
+        tabs = std::string(TAB* i, ' ');
       }
       statistics_file << tabs << "- " << timer << ":" << '\n'
                       << tabs << "  " << "- " << time_structure[timer].second << '\n';
