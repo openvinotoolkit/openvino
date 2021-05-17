@@ -32,7 +32,8 @@ void regclass_pyngraph_FrontEndManager(py::module m)
 
     fem.def(py::init<>());
 
-    fem.def("get_available_front_ends", &ngraph::frontend::FrontEndManager::get_available_front_ends);
+    fem.def("get_available_front_ends",
+            &ngraph::frontend::FrontEndManager::get_available_front_ends);
     fem.def("load_by_framework",
             &ngraph::frontend::FrontEndManager::load_by_framework,
             py::arg("framework"),
@@ -84,9 +85,11 @@ void regclass_pyngraph_InputModel(py::module m)
 
 void regclass_pyngraph_FEC(py::module m)
 {
-    class FeCaps {
+    class FeCaps
+    {
     public:
         int get_caps() const { return m_caps; }
+
     private:
         int m_caps;
     };
@@ -100,7 +103,6 @@ void regclass_pyngraph_FEC(py::module m)
 
     type.def(
         "__eq__",
-        [](const FeCaps& a,
-           const FeCaps& b) { return a.get_caps() == b.get_caps(); },
+        [](const FeCaps& a, const FeCaps& b) { return a.get_caps() == b.get_caps(); },
         py::is_operator());
 }

@@ -417,7 +417,8 @@ namespace ngraph
             return _impl->extractSubgraph(inputs, outputs);
         }
 
-        void InputModelPDPD::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& p_shape)
+        void InputModelPDPD::set_partial_shape(Place::Ptr place,
+                                               const ngraph::PartialShape& p_shape)
         {
             return _impl->setPartialShape(place, p_shape);
         }
