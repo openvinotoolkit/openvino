@@ -151,7 +151,7 @@ public:
     /**
      * @brief Standard pointer operator
      */
-    T* operator->() const noexcept {
+    T* operator->() noexcept {
         return _ptr.get();
     }
 
@@ -253,15 +253,8 @@ public:
     /**
      * @brief Standard pointer operator
      */
-    T* operator->() const noexcept {
+    T* operator->() noexcept {
         return _ptr.get();
-    }
-
-    /**
-     * @brief Standard dereference operator
-     */
-    const T* operator*() const noexcept {
-        return this->operator->();
     }
 
     /**
