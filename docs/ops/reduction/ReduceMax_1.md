@@ -43,7 +43,7 @@ Particular cases:
 **Types**
 
 * *T*: any supported numeric type.
-* *T_IND*: `int64` or `int32`.
+* *T_IND*: any supported integer type.
 
 **Examples**
 

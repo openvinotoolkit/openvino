@@ -43,7 +43,7 @@ Particular cases:
 **Types**
 
 * *T_BOOL*: `boolean`.
-* *T_IND*: `int64` or `int32`.
+* *T_IND*: any supported integer type.
 
 **Examples**
 
