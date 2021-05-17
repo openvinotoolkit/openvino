@@ -285,8 +285,7 @@ XmlDeserializer::IoMap XmlDeserializer::gen_internal_layer_id_offsets(const pugi
             auto id = XMLParseUtils::GetUIntAttr(layer, "id");
             extend_io_map.inputs.insert({ id, parameter_counter });  // add mapping old internal_layer_id and parameter number
             parameter_counter++;
-        }
-        else if (type == "Result") {
+        } else if (type == "Result") {
             auto id = XMLParseUtils::GetUIntAttr(layer, "id");
             extend_io_map.outputs.insert({ id, result_counter });  // add mapping old internal_layer_id and result number
             result_counter++;
@@ -456,16 +455,11 @@ std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>
     XmlDeserializer::parseMSInputDescription(const pugi::xml_node& node, std::string port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>> inputs;
     std::string body_name = "";
-    if (port_map_name == "then_port_map")
-    {
+    if (port_map_name == "then_port_map") {
         body_name = "then_body";
-    }
-    else if (port_map_name == "else_port_map")
-    {
+    } else if (port_map_name == "else_port_map") {
         body_name = "else_body";
-    }
-    else
-    {
+    } else {
         body_name = "body";
     }
     const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
@@ -497,16 +491,11 @@ std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription
     XmlDeserializer::parseMSOutputDescription(const pugi::xml_node& node, std::string port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
     std::string body_name = "";
-    if (port_map_name == "then_port_map")
-    {
+    if (port_map_name == "then_port_map") {
         body_name = "then_body";
-    }
-    else if (port_map_name == "else_port_map")
-    {
+    } else if (port_map_name == "else_port_map") {
         body_name = "else_body";
-    }
-    else
-    {
+    } else {
         body_name = "body";
     }
     const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
@@ -556,25 +545,20 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(
                 &adapter)) {
             a->set(parseOutputDescription(node));
-        } else if (
-            auto a =
-                ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(
-                    &adapter)) {
+        } else if (auto a =  ngraph::as_type<ngraph::AttributeAdapter<
+            ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
             a->set(parsePurposeAttribute(node));
         }
     }
     
-    if (node.child("then_port_map") || node.child("else_port_map"))
-    {
+    if (node.child("then_port_map") || node.child("else_port_map")) {
         bool is_then_portmap = node.child("then_port_map") && (name == "then_inputs" || name == "then_outputs");
         auto port_map_name = (is_then_portmap) ? "then_port_map" : "else_port_map";
         if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
             std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(
                 &adapter)) {
             a->set(parseMSInputDescription(node, port_map_name));
-        }
-        else if (
-            auto a = ngraph::as_type<ngraph::AttributeAdapter<
+        } else if ( auto a = ngraph::as_type<ngraph::AttributeAdapter<
             std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(
                 &adapter)) {
             a->set(parseMSOutputDescription(node, port_map_name));
