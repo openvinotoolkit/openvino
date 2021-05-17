@@ -124,19 +124,19 @@ TBlob<T, U>::~TBlob() {
     free();
 }
 
-template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
-
 }  // namespace InferenceEngine
+
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint8_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int16_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint16_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int32_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint32_t>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
