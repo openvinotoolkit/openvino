@@ -1160,53 +1160,21 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
-# DFT is not implemented yet in plugins
-IE_CPU.dft1d_eval
-IE_CPU.dft2d_eval
-IE_CPU.dft3d_eval
-IE_CPU.dft1d_eval_i32
-IE_CPU.dft2d_eval_i32
-IE_CPU.dft3d_eval_i32
-IE_CPU.dft1d_signal_size_eval
+# CPU plugin does not support float16 and bfloat16 in DFT
 IE_CPU.dft1d_eval_bfloat16
 IE_CPU.dft2d_eval_bfloat16
 IE_CPU.dft3d_eval_bfloat16
 IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
-IE_CPU.dft1d_eval_1
-IE_CPU.dft2d_eval_1
-IE_CPU.dft3d_eval_1
-IE_CPU.dft2d_signal_size_eval_1
-IE_CPU.dft2d_signal_size_eval_2
-IE_CPU.dft2d_signal_size_eval_3
-IE_CPU.dft2d_signal_size_eval_4
-IE_CPU.dft2d_signal_size_eval_5
-IE_CPU.dft3d_signal_size_eval
 
-# IDFT is not implemented yet in plugins
-IE_CPU.idft1d_eval
-IE_CPU.idft2d_eval
-IE_CPU.idft3d_eval
-IE_CPU.idft1d_eval_i32
-IE_CPU.idft2d_eval_i32
-IE_CPU.idft3d_eval_i32
+# CPU plugin does not support float16 and bfloat16 in IDFT
 IE_CPU.idft1d_eval_bfloat16
 IE_CPU.idft2d_eval_bfloat16
 IE_CPU.idft3d_eval_bfloat16
 IE_CPU.idft1d_eval_float16
 IE_CPU.idft2d_eval_float16
 IE_CPU.idft3d_eval_float16
-IE_CPU.idft1d_eval_1
-IE_CPU.idft2d_eval_1
-IE_CPU.idft3d_eval_1
-IE_CPU.idft2d_signal_size_eval_1
-IE_CPU.idft2d_signal_size_eval_2
-IE_CPU.idft2d_signal_size_eval_3
-IE_CPU.idft2d_signal_size_eval_4
-IE_CPU.idft2d_signal_size_eval_5
-IE_CPU.idft3d_signal_size_eval
-IE_CPU.idft1d_signal_size_eval
 
 #-------------------------------------------------------------------------------
 #
