@@ -11,7 +11,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/util/evaluation_context.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/variable_extension.hpp"
 #include "ngraph/opsets/opset7.hpp"
@@ -509,15 +509,11 @@ int64_t Function::get_result_index(const Output<Node>& value) const
 }
 
 bool Function::evaluate(const HostTensorVector& output_tensors,
-                        const HostTensorVector& input_tensors) const
-{
-    return evaluate(output_tensors, input_tensors, EvaluationContext());
-}
-
-bool Function::evaluate(const HostTensorVector& output_tensors,
                         const HostTensorVector& input_tensors,
-                        const EvaluationContext& evaluation_context) const
+                        EvaluationContext evaluation_context) const
 {
+    if (evaluation_context.find("VariableContext") == evaluation_context.end())
+        evaluation_context["VariableContext"] = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
     std::map<RawNodeOutput, HostTensorPtr> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i)
     {

@@ -97,35 +97,5 @@ namespace ngraph
         using Variant::merge;
     };
 
-    /// EvaluationContext stores and manages a context (additional parameters, values and
-    /// environment) for evaluating ngraph::function.
-    class NGRAPH_API EvaluationContext
-    {
-    public:
-        using ContextMap = std::map<std::string, std::shared_ptr<Variant>>;
 
-        /// \brief Constructs an uninitialized EvaluationContext.
-        EvaluationContext()
-        {
-            m_context["VariableContext"] =
-                std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
-        }
-
-        /// \brief Sets a new context for Variables.
-        /// \param variable_context The new context for Variables.
-        void set_context(const std::string& name, const std::shared_ptr<Variant>& context)
-        {
-            m_context[name] = context;
-        };
-
-        /// \brief Finds and returns a context by provided name.
-        std::shared_ptr<Variant> get_context_by_name(const std::string& name) const
-        {
-            const auto& context = m_context.find(name);
-            return context != m_context.end() ? context->second : std::shared_ptr<Variant>();
-        }
-
-    private:
-        ContextMap m_context;
-    };
 } // namespace ngraph

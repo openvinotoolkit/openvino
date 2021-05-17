@@ -10,7 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/evaluation_context.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {

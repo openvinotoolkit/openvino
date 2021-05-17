@@ -5,7 +5,7 @@
 #include "ngraph/op/assign.hpp"
 #include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
-#include "ngraph/op/util/evaluation_context.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/ops.hpp"
 
@@ -119,11 +119,11 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const EvaluationContext& evaluation_context) const
 {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
-    const auto& found_context = evaluation_context.get_context_by_name("VariableContext");
-    NODE_VALIDATION_CHECK(this, found_context != nullptr, "VariableContext not found.");
+    const auto& found_context = evaluation_context.find("VariableContext");
+    NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
     auto variable_context =
-        std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context);
+        std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
     NODE_VALIDATION_CHECK(
         this, variable_context != nullptr, "Cannot cast found Context to VariableContext.");
     const auto& variable_values = variable_context->get().get_variable_values();

@@ -47,7 +47,6 @@ namespace ngraph
     class AttributeVisitor;
     class Variant;
     class Node;
-    class EvaluationContext;
 
     class Function;
 
@@ -58,6 +57,10 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
+
+    /// EvaluationContext stores and manages a context (additional parameters, values and
+    /// environment) for evaluating ngraph::function.
+    using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
     namespace op
     {
