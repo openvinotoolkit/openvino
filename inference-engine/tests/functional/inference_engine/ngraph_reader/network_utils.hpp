@@ -6,7 +6,6 @@
 
 #include "cpp/ie_cnn_network.h"
 #include <legacy/cnn_network_impl.hpp>
-#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 namespace FuncTestUtils {
 
