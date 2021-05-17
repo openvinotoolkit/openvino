@@ -151,7 +151,7 @@ public:
     /**
      * @brief Standard pointer operator
      */
-    T* operator->() noexcept {
+    T* operator->() const noexcept {
         return _ptr.get();
     }
 
@@ -253,7 +253,7 @@ public:
     /**
      * @brief Standard pointer operator
      */
-    T* operator->() noexcept {
+    T* operator->() const noexcept {
         return _ptr.get();
     }
 
