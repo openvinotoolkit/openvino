@@ -71,8 +71,7 @@ namespace convert
         {
             return false;
         }
-        const std::unordered_set<element::Type_t> lp_types{element::u1};
-        if ((lp_types.count(INPUT_ET) || (lp_types.count(OUTPUT_ET))))
+        if ((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1))
         {
             runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(),
                                         out->get_data_ptr<OUTPUT_ET>(),
