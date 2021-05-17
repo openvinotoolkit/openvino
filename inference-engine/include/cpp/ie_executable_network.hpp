@@ -35,6 +35,11 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPoint
 
 public:
     /**
+     * @brief A default constructor.
+     */
+    ExecutableNetwork() = default;
+
+    /**
      * @brief Gets the Executable network output Data node information.
      *
      * The received info is stored in the given InferenceEngine::ConstOutputsDataMap node.
