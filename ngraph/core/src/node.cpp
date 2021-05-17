@@ -949,6 +949,13 @@ bool Node::evaluate(const HostTensorVector& output_values,
     return false;
 }
 
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values,
+                    const EvaluationContext& evaluationContext) const
+{
+    return evaluate(output_values, input_values);
+}
+
 bool Node::evaluate_lower(const HostTensorVector& output_values) const
 {
     const auto& inputs = input_values();

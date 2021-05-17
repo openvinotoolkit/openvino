@@ -10,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {
@@ -241,9 +242,13 @@ namespace ngraph
     /// function.
     /// \param output_tensor_map Tensors to use for particular outputs
     /// \param outputs Root set of values to try to compute
-    NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                                   std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                                   const OutputVector& outputs);
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    NGRAPH_API void
+        evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                       std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                       const OutputVector& outputs,
+                       const EvaluationContext& evaluation_context = EvaluationContext());
 
     /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
     /// estimation through it.

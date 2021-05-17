@@ -67,6 +67,7 @@ set(SRC
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
+    op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp

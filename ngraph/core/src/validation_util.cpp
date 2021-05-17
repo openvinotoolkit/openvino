@@ -1262,14 +1262,15 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 
 void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                            const OutputVector& outputs)
+                            const OutputVector& outputs,
+                            const EvaluationContext& evaluation_context)
 {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
-        [&output_tensor_map](Node* node,
-                             const HostTensorVector& input_tensors) -> HostTensorVector {
+        [&output_tensor_map, &evaluation_context](
+            Node* node, const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
-            for (auto v : node->outputs())
+            for (const auto& v : node->outputs())
             {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end())
@@ -1282,7 +1283,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                     output_tensors.push_back(it->second);
                 }
             }
-            if (node->evaluate(output_tensors, input_tensors))
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context))
             {
                 return output_tensors;
             }
@@ -1291,7 +1292,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                 NGRAPH_CHECK(false, "Evaluation failed on ", node);
             }
         });
-    for (auto value : outputs)
+    for (const auto& value : outputs)
     {
         evaluator.evaluate(value);
     }
