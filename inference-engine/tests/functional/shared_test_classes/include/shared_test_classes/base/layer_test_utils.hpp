@@ -45,7 +45,6 @@ typedef std::tuple<
 
 enum RefMode {
     INTERPRETER,
-    CONSTANT_FOLDING,
     IE
 };
 

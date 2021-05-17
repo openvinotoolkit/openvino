@@ -197,7 +197,6 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     bool isTypeDependent = (expected.second.size() == actual->byteSize() * k);
     if (!isTypeDependent)
         ASSERT_EQ(expected.second.size(), actual->byteSize());
-    // TODO: checks
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
     IE_ASSERT(memory);
@@ -410,11 +409,6 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
             expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
             break;
         }
-        case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
-            break;
-        }
         case IE: {
             // reference inference on device with other options and nGraph function has to be implemented here
             break;
@@ -423,8 +417,6 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
 
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs;
     for (size_t i = 0; i < expectedOutputs.size(); ++i) {
-        std::pair<ngraph::element::Type, std::vector<std::uint8_t>> b =
-                {function->get_results()[i]->get_element_type(), expectedOutputs[i]};
         outputs.push_back({function->get_results()[i]->get_element_type(), expectedOutputs[i]});
     }
 
