@@ -215,6 +215,7 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
