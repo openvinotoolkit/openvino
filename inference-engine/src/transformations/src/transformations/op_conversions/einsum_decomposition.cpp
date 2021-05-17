@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,27 +8,23 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
 namespace {
-/// \brief      Check if the transformation is applicable to Einsum with a given equation
+/// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.
+/// The transformation is applicable if input subscript does not have repeated labels and ellipsis.
 ///
 /// \param      subscript          A subscript to check its format
 ///
 /// \return     true - applicable, false - not applicable
 ///
 bool is_subscript_applicable(const std::string& subscript) {
-    auto labels = ngraph::op::v7::Einsum::extract_labels(subscript);
-    std::unordered_set<std::string> met_labels;
-    for (auto const& label : labels) {
-        if (label == "..." || met_labels.find(label) != met_labels.end()) {
-            return false;
-        }
-        met_labels.insert(label);
-    }
-    return true;
+    auto labels = ngraph::opset7::Einsum::extract_labels(subscript);
+    auto unique_labels = std::unordered_set<std::string>(labels.begin(), labels.end());
+    return std::find(labels.begin(), labels.end(), "...") == labels.end() && unique_labels.size() == labels.size();
 }
 
 /// \brief      Compute einsum_path for a given Einsum node meaning that the (pseudo-)optimal
@@ -40,9 +36,10 @@ bool is_subscript_applicable(const std::string& subscript) {
 /// appended in the tail
 ///
 std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const ngraph::opset7::Einsum> einsum_node) {
-    // TODO: implement greedy algorithm for finding pseudo-optimal einsum_path
+    // TODO: implement algorithm for finding (pseudo-)optimal einsum_path
     std::vector<std::pair<size_t, size_t>> einsum_path;
-    auto num_inputs = einsum_node->get_input_size();
+    const size_t num_inputs = einsum_node->get_input_size();
+    NGRAPH_CHECK(num_inputs > 0);
     for (size_t input_ind = num_inputs - 1; input_ind > 0; --input_ind) {
         einsum_path.push_back(std::make_pair(0, input_ind));
     }
@@ -60,8 +57,8 @@ std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const
 ///
 /// \return     true - a dimension to reduce, false - otherwise
 ///
-bool is_dimension_reduced(const std::vector<std::string>& input_subscripts, const std::string& output_subscript, const std::string label_to_check,
-                          const std::vector<size_t>& excluded_indices) {
+bool is_dimension_reduced(const std::vector<std::string>& input_subscripts, const std::string& output_subscript,
+    const std::string label_to_check, const std::vector<size_t>& excluded_indices) {
     for (size_t input_ind = 0; input_ind < input_subscripts.size(); ++input_ind) {
         const auto& input_subscript = input_subscripts[input_ind];
         // the subscript is checked only if its index is not in excluded indices list
@@ -70,8 +67,22 @@ bool is_dimension_reduced(const std::vector<std::string>& input_subscripts, cons
             return false;
         }
     }
-    if (output_subscript.find(label_to_check) != std::string::npos) {
-        return false;
+    return output_subscript.find(label_to_check) == std::string::npos;
+}
+
+/// \brief    Checks if input vector represents a range [0; n]
+///
+/// \param    labels_inds    Input vector to check
+///
+/// \return   true - the input vector is a range [0; n]; false - otherwise
+///
+bool is_range_0_to_n(const std::vector<int64_t> &labels_inds) {
+    int64_t check_index = 0;
+    for (auto index : labels_inds) {
+        if (check_index != index) {
+            return false;
+        }
+        ++check_index;
     }
     return true;
 }
@@ -97,15 +108,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
     std::vector<int64_t> labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), reduced_labels_inds.begin(), reduced_labels_inds.end());
     labels_inds.insert(labels_inds.end(), separate_labels_inds.begin(), separate_labels_inds.end());
-    int64_t check_index = 0;
-    for (auto index : labels_inds) {
-        if (check_index != index) {
-            is_transpose_needed = true;
-            break;
-        }
-        ++check_index;
-    }
-    if (is_transpose_needed == false) {
+    if (is_range_0_to_n(labels_inds)) {
         is_separate_first = false;
         return input_subscript;
     }
@@ -116,15 +119,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
     labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), separate_labels_inds.begin(), separate_labels_inds.end());
     labels_inds.insert(labels_inds.end(), reduced_labels_inds.begin(), reduced_labels_inds.end());
-    check_index = 0;
-    for (auto index : labels_inds) {
-        if (check_index != index) {
-            is_transpose_needed = true;
-            break;
-        }
-        ++check_index;
-    }
-    if (is_transpose_needed == false) {
+    if (is_range_0_to_n(labels_inds)) {
         is_separate_first = true;
         return input_subscript;
     }
@@ -151,14 +146,13 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
 ///
 void update_operands(ngraph::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, size_t input_ind1, size_t input_ind2,
                      const ngraph::Output<ngraph::Node>& new_node, const std::string& new_subscript) {
+    NGRAPH_CHECK(input_ind1 < input_ind2);
     NGRAPH_CHECK(input_ind2 < input_nodes.size());
+    NGRAPH_CHECK(input_ind2 < input_subscripts.size());
     input_nodes.erase(input_nodes.begin() + input_ind2);
-    NGRAPH_CHECK(input_ind1 < input_nodes.size());
     input_nodes.erase(input_nodes.begin() + input_ind1);
     input_nodes.push_back(new_node);
-    NGRAPH_CHECK(input_ind2 < input_subscripts.size());
     input_subscripts.erase(input_subscripts.begin() + input_ind2);
-    NGRAPH_CHECK(input_ind1 < input_subscripts.size());
     input_subscripts.erase(input_subscripts.begin() + input_ind1);
     input_subscripts.push_back(new_subscript);
 }
@@ -277,12 +271,20 @@ ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngrap
         return input_node;
     }
 
-    // concatenate parts of new shape
     auto new_shape_op = std::make_shared<ngraph::opset7::Concat>(new_shape_parts, 0);
 
-    auto reshaped_input_op = std::make_shared<ngraph::opset7::Reshape>(input_node, new_shape_op->output(0), false);
+    // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
+    // in order to prevent repeated computing during constant-folding pass
+    std::shared_ptr<ngraph::opset7::Reshape> reshaped_input_op;
+    if (auto new_shape_const = ngraph::get_constant_from_source(new_shape_op)) {
+        reshaped_input_op = std::make_shared<ngraph::opset7::Reshape>(input_node, new_shape_const, false);
+        subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+    } else {
+        reshaped_input_op = std::make_shared<ngraph::opset7::Reshape>(input_node, new_shape_op->output(0), false);
+        subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_op});
+    }
 
-    subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_op, reshaped_input_op});
+    subgraph_nodes.insert(subgraph_nodes.end(), {reshaped_input_op});
     return reshaped_input_op->output(0);
 }
 
@@ -316,8 +318,8 @@ void transpose_input(ngraph::OutputVector& input_nodes, std::vector<std::string>
 
     // find permutation that establishes bijection between the input subscript
     // and the required one
-    auto labels = ngraph::op::v7::Einsum::extract_labels(input_subscript);
-    auto required_labels = ngraph::op::v7::Einsum::extract_labels(required_subscript);
+    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+    auto required_labels = ngraph::opset7::Einsum::extract_labels(required_subscript);
     NGRAPH_CHECK(labels.size() == required_labels.size());
     for (const auto& required_label : required_labels) {
         auto it = std::find(labels.begin(), labels.end(), required_label);
@@ -360,7 +362,7 @@ void reduce_input(ngraph::pass::EinsumDecomposition *einsum_decompose_ptr,
     NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
 
     std::vector<int64_t> reduced_axes;
-    auto labels = ngraph::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
+    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
     std::string new_input_subscript = "";
     for (size_t dim_ind = 0; dim_ind < labels.size(); ++dim_ind) {
         const auto& label = labels[dim_ind];
@@ -440,9 +442,9 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
     // neither the output subscript nor the input subscripts for other Einsum inputs excluding
     // two given inputs
     auto& input_subscript1 = input_subscripts[input_ind1];
-    auto labels1 = ngraph::op::v7::Einsum::extract_labels(input_subscript1);
+    auto labels1 = ngraph::opset7::Einsum::extract_labels(input_subscript1);
     auto& input_subscript2 = input_subscripts[input_ind2];
-    auto labels2 = ngraph::op::v7::Einsum::extract_labels(input_subscript2);
+    auto labels2 = ngraph::opset7::Einsum::extract_labels(input_subscript2);
     std::string common_part = "";
     std::string separate_part1 = "";
     std::string separate_part2 = "";
@@ -525,58 +527,94 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
     // format. For example, the shape must be in a format [B1, ..., Bm, X1, Y] or [B1, ..., Bm,
     // Y, X2], where B1, ..., Bm are common dimensions, X1 and X2 are collapsed dimensions
     // for separate labels and Y is collapsed dimension for reduced labels
-    auto data_shape1 = std::make_shared<ngraph::opset7::ShapeOf>(input_node1);
-    auto data_shape2 = std::make_shared<ngraph::opset7::ShapeOf>(input_node2);
+    // this step is not needed for the operand if it satisfies to one of the requirements:
+    // 1. there is just one separate dimension and just one reduced dimension
+    // 2. there is no separate dimension, no common dimensions, and just one reduced dimension
+    bool no_reshape_for_matmul1 = (reduced_labels_inds1.size() == 1 && separate_labels_inds1.size() == 1) ||
+                                  (reduced_labels_inds1.size() == 1 && common_labels_inds1.size() == 0
+                                      && separate_labels_inds1.size() == 0);
+    bool no_reshape_for_matmul2 = (reduced_labels_inds2.size() == 1 && separate_labels_inds2.size() == 1) ||
+                                  (reduced_labels_inds2.size() == 1 && common_labels_inds2.size() == 0
+                                      && separate_labels_inds2.size() == 0);
+    // reshape back after MatMul is not needed if one of two requrements satisfies for both operands:
+    // 1. there is just one separate dimension
+    // 2. there is no separate dimension and no common dimensions present.
+    // If there is no separate dimension and common dimensions present, reshape is needed
+    // because auxiliary separate dimension has been added by Unsqueeze operation
+    // in the purpose for MatMul
+    bool no_reshape_back1 = (separate_labels_inds1.size() == 1) ||
+        (common_labels_inds1.size() == 0 && separate_labels_inds1.size() == 0);
+    bool no_reshape_back2 = (separate_labels_inds2.size() == 1) ||
+        (common_labels_inds2.size() == 0 && separate_labels_inds2.size() == 0);
+    bool no_reshape_after_matmul = no_reshape_back1 && no_reshape_back2;
 
+    auto matmul_operand1 = input_node1;
+    auto matmul_operand2 = input_node2;
     int64_t common_dims_begin = 0;
     int64_t common_dims_end = common_labels_inds1.size();
-    auto common_sub_shape = compute_sub_shape(data_shape1, common_dims_begin, common_dims_end, subgraph_nodes);
-    int64_t reduced_dims_begin = (is_separate_first1 ? common_labels_inds1.size() + separate_labels_inds1.size() : common_labels_inds1.size());
-    int64_t reduced_dims_end = reduced_dims_begin + reduced_labels_inds1.size();
-    auto reduced_sub_shape_prod = compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, true);
-    int64_t separate1_dims_begin = (is_separate_first1 ? common_labels_inds1.size() : common_labels_inds1.size() + reduced_labels_inds1.size());
-    int64_t separate1_dims_end = separate1_dims_begin + separate_labels_inds1.size();
-    auto separate1_sub_shape = compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
+    ngraph::OutputVector common_sub_shape, separate1_sub_shape, separate2_sub_shape;
+    if (no_reshape_for_matmul1 == false || no_reshape_for_matmul2 == false) {
+        auto data_shape1 = std::make_shared<ngraph::opset7::ShapeOf>(input_node1);
+        common_sub_shape = compute_sub_shape(data_shape1, common_dims_begin, common_dims_end, subgraph_nodes);
+        int64_t reduced_dims_begin = (is_separate_first1 ? common_labels_inds1.size() + separate_labels_inds1.size() : common_labels_inds1.size());
+        int64_t reduced_dims_end = reduced_dims_begin + reduced_labels_inds1.size();
+        auto reduced_sub_shape_prod = compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, true);
 
-    int64_t separate2_dims_begin = (is_separate_first2 ? common_labels_inds2.size() : common_labels_inds2.size() + reduced_labels_inds2.size());
-    int64_t separate2_dims_end = separate2_dims_begin + separate_labels_inds2.size();
-    auto separate2_sub_shape = compute_sub_shape(data_shape2, separate2_dims_begin, separate2_dims_end, subgraph_nodes);
+        if (no_reshape_for_matmul1 == false || no_reshape_after_matmul == false) {
+            int64_t separate1_dims_begin = (is_separate_first1 ? common_labels_inds1.size() : common_labels_inds1.size() + reduced_labels_inds1.size());
+            int64_t separate1_dims_end = separate1_dims_begin + separate_labels_inds1.size();
+            separate1_sub_shape = compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
+            matmul_operand1 = reshape_input_for_matmul(input_node1, common_sub_shape, separate1_sub_shape, reduced_sub_shape_prod, is_separate_first1, subgraph_nodes);
+        }
 
-    auto reshaped_input1 =
-        reshape_input_for_matmul(input_node1, common_sub_shape, separate1_sub_shape, reduced_sub_shape_prod, is_separate_first1, subgraph_nodes);
-    auto reshaped_input2 =
-        reshape_input_for_matmul(input_node2, common_sub_shape, separate2_sub_shape, reduced_sub_shape_prod, is_separate_first2, subgraph_nodes);
+        if (no_reshape_for_matmul2 == false || no_reshape_after_matmul == false) {
+            auto data_shape2 = std::make_shared<ngraph::opset7::ShapeOf>(input_node2);
+            int64_t separate2_dims_begin = (is_separate_first2 ? common_labels_inds2.size() : common_labels_inds2.size() + reduced_labels_inds2.size());
+            int64_t separate2_dims_end = separate2_dims_begin + separate_labels_inds2.size();
+            separate2_sub_shape = compute_sub_shape(data_shape2, separate2_dims_begin, separate2_dims_end, subgraph_nodes);
+            matmul_operand2 = reshape_input_for_matmul(input_node2, common_sub_shape, separate2_sub_shape, reduced_sub_shape_prod, is_separate_first2, subgraph_nodes);
+            subgraph_nodes.insert(subgraph_nodes.end(), {data_shape2});
+        }
+        subgraph_nodes.insert(subgraph_nodes.end(), {data_shape1});
+    }
 
     // step 3. apply MatMul operation for formatted inputs
     bool transpose_a = (is_separate_first1 ? false : true);
     bool transpose_b = (is_separate_first2 ? true : false);
-    auto matmul = std::make_shared<ngraph::opset7::MatMul>(reshaped_input1, reshaped_input2, transpose_a, transpose_b);
+    auto matmul = std::make_shared<ngraph::opset7::MatMul>(matmul_operand1, matmul_operand2, transpose_a, transpose_b);
 
-    // step 4. reshape back by unrolling dimensions corresponding to separate labels
+    // step 4. reshape back by unrolling dimensions corresponding to separate labels if needed
     // now dimensions corresponding to reduced labels are reduced by the MatMul operation
-    ngraph::OutputVector new_shape;
-    new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
-    new_shape.insert(new_shape.end(), separate1_sub_shape.begin(), separate1_sub_shape.end());
-    new_shape.insert(new_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
     std::string resultant_subscript = input_subscript1.substr(common_dims_begin, common_dims_end) + separate_part1 + separate_part2;
-
-    if (new_shape.size() > 0) {
+    if (no_reshape_after_matmul) {
+        // this is a case when Reshape is not needed after MatMul operation
+        // since there are no collapsed (or auxiliary added) separated dimensions
+        update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, matmul->output(0), resultant_subscript);
+    } else {
+        ngraph::OutputVector new_shape;
+        new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
+        new_shape.insert(new_shape.end(), separate1_sub_shape.begin(), separate1_sub_shape.end());
+        new_shape.insert(new_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
         auto result_shape_op = std::make_shared<ngraph::opset7::Concat>(new_shape, 0);
-        auto result_op = std::make_shared<ngraph::opset7::Reshape>(matmul->output(0), result_shape_op->output(0), false);
+
+        // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
+        // in order to prevent repeated computing during constant-folding pass
+        std::shared_ptr<ngraph::opset7::Reshape> result_op;
+        if (auto new_shape_const = ngraph::get_constant_from_source(result_shape_op)) {
+            result_op = std::make_shared<ngraph::opset7::Reshape>(matmul->output(0), new_shape_const, false);
+            subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+        } else {
+            result_op = std::make_shared<ngraph::opset7::Reshape>(matmul->output(0), result_shape_op->output(0), false);
+            subgraph_nodes.insert(subgraph_nodes.end(), {result_shape_op});
+        }
 
         // update input operand and input subscript for Einsum operation
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, result_op->output(0), resultant_subscript);
-
-        // update a vector of nodes for copy_runtime_info
-        subgraph_nodes.insert(subgraph_nodes.end(), {result_shape_op, result_op});
-    } else {
-        // this is a case when all dimensions are reduced and the result is scalar
-        // update input operand and input subscript for Einsum operation
-        update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, matmul->output(0), resultant_subscript);
+        subgraph_nodes.insert(subgraph_nodes.end(), {result_op});
     }
 
     // update a vector of nodes for copy_runtime_info
-    subgraph_nodes.insert(subgraph_nodes.end(), {data_shape1, data_shape2, matmul});
+    subgraph_nodes.insert(subgraph_nodes.end(), {matmul});
 }
 }  // namespace
 
@@ -599,13 +637,13 @@ ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
         auto equation = einsum_node->get_equation();
         std::vector<std::string> input_subscripts;
         std::string output_subscript;
-        ngraph::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
+        ngraph::opset7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
 
         // check that the transformation is applicable
-        for (auto const& input_subscript : input_subscripts) {
-            if (is_subscript_applicable(input_subscript) == false) {
-                return false;
-            }
+        if (std::any_of(input_subscripts.cbegin(), input_subscripts.cend(), [](const std::string& subscript) {
+                return is_subscript_applicable(subscript) == false;
+            })) {
+            return false;
         }
 
         // create a list of input nodes with preserving their order
