@@ -201,7 +201,6 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_snippets
                                                inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
