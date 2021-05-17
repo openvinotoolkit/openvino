@@ -97,5 +97,4 @@ namespace ngraph
         using Variant::merge;
     };
 
-
 } // namespace ngraph
