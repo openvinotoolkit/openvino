@@ -39,8 +39,7 @@ namespace ngraph
                          element::Type_t src_type,
                          element::Type_t dst_type)
             {
-                std::memset(out, 0, count * sizeof(TO));
-
+                std::fill(out, out + count, 0);
                 if (dst_type == element::u1)
                 {
                     for (size_t i = 0; i < count; ++i)
