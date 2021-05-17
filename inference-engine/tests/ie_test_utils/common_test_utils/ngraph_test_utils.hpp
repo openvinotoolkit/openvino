@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <queue>
 
@@ -571,7 +572,7 @@ struct Equal<uint8_t*> {
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
             const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
-            if(byte_idx_result > std::numeric_limits<uint8_t>::max())
+            if (byte_idx_result > std::numeric_limits<uint8_t>::max())
                 IE_THROW() << "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value";
 
             const uint8_t byte_idx(static_cast<uint8_t>(byte_idx_result));
