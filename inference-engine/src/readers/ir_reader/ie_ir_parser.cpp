@@ -482,7 +482,6 @@ std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>
                 std::make_shared<ngraph::op::util::MultiSubGraphOp::InvariantInputDescription>(
                     ti_input_index, input_index));
         }
-
     }
     return inputs;
 }
@@ -516,7 +515,6 @@ std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription
         // if external_port_id < 0 it means that this body result isn't connected to the Loop output
         // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
         if (XMLParseUtils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
-
             const auto output_index = up_io_map.outputs.at(body_result_index);
 
             outputs.push_back(
@@ -550,7 +548,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             a->set(parsePurposeAttribute(node));
         }
     }
-    
+
     if (node.child("then_port_map") || node.child("else_port_map")) {
         bool is_then_portmap = node.child("then_port_map") && (name == "then_inputs" || name == "then_outputs");
         auto port_map_name = (is_then_portmap) ? "then_port_map" : "else_port_map";
