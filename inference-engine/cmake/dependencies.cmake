@@ -38,62 +38,6 @@ if (ENABLE_MYRIAD)
     include(cmake/vpu_dependencies.cmake)
 endif()
 
-## enable cblas_gemm from OpenBLAS package
-if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
-    if(AARCH64)
-        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        elseif(DEFINED THIRDPARTY_SERVER_PATH)
-            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        else()
-            message(WARNING "OpenBLAS is not found!")
-        endif()
-
-        if(DEFINED IE_PATH_TO_DEPS)
-            reset_deps_cache(OpenBLAS_DIR)
-
-            RESOLVE_DEPENDENCY(OpenBLAS
-                    ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
-                    TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
-                    ENVIRONMENT "OpenBLAS_DIR"
-                    SHA256 "c75aac901d5297d6d60a4b1f941f0335d8fd7f52e0dff8c445f644e2e45e6fba")
-
-            update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
-
-            find_package(OpenBLAS QUIET)
-
-            if(OpenBLAS_FOUND)
-                set(BLAS_FOUND TRUE)
-                set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
-                set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
-            endif()
-
-            unset(IE_PATH_TO_DEPS)
-        endif()
-    endif()
-
-    if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)
-        find_package(BLAS REQUIRED)
-
-        if(BLAS_FOUND)
-            find_path(BLAS_INCLUDE_DIRS cblas.h)
-        else()
-            message(ERROR "OpenBLAS not found: install OpenBLAS or set -DBLAS_INCLUDE_DIRS=<path to dir with cblas.h> and -DBLAS_LIBRARIES=<path to libopenblas.so or openblas.lib>")
-        endif()
-    endif()
-
-    debug_message(STATUS "openblas=" ${BLAS_LIBRARIES})
-endif ()
-
-## MKL-ML package
-if (GEMM STREQUAL "MKL")
-    if(NOT MKLROOT)
-        message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
-    endif()
-    set(MKL ${MKLROOT})
-    debug_message(STATUS "mkl_ml=" ${MKLROOT})
-endif ()
-
 ## Intel OMP package
 if (THREADING STREQUAL "OMP")
     reset_deps_cache(OMP)
@@ -159,10 +103,12 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
                 ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
                 SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
