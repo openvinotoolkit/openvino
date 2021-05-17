@@ -15,7 +15,7 @@ namespace ngraph
     using VariableMap = std::unordered_map<VariablePtr, VariableValuePtr>;
 
     /// VariableContext stores and manages a evaluation context for Variables.
-    class VariableContext
+    class NGRAPH_API VariableContext
     {
     public:
         /// \brief Constructs an uninitialized VariableContext.
@@ -79,7 +79,7 @@ namespace ngraph
     };
 
     template <>
-    class VariantWrapper<VariableContext> : public VariantImpl<VariableContext>
+    class NGRAPH_API VariantWrapper<VariableContext> : public VariantImpl<VariableContext>
     {
     public:
         static constexpr VariantTypeInfo type_info{"Variant::EvaluationContext::VariableContext",
