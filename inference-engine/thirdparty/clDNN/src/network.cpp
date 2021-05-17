@@ -65,7 +65,7 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem) const {
     _impl->set_output_memory(id, mem);
 }
 
-stream& network::get_stream() {
+stream& network::get_stream() const {
     return _impl->get_stream();
 }
 

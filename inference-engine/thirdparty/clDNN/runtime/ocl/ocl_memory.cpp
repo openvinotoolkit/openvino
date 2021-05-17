@@ -28,7 +28,7 @@ void* gpu_buffer::lock(const stream& stream) {
     auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        _mapped_ptr = cl_stream.queue().enqueueMapBuffer(_buffer, CL_TRUE, CL_MAP_WRITE, 0, size());
+        _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, CL_MAP_WRITE, 0, size());
     }
     _lock_count++;
     return _mapped_ptr;
@@ -39,7 +39,7 @@ void gpu_buffer::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
-        cl_stream.queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
         _mapped_ptr = nullptr;
     }
 }
@@ -52,7 +52,7 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
-    cl_stream.queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
+    cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
 
     // TODO: do we need sync here?
     cl_stream.finish();
@@ -141,7 +141,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
-    cl_stream.queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
+    cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
 
     // TODO: do we need sync here?
     cl_stream.finish();
@@ -153,7 +153,7 @@ void* gpu_image2d::lock(const stream& stream) {
     auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        _mapped_ptr = cl_stream.queue()
+        _mapped_ptr = cl_stream.get_cl_queue()
                           .enqueueMapImage(_buffer,
                                            CL_TRUE,
                                            CL_MAP_WRITE,
@@ -171,7 +171,7 @@ void gpu_image2d::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
-        cl_stream.queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
         _mapped_ptr = nullptr;
     }
 }
@@ -272,12 +272,12 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
-    // cl_stream.queue().enqueueFillUsm<unsigned char>(_buffer, pattern, _bytes_count, nullptr, &ev_ocl)
+    // cl_stream.get_cl_queue().enqueueFillUsm<unsigned char>(_buffer, pattern, _bytes_count, nullptr, &ev_ocl)
     // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
     const bool blocking = true;
-    cl::usm::enqueue_memcpy(cl_stream.queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
+    cl::usm::enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
 
     return ev;
 }
@@ -285,7 +285,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
 event::ptr gpu_usm::fill(stream& stream) {
     // event::ptr ev{ new base_event(_context), false };
     // cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
-    // cl::usm::enqueue_set_mem(cl_stream.queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
+    // cl::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
     // ev->wait();
 
     // [WA]
@@ -295,7 +295,7 @@ event::ptr gpu_usm::fill(stream& stream) {
 void gpu_usm::copy_from_other(const stream& stream, const memory& other) {
     auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
     auto& casted = dynamic_cast<const gpu_usm&>(other);
-    cl_stream.queue().enqueueCopyUsm(casted.get_buffer(), get_buffer(), _bytes_count, true);
+    cl_stream.get_cl_queue().enqueueCopyUsm(casted.get_buffer(), get_buffer(), _bytes_count, true);
 }
 
 shared_mem_params gpu_usm::get_internal_params() const {
@@ -334,7 +334,7 @@ ocl_surfaces_lock::ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream&
     cl_int err = CL_SUCCESS;
 
     auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
-    auto queue = cl_stream.get_queue();
+    auto queue = cl_stream.get_cl_queue();
     _lock.reset(new cl::SharedSurfLock(queue.get(), _handles, &err));
     // TODO: err code for some reason is 32766
     if (/* err != CL_SUCCESS || */ !_lock) {

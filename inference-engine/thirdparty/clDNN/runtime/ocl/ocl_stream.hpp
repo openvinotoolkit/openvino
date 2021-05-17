@@ -24,16 +24,17 @@ class events_pool;
 
 class ocl_stream : public stream {
 public:
-    const queue_type& queue() const { return _command_queue; }
+    const ocl_queue_type& get_cl_queue() const { return _command_queue; }
 
     explicit ocl_stream(const ocl_engine& engine);
     ocl_stream(ocl_stream&& other)
-        : _engine(other._engine),
-          _command_queue(other._command_queue),
-          _queue_counter(other._queue_counter.load()),
-          _last_barrier(other._last_barrier.load()),
-          _events_pool(std::move(other._events_pool)),
-          _last_barrier_ev(other._last_barrier_ev) {}
+        : stream(other._engine.configuration().queue_type)
+        , _engine(other._engine)
+        , _command_queue(other._command_queue)
+        , _queue_counter(other._queue_counter.load())
+        , _last_barrier(other._last_barrier.load())
+        , _events_pool(std::move(other._events_pool))
+        , _last_barrier_ev(other._last_barrier_ev) {}
 
     ~ocl_stream() = default;
 
@@ -57,11 +58,9 @@ public:
     event::ptr create_base_event() override;
     void release_events_pool() override;
 
-    queue_type get_queue() const { return _command_queue; }
-
 private:
     const ocl_engine& _engine;
-    queue_type _command_queue;
+    ocl_queue_type _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     std::shared_ptr<events_pool> _events_pool;

@@ -9,6 +9,7 @@
 #include "cldnn/runtime/compounds.hpp"
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/event.hpp"
+#include "cldnn/runtime/stream.hpp"
 #include "program.hpp"
 
 #include <cstdint>
@@ -33,14 +34,21 @@ struct network_output {
 
     /// @brief Returns @ref memory object of the output. Blocked until associated @ref event is not complete.
     memory::ptr get_memory() const {
-        _event->wait();
+        // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
+        // So call finish for associated stream to enusre that the output data is ready.
+        if (_stream.get_queue_type() == queue_types::in_order) {
+            _stream.finish();
+        } else {
+            _event->wait();
+        }
         return _result;
     }
 
 private:
     event::ptr _event;
     memory::ptr _result;
-    network_output(event::ptr evt, memory::ptr mem) : _event(evt), _result(mem) {}
+    stream& _stream;
+    network_output(event::ptr evt, memory::ptr mem, stream& stream) : _event(evt), _result(mem), _stream(stream) {}
     friend struct network;
 };
 
@@ -100,7 +108,7 @@ struct network {
     /// @brief Return stream id.
     uint16_t get_stream_id();
 
-    stream& get_stream();
+    stream& get_stream() const;
 
     /// @brief Return internal network id.
     uint32_t get_id();
@@ -136,7 +144,7 @@ struct network {
 
     /// @brief Returns @ref network_output object for particular @p output. Can't be called before network execution
     network_output get_output(const primitive_id& output_id) const {
-        return network_output(get_primitive_event(output_id), get_output_memory(output_id));
+        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream());
     }
 
     /// @brief Returns the list of @ref event for the primitives that were executed in network.

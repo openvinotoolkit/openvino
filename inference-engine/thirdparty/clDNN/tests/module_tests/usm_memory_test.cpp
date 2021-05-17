@@ -191,7 +191,7 @@ TEST_P(fill_buffer, DISABLED_basic) {
     }
     try {
         ocl::ocl_stream stream(*_engine);
-        auto queue = stream.get_queue();
+        auto queue = stream.get_cl_queue();
 
         size_t values_count = 100;
         size_t values_bytes_count = values_count * sizeof(float);

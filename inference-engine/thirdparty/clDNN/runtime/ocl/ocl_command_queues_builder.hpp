@@ -13,7 +13,7 @@ namespace ocl {
 class command_queues_builder {
 public:
     command_queues_builder();
-    queue_type build(const cl::Context& context, const cl::Device& device);
+    ocl_queue_type build(const cl::Context& context, const cl::Device& device);
     void set_throttle_mode(throttle_mode_types throttle, bool extension_support);
     void set_priority_mode(priority_mode_types priority, bool extension_support);
     void set_profiling(bool flag) { _profiling = flag; }

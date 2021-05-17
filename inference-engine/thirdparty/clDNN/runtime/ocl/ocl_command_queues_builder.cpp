@@ -21,13 +21,13 @@ cl_command_queue_properties command_queues_builder::get_properties() {
     return ret;
 }
 
-queue_type command_queues_builder::build(const cl::Context& context, const cl::Device& device) {
+ocl_queue_type command_queues_builder::build(const cl::Context& context, const cl::Device& device) {
     auto properties = get_properties();
 
-    queue_type queue;
+    ocl_queue_type queue;
 
     if (_priority_mode == priority_mode_types::disabled && _throttle_mode == throttle_mode_types::disabled) {
-        queue = queue_type(context, device, properties);
+        queue = ocl_queue_type(context, device, properties);
     }
 
     unsigned cl_queue_priority_value = CL_QUEUE_PRIORITY_MED_KHR;
@@ -67,7 +67,7 @@ queue_type command_queues_builder::build(const cl::Context& context, const cl::D
                                                 properties,
                                                 0};
 
-        queue = queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
+        queue = ocl_queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
     } else if (_priority_mode != priority_mode_types::disabled) {
         cl_queue_properties properties_low[] = {CL_QUEUE_PRIORITY_KHR,
                                                 cl_queue_priority_value,
@@ -75,7 +75,7 @@ queue_type command_queues_builder::build(const cl::Context& context, const cl::D
                                                 properties,
                                                 0};
 
-        queue = queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
+        queue = ocl_queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
     } else if (_throttle_mode != throttle_mode_types::disabled) {
         cl_queue_properties properties_low[] = {CL_QUEUE_THROTTLE_KHR,
                                                 cl_queue_throttle_value,
@@ -83,7 +83,7 @@ queue_type command_queues_builder::build(const cl::Context& context, const cl::D
                                                 properties,
                                                 0};
 
-        queue = queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
+        queue = ocl_queue_type(clCreateCommandQueueWithProperties(context.get(), device.get(), properties_low, &error_code));
     }
 
     if (error_code != CL_SUCCESS) {

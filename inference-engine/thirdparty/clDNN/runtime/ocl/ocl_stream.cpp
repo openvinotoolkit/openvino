@@ -46,7 +46,7 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
-void set_arguments_impl(kernel_type& kernel,
+void set_arguments_impl(ocl_kernel_type& kernel,
                         const arguments_desc& args,
                         const kernel_arguments_data& data) {
     using args_t = argument_desc::Types;
@@ -252,7 +252,7 @@ void set_arguments_impl(kernel_type& kernel,
 }
 }  // namespace
 
-ocl_stream::ocl_stream(const ocl_engine& engine) : _engine(engine) {
+ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration().queue_type), _engine(engine) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
     auto config = engine.configuration();
@@ -297,13 +297,11 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     auto local = toNDRange(args_desc.workGroups.local);
     std::vector<cl::Event> dep_events;
     auto dep_events_ptr = &dep_events;
-    if (_engine.configuration().queue_type == queue_types::in_order) {
-        // Seems like in-order queue doesn't work in some cases
-        // max_unpooling_gpu.basic_in2x3x2x2 fails with invalid events
-        // TODO: Find the root cause
+    if (queue_type == queue_types::in_order) {
         for (auto& dep : deps) {
             if (auto ocl_base_ev = std::dynamic_pointer_cast<ocl_base_event>(dep)) {
-                dep_events.push_back(ocl_base_ev->get());
+                if (ocl_base_ev->get().get() != nullptr)
+                    dep_events.push_back(ocl_base_ev->get());
             }
         }
     } else {
@@ -314,7 +312,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
 
     cl::Event ret_ev;
 
-    bool set_output_event = _engine.configuration().queue_type == queue_types::in_order || is_output_event || _engine.configuration().enable_profiling;
+    bool set_output_event = queue_type == queue_types::out_of_order || is_output_event || _engine.configuration().enable_profiling;
 
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
@@ -333,15 +331,19 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
     if (deps.empty())
         return create_user_event(true);
 
-    if (_engine.configuration().queue_type == queue_types::in_order) {
+    if (queue_type == queue_types::in_order) {
         cl::Event ret_ev;
         std::vector<cl::Event> dep_events;
         for (auto& dep : deps) {
             if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
-                dep_events.push_back(ocl_base_ev->get());
+                if (ocl_base_ev->get().get() != nullptr)
+                    dep_events.push_back(ocl_base_ev->get());
         }
 
         try {
+            if (dep_events.empty()) {
+                return create_user_event(true);
+            }
             _command_queue.enqueueMarkerWithWaitList(&dep_events, &ret_ev);
         } catch (cl::Error const& err) {
             throw ocl_error(err);
@@ -371,8 +373,8 @@ void ocl_stream::reset_events() { _events_pool->reset_events(); }
 
 void ocl_stream::release_events_pool() { _events_pool.reset(); }
 
-void ocl_stream::flush() const { queue().flush(); }
-void ocl_stream::finish() const { queue().finish(); }
+void ocl_stream::flush() const { get_cl_queue().flush(); }
+void ocl_stream::finish() const { get_cl_queue().finish(); }
 
 void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
@@ -397,7 +399,7 @@ void ocl_stream::release_pending_memory() {
     // */
     // void* ptr = nullptr;
     // ptr = _mm_malloc(4096, 4096);
-    // queue().finish();
+    // get_cl_queue().finish();
     // try {
     //     cl::Buffer flusher(context()->context(), CL_MEM_USE_HOST_PTR, (size_t)4096, ptr);
     //     flusher = (cl_mem) nullptr;  // clear buffer

@@ -16,6 +16,7 @@ namespace cldnn {
 class stream {
 public:
     using ptr = std::shared_ptr<stream>;
+    explicit stream(queue_types queue_type) : queue_type(queue_type) {}
     virtual ~stream() = default;
 
     virtual void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false) = 0;
@@ -36,6 +37,11 @@ public:
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
     virtual void release_events_pool() = 0;
+
+    queue_types get_queue_type() const { return queue_type; }
+
+protected:
+    queue_types queue_type;
 };
 
 }  // namespace cldnn
