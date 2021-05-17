@@ -33,6 +33,9 @@ public:
 private:
     std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
     std::vector<std::string> GetOptimizationCapabilities() const;
+    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices);
+    DeviceInformation SelectDevice(const InferenceEngine::CNNNetwork&    network,
+                                   const std::vector<DeviceInformation>& metaDevices);
 
 protected:
     ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;

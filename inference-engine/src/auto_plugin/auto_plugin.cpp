@@ -11,7 +11,7 @@
 #include <ie_metric_helpers.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
-#include <ngraph/function.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
@@ -27,8 +27,8 @@ namespace {
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
-        bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-        if (isFloatModel) {
+        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        if (isINTModel) {
             return "INT8";
         }
         for (auto & node : nGraphFunc->get_ordered_ops()) {
@@ -45,92 +45,6 @@ namespace {
             }
         }
         return "FP32";
-    }
-
-    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
-        if (metaDevices.empty()) {
-            IE_THROW(NotFound) << "No available device to select in AUTO plugin";
-        }
-        if (metaDevices.size() == 1) {
-            return metaDevices.at(0);
-        }
-
-        std::vector<DeviceInformation> CPU;
-        std::vector<DeviceInformation> GPU;
-
-        for (auto& item : metaDevices) {
-            if (item.deviceName.find("CPU") == 0) {
-                CPU.push_back(item);
-                continue;
-            }
-            if (item.deviceName.find("GPU") == 0) {
-                GPU.push_back(item);
-                continue;
-            }
-        }
-
-        if (CPU.empty() && GPU.empty()) {
-            IE_THROW(NotFound) << "No available device found";
-        }
-
-        std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
-
-        if (!GPU.empty()) {
-            return GPU[0];
-        }
-        if (CPU.empty()) {
-            IE_THROW() << "Cannot select any device";
-        }
-        return CPU[0];
-    }
-
-    DeviceInformation SelectDevice(const InferenceEngine::CNNNetwork &network,
-                                   const std::vector<DeviceInformation>& metaDevices,
-                                   const std::vector<std::string>& optCap) {
-        if (metaDevices.empty()) {
-            IE_THROW(NotFound) << "No available device to select in AUTO plugin";
-        }
-        if (metaDevices.size() == 1) {
-            return metaDevices.at(0);
-        }
-
-        std::vector<DeviceInformation> CPU;
-        std::vector<DeviceInformation> GPU;
-
-        for (auto& item : metaDevices) {
-            if (item.deviceName.find("CPU") == 0) {
-                CPU.push_back(item);
-                continue;
-            }
-            if (item.deviceName.find("GPU") == 0) {
-                GPU.push_back(item);
-                continue;
-            }
-        }
-
-        auto networkPrecision = GetNetworkPrecision(network);
-        auto getCap = [&](std::string&& substr){
-        auto capability = std::find_if(optCap.begin(), optCap.end(),
-                                    [&](const std::string& c)->bool{ return (c.find(substr) != std::string::npos);});
-            return capability;
-        };
-
-        if (CPU.empty() && GPU.empty()) {
-            IE_THROW(NotFound) << "No available device found";
-        }
-
-        std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
-
-        if (!GPU.empty()) {
-            auto capability = getCap("GPU");
-            if (capability != optCap.end() && capability->find(networkPrecision) != std::string::npos) {
-                return GPU[0];
-            }
-        }
-        if (CPU.empty()) {
-            IE_THROW() << "Cannot select any device";
-        }
-        return CPU[0];
     }
 }  // namespace
 
@@ -194,12 +108,10 @@ IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const
 
     auto fullConfig = mergeConfigs(_config, config);
     auto metaDevices = GetDeviceChoice(fullConfig);
-    auto optCap = GetOptimizationCapabilities();
-
     DeviceInformation selectedDevice;
     IE::SoExecutableNetworkInternal executableNetwork;
     while (!metaDevices.empty()) {
-        selectedDevice = SelectDevice(network, metaDevices, optCap);;
+        selectedDevice = SelectDevice(network, metaDevices);
         try {
             executableNetwork = GetCore()->LoadNetwork(
                 network, selectedDevice.deviceName, selectedDevice.config);
@@ -314,14 +226,7 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     if (deviceListConfig == config.end()) {
         availableDevices = GetCore()->GetAvailableDevices();
     } else {
-        auto& devices = deviceListConfig->second;
-        std::string::size_type i = 0;
-        std::string::size_type idelimeter;
-        while ((idelimeter = devices.find(',', i)) != std::string::npos) {
-            availableDevices.push_back(devices.substr(i, idelimeter - i));
-            i = idelimeter + 1;
-        }
-        availableDevices.push_back(devices.substr(i, devices.length() - i));
+        availableDevices = IE::DeviceIDParser::getHeteroDevices(deviceListConfig->second);
     }
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
@@ -359,11 +264,13 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() cons
         try {
             std::vector<std::string> device_cap =
                 GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            for (auto &dc : device_cap) {
-                if (dc == METRIC_VALUE(BATCHED_BLOB)) {
+            for (auto &cap : device_cap) {
+                // For CPU test SetBlobOfKindTest::CompareWithRefs which checks BATCHED_BLOB capability,
+                // and AUTO select CPU but not GPU (GPU has this capability).
+                if (cap == METRIC_VALUE(BATCHED_BLOB)) {
                     continue;
                 }
-                capabilities.insert(dc);
+                capabilities.insert(cap);
             }
         } catch (...) {
         }
@@ -382,6 +289,89 @@ ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
         }
     }
     return supportedConfig;
+}
+
+DeviceInformation AutoInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
+    if (metaDevices.empty()) {
+        IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+    }
+    if (metaDevices.size() == 1) {
+        return metaDevices.at(0);
+    }
+
+    std::vector<DeviceInformation> CPU;
+    std::vector<DeviceInformation> GPU;
+
+    for (auto& item : metaDevices) {
+        if (item.deviceName.find("CPU") == 0) {
+            CPU.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("GPU") == 0) {
+            GPU.push_back(item);
+            continue;
+        }
+    }
+
+    if (CPU.empty() && GPU.empty()) {
+        IE_THROW(NotFound) << "No available device found";
+    }
+
+    // Sort GPU by name: GPU.2 > GPU.1 > GPU.0 > GPU, so we always choose the GPU[0] as best device
+    std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
+
+    if (!GPU.empty()) {
+        return GPU[0];
+    }
+    if (CPU.empty()) {
+        IE_THROW() << "Cannot select any device";
+    }
+    return CPU[0];
+}
+
+DeviceInformation AutoInferencePlugin::SelectDevice(const InferenceEngine::CNNNetwork&    network,
+                                                    const std::vector<DeviceInformation>& metaDevices) {
+    if (metaDevices.empty()) {
+        IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+    }
+    if (metaDevices.size() == 1) {
+        return metaDevices.at(0);
+    }
+
+    std::vector<DeviceInformation> CPU;
+    std::vector<DeviceInformation> GPU;
+
+    for (auto& item : metaDevices) {
+        if (item.deviceName.find("CPU") == 0) {
+            CPU.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("GPU") == 0) {
+            GPU.push_back(item);
+            continue;
+        }
+    }
+
+    auto networkPrecision = GetNetworkPrecision(network);
+    if (CPU.empty() && GPU.empty()) {
+        IE_THROW(NotFound) << "No available device found";
+    }
+
+    // Sort GPU by name: GPU.2 > GPU.1 > GPU.0 > GPU, so we always choose the GPU[0] as best device
+    std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
+
+    for (auto&& item : GPU) {
+        std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+        auto res = std::find(capability.begin(), capability.end(), networkPrecision);
+        if (res != capability.end()) {
+            return item;
+        }
+    }
+
+    if (CPU.empty()) {
+        IE_THROW() << "Cannot select any device";
+    }
+    return CPU[0];
 }
 
 // define CreatePluginEngine to create plugin instance
