@@ -26,6 +26,8 @@ ExecutableNetwork::ExecutableNetwork() :
 ExecutableNetwork::ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj) :
     details::SOPointer<IExecutableNetworkInternal>::SOPointer(obj) { }
 
+ExecutableNetwork::~ExecutableNetwork() { }
+
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
     EXEC_NET_CALL_STATEMENT(return _ptr->GetOutputsInfo());
 }
