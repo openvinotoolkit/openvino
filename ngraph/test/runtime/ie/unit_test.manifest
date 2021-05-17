@@ -940,10 +940,6 @@ topk_max_sort_index
 topk_min_sort_index
 topk_1d_i32_max_all
 topk_int64
-gelu_f32
-gelu_f64
-gelu_backprop_factor_f32
-gelu_backprop_factor_f64
 
 backwards_abs
 backwards_acos
@@ -1618,6 +1614,7 @@ evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
 # not yet implemented on CPU/GPU Gather 7
+gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims
 gather_v7_1d_int32
 gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
 gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
