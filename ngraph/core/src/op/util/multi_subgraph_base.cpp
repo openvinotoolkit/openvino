@@ -72,12 +72,36 @@ Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value
     return Input<Node>(this, input_index);
 }
 
-void op::util::MultiSubGraphOp::reserve_bodies(int num_bodies)
+void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
+                                                     const ParameterVector bodies_parameters)
 {
-    m_bodies = decltype(m_bodies)(num_bodies);
-    m_input_descriptions = decltype(m_input_descriptions)(num_bodies);
-    m_output_descriptions = decltype(m_output_descriptions)(num_bodies);
+    auto input_index = input_for_value(value).get_index();
+    size_t body_index = 0;
+    for (auto& param : bodies_parameters) {
+        if (param == nullptr) 
+        {
+            body_index++;
+            continue;
+        }
+        m_input_descriptions[body_index].push_back(std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
+            input_index, m_bodies[body_index]->get_parameter_index(param)));
+        body_index++;
+    }
 }
+
+Output<Node> op::util::MultiSubGraphOp::set_body_outputs(ResultVector bodies_results)
+{
+    auto output_index = m_output_descriptions[0].size();
+    size_t body_index = 0; 
+    for (auto& body_result : bodies_results) {
+        m_output_descriptions[body_index].push_back(std::make_shared<BodyOutputDescription>(
+            m_bodies[body_index]->get_result_index(body_result), output_index));
+        body_index++;
+    }
+    set_output_size(output_index + 1);
+    return Output<Node>(shared_from_this(), output_index);
+}
+
 namespace ngraph
 {
     constexpr DiscreteTypeInfo AttributeAdapter<

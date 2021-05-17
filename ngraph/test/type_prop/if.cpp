@@ -27,26 +27,23 @@ TEST(type_prop, if_simple_test)
     auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // Body
     auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
-    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
+    auto then_op_res = std::make_shared<op::Result>(then_op);
+
+    auto then_body =
+        make_shared<ngraph::Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt});
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
-    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
-    if_op->reserve_bodies(2);
+    auto else_op_res = std::make_shared<op::Result>(else_op);
+    auto else_body =
+        make_shared<ngraph::Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye});
+    auto if_op = make_shared<op::v7::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
-        make_shared<op::If::InvariantInputDescription>(1, 0),
-        make_shared<op::If::InvariantInputDescription>(2, 1),
-    };
-    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
-        make_shared<op::If::BodyOutputDescription>(0, 0)};
-    if_op->set_input_descriptions(if_op->then_body_index, inputs);
-    if_op->set_input_descriptions(if_op->else_body_index, inputs);
-    if_op->set_output_descriptions(if_op->then_body_index, outputs);
-    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_op_res, else_op_res);
     if_op->validate_and_infer_types();
-    auto res = if_op->get_output(0);
+    
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
@@ -68,25 +65,23 @@ TEST(type_prop, if_non_const_condition_test)
     auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // Body
     auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
-    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
+    auto then_body_res = make_shared<op::Result>(then_op);
+    auto then_body =
+        make_shared<ngraph::Function>(OutputVector{then_body_res}, ParameterVector{Xt, Yt});
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
-    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
-    auto if_op = make_shared<op::If>(OutputVector{cond, X, Y});
+    auto else_body_res = make_shared<op::Result>(else_op);
+    auto else_body =
+        make_shared<ngraph::Function>(OutputVector{else_body_res}, ParameterVector{Xe, Ye});
+
+    auto if_op = make_shared<op::v7::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
-        make_shared<op::If::InvariantInputDescription>(1, 0),
-        make_shared<op::If::InvariantInputDescription>(2, 1),
-    };
-    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
-        make_shared<op::If::BodyOutputDescription>(0, 0)};
-    if_op->set_input_descriptions(if_op->then_body_index, inputs);
-    if_op->set_input_descriptions(if_op->else_body_index, inputs);
-    if_op->set_output_descriptions(if_op->then_body_index, outputs);
-    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_body_res, else_body_res);
     if_op->validate_and_infer_types();
-    auto result0 = make_shared<op::Result>(if_op->get_output(0));
+    auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
@@ -108,25 +103,22 @@ TEST(type_prop, if_clone_test)
     auto Ynew = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // Body
     auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
-    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op}, ParameterVector{Xt, Yt});
+    auto then_body_res = make_shared<op::Result>(then_op);
+    auto then_body =
+        make_shared<ngraph::Function>(OutputVector{then_body_res}, ParameterVector{Xt, Yt});
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
-    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op}, ParameterVector{Xe, Ye});
+    auto else_body_res = make_shared<op::Result>(else_op);
+    auto else_body =
+        make_shared<ngraph::Function>(OutputVector{else_body_res}, ParameterVector{Xe, Ye});
 
-    auto if_op = make_shared<op::If>(OutputVector{cond, Xe, Ye});
+    auto if_op = make_shared<op::v7::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
-    auto inputs = op::If::MultiSubgraphInputDescriptionVector{
-        make_shared<op::If::InvariantInputDescription>(1, 0),
-        make_shared<op::If::InvariantInputDescription>(2, 1),
-    };
-    auto outputs = op::If::MultiSubgraphOutputDescriptionVector{
-        make_shared<op::If::BodyOutputDescription>(0, 0)};
-    if_op->set_input_descriptions(if_op->then_body_index, inputs);
-    if_op->set_input_descriptions(if_op->else_body_index, inputs);
-    if_op->set_output_descriptions(if_op->then_body_index, outputs);
-    if_op->set_output_descriptions(if_op->else_body_index, outputs);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_body_res, else_body_res);
 
-    auto new_if = std::dynamic_pointer_cast<op::If>(
+    auto new_if = std::dynamic_pointer_cast<op::v7::If>(
         if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
     EXPECT_EQ(true, true);
 }

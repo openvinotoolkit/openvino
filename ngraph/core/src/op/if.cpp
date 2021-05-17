@@ -16,58 +16,37 @@
 
 using namespace std;
 using namespace ngraph;
-constexpr NodeTypeInfo op::v7::If::type_info;
+
+NGRAPH_RTTI_DEFINITION(ngraph::op::v7::If, "If", 7);
 
 op::v7::If::If()
-    : If(OutputVector())
 {
 }
 
 op::v7::If::If(const OutputVector& values)
     : op::util::MultiSubGraphOp(values, 2)
 {
-    m_bodies.resize(2);
-    m_input_descriptions.resize(2);
-    m_output_descriptions.resize(2);
 }
 
 op::v7::If::If(const Output<Node>& execution_condition)
-    : If()
+    : If(OutputVector{})
 {
     set_argument(0, execution_condition);
 }
 
-bool op::v7::If::visit_attributes(AttributeVisitor& visitor)
+ngraph::PartialShape resolve_shape(ngraph::PartialShape then_pshape, 
+    ngraph::PartialShape else_pshape)
 {
-    NGRAPH_OP_SCOPE(v7_If_visit_attributes);
-    m_bodies[then_body_index] =
-        std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
-    m_bodies[else_body_index] =
-        std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
-    visitor.on_attribute("then_body", m_bodies[then_body_index]);
-    visitor.on_attribute("else_body", m_bodies[else_body_index]);
-    visitor.on_attribute("then_inputs", m_input_descriptions[then_body_index]);
-    visitor.on_attribute("else_inputs", m_input_descriptions[else_body_index]);
-    visitor.on_attribute("then_outputs", m_output_descriptions[then_body_index]);
-    visitor.on_attribute("else_outputs", m_output_descriptions[else_body_index]);
-    return true;
-}
-
-ngraph::PartialShape resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_node,
-                                          ngraph::Output<ngraph::Node> else_node)
-{
-    auto then_p_shape = then_node.get_partial_shape();
-    auto else_p_shape = else_node.get_partial_shape();
-    auto then_rank = then_p_shape.rank();
-    auto else_rank = else_p_shape.rank();
+    auto then_rank = then_pshape.rank();
+    auto else_rank = else_pshape.rank();
     if (then_rank.is_dynamic() || else_rank.is_dynamic() ||
         then_rank.get_length() != else_rank.get_length())
     {
-        return ngraph::PartialShape::dynamic();
+        return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
     }
     std::vector<Dimension> new_dims;
-    for (auto then_it = then_p_shape.cbegin(), else_it = else_p_shape.cbegin();
-         then_it != then_p_shape.cend();
+    for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin();
+         then_it != then_pshape.cend();
          then_it++, else_it++)
     {
         if ((*then_it).is_dynamic() || (*else_it).is_dynamic())
@@ -85,12 +64,24 @@ ngraph::PartialShape resolve_dynamic_rank(ngraph::Output<ngraph::Node>& then_nod
             new_dims.push_back(Dimension(dim_min, dim_max));
         }
     }
+
     return PartialShape(new_dims);
 }
 
-ngraph::Output<Node> op::v7::If::get_output(size_t index)
+bool op::v7::If::visit_attributes(AttributeVisitor& visitor)
 {
-    return ngraph::Output<Node>(shared_from_this(), index);
+    NGRAPH_OP_SCOPE(v7_If_visit_attributes);
+    m_bodies[then_body_index] =
+        std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
+    m_bodies[else_body_index] =
+        std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
+    visitor.on_attribute("then_body", m_bodies[then_body_index]);
+    visitor.on_attribute("else_body", m_bodies[else_body_index]);
+    visitor.on_attribute("then_inputs", m_input_descriptions[then_body_index]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[else_body_index]);
+    visitor.on_attribute("then_outputs", m_output_descriptions[then_body_index]);
+    visitor.on_attribute("else_outputs", m_output_descriptions[else_body_index]);
+    return true;
 }
 
 void op::v7::If::validate_and_infer_type_body(
@@ -115,7 +106,7 @@ void op::v7::If::validate_and_infer_type_body(
         }
         else
         {
-            body_parameter->set_partial_shape(PartialShape::dynamic(input_partial_shape.rank()));
+            body_parameter->set_partial_shape(input_partial_shape);
         }
     }
     body->validate_nodes_and_infer_types();
@@ -131,7 +122,6 @@ void op::v7::If::validate_and_infer_types()
     {
         NODE_VALIDATION_CHECK(this, cond_rank.get_length() < 2, "Incorrect condition");
     }
-    /* TODO: add dynamic rank implementation*/
     if (cond_partial_shape.is_static())
     {
         auto cond_shape = cond_partial_shape.to_shape();
@@ -144,7 +134,7 @@ void op::v7::If::validate_and_infer_types()
     if (const auto& cond_value = get_constant_from_source(cond_output))
     {
         auto val = cond_value->cast_vector<bool>();
-        int cond_index = val[0] ? then_body_index : else_body_index;
+        auto cond_index = val[0] ? then_body_index : else_body_index;
         auto body = m_bodies[cond_index];
         auto input_descriptors = m_input_descriptions[cond_index];
         validate_and_infer_type_body(body, input_descriptors);
@@ -238,47 +228,8 @@ void op::v7::If::validate_and_infer_types()
             // TODO: check_types
             auto then_node_partial_shape = then_out_node.get_partial_shape();
             auto else_node_partial_shape = else_out_node.get_partial_shape();
-            bool is_static_ranks = then_node_partial_shape.rank().is_static() &&
-                                   else_node_partial_shape.rank().is_static();
-            bool is_static_shapes =
-                then_node_partial_shape.is_static() && else_node_partial_shape.is_static();
-
-            if (is_static_ranks && is_static_shapes)
-            {
-                auto then_shape = then_node_partial_shape.to_shape();
-                auto else_shape = else_node_partial_shape.to_shape();
-                if (std::equal(then_shape.begin(), then_shape.end(), else_shape.begin()))
-                {
-                    set_output_type(output_index, then_out_node.get_element_type(), then_shape);
-                }
-                else
-                {
-                    std::vector<Dimension> new_dims;
-                    for (auto then_it = then_shape.begin(), else_it = else_shape.begin();
-                         then_it != then_shape.end();
-                         then_it++, else_it++)
-                    {
-                        if (*then_it == *else_it)
-                        {
-                            new_dims.push_back(Dimension(*then_it));
-                        }
-                        else
-                        {
-                            auto dim_min = std::min(*then_it, *else_it);
-                            auto dim_max = std::max(*then_it, *else_it);
-                            new_dims.push_back(Dimension(dim_min, dim_max));
-                        }
-                    }
-                    set_output_type(
-                        output_index, then_out_node.get_element_type(), PartialShape(new_dims));
-                }
-            }
-            else
-            {
-                set_output_type(output_index,
-                                then_out_node.get_element_type(),
-                                resolve_dynamic_rank(then_out_node, else_out_node));
-            }
+            auto partial_shape = resolve_shape(then_node_partial_shape, else_node_partial_shape);
+            set_output_type(output_index, then_out_node.get_element_type(), partial_shape);
         }
     }
 }
@@ -349,4 +300,17 @@ bool op::v7::If::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     runtime::reference::if_reference(
         m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
     return true;
+}
+
+void op::v7::If::set_input(const Output<Node>& value,
+               const std::shared_ptr<Parameter> then_parameter,
+               const std::shared_ptr<Parameter> else_parameter)
+{
+    set_invariant_inputs(value, {then_parameter, else_parameter});
+}
+
+Output<Node> op::v7::If::set_output(const std::shared_ptr<Result> then_result,
+    const std::shared_ptr<Result> else_result)
+{
+    return set_body_outputs({then_result, else_result});
 }

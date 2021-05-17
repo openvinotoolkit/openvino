@@ -12,6 +12,7 @@ namespace ngraph
     {
         namespace reference
         {
+            using namespace op::v7;
             void if_reference(
                 const std::vector<std::shared_ptr<Function>>& bodies,
                 const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
@@ -20,7 +21,7 @@ namespace ngraph
                 const HostTensorVector& args)
             {
                 auto condition_value = args[0]->get_data_ptr<bool>()[0];
-                auto branch_index = (condition_value) ? 0 : 1;
+                auto branch_index = (condition_value) ?  If::then_body_index: If::else_body_index;
                 HostTensorVector inputs_to_body;
                 HostTensorVector outs_from_body;
                 // TODO: need find num of inputs in bode and reserve inputs_to_body

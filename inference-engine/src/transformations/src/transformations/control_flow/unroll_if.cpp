@@ -13,6 +13,7 @@
 #include <ngraph/validation_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
@@ -21,7 +22,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollIf, "UnrollIf", 0);
 bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     for (const auto& op : f->get_ops()) {
-        auto if_node = std::dynamic_pointer_cast<ngraph::op::If>(op);
+        auto if_node = std::dynamic_pointer_cast<ngraph::op::v7::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
         }
@@ -60,6 +61,7 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         }
 
         f->add_sinks(body->get_sinks());
+        copy_runtime_info(if_node, body->get_ops());
     }
     return true;
 }

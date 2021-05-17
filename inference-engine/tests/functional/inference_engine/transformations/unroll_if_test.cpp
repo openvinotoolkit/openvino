@@ -25,7 +25,7 @@ TEST(TransformationTests, UnrollIf) {
         auto X = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto Y = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{ 1 }, true);
-        auto if_op = std::make_shared<ngraph::opset7::If>(ngraph::OutputVector{ cond, X, Y });
+        auto if_op = std::make_shared<ngraph::opset7::If>(cond);
         auto Xt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto Yt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto add_op = std::make_shared<ngraph::opset1::Add>(Xt, Yt);
@@ -40,16 +40,9 @@ TEST(TransformationTests, UnrollIf) {
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        auto inputs_descr = ngraph::opset7::If::MultiSubgraphInputDescriptionVector{
-                std::make_shared<ngraph::opset7::If::InvariantInputDescription>(1,0),
-                std::make_shared<ngraph::opset7::If::InvariantInputDescription>(2,1)
-        };
-        auto outputs_descr = ngraph::opset7::If::MultiSubgraphOutputDescriptionVector{
-                std::make_shared<ngraph::opset7::If::BodyOutputDescription>(0,0) };
-        if_op->set_input_descriptions(if_op->then_body_index, inputs_descr);
-        if_op->set_input_descriptions(if_op->else_body_index, inputs_descr);
-        if_op->set_output_descriptions(if_op->then_body_index, outputs_descr);
-        if_op->set_output_descriptions(if_op->else_body_index, outputs_descr);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Y, Yt, Ye);
+        if_op->set_output(then_op_result, else_op_result);
         auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ X, Y });
@@ -58,7 +51,8 @@ TEST(TransformationTests, UnrollIf) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::UnrollIf>();
         manager.run_passes(f);
-        //    ASSERT_NO_THROW(check_rt_info(f));
+
+        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
