@@ -106,21 +106,21 @@ def run_timetest(args: dict, log=None):
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
 
-        # Read statistics from yml
+        # Read raw statistics
         with open(tmp_stats_path, "r") as file:
             raw_data = list(yaml.load_all(file, Loader=yaml.SafeLoader))
 
         os.unlink(tmp_stats_path)
 
-        # Refactoring raw data from yml
-        flatten_dict = {}
-        parse_stats(raw_data[0], flatten_dict)
+        # Parse raw data
+        flatten_data = {}
+        parse_stats(raw_data[0], flatten_data)
 
-        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_dict))
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
-                     for step_name, duration in flatten_dict.items())
+                     for step_name, duration in flatten_data.items())
 
     # Remove outliers
     filtered_stats = filter_timetest_result(stats)
@@ -203,7 +203,7 @@ def test_timetest_parser():
     flatten_dict = {}
     parse_stats(raw_data_example, flatten_dict)
 
-    result_example = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
-                      'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+    expected_result = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
+                       'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
 
-    assert flatten_dict == result_example, "Statistics parsing is performed incorrectly!"
+    assert flatten_dict == expected_result, "Statistics parsing is performed incorrectly!"

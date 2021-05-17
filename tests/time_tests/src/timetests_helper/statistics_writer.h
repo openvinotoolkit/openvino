@@ -23,7 +23,8 @@
 class StatisticsWriter {
 private:
   std::ofstream statistics_file;
-  std::map<std::string, std::pair<int, float>> time_structure;
+
+  std::map<std::string, std::pair<int, float>> time_structure; // timer_name, <tab number, duration>
   std::vector<std::string> time_struct_order;
   int tab_count = 0;
 
