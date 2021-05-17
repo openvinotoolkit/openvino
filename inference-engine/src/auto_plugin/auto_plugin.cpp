@@ -11,6 +11,7 @@
 #include <ie_metric_helpers.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
+#include <ngraph/function.hpp>
 
 #include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
@@ -25,15 +26,25 @@ namespace {
     }
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
-        for (auto&& layer : network.getInputsInfo()) {
-            auto precision = layer.second->getPrecision();
-            auto name = std::string(precision.name());
-            if (name == "I8") {
-                name = "INT8";
-            }
-            return name;
+        auto nGraphFunc = network.getFunction();
+        bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        if (isFloatModel) {
+            return "INT8";
         }
-        return {};
+        for (auto & node : nGraphFunc->get_ordered_ops()) {
+            auto nodeSize = node->inputs().size();
+            auto nodeName = node->get_name();
+            if (nodeSize != 0) {
+                if (nodeName.find("Convolution") != std::string::npos) {
+                    auto layerType = node->input(0).get_element_type().get_type_name();
+                    if (layerType == "f32")
+                        return "FP32";
+                    if (layerType == "f16")
+                        return "FP16";
+                }
+            }
+        }
+        return "FP32";
     }
 
     DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
