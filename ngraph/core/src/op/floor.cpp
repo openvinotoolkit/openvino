@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Floor::type_info;
-
 op::Floor::Floor(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
@@ -81,3 +79,5 @@ bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector
     NGRAPH_OP_SCOPE(v0_Floor_evaluate);
     return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+
+NGRAPH_RTTI_DEFINITION(op::v0::Floor, "Floor", 0);
