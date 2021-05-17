@@ -11,18 +11,269 @@
 #include <algorithm>
 #include <utils/general_utils.h>
 #include <ngraph/ops.hpp>
+#include <ie_parallel.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <blob_factory.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
 #include "utils/cpu_utils.hpp"
+#include <cpu/x64/jit_generator.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace details;
 using namespace ngraph::op;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
+
+namespace {
+
+struct jit_has_subnormals : public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals)
+
+    typedef struct {
+        const float* src;
+        const size_t count;
+        bool hasSubnormals;
+    } args_t;
+
+    typedef void (*fn_t)(const args_t*);
+
+    jit_has_subnormals() {
+        jit_ker_ = nullptr;
+    }
+
+    fn_t get() {
+        return jit_ker() || create_kernel() == dnnl::impl::status::success
+                ? (fn_t)jit_ker()
+                : nullptr;
+    }
+
+protected:
+    void foreach(const Xbyak::Reg64& idx,
+                 size_t step,
+                 const Xbyak::Reg64& end,
+                 std::function<void(const Xbyak::Reg64&)> && fn) {
+        Label loop, exit;
+
+        L(loop);
+        cmp(idx, end);
+        jge(exit);
+
+        fn(idx);
+
+        add(idx, step);
+        jmp(loop);
+        L(exit);
+    }
+
+    void copy_floats(const Xbyak::Reg64& dst,
+                     const Xbyak::Reg64& src,
+                     const Xbyak::Reg64& size) {
+        push(rsi);
+        push(r15);
+
+        xor_(rsi, rsi);
+
+        foreach(rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+            mov(r15d, dword[src + idx * sizeof(float)]);
+            mov(dword[dst + idx * sizeof(float)], r15d);
+        });
+
+        pop(r15);
+        pop(rsi);
+    }
+};
+
+struct jit_has_subnormals_avx2 : public jit_has_subnormals {
+    static const uint32_t vlen = 8u;    // floats vector length for AVX2 instructions
+
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Ymm &mask, const Xbyak::Ymm &zero) {
+        auto a = ymm1;
+        auto b = ymm2;
+        auto c = ymm3;
+
+        vmovdqu(a, yword[src]);         // load 8 floats
+        vpcmpeqd(b, a, zero);           // if (a == 0) b = 1 else b = 0
+        vpand(c, a, mask);              // c = a & 01111111100000000000000000000000
+        vpcmpeqd(c, c, zero);           // if (c == 0) c = 1 else c = 0
+        vptest(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
+    }
+
+    void generate() final {
+        Label exit, has_subnormals, no_subnormals;
+
+        auto reg_src = rax;
+        auto reg_dst = rbx;
+        auto reg_sz = rdx;
+        auto reg_mask_addr = r15;
+        auto zero = ymm4;
+        auto mask = ymm5;
+
+        preamble();
+
+        // Initialize necessary consts
+        vpxor(zero, zero, zero);
+
+        static const uint32_t mask_data[8] = {
+            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23,
+            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
+        };
+
+        mov(reg_mask_addr, (size_t)mask_data);
+        vmovdqu(mask, yword[reg_mask_addr]);
+
+        // Get arguments addresses
+        mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
+        lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
+        mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
+
+        // Main loop
+        xor_(rsi, rsi);
+        mov(r8, reg_sz);
+        shr(r8, 3);
+
+        foreach(rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+            check_subnormals(reg_src, mask, zero);
+            jnc(has_subnormals);
+            add(reg_src, sizeof(float) * vlen);
+        });
+
+        // Tail
+        shl(rsi, 3);
+        sub(reg_sz, rsi);
+        test(reg_sz, reg_sz);
+        jz(exit);
+
+        // use space on stack for 8 floats
+        sub(rsp, vlen * sizeof(float));
+        mov(r8, rsp);
+
+        vmovups(yword[r8], zero);
+
+        copy_floats(r8, reg_src, reg_sz);
+        check_subnormals(r8, mask, zero);
+        jc(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(has_subnormals);
+
+        mov(rax, 1);
+        mov(byte[reg_dst], al);
+        jmp(exit);
+
+        L(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(exit);
+
+        postamble();
+    }
+};
+
+struct jit_has_subnormals_sse41 : public jit_has_subnormals {
+    static const uint32_t vlen = 4u;    // floats vector length for SSE41 instructions
+
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Xmm &mask, const Xbyak::Xmm &zero) {
+        auto a = xmm1;
+        auto b = xmm2;
+        auto c = xmm3;
+
+        movdqu(a, xword[src]);          // load 4 floats
+        movdqu(b, a);                   // b = a
+        movdqu(c, a);                   // c = a
+        pcmpeqd(b, zero);               // if (a == 0) b = 1 else b = 0
+        pand(c, mask);                  // c = a & 01111111100000000000000000000000
+        pcmpeqd(c, zero);               // if (c == 0) c = 1 else c = 0
+        ptest(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
+    }
+
+    void generate() final {
+        Label exit, has_subnormals, no_subnormals;
+
+        auto reg_src = rax;
+        auto reg_dst = rbx;
+        auto reg_sz = rdx;
+        auto reg_mask_addr = r15;
+        auto zero = xmm4;
+        auto mask = xmm5;
+
+        preamble();
+
+        // Initialize necessary consts
+        pxor(zero, zero);
+
+        static const uint32_t mask_data[4] = {
+            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
+        };
+
+        mov(reg_mask_addr, (size_t)mask_data);
+        movdqu(mask, xword[reg_mask_addr]);
+
+        // Get arguments addresses
+        mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
+        lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
+        mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
+
+        // Main loop
+        xor_(rsi, rsi);
+        mov(r8, reg_sz);
+        shr(r8, 2);
+
+        foreach(rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+            check_subnormals(reg_src, mask, zero);
+            jnc(has_subnormals);
+            add(reg_src, sizeof(float) * vlen);
+        });
+
+        // Tail
+        shl(rsi, 2);
+        sub(reg_sz, rsi);
+        test(reg_sz, reg_sz);
+        jz(exit);
+
+        // use space on stack for 4 floats
+        sub(rsp, vlen * sizeof(float));
+        mov(r8, rsp);
+
+        movups(xword[r8], zero);
+
+        copy_floats(r8, reg_src, reg_sz);
+        check_subnormals(r8, mask, zero);
+        jc(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(has_subnormals);
+
+        mov(rax, 1);
+        mov(byte[reg_dst], al);
+        jmp(exit);
+
+        L(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(exit);
+
+        postamble();
+    }
+};
+
+jit_has_subnormals::fn_t jit_has_subnormals_function() {
+    if (mayiuse(cpu_isa_t::avx2)) {
+        static jit_has_subnormals_avx2 generator;
+        static auto fn = generator.get();
+        return fn;
+    } else if (mayiuse(cpu_isa_t::sse41)) {
+        static jit_has_subnormals_sse41 generator;
+        static auto fn = generator.get();
+        return fn;
+    }
+    return nullptr;
+}
+
+}   // namespace
 
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache), origLayer(op) {
@@ -82,9 +333,36 @@ void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const Inferenc
         if (prec == InferenceEngine::Precision::FP32) {
             uint32_t const *u32data = constBlob->cbuffer().as<const uint32_t*>();
             const size_t size = constBlob->byteSize() / prec.size();
-            for (size_t i = 0; i < size; ++i) {
-                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
-                    return true;
+
+            if (!size)
+                return false;
+
+            if (auto fn = jit_has_subnormals_function()) {
+                static const size_t batch_size = 2048;
+                const size_t iterations_num = size / batch_size + 1;
+
+                volatile bool has_subnormals = false;
+
+                parallel_for(iterations_num, [&](int n) {
+                    auto ptr = u32data + n * batch_size;
+                    const jit_has_subnormals::args_t args = {
+                        reinterpret_cast<float const *>(ptr),
+                        std::min(batch_size, (size_t)(u32data + size - ptr)),
+                        false
+                    };
+
+                    fn(&args);
+
+                    if (args.hasSubnormals)
+                        has_subnormals = true;
+                });
+
+                return has_subnormals;
+            } else {
+                for (size_t i = 0; i < size; ++i) {
+                    if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                        return true;
+                    }
                 }
             }
         }
