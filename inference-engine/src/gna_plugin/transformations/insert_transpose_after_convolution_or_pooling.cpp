@@ -6,7 +6,7 @@
 
 #include <numeric>
 
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "gna_plugin_log.hpp"
@@ -15,15 +15,19 @@ using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(InsertTransposeAfterConvOrPool, "InsertTransposeAfterConvOrPool", 0);
 
-InsertTransposeAfterConvOrPool::InsertTransposeAfterConvOrPool() {
-    auto conv_or_pool = ngraph::pattern::wrap_type<ngraph::opset1::Convolution, ngraph::opset1::MaxPool>();
-    auto reshape_const = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>({conv_or_pool, reshape_const});
+bool InsertTransposeAfterConvOrPool::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    bool is_graph_modfied = false;
+    for (auto& node : f->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(node) == nullptr &&
+            std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) == nullptr) {
+            continue;
+        }
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto& pattern_map = m.get_pattern_value_map();
-        auto conv_or_pool_node = pattern_map.at(conv_or_pool).get_node_shared_ptr();
-        auto next_node = pattern_map.at(reshape).get_node_shared_ptr();
+        auto next_node = node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        if (std::dynamic_pointer_cast<ngraph::opset7::Reshape>(next_node) == nullptr) {
+            continue;
+        }
+
         bool found_reshape_to_1d = false;
         std::shared_ptr<ngraph::Node> reshape_node = next_node;
         std::shared_ptr<ngraph::Node> transpose_node = nullptr;
@@ -36,32 +40,30 @@ InsertTransposeAfterConvOrPool::InsertTransposeAfterConvOrPool() {
                 break;
             }
             next_node = next_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-            reshape_node = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(next_node);
-            transpose_node = std::dynamic_pointer_cast<ngraph::opset1::Transpose>(next_node);
+            reshape_node = std::dynamic_pointer_cast<ngraph::opset7::Reshape>(next_node);
+            transpose_node = std::dynamic_pointer_cast<ngraph::opset7::Transpose>(next_node);
         }
 
-        if (!found_reshape_to_1d) {
-            return false;
-        }
+        if (!found_reshape_to_1d) continue;
 
         // Search for a convolution after this reshape
         bool found_next_conv_or_pool = false;
         while (next_node->get_output_size() > 0 && next_node->output(0).get_target_inputs().size() > 0 &&
-               std::dynamic_pointer_cast<ngraph::opset1::MatMul>(next_node) == nullptr &&
+               std::dynamic_pointer_cast<ngraph::opset7::MatMul>(next_node) == nullptr &&
                std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(next_node) == nullptr) {
             next_node = next_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(next_node) != nullptr ||
-                std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(next_node) != nullptr) {
+            if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(next_node) != nullptr ||
+                std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(next_node) != nullptr) {
                 found_next_conv_or_pool = true;
                 break;
             }
         }
 
-        if (!found_next_conv_or_pool) return false;
+        if (!found_next_conv_or_pool) continue;
 
         // check if transpose is supported by GNA
-        auto output_shape = conv_or_pool_node->get_output_shape(0);
-        if (output_shape.size() < 3) return false;
+        auto output_shape = node->get_output_shape(0);
+        if (output_shape.size() < 3) continue;
         std::vector<size_t> transpose_ids;
         for (size_t ix = 0; ix < output_shape.size(); ++ix) {
             if (output_shape[ix] > 1) {
@@ -69,40 +71,38 @@ InsertTransposeAfterConvOrPool::InsertTransposeAfterConvOrPool() {
             }
         }
         if (transpose_ids.size() != 2) {
-            THROW_GNA_EXCEPTION << "Unable to insert transpose after: " << conv_or_pool_node->get_friendly_name()
+            THROW_GNA_EXCEPTION << "Unable to insert transpose after: " << node->get_friendly_name()
                                 << " number of dimensions to transpose: " << transpose_ids.size();
         }
         size_t min, max;
         std::tie(min, max) = std::minmax(output_shape[transpose_ids[0]], output_shape[transpose_ids[1]]);
         if (min > 8 || max % 8 != 0) {
-            THROW_GNA_EXCEPTION << "Unable to insert transpose after: " << conv_or_pool_node->get_friendly_name()
+            THROW_GNA_EXCEPTION << "Unable to insert transpose after: " << node->get_friendly_name()
                                 << " min dimension size: " << min << " max dimension size: " << max;
         }
 
-        gnalog() << "Insert Transpose after " << conv_or_pool_node->get_friendly_name() << "\n";
+        gnalog() << "Insert Transpose after " << node->get_friendly_name() << "\n";
 
-        auto consumers = conv_or_pool_node->output(0).get_target_inputs();
+        auto consumers = node->output(0).get_target_inputs();
 
         ngraph::Shape transposeInShape = output_shape;
         std::swap(transposeInShape[transpose_ids[0]], transposeInShape[transpose_ids[1]]);
-        auto reshapeConstBefore = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+        auto reshapeConstBefore = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
                                                                              ngraph::Shape{transposeInShape.size()},
                                                                              transposeInShape);
-        auto reshapeBefore = std::make_shared<ngraph::opset1::Reshape>(conv_or_pool_node, reshapeConstBefore, false);
-        reshapeBefore->set_friendly_name(conv_or_pool_node->get_friendly_name() + "/reshape_out");
+        auto reshapeBefore = std::make_shared<ngraph::opset7::Reshape>(node, reshapeConstBefore, false);
+        reshapeBefore->set_friendly_name(node->get_friendly_name() + "/reshape_out");
 
         auto transpose_order = transposeInShape.size() == 3 ? ngraph::Shape{0, 2, 1} : ngraph::Shape{0, 3, 1, 2};
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(reshapeBefore,
-            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
-        transpose->set_friendly_name(conv_or_pool_node->get_friendly_name() + "/transpose_out");
+        auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore,
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
+        transpose->set_friendly_name(node->get_friendly_name() + "/transpose_out");
 
         for (auto input : consumers) {
             input.replace_source_output(transpose);
         }
+        is_graph_modfied = true;
+    }
 
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "InsertTransposeAfterConvOrPool");
-    this->register_matcher(m, callback);
+    return is_graph_modfied;
 }

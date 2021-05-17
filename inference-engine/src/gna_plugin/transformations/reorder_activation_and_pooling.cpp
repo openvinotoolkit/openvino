@@ -4,7 +4,7 @@
 
 #include "transformations/reorder_activation_and_pooling.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -15,28 +15,28 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(ReorderActivationAndPooling, "ReorderActivationAndPooling", 0);
 
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>({ngraph::pattern::any_input(),
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
                                                                          ngraph::pattern::any_input()});
-    auto add = ngraph::pattern::wrap_type<ngraph::opset1::Add>({conv, ngraph::pattern::any_input()});
-    auto il = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto ih = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto ol = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto oh = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto fq1 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({conv, il, ih, ol, oh});
-    auto fq2 = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({add, il, ih, ol, oh});
-    auto act1 = ngraph::pattern::wrap_type<ngraph::opset1::Relu, ngraph::opset1::Sigmoid,
-            ngraph::opset1::Tanh, ngraph::opset1::Abs, ngraph::opset1::Log, ngraph::opset1::Exp,
-            ngraph::opset1::Sign, ngraph::opset1::Clamp>({conv});
-    auto act2 = ngraph::pattern::wrap_type<ngraph::opset1::Relu, ngraph::opset1::Sigmoid,
-            ngraph::opset1::Tanh, ngraph::opset1::Abs, ngraph::opset1::Log, ngraph::opset1::Exp,
-            ngraph::opset1::Sign, ngraph::opset1::Clamp>({add});
+    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, ngraph::pattern::any_input()});
+    auto il = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto ih = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto ol = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto oh = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto fq1 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({conv, il, ih, ol, oh});
+    auto fq2 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({add, il, ih, ol, oh});
+    auto act1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+            ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+            ngraph::opset7::Sign, ngraph::opset7::Clamp>({conv});
+    auto act2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+            ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+            ngraph::opset7::Sign, ngraph::opset7::Clamp>({add});
     auto act = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq1, fq2, act1, act2});
-    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({act});
+    auto pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({act});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto pool_node = pattern_map.at(pool).get_node_shared_ptr();
-        auto pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(pool_node);
+        auto pool = std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(pool_node);
         IE_ASSERT(pool != nullptr);
         auto kernel_shape = pool->get_kernel();
         if (kernel_shape.size() > 1 && kernel_shape[0] > 1 && kernel_shape[1] > 1) {
@@ -52,7 +52,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         IE_ASSERT(node_before_act != nullptr);
 
         auto consumers = node_before_act->output(0).get_target_inputs();
-        auto new_pool = std::make_shared<ngraph::opset1::MaxPool>(node_before_act, pool->get_strides(), pool->get_pads_begin(),
+        auto new_pool = std::make_shared<ngraph::opset7::MaxPool>(node_before_act, pool->get_strides(), pool->get_pads_begin(),
                                                                   pool->get_pads_end(), kernel_shape, pool->get_rounding_type(),
                                                                   pool->get_auto_pad());
         for (auto input : consumers) {

@@ -19,10 +19,10 @@ namespace GNAPluginNS {
  *                |
  *           Convolution
  */
-class InsertTransposeAfterConvOrPool : public ngraph::pass::MatcherPass {
+class InsertTransposeAfterConvOrPool : public ngraph::pass::FunctionPass {
 public:
   NGRAPH_RTTI_DECLARATION;
-  InsertTransposeAfterConvOrPool();
+  bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
 } // namespace GNAPluginNS

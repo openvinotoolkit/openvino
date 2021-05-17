@@ -9,7 +9,17 @@
 namespace GNAPluginNS {
 
 /**
- * @brief Insers Transpose before MatMul in the following topology:
+ * @brief Inserts Transpose before MatMul in the following topology:
+ *       [1, A]
+ *          |
+ *       Reshape
+ *          |
+ *       [B, C],
+ *    1 < B <= 8, C % 8 == 0 or
+ *    B % 8 == 0, 1 < C <= 8
+ *         |             Const
+ *          \             /
+ *               Matmul
  */
 class InsertTransposeBeforeMatmul : public ngraph::pass::MatcherPass {
 public:

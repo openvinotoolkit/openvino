@@ -4,7 +4,7 @@
 
 #include "transformations/insert_transpose_before_matmul.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
@@ -13,9 +13,11 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(InsertTransposeBeforeMatmul, "InsertTransposeBeforeMatmul", 0);
 
 InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
-    auto reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>();
-    auto matmul1 = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(), reshape});
-    auto matmul2 = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({reshape, ngraph::pattern::any_input()});
+    auto reshape = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>({ngraph::pattern::any_input(),
+                                                                        ngraph::pattern::any_input()},
+                                                                        ngraph::pattern::rank_equals(2));
+    auto matmul1 = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(), reshape});
+    auto matmul2 = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({reshape, ngraph::pattern::any_input()});
     auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul1, matmul2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
@@ -27,7 +29,7 @@ InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
             return false;
         }
 
-        if (reshape_out_shape.size() != 2 || reshape_out_shape[0] == 1 || reshape_out_shape[1] == 1) {
+        if (reshape_out_shape[0] == 1 || reshape_out_shape[1] == 1) {
             return false;
         }
 
@@ -35,21 +37,19 @@ InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
         std::tie(min, max) = std::minmax(reshape_out_shape[0], reshape_out_shape[1]);
         if (min > 8 || max % 8 != 0) return false;
 
-        auto matmul_node = reshape_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-        std::cout << "Insert transpose before " << matmul_node->get_friendly_name() << "\n";
-
         auto consumers = reshape_node->output(0).get_target_inputs();
+        auto matmul_node = consumers.begin()->get_node()->shared_from_this();
 
-        auto transpose_order = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>{1, 0});
-        auto transpose = register_new_node<ngraph::opset1::Transpose>(reshape_node, transpose_order);
+        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, std::vector<size_t>{1, 0});
+        auto transpose = register_new_node<ngraph::opset7::Transpose>(reshape_node, transpose_order);
         transpose->set_friendly_name(matmul_node->get_friendly_name() + "/in_transpose");
 
         auto transpose_out_shape = transpose->output(0).get_shape();
         std::swap(transpose_out_shape[0], transpose_out_shape[1]);
-        auto reshapeConstAfter = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+        auto reshapeConstAfter = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
                                                                             ngraph::Shape{2},
                                                                             transpose_out_shape);
-        auto reshapeAfter = std::make_shared<ngraph::opset1::Reshape>(transpose, reshapeConstAfter, false);
+        auto reshapeAfter = std::make_shared<ngraph::opset7::Reshape>(transpose, reshapeConstAfter, false);
         reshapeAfter->set_friendly_name(matmul_node->get_friendly_name() + "/reshape_after_transpose");
 
         for (auto input : consumers) {

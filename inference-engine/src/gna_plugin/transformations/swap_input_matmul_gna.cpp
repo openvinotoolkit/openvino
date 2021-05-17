@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
@@ -19,11 +19,11 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 
 SwapInputMatMul::SwapInputMatMul() {
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(
             ngraph::pattern::has_static_shape()), ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
                                                                      ngraph::pattern::has_static_shape());
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
+        auto matmul = std::dynamic_pointer_cast<ngraph::opset7::MatMul>(m.get_match_root());
         if (!matmul) {
             return false;
         }
@@ -40,8 +40,8 @@ SwapInputMatMul::SwapInputMatMul() {
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose = register_new_node<ngraph::opset1::Transpose>(
-                    node, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order));
+            auto transpose = register_new_node<ngraph::opset7::Transpose>(
+                    node, ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order));
             transpose->set_friendly_name(transpose_name);
             return transpose;
         };
@@ -50,17 +50,17 @@ SwapInputMatMul::SwapInputMatMul() {
 
         // Skip FakeQuantize layers
         std::shared_ptr<ngraph::Node> input_a_skip_fq = input_a.get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_a_skip_fq)) {
+        if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(input_a_skip_fq)) {
             input_a_skip_fq = input_a_skip_fq->input_value(0).get_node_shared_ptr();
         }
 
         std::shared_ptr<ngraph::Node> input_b_skip_fq = input_b.get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(input_b_skip_fq)) {
+        if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(input_b_skip_fq)) {
             input_b_skip_fq = input_b_skip_fq->input_value(0).get_node_shared_ptr();
         }
 
-        if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_a_skip_fq) ||
-            std::dynamic_pointer_cast<ngraph::opset1::Constant>(input_b_skip_fq)) {
+        if (!std::dynamic_pointer_cast<ngraph::opset7::Constant>(input_a_skip_fq) ||
+            std::dynamic_pointer_cast<ngraph::opset7::Constant>(input_b_skip_fq)) {
             return false;
         }
 
@@ -69,13 +69,13 @@ SwapInputMatMul::SwapInputMatMul() {
         }
 
         gnalog() << "Swap and transpose inputs for " << matmul->get_friendly_name() << "\n";
-        auto new_matmul = std::make_shared<ngraph::opset1::MatMul>(input_b, input_a, !matmul->get_transpose_b(), !matmul->get_transpose_a());
+        auto new_matmul = std::make_shared<ngraph::opset7::MatMul>(input_b, input_a, !matmul->get_transpose_b(), !matmul->get_transpose_a());
         new_matmul->set_friendly_name(matmul->get_friendly_name() + "/swap_inputs");
         new_ops.push_back(new_matmul);
 
         if (!matmul->get_output_target_inputs(0).empty()) {
             auto matmul_out = matmul->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            if (std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(matmul_out) != nullptr) {
+            if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(matmul_out) != nullptr) {
                 ngraph::copy_runtime_info(matmul, new_ops);
                 ngraph::replace_node(matmul, new_matmul);
                 auto consumers = matmul_out->output(0).get_target_inputs();
