@@ -30,5 +30,4 @@ class NamesUniquenessCheck(BackReplacementPattern):
             not_unique_names = set(not_unique_names)
             for name in not_unique_names:
                 for idx, node in enumerate(names_dict[name]):
-                    node_name = node.soft_get('name', node.id)
-                    rename_node(node, node_name + '_{}'.format(idx))
+                    rename_node(node, name + '_{}'.format(idx))
