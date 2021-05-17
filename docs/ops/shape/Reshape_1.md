@@ -8,40 +8,41 @@
 
 **Detailed description**:
 
-*Reshape* layer takes two input tensors: the tensor to be resized and the output tensor shape. The values in the second tensor could be -1, 0 and any positive integer number. The two special values -1 and 0:
+*Reshape* takes two input tensors: `data` to be resized and `shape` of the new output. The values in the `shape` could be `-1`, `0` and any positive integer number. The two special values `-1` and `0`:
    * `0` means "copy the respective dimension *(left aligned)* of the input tensor" if `special_zero` is set to `true`; otherwise it is a normal dimension and is applicable to empty tensors.
-   * `-1` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one `-1` can be used in a reshape operation. 
+   * `-1` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one `-1` can be used in a reshape operation.
 
-If `special_zero` is set to `true` index of `0` cannot be larger than the rank of the input tensor. 
+If `special_zero` is set to `true` index of `0` cannot be larger than the rank of the input tensor.
 
 **Attributes**:
 
 * *special_zero*
 
-  * **Description**: *special_zero* controls how zero values in `shape` are interpreted. If *special_zero* is `false`, then 0 is interpreted as-is which means that output shape will contain a zero dimension at the specified location. Input and output tensors are empty in this case. If *special_zero* is `true`, then all zeros in `shape` implies the copying of corresponding dimensions from `data.shape` into the output shape *(left aligned)*.
+  * **Description**: *special_zero* controls how zero values in `shape` are interpreted. If *special_zero* is `false`, then `0` is interpreted as-is which means that output shape will contain a zero dimension at the specified location. Input and output tensors are empty in this case. If *special_zero* is `true`, then all zeros in `shape` implies the copying of corresponding dimensions from `data.shape` into the output shape *(left aligned)*.
   * **Range of values**: `false` or `true`
-  * **Type**: boolean
+  * **Type**: `boolean`
   * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: `data` -- multidimensional input tensor of type *T*. *Required*.
+*   **1**: `data` a tensor of type T and arbitrary shape. **Required**.
 
-*   **2**: `shape` -- 1D tensor of type *T_SHAPE* describing output shape. *Required*.
+*   **2**: `shape` 1D tensor of type *T_SHAPE* describing output shape. **Required**.
 
 **Outputs**:
 
-*   **1**: Output tensor with the same content as a tensor at input `data` but with shape defined by input `shape`.
+*   **1**: Output tensor of type *T* with the same content as `data` input tensor but with shape defined by `shape` input tensor.
 
 **Types**
 
-* *T*: supported type.
+* *T*: any numeric type.
 
-* *T_SHAPE*: supported integer type.
+* *T_SHAPE*: any supported integer type.
 
 **Examples**
 
+*Example 1: reshape empty tensor*
 ```xml
 <layer ... type="Reshape" ...>
     <data special_zero="false"/>
@@ -65,6 +66,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 </layer>
 ```
 
+*Example 2: reshape tensor - preserve first dim, calculate second and fix value for third dim*
 ```xml
 <layer ... type="Reshape" ...>
     <data special_zero="true"/>
@@ -89,6 +91,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 </layer>
 ```
 
+*Example 3: reshape tensor - preserve first two dims, fix value for third dim and calculate fourth*
 ```xml
 <layer ... type="Reshape" ...>
     <data special_zero="true"/>
@@ -113,6 +116,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 </layer>
 ```
 
+*Example 4: reshape tensor - calculate first dim and preserve second dim*
 ```xml
 <layer ... type="Reshape" ...>
     <data special_zero="true"/>
@@ -135,6 +139,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 </layer>
 ```
 
+*Example 5: reshape tensor - preserve first dim and calculate second dim*
 ```xml
 <layer ... type="Reshape" ...>
     <data special_zero="true"/>
