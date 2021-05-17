@@ -7,14 +7,22 @@
 #include <string>
 
 // Helper functions
-namespace FrontEndTestUtils {
-    inline std::string fileToTestName(const std::string& fileName) {
+namespace FrontEndTestUtils
+{
+    inline std::string fileToTestName(const std::string& fileName)
+    {
         // TODO: GCC 4.8 has limited support of regex
         // return std::regex_replace(fileName, std::regex("[/\\.]"), "_");
         std::string res = fileName;
-        for (auto& c : res) {
-            if (c == '/') c = '_';
-            else if (c == '.') c = '_';
+        for (auto& c : res)
+        {
+            if (c == '/')
+            {
+                c = '_';
+            } else if (c == '.')
+            {
+                c = '_';
+            }
         }
         return res;
     }

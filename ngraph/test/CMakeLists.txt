@@ -477,10 +477,9 @@ endforeach()
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
 # --- END OF --DO_NOT_RELEASE--
 
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
-file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # TODO: try to find a way to move it out of common CMakeLists
@@ -586,15 +585,13 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
-MESSAGE("HERE2" ${ONNX_IMPORT_INCLUDE_DIR})
-
 ############ FRONTEND ############
-# TODO: try to find a way to move it outside of general CMAKE
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
+add_subdirectory(frontend)
+
+### END FRONTEND ###
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
@@ -620,4 +617,3 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
     target_link_libraries(unit-test PRIVATE libnpy)
 endif()
-### END FRONTEND ###
