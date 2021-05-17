@@ -12,6 +12,9 @@ class NamesUniquenessCheck(BackReplacementPattern):
     def run_after(self):
         return [BackFinish]
 
+    def run_before(self):
+        return []
+
     def find_and_replace_pattern(self, graph: Graph):
         names_dict = {}
         not_unique_names = []
