@@ -539,6 +539,7 @@ namespace ngraph
                 // not transformed dimensions.
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
+                    std::fill(buffer.begin(), buffer.end(), complex_type{0.0f, 0.0f});
                     const auto outer_coords = coords_from_index(outer_idx, outer_strides);
                     int64_t outer_input_offset =
                         offset_from_coords_and_strides(outer_coords, input_outer_strides);
