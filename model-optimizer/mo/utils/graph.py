@@ -321,7 +321,7 @@ def send_op_names_info(framework: str, graph: Graph):
         op_name = None
         if pb_info is not None:
             try:
-                if framework == 'tf':
+                if framework == 'tf' or framework == 'tf2':
                     op_name = pb_info.op
                 elif framework == 'caffe':
                     op_name = pb_info.type

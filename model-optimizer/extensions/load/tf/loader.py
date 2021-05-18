@@ -26,7 +26,7 @@ from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
 from mo.utils.graph import send_op_names_info, send_shapes_info
-from mo.utils.utils import refer_to_faq_msg
+from mo.utils.utils import refer_to_faq_msg, send_framework_info
 
 
 class TFLoader(Loader):
@@ -41,13 +41,14 @@ class TFLoader(Loader):
                 log.info('Loading library "{}" with custom operations'.format(library))
                 tf_v1.load_op_library(library)
 
-        graph_def, variables_values = load_tf_graph_def(graph_file_name=argv.input_model,
+        graph_def, variables_values, framework = load_tf_graph_def(graph_file_name=argv.input_model,
                                                         is_binary=not argv.input_model_is_text,
                                                         checkpoint=argv.input_checkpoint,
                                                         user_output_node_names_list=argv.output,
                                                         model_dir=argv.saved_model_dir,
                                                         meta_graph_file=argv.input_meta_graph,
                                                         saved_model_tags=argv.saved_model_tags)
+        send_framework_info(framework)
 
         try:
             tf_v1.import_graph_def(graph_def, name='')
@@ -86,7 +87,7 @@ class TFLoader(Loader):
         del variables_values
 
         used_tensors = restore_edges(graph, get_tf_edges)
-        send_op_names_info('tf', graph)
+        send_op_names_info(framework, graph)
 
         # Tensor names information corresponding to a node is stored on outgoing edges.
         # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -100,4 +101,4 @@ class TFLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
-        send_shapes_info('tf', graph)
+        send_shapes_info(framework, graph)

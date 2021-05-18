@@ -156,3 +156,8 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
             else:
                 param_str = arg + ":" + str(arg_value)
             t.send_event('mo', 'cli_parameters', param_str)
+
+
+def send_framework_info(framework: str):
+    t = tm.Telemetry()
+    t.send_event('mo', 'framework', framework)

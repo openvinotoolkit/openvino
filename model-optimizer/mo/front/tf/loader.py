@@ -189,7 +189,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:
             # frozen graph
-            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values
+            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf'
         if graph_file_name and not meta_graph_file and checkpoint:
             # inference graph and checkpoint
             graph_def = read_file_to_graph_def(graph_def, graph_file_name, is_binary)
@@ -200,7 +200,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def, variables_values = freeze_checkpoints(graph_def=graph_def, checkpoint_dir=checkpoint,
                                                                  output_node_names=outputs)
             # we are sure that checkpoint is existing file or directory due to cli_parser configuration
-            return graph_def, variables_values
+            return graph_def, variables_values, 'tf'
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
@@ -211,7 +211,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)
-                return graph_def, variables_values
+                return graph_def, variables_values, 'tf'
         if model_dir:
             # saved model directory
             try:
@@ -235,7 +235,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
-                return graph_def, variables_values
+                return graph_def, variables_values, 'tf2'
             except (TypeError, KeyError):
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
@@ -245,7 +245,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
                     outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                     graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
-                    return graph_def, variables_values
+                    return graph_def, variables_values, 'tf'
             except Exception as e:
                 raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:

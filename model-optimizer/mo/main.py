@@ -231,7 +231,6 @@ def prepare_ir(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
-        t.send_event('mo', 'framework', 'tf')
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
