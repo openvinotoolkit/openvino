@@ -592,14 +592,6 @@ struct Equal<uint8_t*> {
     }
 };
 
-template <>
-struct Equal<ngraph::op::FrameworkNodeAttrs> {
-    static bool equal_value(
-            const ngraph::op::FrameworkNodeAttrs& lhs, const ngraph::op::FrameworkNodeAttrs& rhs) {
-        return lhs.get_opset_name() == rhs.get_opset_name() && lhs.get_type_name() == rhs.get_type_name() && lhs == rhs;
-    }
-};
-
 using Constant = ngraph::opset1::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {

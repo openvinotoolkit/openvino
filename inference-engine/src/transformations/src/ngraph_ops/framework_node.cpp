@@ -54,34 +54,6 @@ void op::FrameworkNode::validate_and_infer_types() {
     }
 }
 
-op::FrameworkNodeAttrs::FrameworkNodeAttrs()
-    : std::unordered_map<std::string, std::string>() {
-}
-
-op::FrameworkNodeAttrs::FrameworkNodeAttrs(const std::unordered_map<std::string, std::string> & v)
-    : std::unordered_map<std::string, std::string>(v) {
-}
-
-op::FrameworkNodeAttrs::FrameworkNodeAttrs(const FrameworkNodeAttrs & v)
-        : std::unordered_map<std::string, std::string>(v)
-        , m_type_name(v.m_type_name)
-        , m_opset_name(v.m_opset_name) {
-}
-
-op::FrameworkNodeAttrs& op::FrameworkNodeAttrs::operator=(const FrameworkNodeAttrs& v) {
-    static_cast<std::unordered_map<std::string, std::string>*>(this)->operator=(v);
-    m_type_name = v.m_type_name;
-    m_opset_name = v.m_opset_name;
-    return *this;
-}
-
-op::FrameworkNodeAttrs& op::FrameworkNodeAttrs::operator=(FrameworkNodeAttrs&& v) noexcept {
-    static_cast<std::unordered_map<std::string, std::string>*>(this)->operator=(v);
-    m_type_name = v.m_type_name;
-    m_opset_name = v.m_opset_name;
-    return *this;
-}
-
 constexpr DiscreteTypeInfo AttributeAdapter<op::FrameworkNodeAttrs>::type_info;
 
 AttributeAdapter<op::FrameworkNodeAttrs>::AttributeAdapter(

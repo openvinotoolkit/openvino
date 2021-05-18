@@ -16,29 +16,39 @@
 namespace ngraph {
 namespace op {
 
-class FrameworkNodeAttrs: public std::unordered_map<std::string, std::string> {
+class TRANSFORMATIONS_API FrameworkNodeAttrs {
 public:
-    TRANSFORMATIONS_API FrameworkNodeAttrs();
+    using attrs_t = std::unordered_map<std::string, std::string>;
 
-    TRANSFORMATIONS_API FrameworkNodeAttrs(const std::unordered_map<std::string, std::string>&);
+    void set_opset_name(const std::string& opset_name) { m_opset_name = opset_name; }
 
-    TRANSFORMATIONS_API FrameworkNodeAttrs(const FrameworkNodeAttrs&);
+    void set_type_name(const std::string& type_name) { m_type_name = type_name; }
 
-    TRANSFORMATIONS_API FrameworkNodeAttrs& operator=(const FrameworkNodeAttrs&);
+    const std::string& get_opset_name() const { return m_opset_name; }
 
-    TRANSFORMATIONS_API FrameworkNodeAttrs& operator=(FrameworkNodeAttrs&&) noexcept;
+    const std::string& get_type_name() const { return m_type_name; }
 
-    TRANSFORMATIONS_API void set_opset_name(const std::string& opset_name) { m_opset_name = opset_name; }
+    attrs_t::iterator begin() { return m_attrs.begin(); }
 
-    TRANSFORMATIONS_API void set_type_name(const std::string& type_name) { m_type_name = type_name; }
+    attrs_t::iterator end() { return m_attrs.end(); }
 
-    TRANSFORMATIONS_API const std::string& get_opset_name() const { return m_opset_name; }
+    attrs_t::const_iterator begin() const { return m_attrs.begin(); }
 
-    TRANSFORMATIONS_API const std::string& get_type_name() const { return m_type_name; }
+    attrs_t::const_iterator end() const { return m_attrs.end(); }
+
+    std::string operator[](const std::string & key) { return m_attrs[key]; }
+
+    std::string at(const std::string & key) const { return m_attrs.at(key); }
+
+    bool operator== (const FrameworkNodeAttrs & other) const {
+        return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == m_attrs;
+    }
 
 private:
     std::string m_type_name;
     std::string m_opset_name;
+
+    std::unordered_map<std::string, std::string> m_attrs;
 };
 
 class TRANSFORMATIONS_API FrameworkNode : public Op {
