@@ -70,7 +70,6 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
 
     _memory_pool->add_memory_used(layout.bytes_count());
 
-
     try {
         memory::ptr res = nullptr;
         if (layout.format.is_image_2d()) {
@@ -81,9 +80,8 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
             res = std::make_shared<ocl::gpu_usm>(this, layout, type);
         }
 
-        if (reset) {
+        if (reset || res->is_memory_reset_needed(layout)) {
             res->fill(get_program_stream());
-            get_program_stream().finish();
         }
 
         return res;

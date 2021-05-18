@@ -133,10 +133,10 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             scales_layout.size = tensor::max(scales_layout.size, mem_output_low->get_layout().size);
             scales_layout.size = tensor::max(scales_layout.size, mem_output_high->get_layout().size);
 
-            auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout);
-            auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout);
-            auto mem_output_scale = p.get_engine().allocate_memory(scales_layout);
-            auto mem_output_shift = p.get_engine().allocate_memory(scales_layout);
+            auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
+            auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
+            auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
+            auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
             auto get_offset_safe = [](layout l, tensor idx) -> int {
                 auto sizes = l.size;

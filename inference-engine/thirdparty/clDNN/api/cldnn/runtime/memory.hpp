@@ -74,8 +74,8 @@ struct simple_attached_memory : memory {
 
     void* lock(const stream& /* stream */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char) override { return event::ptr{nullptr}; }
-    event::ptr fill(stream& /* stream */) override { return event::ptr{nullptr}; }
+    event::ptr fill(stream& /* stream */, unsigned char) override { return nullptr; }
+    event::ptr fill(stream& /* stream */) override { return nullptr; }
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
