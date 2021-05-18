@@ -26,21 +26,16 @@ namespace ngraph
                        const Shape& slope_shape)
             {
                 Shape broadcasted_slope(slope_shape.begin(), slope_shape.end());
-                broadcasted_slope.insert(
-                    broadcasted_slope.begin(), arg_shape.size() - broadcasted_slope.size(), 1);
-
-                for (int i = arg_shape.size() - 1; i >= 0; i--)
-                {
-                    NGRAPH_CHECK(broadcasted_slope[i] == arg_shape[i] || broadcasted_slope[i] == 1,
-                                 "Invalid slope shape");
+                if (arg_shape.size() >= 3) {
+                    broadcasted_slope.insert(
+                    broadcasted_slope.end(), arg_shape.size() - 2, 1);
                 }
-                NGRAPH_CHECK(shape_size(arg_shape) >= shape_size(slope_shape),
-                             "Slope shape has to be equal or smaller than first input shape");
+                
                 autobroadcast_binop(arg,
                                     slope,
                                     out,
                                     arg_shape,
-                                    slope_shape,
+                                    broadcasted_slope,
                                     ngraph::op::AutoBroadcastType::NUMPY,
                                     [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
             }
