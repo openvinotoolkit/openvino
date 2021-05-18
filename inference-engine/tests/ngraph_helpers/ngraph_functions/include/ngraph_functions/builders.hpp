@@ -28,7 +28,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
