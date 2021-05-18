@@ -142,14 +142,22 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
-                                                                              const std::map<std::string, std::string>& config) {
-    return DoLoadNetwork({}, network, config);
+// Is called only when caching is enabled
+InferenceEngine::ExecutableNetwork MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                           const std::map<std::string, std::string>& config) {
+    CNNNetwork network;
+    auto res = LoadExeNetworkImpl(modelPath, network, config);
+    return GetCore()->ToExecutableNetwork(res, GetName());
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::DoLoadNetwork(const std::string& modelPath,
-                                                                         CNNNetwork network,
-                                                                         const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
+                                                                              const std::map<std::string, std::string>& config) {
+    return LoadExeNetworkImpl({}, network, config);
+}
+
+ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const std::string& modelPath,
+                                                                              CNNNetwork network,
+                                                                              const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferenceEngine::Core object";
     }
@@ -220,14 +228,6 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::DoLoadNetwork(const s
                                                           metaDevices,
                                                           multiNetworkConfig,
                                                           enablePerfCounters);
-}
-
-// Is called only when caching is enabled
-InferenceEngine::ExecutableNetwork MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
-                                                                           const std::map<std::string, std::string>& config) {
-    CNNNetwork network;
-    auto res = DoLoadNetwork(modelPath, network, config);
-    return GetCore()->ToExecutableNetwork(res, GetMetric(METRIC_KEY(FULL_DEVICE_NAME), {}));
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,
