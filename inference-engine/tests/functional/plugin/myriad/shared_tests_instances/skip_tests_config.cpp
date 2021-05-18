@@ -39,5 +39,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*PreprocessConversionTest.*oPRC=U8.*",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
+        // TODO: Issue 54722
+        R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
     };
 }
