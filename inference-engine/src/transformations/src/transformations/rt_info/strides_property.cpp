@@ -18,7 +18,7 @@ ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node) {
     return ngraph::as_type_ptr<ngraph::VariantWrapper<ngraph::Strides>>(var)->get();
 }
 
-void insert_strides_prop(ngraph::Input<ngraph::Node> node, const ngraph::Strides& strides) {
+void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides) {
     auto& rt_map = node.get_rt_info();
     rt_map[ngraph::VariantWrapper<ngraph::Strides>::type_info.name] = std::make_shared<ngraph::VariantWrapper<ngraph::Strides>>(strides);
 }

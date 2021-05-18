@@ -165,7 +165,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
-    manager.register_pass<ngraph::pass::StridesOptimization>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
@@ -173,6 +172,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+
+    // StridesOptimization should be at the very end
+    // because we cannot insert any MaxPools since they may prevent
+    // other optimizations
+    manager.register_pass<ngraph::pass::StridesOptimization>();
 
     manager.run_passes(f);
 

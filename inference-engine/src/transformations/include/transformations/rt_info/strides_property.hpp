@@ -23,4 +23,4 @@ public:
 
 TRANSFORMATIONS_API bool has_strides_prop(const ngraph::Input<ngraph::Node>& node);
 TRANSFORMATIONS_API ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node);
-TRANSFORMATIONS_API void insert_strides_prop(ngraph::Input<ngraph::Node> node, const ngraph::Strides& strides);
+TRANSFORMATIONS_API void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides);

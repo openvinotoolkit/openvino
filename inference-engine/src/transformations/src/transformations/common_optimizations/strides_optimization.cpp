@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <numeric>
+
 #include "itt.hpp"
 #include <transformations/common_optimizations/strides_optimization.hpp>
 #include <transformations/rt_info/strides_property.hpp>
@@ -39,15 +41,25 @@ static std::tuple<ngraph::Strides, bool> check_next_ops(const std::vector<ngraph
 static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::Input<ngraph::Node>& second, const ngraph::Strides& strides) {
     auto first_node = first.get_node_shared_ptr();
     auto rank = first.get_partial_shape().rank();
-    if (rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2) {
+    bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
+    if (do_reshape) {
         size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         auto ones = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
         auto current_shape = std::make_shared<ngraph::opset7::ShapeOf>(first);
         auto new_shape = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
         first_node = std::make_shared<ngraph::opset7::Reshape>(first_node, new_shape, false);
     }
-    auto pool = std::make_shared<ngraph::opset7::MaxPool>(first_node, strides, ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape(strides.size(), 1));
-    second.replace_source_output(pool);
+    std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset7::MaxPool>(first_node, strides, ngraph::Shape{},
+            ngraph::Shape{}, ngraph::Shape(strides.size(), 1));
+    if (do_reshape) {
+        // squeeze dimensions back
+        size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
+        std::vector<size_t> axes(diff);
+        std::iota(axes.begin(), axes.end(), 0);
+        new_node = std::make_shared<ngraph::opset7::Squeeze>(new_node,
+                ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
+    }
+    second.replace_source_output(new_node);
 }
 
 static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node>>&& next_ops) {
@@ -95,7 +107,8 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
 
         if (can_propagate_conv_stride(conv)) {
             conv->set_strides(strides_ones);
-            insert_strides_prop(conv->input(0), conv_strides);
+            auto conv_input = conv->input(0);
+            insert_strides_prop(conv_input, conv_strides);
         } else {
             conv->set_strides(conv_strides);
         }
@@ -111,9 +124,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SupportedNodesStridesPropagation, "Supporte
 
 ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
-    auto root = std::make_shared<pattern::op::Or>(
-            OutputVector{pattern::wrap_type<op::util::UnaryElementwiseArithmetic>(),
-                         pattern::wrap_type<op::util::BinaryElementwiseArithmetic>()});
+    auto root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, op::util::BinaryElementwiseArithmetic>();
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
