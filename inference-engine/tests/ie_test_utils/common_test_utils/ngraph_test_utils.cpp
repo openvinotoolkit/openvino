@@ -22,9 +22,6 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-
-#include "details/ie_exception.hpp"
-
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {

@@ -44,14 +44,12 @@ def deprecated_api(class_name=None, new_method_name=None):
     def deprecated(func):
         @functools.wraps(func)
         def deprecation_message(*args, **kwargs):
-            warnings.simplefilter('always', DeprecationWarning)  # turn on filter
             dep_msg = "Call to deprecated function {}. ".format(func.__name__)
             if class_name is not None:
                 dep_msg += "Please use {}.{} method" \
                            "".format(class_name.__name__ if not isinstance(class_name, str) else class_name,
                                      func.__name__ if new_method_name is None else new_method_name)
             warnings.warn(dep_msg, DeprecationWarning, stacklevel=2)
-            warnings.simplefilter('default', DeprecationWarning)  # reset filter
             return func(*args, **kwargs)
 
         return deprecation_message
