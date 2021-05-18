@@ -19,7 +19,10 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::op::v7::If, "If", 7);
 
-op::v7::If::If() {}
+op::v7::If::If()
+    : If(OutputVector{})
+{
+}
 
 op::v7::If::If(const OutputVector& values)
     : op::util::MultiSubGraphOp(values, 2)
