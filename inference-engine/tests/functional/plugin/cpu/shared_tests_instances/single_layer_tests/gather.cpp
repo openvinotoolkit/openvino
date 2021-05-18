@@ -16,6 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::BF16,
+        InferenceEngine::Precision::I8
 };
 
 const std::vector<std::vector<size_t>> inputShapes_1D = {
