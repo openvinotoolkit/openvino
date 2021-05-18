@@ -101,12 +101,6 @@ namespace ngraph
                          element::Type_t src_type,
                          element::Type_t dst_type)
             {
-                if (src_type == dst_type)
-                {
-                    std::memcpy(out, arg, count * sizeof(TO));
-                    return;
-                }
-
                 const uint8_t* input = reinterpret_cast<const uint8_t*>(arg);
                 uint8_t* output = reinterpret_cast<uint8_t*>(out);
                 for (size_t i = 0; i < count; ++i)
