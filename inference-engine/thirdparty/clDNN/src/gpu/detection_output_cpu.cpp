@@ -412,24 +412,53 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         auto location_data = lock.begin();
         assert(num_of_priors * num_loc_classes * PRIOR_BOX_SIZE == input_location.get_layout().size.feature[0]);
 
-        locations.resize(num_of_images);
+        const auto& input_buffer_size = input_location.get_layout().get_buffer_size();
+        const int input_buffer_size_x = input_buffer_size.spatial[0];
+        const int input_buffer_size_y = input_buffer_size.spatial[1];
+        const int input_buffer_size_f = input_buffer_size.feature[0];
+        const auto& input_padding = input_location.get_layout().data_padding;
+        const int input_padding_lower_x = input_padding.lower_size().spatial[0];
+        const int input_padding_lower_y = input_padding.lower_size().spatial[1];
+
         for (int image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<bounding_box>>& label_to_bbox = locations[image];
             label_to_bbox.resize(num_loc_classes);
-            for (int prior = 0; prior < num_of_priors; ++prior) {
-                int idx = prior * num_loc_classes * PRIOR_BOX_SIZE;
-                for (int cls = 0; cls < num_loc_classes; ++cls) {
-                    int label = share_location ? 0 : cls;
-                    auto& bboxes = label_to_bbox[label];
-                    bboxes.resize(num_of_priors);
-
-                    bboxes[prior].xmin = location_data[idx + cls * PRIOR_BOX_SIZE];
-                    bboxes[prior].ymin = location_data[idx + cls * PRIOR_BOX_SIZE + 1];
-                    bboxes[prior].xmax = location_data[idx + cls * PRIOR_BOX_SIZE + 2];
-                    bboxes[prior].ymax = location_data[idx + cls * PRIOR_BOX_SIZE + 3];
+            for (int cls = 0; cls < num_loc_classes; ++cls) {
+                int label = share_location ? 0 : cls;
+                auto& bboxes = label_to_bbox[label];
+                bboxes.resize(num_of_priors);
+                for (int prior = 0; prior < num_of_priors; ++prior) {
+                    int idx = prior * num_loc_classes * PRIOR_BOX_SIZE;
+                    bboxes[prior].xmin = static_cast<float>((location_data[get_linear_feature_index(image,
+                                                                                        idx + cls * PRIOR_BOX_SIZE,
+                                                                                        input_buffer_size_f,
+                                                                                        input_buffer_size_y,
+                                                                                        input_buffer_size_x,
+                                                                                        input_padding_lower_y,
+                                                                                        input_padding_lower_x)]));
+                    bboxes[prior].ymin = static_cast<float>((location_data[get_linear_feature_index(image,
+                                                                                        idx + cls * PRIOR_BOX_SIZE + 1,
+                                                                                        input_buffer_size_f,
+                                                                                        input_buffer_size_y,
+                                                                                        input_buffer_size_x,
+                                                                                        input_padding_lower_y,
+                                                                                        input_padding_lower_x)]));
+                    bboxes[prior].xmax = static_cast<float>((location_data[get_linear_feature_index(image,
+                                                                                        idx + cls * PRIOR_BOX_SIZE + 2,
+                                                                                        input_buffer_size_f,
+                                                                                        input_buffer_size_y,
+                                                                                        input_buffer_size_x,
+                                                                                        input_padding_lower_y,
+                                                                                        input_padding_lower_x)]));
+                    bboxes[prior].ymax = static_cast<float>((location_data[get_linear_feature_index(image,
+                                                                                        idx + cls * PRIOR_BOX_SIZE + 3,
+                                                                                        input_buffer_size_f,
+                                                                                        input_buffer_size_y,
+                                                                                        input_buffer_size_x,
+                                                                                        input_padding_lower_y,
+                                                                                        input_padding_lower_x)]));
                 }
             }
-            location_data += num_of_priors * num_loc_classes * PRIOR_BOX_SIZE;
         }
     }
 
