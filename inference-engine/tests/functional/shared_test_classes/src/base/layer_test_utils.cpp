@@ -190,7 +190,8 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual,
                                float threshold) {
-    auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
+    const auto &precision = actual->getTensorDesc().getPrecision();
+    auto k =  static_cast<float>(expected.first.size()) / precision.size();
     // W/A for int4, uint4
     if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
         k /= 2;
@@ -204,7 +205,6 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     const auto lockedMemory = memory->wmap();
     const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
 
-    const auto &precision = actual->getTensorDesc().getPrecision();
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:

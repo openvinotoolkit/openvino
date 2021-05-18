@@ -147,12 +147,11 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> Basic_L
     }
 
     auto referenceOutputs = std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>(refOutputs.size());
-    auto results = function->get_results();
     for (std::size_t i = 0; i < refOutputs.size(); ++i) {
         const auto& reference = refOutputs[i];
         const auto refSize = reference->byteSize();
 
-        referenceOutputs[i].first = results[i]->get_element_type();
+        referenceOutputs[i].first = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(reference->getTensorDesc().getPrecision());
         auto& expectedOutput = referenceOutputs[i].second;
         expectedOutput.resize(refSize);
 
