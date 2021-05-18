@@ -648,6 +648,7 @@ extensions/middle/TensorIteratorLSTMToLSTMSequence.py
 extensions/middle/TensorIteratorMerge.py
 extensions/middle/TensorIteratorOutput.py
 extensions/middle/TF_lstm_cell_to_generic.py
+extensions/middle/TFDepthwiseConv2dNativeReshape.py
 extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
