@@ -5,7 +5,12 @@ import hashlib
 import logging as log
 import os
 import sys
-import xml.etree.ElementTree as ET
+
+# ElementTree is included to build it from Element which is already parsed XML, it is not used to parse anything. To
+# eliminate a risk of it to be used to parse XML in future development defusedxml.defuse_stdlib() is called
+from xml.etree.ElementTree import ElementTree  # nosec
+from defusedxml import defuse_stdlib
+from defusedxml.ElementTree import parse
 from argparse import Namespace
 from collections import namedtuple, defaultdict
 from pathlib import Path
@@ -14,6 +19,8 @@ import numpy as np
 
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+
+defuse_stdlib()
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
@@ -38,7 +45,7 @@ class IREngine(object):
         self.__load_ir()
 
     def __load_xml(self):
-        xml_tree = self.xml_tree or ET.parse(self.path_to_xml)
+        xml_tree = self.xml_tree or parse(self.path_to_xml)
         xml_root = xml_tree.getroot()
         xml_layers = {}
         xml_edges = []
@@ -50,7 +57,8 @@ class IREngine(object):
         self.graph = Graph()
         self.graph.graph['hashes'] = {}
 
-        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
+        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get(
+            'version') is not None else None
         self.graph.graph['layout'] = 'NCHW'
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
@@ -87,7 +95,6 @@ class IREngine(object):
                         self.meta_data['quantization_parameters']['config'] = elem.text
                     elif elem.tag in ['version', 'cli_params']:
                         self.meta_data['quantization_parameters'][elem.tag] = elem.attrib['value']
-
 
         self.graph.graph['cmd_params'] = Namespace(**self.meta_data)  # TODO check what we need all this attrs
 
@@ -206,8 +213,11 @@ class IREngine(object):
                 new_attrs = self.__normalize_attrs(attr.attrib)
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
-                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
-                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
+                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(),
+                                                                                         ['offset', 'size'])
+                    new_attrs.update(
+                        self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'],
+                                                 layer[1][0].attrib['precision']))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -237,7 +247,7 @@ class IREngine(object):
 
                 body_ir = IREngine(path_to_xml=None,
                                    path_to_bin=self.path_to_bin,
-                                   xml_tree=ET.ElementTree(xml_body_child[0]))
+                                   xml_tree=ElementTree(xml_body_child[0]))
                 self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
 
                 # Find port_map section and take an input_port_map & output_port_map

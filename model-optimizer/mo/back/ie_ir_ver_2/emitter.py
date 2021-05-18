@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
+# xml.etree.ElementTree is imported to modify XML, it is not used to parse. To eliminate a risk of it to be used to
+# parse XML in future development defusedxml.defuse_stdlib() is called
+from xml.etree.ElementTree import Element, SubElement, tostring  # nosec
 
+from defusedxml import defuse_stdlib
+from defusedxml.ElementTree import parse
 from defusedxml.minidom import parseString
 
 from mo.graph.graph import *
@@ -11,6 +15,8 @@ from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
+
+defuse_stdlib()
 
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
@@ -444,8 +450,7 @@ def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] 
     path_to_xml = file + ".xml"
     path_to_bin = file + ".bin"
 
-    et = ElementTree()
-    et.parse(path_to_xml)
+    et = parse(path_to_xml)
     net = et.getroot()
 
     if mean_data:

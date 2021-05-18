@@ -1,11 +1,16 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from xml.etree.ElementTree import Element, SubElement, tostring
+# xml.etree.ElementTree is imported to modify XML, it is not used to parse. To eliminate a risk of it to be used to
+# parse XML in future development defusedxml.defuse_stdlib() is called
+from xml.etree.ElementTree import Element, SubElement, tostring  # nosec
 
+from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 
 from mo.graph.graph import Node, Graph
+
+defuse_stdlib()
 
 
 def propagate_op_name_to_tensor(graph: Graph):
