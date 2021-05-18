@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <queue>
 
@@ -13,6 +14,7 @@
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/opsets/opset6.hpp>
 
+#include "ie_common.h"
 #include "test_common.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
@@ -569,7 +571,11 @@ struct Equal<uint8_t*> {
         if (lhs_bit_size != rhs_bit_size) return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
-            const uint8_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
+            const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
+            if (byte_idx_result > std::numeric_limits<uint8_t>::max())
+                IE_THROW() << "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value";
+
+            const uint8_t byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
             if (extract_bit(lhs[byte_idx], bit_in_byte_idx) !=
