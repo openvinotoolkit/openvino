@@ -13,6 +13,7 @@
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <unordered_set>
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -65,6 +66,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/graph_util.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
@@ -72,7 +74,9 @@
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
+#include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
+#include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/group_convolution.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
@@ -122,6 +126,28 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
+    auto get_convert_precisions = []() {
+        precisions_array array = {
+            {ngraph::element::i64,     ngraph::element::i32},
+            {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::i16,     ngraph::element::i32},
+            {ngraph::element::u16,     ngraph::element::i32},
+            {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f64,     ngraph::element::f32},
+            {ngraph::element::f16,     ngraph::element::f32},
+            {ngraph::element::boolean, ngraph::element::u8},
+            {ngraph::element::i4,      ngraph::element::i8},
+            {ngraph::element::u4,      ngraph::element::u8}
+        };
+
+        if (!with_cpu_x86_avx512_core())
+            array.push_back({ngraph::element::bf16, ngraph::element::f32});
+
+        return array;
+    };
+
+    static const auto precisions = get_convert_precisions();
+
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -141,26 +167,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
-            {ngraph::element::i64,     ngraph::element::i32},
-            {ngraph::element::u64,     ngraph::element::i32},
-            {ngraph::element::i16,     ngraph::element::i32},
-            {ngraph::element::u16,     ngraph::element::i32},
-            {ngraph::element::u32,     ngraph::element::i32},
-            {ngraph::element::f64,     ngraph::element::f32},
-            {ngraph::element::f16,     ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
-            {ngraph::element::i4, ngraph::element::i8},
-            {ngraph::element::u4, ngraph::element::u8},
-    };
-
-    // In case BF16 is not supported by the target CPU we explicitly convert it to FP32
-    if (!with_cpu_x86_avx512_core())
-        convert_precision_list.push_back({ngraph::element::bf16, ngraph::element::f32});
-
-    for (auto &precision : convert_precision_list) {
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+    if (useLpt) {
+        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
 
     auto pass_config = manager.get_pass_config();
 
@@ -318,7 +329,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
             .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
+            .remove<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>());
 
         transformer.transform(nGraphFunc);
     }

@@ -11,21 +11,20 @@
 #include "max_unpooling_inst.h"
 #include "pooling_inst.h"
 #include <vector>
-#include <list>
+#include <queue>
 
 using namespace cldnn;
 
 // This pass optimizes out nodes which have no impact on outputs
 void trim_to_outputs::run(program_impl& p) {
     const size_t actual_nodes = p.get_processing_order().size();
-    if (!actual_nodes)  // degenerated case but can happen
+    if (actual_nodes == 0 || actual_nodes == p.get_outputs().size()) {
         return;
-
-    if (p.get_outputs().size() == actual_nodes)
-        return;
+    }
 
     // do backward bfs starting from all outputs
-    std::list<const std::vector<program_node*>*> stack = {&(p.get_outputs())};
+    std::queue<const std::vector<program_node*>*> queue;
+    queue.push(&p.get_outputs());
 
     std::vector<program_node*> special_nodes;
     for (auto& node : p.get_processing_order()) {
@@ -36,23 +35,24 @@ void trim_to_outputs::run(program_impl& p) {
             (node->is_type<pooling>() && node->as<pooling>().get_primitive()->mode == pooling_mode::max_with_argmax))
             special_nodes.push_back(node);
     }
-    stack.push_back(&special_nodes);
+    queue.push(&special_nodes);
 
-    while (!stack.empty()) {
-        auto nodes_list = stack.front();
-        stack.pop_front();
+    while (!queue.empty()) {
+        auto nodes_list = queue.front();
+        queue.pop();
 
         for (auto& node : *nodes_list) {
             if (!node->is_marked()) {
                 node->mark();
-                if (!node->get_dependencies().empty())
-                    stack.push_back(&node->get_dependencies());
+                if (!node->get_dependencies().empty()) {
+                    queue.push(&node->get_dependencies());
+                }
             }
         }
     }
 
     // all not-marked nodes should be removed
-    std::list<program_node*> to_rem;
+    std::vector<program_node*> to_rem;
     for (auto& node : p.get_processing_order()) {
         if (!node->is_marked())
             to_rem.push_back(node);

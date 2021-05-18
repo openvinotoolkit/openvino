@@ -28,6 +28,10 @@ namespace {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
 
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+            {}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -47,6 +51,13 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
+                            PreprocessTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
                             PreprocessTest::getTestCaseName);
 
 
@@ -104,6 +115,20 @@ namespace {
                                 ::testing::Bool(),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(multiConfigs)),
+                        PreprocessConversionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessConversionTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(autoConfigs)),
                         PreprocessConversionTest::getTestCaseName);
 
 }  // namespace

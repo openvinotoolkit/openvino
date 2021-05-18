@@ -13,9 +13,9 @@ public:
     jit_emu_vcvtneps2bf16(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, node, exec_prc) {
         prepare_table();
-    };
+    }
 
-    size_t get_inputs_num() const override { return 1; };
+    size_t get_inputs_num() const override { return 1; }
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
@@ -71,4 +71,4 @@ private:
     size_t aux_vecs_count() const override { return 2; }
 };
 
-} // namespace MKLDNNPlugin {
+} // namespace MKLDNNPlugin
