@@ -325,6 +325,8 @@ void CNNNetworkNGraphImpl::reshape() {
 StatusCode
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                               ResponseDesc* responseDesc) noexcept {
+    if (inputShapes.empty()) return OK;
+
     const auto & params = _ngraph_function->get_parameters();
 
     // Check that we need to do reshape only if input shapes will be changed
