@@ -46,6 +46,6 @@ namespace ngraph
                 const ngraph::element::Type output_type,
                 const std::vector<float>& output_rois,
                 const Shape& output_rois_shape);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

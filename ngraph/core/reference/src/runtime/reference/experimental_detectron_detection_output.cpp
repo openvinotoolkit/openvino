@@ -225,7 +225,7 @@ namespace
     {
         return pair1.first > pair2.first;
     }
-}
+} // namespace
 
 namespace ngraph
 {
@@ -416,6 +416,6 @@ namespace ngraph
                        output_classes.data(),
                        shape_size(output_classes_shape) * sizeof(int32_t));
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

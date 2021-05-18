@@ -101,6 +101,6 @@ namespace ngraph
                 default:;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

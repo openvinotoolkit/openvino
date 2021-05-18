@@ -51,6 +51,6 @@ namespace ngraph
                 const Shape& output_boxes_shape,
                 const Shape& output_classes_shape,
                 const Shape& output_scores_shape);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
