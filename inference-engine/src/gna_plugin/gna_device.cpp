@@ -102,19 +102,37 @@ void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2Accelera
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t reqId{};
+
     if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
-    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
-    checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
-    const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
-    checkGna2Status(status2, "Gna2RequestEnqueue");
 
-    unwaitedRequestIds.insert(reqId);
+    const auto reqConfigsAll = allGnaReqConfigIdsMap.find(requestConfigId);
+    if (reqConfigsAll == allGnaReqConfigIdsMap.end()) {
+        THROW_GNA_EXCEPTION << "reqConfigsAll == allGnaReqConfigIdsMap.end()";
+    }
+    std::vector<uint32_t> gnaRequestIds;
 
-    return reqId;
+    for (auto& gnaRequestConfigId : reqConfigsAll->second) {
+        const auto status1 = Gna2RequestConfigSetAccelerationMode(gnaRequestConfigId, gna2AccelerationMode);
+        checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
+        uint32_t curGnaRequestId{};
+        const auto status2 = Gna2RequestEnqueue(gnaRequestConfigId, &curGnaRequestId);
+        checkGna2Status(status2, "Gna2RequestEnqueue");
+
+        unwaitedRequestIds.insert(curGnaRequestId);
+        gnaRequestIds.push_back(curGnaRequestId);
+    }
+    if (gnaRequestIds.empty()) {
+        THROW_GNA_EXCEPTION << "gnaRequestIds.empty()";
+    }
+    if (allGnaReqestIdsMap.count(gnaRequestIds.front())) {
+        THROW_GNA_EXCEPTION << "allGnaReqestIdsMap.count(gnaRequestIds.front())";
+    }
+    allGnaReqestIdsMap[gnaRequestIds.front()] = gnaRequestIds;
+
+    return gnaRequestIds.front();
 }
 
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
@@ -128,9 +146,8 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     }
 }
 
-uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
+std::vector<uint32_t> GNADeviceHelper::createModels(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t modelId;
     if (enforceLegacyCnnNeeded()) {
         enforceLegacyCnns(gnaModel);
     }
@@ -143,16 +160,39 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 #endif
     DumpGna2Model(gnaModel, path, false);
 #endif
-    const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
-
-    checkGna2Status(status, gnaModel);
-    return modelId;
+    if (layerSplitMode) {
+        std::vector<uint32_t> modelsId(gnaModel.NumberOfOperations);
+        for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+            Gna2Model singleLayerModel = { 1, gnaModel.Operations + i };
+            const auto status = Gna2ModelCreate(nGnaDeviceIndex, &singleLayerModel, &modelsId[i]);
+            checkGna2Status(status, singleLayerModel, i);
+        }
+        return modelsId;
+    }
+    std::vector<uint32_t> modelsId(1);
+    const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelsId[0]);
+    checkGna2Status(status, gnaModel, 0);
+    return modelsId;
 }
 
-void GNADeviceHelper::releaseModel(const uint32_t model_id) {
+
+uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) {
+    auto modelsIds = createModels(gnaModel);
+    allGnaModelsIdsMap[modelsIds.front()] = modelsIds;
+    return modelsIds.front();
+}
+
+void GNADeviceHelper::releaseModel(const uint32_t modelIdIn) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2ModelRelease(model_id);
-    checkGna2Status(status, "Gna2ModelRelease");
+    auto modelsIds = allGnaModelsIdsMap.find(modelIdIn);
+    if (modelsIds == allGnaModelsIdsMap.end()) {
+        THROW_GNA_EXCEPTION << "Model id was not found";
+    }
+    for (const auto& modelId : modelsIds->second) {
+        const auto status = Gna2ModelRelease(modelId);
+        checkGna2Status(status, "Gna2ModelRelease");
+    }
+    allGnaModelsIdsMap.erase(modelsIds);
 }
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
@@ -193,25 +233,48 @@ Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const 
     }
     return parseDeclaredTarget(declared, execTarget);
 }
-
-uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
+#include <iostream>
+std::vector<uint32_t> GNADeviceHelper::createRequestConfigs(const std::vector<uint32_t>& modelsId) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t reqConfId;
-    auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
-    checkGna2Status(status, "Gna2RequestConfigCreate");
+    std::vector<uint32_t> reqConfIds( modelsId.size() );
+    perLayerPerfCounters.resize(modelsId.size());
 
-    // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
-    // (bit exactly) as on the selected GNA execution target generation.
-    // See the GNA Plugin's GNA_EXEC_TARGET config option description.
-    if (swExactMode) {
-        const auto consistentDevice = getTargetDevice(true);
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
-        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
+    const auto consistentDevice = getTargetDevice(true);
+
+    for (size_t i = 0; i < modelsId.size(); i++) {
+        const auto& modelId = modelsId[i];
+        auto status = Gna2RequestConfigCreate(modelId, &reqConfIds[i]);
+        checkGna2Status(status, "Gna2RequestConfigCreate");
+
+        // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
+        // (bit exactly) as on the selected GNA execution target generation.
+        // See the GNA Plugin's GNA_EXEC_TARGET config option description.
+        if (swExactMode) {
+            status = Gna2RequestConfigEnableHardwareConsistency(reqConfIds[i], consistentDevice);
+            checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
+        }
+        std::cout << "Gna2RequestConfigEnableHardwareConsistency " << reqConfIds[i] << std::endl;
+        initAndAssignGnaPerfCounters("GNA_LN_" + std::to_string(modelId), reqConfIds[i], perLayerPerfCounters[i]);
     }
-    status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
-    checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");
+    return reqConfIds;
+}
 
-    return reqConfId;
+uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelId) {
+    auto modelsIds = allGnaModelsIdsMap.find(modelId);
+    auto requestsConfigs = createRequestConfigs(modelsIds->second);
+    allGnaReqConfigIdsMap[requestsConfigs.front()] = requestsConfigs;
+    return requestsConfigs.front();
+}
+
+void GNADeviceHelper::initAndAssignGnaPerfCounters(const std::string& layerName, const uint32_t requestConfigId, SingleGnaPerf & pc) {
+    pc.layerName = layerName;
+    auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
+        gna2InstrumentationPoints,
+        pc.perfData.data(),
+        &pc.perfConfigId);
+    checkGna2Status(status, "Gna2InstrumentationConfigCreate");
+    status = Gna2InstrumentationConfigAssignToRequestConfig(pc.perfConfigId, requestConfigId);
+    checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");
 }
 
 uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
@@ -230,7 +293,7 @@ uint32_t GNADeviceHelper::selectGnaDevice() {
     return 0;
 }
 
-void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
+void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel, uint32_t operationOffset) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
         const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), gna2StatusBuffer.size());
@@ -266,7 +329,7 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                                               ? operandTypes.at({ opTypeIndex, error.Source.OperandIndex })
                                               : "Unknown Operand Type";
 
-            ss << "   OperationIndex (" << std::to_string(error.Source.OperationIndex) << "): "
+            ss << "   OperationIndex (" << std::to_string(error.Source.OperationIndex + operationOffset) << "): "
                 << operationType << "\n";
             ss << "   OperandIndex(" << std::to_string(error.Source.OperandIndex) << "): "
                 << operandType << "\n";
@@ -397,24 +460,31 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 2
-    const auto status = Gna2RequestWait(reqId, millisTimeout);
-    if (status == Gna2StatusWarningDeviceBusy) {
-        return GNA_REQUEST_PENDING;
+    auto allGnaReqIds = allGnaReqestIdsMap.find(reqId);
+    if (allGnaReqIds == allGnaReqestIdsMap.end()) {
+        THROW_GNA_EXCEPTION << "allGnaReqIds == allGnaReqestIdsMap.end()";
     }
-    unwaitedRequestIds.erase(reqId);
-    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return GNA_REQUEST_ABORTED;
+    for (const auto& gnaReqId : allGnaReqIds->second) {
+        const auto status = Gna2RequestWait(gnaReqId, millisTimeout);
+        if (status == Gna2StatusWarningDeviceBusy) {
+            return GNA_REQUEST_PENDING;
+        }
+        unwaitedRequestIds.erase(gnaReqId);
+        if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+            return GNA_REQUEST_ABORTED;
+        }
+        checkGna2Status(status, "Gna2RequestWait");
     }
-    checkGna2Status(status, "Gna2RequestWait");
+    allGnaReqestIdsMap.erase(allGnaReqIds);
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
+        updateGnaPerfCounters();
     } else {
         nGNAStatus = GNAWait(nGNAHandle, millisTimeout, reqId);
     }
     checkStatus();
 #endif
-    updateGnaPerfCounters();
     return GNA_REQUEST_COMPLETED;
 }
 
@@ -535,13 +605,8 @@ void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
 #endif
 }
 
+#if GNA_LIB_VER == 1
 void GNADeviceHelper::updateGnaPerfCounters() {
-    if (!isPerformanceMeasuring)
-        return;
-#if GNA_LIB_VER == 2
-    instrumentationTotal[0] = instrumentationResults[0];
-    instrumentationTotal[1] = instrumentationResults[1];
-#else
     nGNAPerfResultsTotal.hw.stall = nGNAPerfResults.hw.stall;
     nGNAPerfResultsTotal.hw.total = nGNAPerfResults.hw.total;
     nGNAPerfResultsTotal.lib.submit = nGNAPerfResults.lib.submit;
@@ -558,8 +623,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
     nGNAPerfResultsTotal.drv.startHW = nGNAPerfResults.drv.startHW;
     nGNAPerfResultsTotal.drv.scoreHW = nGNAPerfResults.drv.scoreHW;
     nGNAPerfResultsTotal.drv.intProc = nGNAPerfResults.drv.intProc;
-#endif
 }
+#endif
 
 void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
     InferenceEngine::InferenceEngineProfileInfo info;
@@ -570,14 +635,22 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     // Hardware
 #if GNA_LIB_VER == 1
     info.realTime_uSec = nGNAPerfResultsTotal.hw.total;
-#else
-    info.realTime_uSec = instrumentationTotal[0];
-#endif
     retPerfCounters["1.1 Total scoring time in HW"] = info;
-#if GNA_LIB_VER == 1
     info.realTime_uSec = nGNAPerfResultsTotal.hw.stall;
-#else
-    info.realTime_uSec = instrumentationTotal[1];
-#endif
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
+#else
+    if (layerSplitMode) {
+        for (const auto& x : perLayerPerfCounters) {
+            info.realTime_uSec = x.perfData[0];
+            retPerfCounters["1.1 Total scoring time in HW " + x.layerName] = info;
+            info.realTime_uSec = x.perfData[1];
+            retPerfCounters["1.2 Stall scoring time in HW " + x.layerName] = info;
+        }
+    } else {
+        info.realTime_uSec = perLayerPerfCounters.front().perfData[0];
+        retPerfCounters["1.1 Total scoring time in HW"] = info;
+        info.realTime_uSec = perLayerPerfCounters.front().perfData[1];
+        retPerfCounters["1.2 Stall scoring time in HW"] = info;
+    }
+#endif
 }
