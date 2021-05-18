@@ -100,6 +100,7 @@ def load_kaldi_model(graph, nnet_path):
         file_desc = nnet_path
     else:
         raise Error('Unsupported type of Kaldi model')
+
     tag = find_next_tag(file_desc)
     # start new model / submodel
     if tag == '<Nnet>':
