@@ -36,22 +36,22 @@ const std::vector<std::string> epsMode = {
 };
 
 const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_1D = {
-        { std::vector<size_t>{5}, std::vector<size_t>{5}},
-        { std::vector<size_t>{64}, std::vector<size_t>{64}},
+        { InferenceEngine::SizeVector{5}, InferenceEngine::SizeVector{5}},
+        { InferenceEngine::SizeVector{64}, InferenceEngine::SizeVector{64}},
 };
 
 const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_2D = {
-        { std::vector<size_t>{1, 5}, std::vector<size_t>{1, 5}},
-        { std::vector<size_t>{2, 17}, std::vector<size_t>{1, 17}},
-        { std::vector<size_t>{9, 64}, std::vector<size_t>{1, 64}},
-        { std::vector<size_t>{5, 15}, std::vector<size_t>{1, 15}},
+        { InferenceEngine::SizeVector{1, 5}, InferenceEngine::SizeVector{1, 5}},
+        { InferenceEngine::SizeVector{2, 17}, InferenceEngine::SizeVector{1, 17}},
+        { InferenceEngine::SizeVector{9, 64}, InferenceEngine::SizeVector{1, 64}},
+        { InferenceEngine::SizeVector{5, 15}, InferenceEngine::SizeVector{1, 15}},
 };
 
 const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_3D = {
-        { std::vector<size_t>{1, 5, 8}, std::vector<size_t>{1, 5, 8}},
-        { std::vector<size_t>{2, 17, 9}, std::vector<size_t>{1, 1, 9}},
-        { std::vector<size_t>{1, 1, 10}, std::vector<size_t>{1, 1, 10}},
-        { std::vector<size_t>{2, 3, 3}, std::vector<size_t>{2, 3, 3}},
+        { InferenceEngine::SizeVector{1, 5, 8}, InferenceEngine::SizeVector{1, 5, 8}},
+        { InferenceEngine::SizeVector{2, 17, 9}, InferenceEngine::SizeVector{1, 1, 9}},
+        { InferenceEngine::SizeVector{1, 1, 10}, InferenceEngine::SizeVector{1, 1, 10}},
+        { InferenceEngine::SizeVector{2, 3, 3}, InferenceEngine::SizeVector{2, 3, 3}},
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
