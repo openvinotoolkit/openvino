@@ -12,11 +12,6 @@
 
 namespace MKLDNNPlugin {
 
-enum ROIPoolingOpType {
-    Max,
-    Bilinear
-};
-
 struct jit_roi_pooling_params {
     int mb, c;
     int ih, iw, oh, ow;
@@ -27,7 +22,7 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    ROIPoolingOpType alg;
+    Algorithm alg;
 };
 
 struct jit_roi_pooling_call_args {
@@ -65,8 +60,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNROIPoolingNode() override = default;
+    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -74,16 +68,18 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     int pooled_h = 0;
     int pooled_w = 0;
     float spatial_scale = 0;
-    ROIPoolingOpType opType = Max;
 
     jit_roi_pooling_params jpp = {};
 
     std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel = nullptr;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
-

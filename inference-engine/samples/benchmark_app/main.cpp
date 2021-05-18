@@ -267,9 +267,6 @@ int main(int argc, char* argv[]) {
                     if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("GPU") != std::string::npos)) {
                         slog::warn << "Turn off threads pinning for " << device << " device since multi-scenario with GPU device is used." << slog::endl;
                         device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
-                    } else {
-                        // set to default value
-                        device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
                     }
                 }
 
@@ -333,7 +330,29 @@ int main(int argc, char* argv[]) {
         std::string topology_name = "";
         benchmark_app::InputsInfo app_inputs_info;
         std::string output_name;
-        if (!isNetworkCompiled) {
+
+        // Takes priority over config from file
+        if (!FLAGS_cache_dir.empty()) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+        }
+
+        if (FLAGS_load_from_file && !isNetworkCompiled) {
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            auto startTime = Time::now();
+            exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
+            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+            if (statistics)
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
+            if (batchSize == 0) {
+                batchSize = 1;
+            }
+        } else if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network
             // ----------------------------------------
             next_step();
@@ -366,7 +385,7 @@ int main(int argc, char* argv[]) {
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
-                auto duration_ms = double_to_string(get_total_ms_time(startTime));
+                duration_ms = double_to_string(get_total_ms_time(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"reshape network time (ms)", duration_ms}});

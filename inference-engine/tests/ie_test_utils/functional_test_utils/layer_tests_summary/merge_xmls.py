@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 from utils import utils
 
-logger = get_logger('XmlMerger')
+logger = utils.get_logger('XmlMerger')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -28,7 +28,11 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
-        xml_root = ET.parse(xml).getroot()
+        try:
+            xml_root = ET.parse(xml).getroot()
+        except ET.ParseError:
+            logger.error(f' {xml} is corrupted and skipped')
+            continue
         xml_timestamp = xml_root.get("timestamp")
         if (timestamp is None) or (xml_timestamp < timestamp):
             timestamp = xml_timestamp
@@ -75,7 +79,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
                 ET.SubElement(ops_list, op.tag)
 
         timestamp = aggregate_test_results(results, xml_reports)
-        update_passrates(results)
+        utils.update_passrates(results)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 

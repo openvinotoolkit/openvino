@@ -186,7 +186,7 @@ public:
     bool extract_and_remove(program_node& node);
 
     // Fuses two nodes into fused_node and removes peer_node from graph
-    void fuse_nodes(program_node& fused_node, program_node& peer_node);
+    void fuse_nodes(program_node& fused_node, program_node& peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history);
 
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
@@ -196,7 +196,7 @@ public:
     void mark_if_data_flow(program_node& node);
     // Reverses connection - user becomes dependency.
 
-    void remove_nodes(std::list<program_node*>& to_remove);
+    void remove_nodes(std::vector<program_node*>& to_remove);
     void dump_program(const char* stage,
                       bool with_full_info,
                       std::function<bool(program_node const&)> const& filter = nullptr) const;

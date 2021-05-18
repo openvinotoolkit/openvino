@@ -36,7 +36,7 @@ public:
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
     /**
-     * @brief Defines thread binding type
+     * @brief Defines inference thread binding type
      */
     enum ThreadBindingType : std::uint8_t {
         NONE,    //!< Don't bind the inference threads
@@ -74,9 +74,11 @@ public:
         * @brief Create appropriate multithreaded configuration
         *        filing unconfigured values from initial configuration using hardware properties
         * @param initial Inital configuration
+        * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
+         *       whether the executor should be configured for floating point intensive work (as opposite to int8 intensive)
         * @return configured values
         */
-        static Config MakeDefaultMultiThreaded(const Config& initial);
+        static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
 
         std::string        _name;  //!< Used by `ITT` to name executor threads
         int                _streams                 = 1;  //!< Number of streams.
@@ -85,6 +87,12 @@ public:
         int                _threadBindingStep       = 1;  //!< In case of @ref CORES binding offset type thread binded to cores with defined step
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
         int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
+        enum PreferredCoreType {
+            ANY,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN // used w/multiple streams to populate the Big cores first, then the Little, then wrap around (for large #streams)
+        }                  _threadPreferredCoreType = PreferredCoreType::ANY; //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
         /**
          * @brief      A constructor with arguments
@@ -96,6 +104,7 @@ public:
          * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
          * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
          * @param[in]  threads              @copybrief Config::_threads
+         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
          */
         Config(
             std::string        name                    = "StreamsExecutor",
@@ -104,14 +113,15 @@ public:
             ThreadBindingType  threadBindingType       = ThreadBindingType::NONE,
             int                threadBindingStep       = 1,
             int                threadBindingOffset     = 0,
-            int                threads                 = 0) :
+            int                threads                 = 0,
+            PreferredCoreType  threadPreferredCoreType = PreferredCoreType::ANY) :
         _name{name},
         _streams{streams},
         _threadsPerStream{threadsPerStream},
         _threadBindingType{threadBindingType},
         _threadBindingStep{threadBindingStep},
         _threadBindingOffset{threadBindingOffset},
-        _threads{threads} {
+        _threads{threads}, _threadPreferredCoreType(threadPreferredCoreType){
         }
     };
 

@@ -37,12 +37,8 @@ namespace ngraph
                     {
                         if (groups > 1)
                         {
-                            auto filters_shape = filters.get_shape();
-                            filters_shape.at(0) = filters_shape.at(0) / groups;
-                            filters_shape.insert(filters_shape.begin(), groups);
-
                             const auto reshaped_filters =
-                                ngraph::builder::opset1::reshape(filters, filters_shape);
+                                convpool::get_reshaped_filters(filters, groups);
 
                             return std::make_shared<default_opset::GroupConvolution>(
                                 data,

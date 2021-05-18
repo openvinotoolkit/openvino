@@ -7,7 +7,9 @@
 #include <cassert>
 #include <vector>
 #include "common/cpu_memcpy.h"
+#include <ngraph/opsets/opset6.hpp>
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -26,21 +28,42 @@ private:
 
     const int OUTPUT_ROIS {0};
 
-public:
-    explicit ExperimentalDetectronTopKROIsImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 2 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+            const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
+            if (!topKROI) {
+                errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData[INPUT_ROIS].lock()->getTensorDesc().getDims().size() != 2 ||
-                layer->insData[INPUT_PROBS].lock()->getTensorDesc().getDims().size() != 1)
-                IE_THROW() << "Unsupported shape of input blobs!";
+    std::string errorPrefix;
 
-            max_rois_num_ = layer->GetParamAsInt("max_rois", 0);
+public:
+    explicit ExperimentalDetectronTopKROIsImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+              IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+            errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
+            const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
+            if (op->get_input_size() != 2 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            if (op->get_input_shape(INPUT_ROIS).size() != 2 || op->get_input_shape(INPUT_PROBS).size() != 1)
+                IE_THROW() << errorPrefix << " has nsupported input shape";
+
+            max_rois_num_ = topKROI->get_max_rois();
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }

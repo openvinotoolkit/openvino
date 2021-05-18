@@ -16,7 +16,7 @@ For demonstration purposes, see the [Hello Query Device C++ Sample](../../../inf
 
 ```sh
 ./hello_query_device
-Available devices: 
+Available devices:
     Device: CPU
 ...
     Device: GPU.0
@@ -24,7 +24,7 @@ Available devices:
     Device: GPU.1
 ...
     Device: HDDL
-```    
+```
 
 ## Optimizations
 
@@ -41,31 +41,31 @@ Merge of a Convolution layer and any of the simple layers listed below:
 
 > **NOTE**: You can have any number and order of simple layers.
 
-A combination of a Convolution layer and simple layers results in a single fused layer called 
-*Convolution*:    
+A combination of a Convolution layer and simple layers results in a single fused layer called
+*Convolution*:
 ![conv_simple_01]
 
 
 ### Fusing Pooling and FakeQuantize Layers
 
-A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
+A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:
 ![pooling_fakequant_01]
 
 ### Fusing Activation Layers
 
 Given the linear pattern, an Activation layer can be fused into other layers:
-  
+
 ![fullyconnected_activation_01]
 
 
 ### Fusing Convolution and Sum Layers
 
-A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:  
+A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:
 ![conv_sum_relu_01]
 
 ### Fusing a Group of Convolutions
 
-If a topology contains the following pipeline, a GPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:   
+If a topology contains the following pipeline, a GPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:
 > **NOTE**: Parameters of the Convolution layers must coincide.
 
 ![group_convolutions_01]
@@ -104,6 +104,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 | Parameter Name          | Parameter Values                | Default         | Description                                               |
 |---------------------|-----------------------------|-----------------|-----------------------------------------------------------|
+| `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
 | `KEY_PERF_COUNT`      | `YES` / `NO`                    | `NO`              | Collect performance counters during inference             |
 | `KEY_CONFIG_FILE`     | `"<file1> [<file2> ...]"`         | `""`              | Load custom layer configuration files                     |
 | `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers             |
@@ -115,7 +116,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_CLDNN_SOURCES_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | Final optimized clDNN OpenCL sources dump output directory                                   |
 | `KEY_GPU_THROUGHPUT_STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_CLDNN_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behavior.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
 | `KEY_EXCLUSIVE_ASYNC_REQUESTS` | `YES` / `NO`                | `NO`              | Forces async requests (also from different executable networks) to execute serially.|
-
+| `KEY_CLDNN_MAX_NUM_THREADS` | `integer value` | `maximum # of HW threads available in host environment` |  Specifies the number of CPU threads that can be used for clDNN engine, e.g, JIT compilation of clDNN kernels or clDNN cpu kernel processing. The default value is set as the number of maximum available threads in host environment to minimize the time for LoadNetwork, where the clDNN kernel build time occupies a large portion. Note that if the specified value is larger than the maximum available # of threads or less than zero, it is set as maximum available # of threads. It can be specified with a smaller number than the available HW threads according to the usage scenario, e.g., when the user wants to assign more CPU threads while clDNN plugin is running. Note that setting this value with lower number will affect not only the network loading time but also the cpu layers of clDNN networks that are optimized with multi-threading. |
 ## Note on Debug Capabilities of the GPU Plugin
 
 Inference Engine GPU plugin provides possibility to dump the user custom OpenCL&trade; kernels to a file to allow you to properly debug compilation issues in your custom kernels.
