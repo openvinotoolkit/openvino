@@ -14,15 +14,8 @@
 
 namespace AutoPlugin {
 
-using namespace InferenceEngine;
-
-AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network,
-                                             const DeviceInformation&           deviceInfo,
-                                             const bool                         needPerfCounters) :
-    _deviceInfo(deviceInfo),
-    _network(network),
-    _config(deviceInfo.config.begin(), deviceInfo.config.end()),
-    _needPerfCounters(needPerfCounters) {
+AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network) :
+    _network(network) {
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;

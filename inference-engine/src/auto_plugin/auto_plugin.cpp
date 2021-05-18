@@ -20,13 +20,6 @@
 
 namespace AutoPlugin {
 namespace {
-    ConfigType mergeConfigs(ConfigType config, const ConfigType& local) {
-        for (auto && kvp : local) {
-            config[kvp.first] = kvp.second;
-        }
-        return config;
-    }
-
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
         for (auto & node : nGraphFunc->get_ordered_ops()) {
@@ -56,93 +49,17 @@ AutoInferencePlugin::AutoInferencePlugin() {
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::string& fileName,
                                                                      const ConfigType&  config) {
-    if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
-    }
-
-    auto fullConfig = mergeConfigs(_config, config);
-    auto metaDevices = GetDeviceChoice(fullConfig);
-
-    DeviceInformation selectedDevice;
-    IE::SoExecutableNetworkInternal executableNetwork;
-    while (!metaDevices.empty()) {
-        selectedDevice = SelectDevice(metaDevices);
-        try {
-            executableNetwork = GetCore()->LoadNetwork(fileName, selectedDevice.deviceName, config);
-            break;
-        } catch (...) {
-            auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
-                                            [=](const DeviceInformation &d) -> bool { return d.deviceName == selectedDevice.deviceName; });
-            if (eraseDevice == metaDevices.end()) {
-                IE_THROW() << "Didn't find the selected device name";
-            }
-            metaDevices.erase(eraseDevice);
-            executableNetwork = {};
-        }
-    }
-    if (!executableNetwork) {
-        IE_THROW() << "Failed to load network by AUTO plugin";
-    }
-
-    bool enablePerfCounters = false;
-    try {
-        enablePerfCounters =
-            executableNetwork->GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
-                IE::PluginConfigParams::YES;
-    }
-    catch (...) {
-    }
-
-    return std::make_shared<AutoExecutableNetwork>(executableNetwork,
-                                                   selectedDevice,
-                                                   enablePerfCounters);
+    return LoadNetworkImpl(fileName, config);
 }
 
 IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
                                                                            const ConfigType&     config) {
-    if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
-    }
-
     if (network.getFunction() == nullptr) {
         IE_THROW() << "AUTO device supports just ngraph network representation";
     }
 
-    auto fullConfig = mergeConfigs(_config, config);
-    auto metaDevices = GetDeviceChoice(fullConfig);
-    DeviceInformation selectedDevice;
-    IE::SoExecutableNetworkInternal executableNetwork;
-    while (!metaDevices.empty()) {
-        selectedDevice = SelectDevice(network, metaDevices);
-        try {
-            executableNetwork = GetCore()->LoadNetwork(
-                network, selectedDevice.deviceName, selectedDevice.config);
-            break;
-        } catch (...) {
-            auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
-                                            [=](const DeviceInformation& d)->bool{return d.deviceName == selectedDevice.deviceName;});
-            if (eraseDevice == metaDevices.end()) {
-                IE_THROW() << "Didn't find the selected device name";
-            }
-            metaDevices.erase(eraseDevice);
-            executableNetwork = {};
-        }
-    }
-    if (!executableNetwork) {
-        IE_THROW() << "Failed to load network by AUTO plugin";
-    }
-
-    bool enablePerfCounters = false;
-    try {
-        enablePerfCounters =
-            executableNetwork->GetConfig(IE::PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
-                IE::PluginConfigParams::YES;
-    } catch (...) {
-    }
-
-    return std::make_shared<AutoExecutableNetwork>(executableNetwork,
-                                                   selectedDevice,
-                                                   enablePerfCounters);
+    auto networkPrecision = GetNetworkPrecision(network);
+    return LoadNetworkImpl(network, config, networkPrecision);
 }
 
 IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const {
@@ -293,54 +210,13 @@ ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
     return supportedConfig;
 }
 
-DeviceInformation AutoInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices) {
+DeviceInformation AutoInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to select in AUTO plugin";
     }
     if (metaDevices.size() == 1) {
         return metaDevices.at(0);
     }
-
-    std::vector<DeviceInformation> CPU;
-    std::vector<DeviceInformation> GPU;
-
-    for (auto& item : metaDevices) {
-        if (item.deviceName.find("CPU") == 0) {
-            CPU.push_back(item);
-            continue;
-        }
-        if (item.deviceName.find("GPU") == 0) {
-            GPU.push_back(item);
-            continue;
-        }
-    }
-
-    if (CPU.empty() && GPU.empty()) {
-        IE_THROW(NotFound) << "No available device found";
-    }
-
-    // Sort GPU by name: GPU.2 > GPU.1 > GPU.0 > GPU, so we always choose the GPU[0] as best device
-    std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
-
-    if (!GPU.empty()) {
-        return GPU[0];
-    }
-    if (CPU.empty()) {
-        IE_THROW() << "Cannot select any device";
-    }
-    return CPU[0];
-}
-
-DeviceInformation AutoInferencePlugin::SelectDevice(const InferenceEngine::CNNNetwork&    network,
-                                                    const std::vector<DeviceInformation>& metaDevices) {
-    if (metaDevices.empty()) {
-        IE_THROW(NotFound) << "No available device to select in AUTO plugin";
-    }
-    if (metaDevices.size() == 1) {
-        return metaDevices.at(0);
-    }
-
-    auto networkPrecision = GetNetworkPrecision(network);
 
     std::vector<DeviceInformation> CPU;
     std::vector<DeviceInformation> GPU;
@@ -375,6 +251,13 @@ DeviceInformation AutoInferencePlugin::SelectDevice(const InferenceEngine::CNNNe
         IE_THROW() << "Cannot select any device";
     }
     return CPU[0];
+}
+
+ConfigType AutoInferencePlugin::mergeConfigs(ConfigType config, const ConfigType& local) {
+    for (auto && kvp : local) {
+        config[kvp.first] = kvp.second;
+    }
+    return config;
 }
 
 // define CreatePluginEngine to create plugin instance
