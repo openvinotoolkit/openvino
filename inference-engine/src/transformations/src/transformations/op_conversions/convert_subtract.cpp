@@ -38,11 +38,14 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
                 const std::shared_ptr<Node> child = subChildren.begin()->get_node()->shared_from_this();
                 if (child != nullptr) {
                     if (is_type<opset1::Convolution>(child) ||
+                        is_type<opset1::ConvolutionBackpropData>(child) ||
                         is_type<opset1::GroupConvolution>(child) ||
+                        is_type<opset1::GroupConvolutionBackpropData>(child) ||
                         is_type<opset1::MatMul>(child) ||
-                            (is_type<opset1::Reshape>(child) &&
+                        (is_type<opset1::Reshape>(child) &&
                             (child->output(0).get_target_inputs().size() == 1ul) &&
-                            is_type<opset1::GroupConvolution>(child->output(0).get_target_inputs().begin()->get_node()->shared_from_this()))) {
+                            (is_type<opset1::GroupConvolution>(child->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) ||
+                             is_type<opset1::GroupConvolutionBackpropData>(child->output(0).get_target_inputs().begin()->get_node()->shared_from_this())))) {
                         const auto input1Type = sub->input(0).get_element_type();
                         const auto input2Type = sub->input(1).get_element_type();
                         if (((input1Type == element::u8) && (input2Type == element::u8)) ||
