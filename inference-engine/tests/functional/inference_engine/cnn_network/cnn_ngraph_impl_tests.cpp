@@ -1678,4 +1678,110 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
         ASSERT_NE(outputs.find("text_features"), outputs.end());
     }
 }
+
+TEST(CNNNGraphImplTests, CheckUniqueNames) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("boxes");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_NO_THROW(InferenceEngine::CNNNetwork{f});
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueParameterName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("boxes");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("boxes");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueResultName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("nms.1");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueNewResultName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("nms.1");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+
+    CNNNetwork cnnNet;
+    ASSERT_NO_THROW(cnnNet = InferenceEngine::CNNNetwork{f});
+    ASSERT_THROW(cnnNet.addOutput("nms", 1), InferenceEngine::Exception);
+}
+
 IE_SUPPRESS_DEPRECATED_END

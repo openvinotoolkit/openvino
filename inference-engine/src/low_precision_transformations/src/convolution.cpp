@@ -36,28 +36,17 @@ bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const n
     return WeightableLayerTransformation::isQuantized(layer, false);
 }
 
+
+
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
-    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
-        return false;
-    }
-
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
-    if (!canSubtractBeHandled(convolution, dequantization)) {
-        return false;
-    }
-
-    if ((!supportAsymmetricQuantization) && getDataPrecisionOnWeights(convolution).hasZeroPoint) {
-        return false;
-    }
-
-    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+    if (!canConvolutionBeTransformed(context, convolution)) {
         return false;
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);
-    dequantization = NetworkHelper::getDequantization(convolution);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
     {
         std::shared_ptr<opset1::Subtract> subtract;
@@ -90,6 +79,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             const auto newSubtract = as_type_ptr<opset1::Subtract>(subtract->clone_with_new_inputs({
                 subtract->input_value(0).get_node_shared_ptr(),
                 newShift }));
+            NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
 
             newSubtract->set_output_type(0, subtract->get_output_element_type(0), newSubtract->get_output_partial_shape(0));
@@ -177,7 +167,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
 
-        const auto dequantization = reshapeFromWeights == nullptr ?
+        dequantization = reshapeFromWeights == nullptr ?
             NetworkHelper::getDequantization(convolution, 1ul) :
             NetworkHelper::getDequantization(reshapeFromWeights);
         assert(!dequantization.empty());
@@ -214,7 +204,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         reshapeFromWeights :
                         multiplyFromWeights->input_value(0)
                     }),
-                fold<opset1::Convert>(
+                foldConvert(
                     fold_reshape<opset1::Reshape>(
                         multiplyFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
@@ -241,6 +231,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                     subtractFromWeights->get_input_node_shared_ptr(1),
                     std::make_shared<opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
+                NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
         }
@@ -292,7 +283,6 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
     return true;
 }
-
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

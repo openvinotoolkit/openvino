@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <mkldnn_graph.h>
 #include <string>
@@ -12,6 +11,19 @@
 #include <vector>
 
 namespace MKLDNNPlugin {
+
+struct PortMap {
+    // Data map rule
+    int from; /**< Index of external data from ins/outs fields of node */
+    int to;   /**< Index of internal data in iterator body */
+
+    // Iteration rule
+    int axis;      /**< Axis to iterate throught */
+    int stride;    /**< Stride to iterate throught */
+    int start;     /**< Start index of iteration range */
+    int end;       /**< Last index of iteration range  */
+    int part_size; /**< Part size which will be transfered to body subnetwork */
+};
 
 /**
  * Functor interface to perform some action with pointed tensors (captured in constructor)
@@ -45,9 +57,9 @@ protected:
 
 class MKLDNNTensorIteratorNode : public MKLDNNNode {
 public:
-    MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTensorIteratorNode() override = default;
+    MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
@@ -73,6 +85,19 @@ private:
         trip_count_check,      /// < Perform check of trip count value. value >= -1
         initial_cond_check,   /// < Perform check of initial continue condition value. value [0, 1]
         continue_cond_check;  /// < Perform check of continue condition value of body. value [0, 1]
+
+    std::vector<PortMap> inputPortMap;  //!< Input ports map
+    std::vector<PortMap> outputPortMap;  //!< Output ports map
+    std::vector<PortMap> backEdges;  //!< Back edges map
+
+    std::vector<int> loopBodyCurrentIterationIdx;
+    int loopBodyConditionOutputIdx = -1;
+    int loopTripCountIdx = -1;
+    int loopExecutionConditionIdx = -1;
+
+    InferenceEngine::LayerConfig config;
+
+    const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
 }  // namespace MKLDNNPlugin

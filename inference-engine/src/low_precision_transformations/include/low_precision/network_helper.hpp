@@ -21,6 +21,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
+#include "layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -177,6 +178,7 @@ public:
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
+    static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
@@ -252,6 +254,8 @@ std::shared_ptr<Node> fold(Args&&... args) {
     }
     return node;
 }
+
+std::shared_ptr<Node> foldConvert(const Output<Node>& node, const element::Type targetPrecision);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {

@@ -4,7 +4,7 @@
 
 ## Download and Convert the Model to ONNX*
 
-To download the pretrained model or train the model yourself, refer to the 
+To download the pre-trained model or train the model yourself, refer to the 
 [instruction](https://github.com/weijun88/F3Net/blob/master/README.md) in the F3Net model repository. Firstly, 
 convert the model to ONNX\* format. Create and run the script with the following content in the `src`
 directory of the model repository:

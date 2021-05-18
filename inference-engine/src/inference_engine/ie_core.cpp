@@ -16,7 +16,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-#include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
@@ -52,6 +51,9 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else {
+        if (deviceName_.empty()) {
+            deviceName_ = "AUTO";
+        }
         DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
@@ -228,7 +230,7 @@ class Core::Impl : public ICore {
                                       const std::string& blobID,
                                       const std::string& modelPath = std::string(),
                                       bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetworkImpl");
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
         ExecutableNetwork execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
@@ -236,7 +238,7 @@ class Core::Impl : public ICore {
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
-                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Export");
                 cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
                     networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber,
                                                         NetworkCompilationContext::calculateFileInfo(modelPath));
@@ -263,7 +265,7 @@ class Core::Impl : public ICore {
         IE_ASSERT(cacheManager != nullptr);
         try {
             cacheManager->readCacheEntry(blobId, [&](std::istream &networkStream) {
-                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
                 try {
                     CompiledBlobHeader header;
                     networkStream >> header;
@@ -434,19 +436,19 @@ public:
     }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from file");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
         return details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from memory");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
         return details::ReadNetwork(model, weights, extensions);
     }
 
     // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
                                   const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
@@ -470,7 +472,7 @@ public:
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         if (forceDisableCache) {
@@ -494,10 +496,9 @@ public:
         return res;
     }
 
-    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Path");
+                                  const std::map<std::string, std::string>& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ExecutableNetwork res;
@@ -512,6 +513,8 @@ public:
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
+        } else if (cacheManager) {
+            res = plugin.LoadNetwork(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
@@ -583,6 +586,15 @@ public:
             }
         }
 
+        // AUTO case
+        {
+            if (deviceName.find("AUTO:") == 0) {
+                IE_THROW()
+                    << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately";
+            }
+        }
+
         auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
@@ -634,7 +646,7 @@ public:
      * @return Reference to a CPP plugin wrapper
      */
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
-        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
@@ -753,7 +765,7 @@ public:
      * @brief Sets config values for a plugin or set of plugins
      * @param deviceName A device name to set config to
      *        If empty, config is set for all the plugins / plugin's meta-data
-     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:FPGA,CPU
+     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:FPGA,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTU, GPU.0, etc
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
@@ -909,6 +921,10 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
     if (deviceName.find("MULTI") == 0) {
         IE_THROW() << "MULTI device does not support remote context";
     }
+    if (deviceName.find("AUTO") == 0) {
+        IE_THROW() << "AUTO device does not support remote context";
+    }
+
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, params);
     return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
@@ -920,6 +936,9 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     }
     if (deviceName.find("MULTI") == 0) {
         IE_THROW() << "MULTI device does not support remote context";
+    }
+    if (deviceName.find("AUTO") == 0) {
+        IE_THROW() << "AUTO device does not support remote context";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
@@ -934,6 +953,10 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
     if (deviceName_.find("MULTI") == 0) {
         IE_THROW()
             << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
+    }
+    if (deviceName_.find("AUTO") == 0) {
+        IE_THROW()
+            << "AUTO device does not support extensions. Please, set extensions directly to fallback devices";
     }
 
     _impl->AddExtension(extension);
@@ -953,6 +976,9 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
     }
     if (deviceName.find("MULTI") == 0) {
         IE_THROW() << "MULTI device does not support ImportNetwork";
+    }
+    if (deviceName.find("AUTO") == 0) {
+        IE_THROW() << "AUTO device does not support ImportNetwork";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -999,6 +1025,12 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                                 "You can configure the devices with SetConfig before creating the MULTI on top.";
     }
 
+    // AUTO case
+    if (deviceName.find("AUTO:") == 0) {
+        IE_THROW() << "SetConfig is supported only for AUTO itself (without devices). "
+                               "You can configure the devices with SetConfig before creating the AUTO on top.";
+    }
+
     // GPU.0, FPGA.1 cases
     if (deviceName.find(".") != std::string::npos) {
         IE_THROW() << "SetConfig is supported only for device family itself (without particular device .#). "
@@ -1030,6 +1062,14 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
                    "GetConfig is also possible for the individual devices before creating the MULTI on top.";
         }
     }
+    // AUTO case
+    {
+        if (deviceName.find("AUTO:") == 0) {
+            IE_THROW()
+                << "You can only GetConfig of the AUTO itself (without devices). "
+                   "GetConfig is also possible for the individual devices before creating the AUTO on top.";
+      }
+  }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName);
 

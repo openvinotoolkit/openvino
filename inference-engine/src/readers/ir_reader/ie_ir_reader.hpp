@@ -9,7 +9,6 @@
 #include <ie_common.h>
 #include <ie_iextension.h>
 
-#include <ie_icnn_network.hpp>
 #include <ie_reader.hpp>
 #include <map>
 #include <memory>

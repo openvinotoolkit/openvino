@@ -17,6 +17,7 @@ set(LINK_LIBRARIES
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
+    inference_engine
 )
 
 set(DEPENDENCIES
@@ -44,6 +45,8 @@ addIeTargetTest(
         IE
 )
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
@@ -54,6 +57,21 @@ endif()
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
+
+# CVS-55343
+
+file(GLOB_RECURSE legacy_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
+    "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
+    "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
+    "${CMAKE_CURRENT_SOURCE_DIR}/core_threading_tests.cpp" # CVS-55257
+    "${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp" # CVS-55257
+    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
+    )
+
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 include(CMakeParseArguments)
 
