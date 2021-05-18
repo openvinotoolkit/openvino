@@ -88,7 +88,7 @@ const std::vector<ngraph::Shape> outputShapes = {
     { 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, ConvolutionBackpropDataTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
