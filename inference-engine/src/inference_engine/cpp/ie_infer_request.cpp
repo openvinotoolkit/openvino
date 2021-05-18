@@ -206,4 +206,12 @@ bool InferRequest::operator!() const noexcept {
 InferRequest::operator bool() const noexcept {
     return !!_impl;
 }
+
+bool InferRequest::operator!=(const InferRequest& r) const noexcept {
+    return !(r == *this);
+}
+
+bool InferRequest::operator==(const InferRequest& r) const noexcept {
+    return r._impl == _impl;
+}
 }  // namespace InferenceEngine

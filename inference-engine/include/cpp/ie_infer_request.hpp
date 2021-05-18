@@ -217,6 +217,18 @@ public:
      * @return true if current InferRequest object is initialized, false - otherwise
      */
     explicit operator bool() const noexcept;
+
+    /**
+     * @brief Compares whether this request wraps the same impl underneath
+     * @return true if current InferRequest object doesn't wrap the same impl as the operator's arg
+     */
+    bool operator!=(const InferRequest&) const noexcept;
+
+    /**
+     * @brief Compares whether this request wraps the same impl underneath
+     * @return true if current InferRequest object wraps the same impl as the operator's arg
+     */
+    bool operator==(const InferRequest&) const noexcept;
 };
 
 template<>
