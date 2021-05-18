@@ -32,7 +32,7 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(InferCancelled)
 
 #define INFER_REQ_CALL_STATEMENT(...)                                                              \
-    if (_ptr == nullptr) IE_THROW() << "Inference Request is not initialized";                     \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                     \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -41,13 +41,19 @@ namespace InferenceEngine {
         IE_THROW(Unexpected);                                                                      \
     }
 
+InferRequest::InferRequest(const details::SharedObjectLoader& so,
+                           const IInferRequestInternal::Ptr&  impl)
+    : _impl(impl), _so(so) {
+    IE_ASSERT(_impl != nullptr);
+}
+
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
-    INFER_REQ_CALL_STATEMENT(_ptr->SetBlob(name, data);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
 }
 
 Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
-    INFER_REQ_CALL_STATEMENT(blobPtr = _ptr->GetBlob(name);)
+    INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
     const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr) IE_THROW() << error;
@@ -56,29 +62,29 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 }
 
 void InferRequest::SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info) {
-    INFER_REQ_CALL_STATEMENT(_ptr->SetBlob(name, data, info);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data, info);)
 }
 
 const PreProcessInfo& InferRequest::GetPreProcess(const std::string& name) const {
-    INFER_REQ_CALL_STATEMENT(return _ptr->GetPreProcess(name);)
+    INFER_REQ_CALL_STATEMENT(return _impl->GetPreProcess(name);)
 }
 
 void InferRequest::Infer() {
-    INFER_REQ_CALL_STATEMENT(_ptr->Infer();)
+    INFER_REQ_CALL_STATEMENT(_impl->Infer();)
 }
 
 void InferRequest::Cancel() {
-    INFER_REQ_CALL_STATEMENT(_ptr->Cancel();)
+    INFER_REQ_CALL_STATEMENT(_impl->Cancel();)
 }
 
 std::map<std::string, InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {
-    INFER_REQ_CALL_STATEMENT(return _ptr->GetPerformanceCounts();)
+    INFER_REQ_CALL_STATEMENT(return _impl->GetPerformanceCounts();)
 }
 
 void InferRequest::SetInput(const BlobMap& inputs) {
     INFER_REQ_CALL_STATEMENT(
         for (auto&& input : inputs) {
-            _ptr->SetBlob(input.first, input.second);
+            _impl->SetBlob(input.first, input.second);
         }
     )
 }
@@ -86,27 +92,27 @@ void InferRequest::SetInput(const BlobMap& inputs) {
 void InferRequest::SetOutput(const BlobMap& results) {
     INFER_REQ_CALL_STATEMENT(
         for (auto&& result : results) {
-            _ptr->SetBlob(result.first, result.second);
+            _impl->SetBlob(result.first, result.second);
         }
     )
 }
 
 void InferRequest::SetBatch(const int batch) {
-    INFER_REQ_CALL_STATEMENT(_ptr->SetBatch(batch);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBatch(batch);)
 }
 
 void InferRequest::StartAsync() {
-    INFER_REQ_CALL_STATEMENT(_ptr->StartAsync();)
+    INFER_REQ_CALL_STATEMENT(_impl->StartAsync();)
 }
 
 
 StatusCode InferRequest::Wait(int64_t millis_timeout) {
-    INFER_REQ_CALL_STATEMENT(return _ptr->Wait(millis_timeout);)
+    INFER_REQ_CALL_STATEMENT(return _impl->Wait(millis_timeout);)
 }
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
     INFER_REQ_CALL_STATEMENT(
-        _ptr->SetCallback([callback] (std::exception_ptr) {
+        _impl->SetCallback([callback] (std::exception_ptr) {
             callback();
         });
     )
@@ -133,8 +139,8 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callback) {
     INFER_REQ_CALL_STATEMENT(
-        auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_ptr.get(), [](IInferRequestInternal*){}}};
-        _ptr->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
+        auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
+        _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
@@ -156,8 +162,8 @@ IE_SUPPRESS_DEPRECATED_START
 
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
-        IInferRequest::Ptr weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_ptr.get(), [](IInferRequestInternal*){}}};
-        _ptr->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
+        IInferRequest::Ptr weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
+        _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
@@ -177,7 +183,7 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
 
 InferRequest::operator IInferRequest::Ptr () {
     INFER_REQ_CALL_STATEMENT(
-        return std::make_shared<InferRequestBase>(_ptr);
+        return std::make_shared<InferRequestBase>(_impl);
     )
 }
 
@@ -186,18 +192,19 @@ IE_SUPPRESS_DEPRECATED_END
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
-        for (auto&& state : _ptr->QueryState()) {
-            controller.emplace_back(_so, state);
+        for (auto&& _state : _impl->QueryState()) {
+            VariableState state{_so, static_cast<std::shared_ptr<IVariableStateInternal>>(_state)};
+            controller.emplace_back(state);
         }
     )
     return controller;
 }
 
 bool InferRequest::operator!() const noexcept {
-    return !_ptr;
+    return !_impl;
 }
 
 InferRequest::operator bool() const noexcept {
-    return !!_ptr;
+    return !!_impl;
 }
 }  // namespace InferenceEngine

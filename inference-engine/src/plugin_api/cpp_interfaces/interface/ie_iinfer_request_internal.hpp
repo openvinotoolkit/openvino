@@ -8,6 +8,7 @@
 #include <ie_common.h>
 #include <ie_preprocess_data.hpp>
 #include <ie_input_info.hpp>
+#include <cpp/ie_infer_request.hpp>
 
 #include <map>
 #include <memory>

@@ -13,17 +13,13 @@
 #include <memory>
 #include <string>
 
+#include "ie_blob.h"
 #include "cpp/ie_memory_state.hpp"
-#include "ie_remote_context.hpp"
 #include "ie_iinfer_request.hpp"
 #include "details/ie_so_loader.h"
-#include "ie_blob.h"
 
 namespace InferenceEngine {
 
-namespace details {
-class SharedObjectLoader;
-}
 class IInferRequestInternal;
 
 /**
@@ -32,8 +28,17 @@ class IInferRequestInternal;
  * Wraps IInferRequest
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) : protected details::SOPointer<IInferRequestInternal> {
-    using details::SOPointer<IInferRequestInternal>::SOPointer;
+class INFERENCE_ENGINE_API_CLASS(InferRequest) {
+    std::shared_ptr<IInferRequestInternal>   _impl;
+    details::SharedObjectLoader              _so;
+
+    /**
+     * @brief Constructs InferRequest from the initialized std::shared_ptr
+     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
+     * @param impl Initialized shared pointer
+     */
+    InferRequest(const details::SharedObjectLoader&             so,
+                 const std::shared_ptr<IInferRequestInternal>&  impl);
     friend class ExecutableNetwork;
 
 public:
@@ -52,6 +57,11 @@ public:
      * @brief A smart pointer to the InferRequest object
      */
     using Ptr = std::shared_ptr<InferRequest>;
+
+    /**
+     * @brief Default constructor
+     */
+    InferRequest() = default;
 
     /**
      * @brief Sets input/output data to infer

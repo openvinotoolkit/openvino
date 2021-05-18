@@ -15,25 +15,35 @@
 
 #include "ie_api.h"
 #include "ie_blob.h"
-#include "details/ie_so_pointer.hpp"
+#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
-
-namespace details {
-class SharedObjectLoader;
-}
 
 class IVariableStateInternal;
 
 /**
  * @brief C++ exception based error reporting wrapper of API class IVariableState
  */
-class INFERENCE_ENGINE_API_CLASS(VariableState) : protected details::SOPointer<IVariableStateInternal> {
-    using details::SOPointer<IVariableStateInternal>::SOPointer;
+class INFERENCE_ENGINE_API_CLASS(VariableState) {
+    std::shared_ptr<IVariableStateInternal>  _impl;
+    details::SharedObjectLoader              _so;
+
+    /**
+     * @brief Constructs VariableState from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
+     * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
+     */
+    VariableState(const details::SharedObjectLoader&             so,
+                  const std::shared_ptr<IVariableStateInternal>& impl);
     friend class InferRequest;
     friend class ExecutableNetwork;
 
 public:
+    /**
+     * @brief Default constructor
+     */
+    VariableState() = default;
+
     /**
      * @copybrief IVariableState::Reset
      *

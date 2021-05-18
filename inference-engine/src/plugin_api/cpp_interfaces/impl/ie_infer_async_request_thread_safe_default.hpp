@@ -165,10 +165,10 @@ public:
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {
-        if (millis_timeout < -1) {
+        if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
             IE_THROW(ParameterMismatch)
                 << " Timeout can't be less "
-                << -1 << " for InferRequest::Wait\n";
+                << InferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
         }
         auto status = std::future_status::deferred;
 
@@ -183,11 +183,11 @@ public:
         }
 
         switch (millis_timeout) {
-        case -1: {
+        case InferRequest::WaitMode::RESULT_READY: {
             future.wait();
             status = std::future_status::ready;
         } break;
-        case 0: {
+        case InferRequest::WaitMode::STATUS_ONLY: {
             status = future.wait_for(std::chrono::milliseconds {0});
         } break;
         default: {
@@ -210,7 +210,7 @@ public:
     void Infer() override {
         DisableCallbackGuard disableCallbackGuard{this};
         InferImpl([&] {Infer_ThreadUnsafe();});
-        Wait(-1);
+        Wait(InferRequest::WaitMode::RESULT_READY);
     }
 
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {

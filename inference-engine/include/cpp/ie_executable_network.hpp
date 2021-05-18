@@ -16,27 +16,37 @@
 #include <string>
 #include <vector>
 
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
+#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
-
 class IExecutableNetworkInternal;
 class IExecutableNetwork;
 
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) : protected details::SOPointer<IExecutableNetworkInternal> {
-    using details::SOPointer<IExecutableNetworkInternal>::SOPointer;
-    ExecutableNetwork(const details::SOPointer<IExecutableNetworkInternal> & obj);
+class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
+    std::shared_ptr<IExecutableNetworkInternal>  _impl;
+    details::SharedObjectLoader                  _so;
+
+    /**
+     * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
+     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin object is destroyed.
+     * @param impl Initialized shared pointer
+     */
+    ExecutableNetwork(const details::SharedObjectLoader&                   so,
+                      const std::shared_ptr<IExecutableNetworkInternal>&   impl);
     friend class Core;
 
 public:
     /**
      * @brief A default constructor.
      */
-    ExecutableNetwork();
+    ExecutableNetwork() = default;
 
     /**
      * @brief Gets the Executable network output Data node information.
@@ -186,8 +196,6 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<VariableState> QueryState();
     IE_SUPPRESS_DEPRECATED_END
-
-    ~ExecutableNetwork();
 };
 
 }  // namespace InferenceEngine
