@@ -13,8 +13,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-// DEPRECATED, this file shall be removed when kmb_plugin will switch to use new API from "convolution_backprop.hpp" (55568)
-
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
@@ -24,7 +22,8 @@ typedef std::tuple<
         std::vector<ptrdiff_t>,         // Pad end
         InferenceEngine::SizeVector,    // Dilation
         size_t,                         // Num out channels
-        ngraph::op::PadType             // Padding type
+        ngraph::op::PadType,            // Padding type
+        InferenceEngine::SizeVector     // Output padding
 > convBackpropDataSpecificParams;
 typedef std::tuple<
         convBackpropDataSpecificParams,
@@ -34,6 +33,7 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Output shapes
         LayerTestsUtils::TargetDevice   // Device name
 > convBackpropDataLayerTestParamsSet;
 
