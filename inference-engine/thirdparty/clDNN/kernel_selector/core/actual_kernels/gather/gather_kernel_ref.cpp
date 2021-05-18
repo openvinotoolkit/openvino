@@ -100,7 +100,7 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     return idx_order;
 }
 
-static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
+static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
     std::vector<std::string> idx_order = GetOrder(params.output.GetDims().size());
 
     const std::string input_axis_index_macro = "INPUT_AXIS_INDEX";
