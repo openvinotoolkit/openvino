@@ -204,6 +204,7 @@ protected:
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
+    void EnforceBF16();
     void printGraphInfo() const;
 };
 

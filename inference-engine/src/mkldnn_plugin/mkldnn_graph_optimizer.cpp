@@ -142,13 +142,6 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
-#if 0
-    /* disable, since there is no use case for it at the moment
-     * should be enabled after ngraph migration */
-    DropConvertReorder(graph);
-    graph.RemoveDroppedNodes();
-#endif
-
     MergeTransposeAndReorder(graph);
     graph.RemoveDroppedNodes();
 
@@ -421,7 +414,17 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableConvNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Convolution;
+        bool retVal = false;
+        if (node->getType() == Convolution) {
+            if (auto convNode = std::dynamic_pointer_cast<MKLDNNConvolutionNode>(node)) {
+                auto ndims = convNode->getParentEdgeAt(0)->getDims().ndims();
+                // int8 depthwise convolution does not support fusing zero points in 3D case
+                if (implication(convNode->isDepthWise(), ndims == 4)) {
+                    retVal = true;
+                }
+            }
+        }
+        return retVal;
     };
 
     auto initializeInputZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0, MKLDNNNodePtr parent1) {

@@ -35,7 +35,7 @@ namespace ngraph
             private:
                 std::string m_data_location{};
                 int m_offset = 0;
-                int m_data_lenght = 0;
+                int m_data_length = 0;
                 int m_sha1_digest = 0;
             };
         } // namespace detail
