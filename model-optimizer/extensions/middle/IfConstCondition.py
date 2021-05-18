@@ -15,6 +15,7 @@ class IfConstCondition(MiddleReplacementPattern):
     Extracting One of If bodies if condition is const
     """
     enabled = True
+    force_shape_inference = True
 
     @staticmethod
     def reduce_if(if_node: Node):
@@ -68,7 +69,7 @@ class IfConstCondition(MiddleReplacementPattern):
                 for output_port in output_connection.get_destinations():
                     output_port.disconnect()
                     input_connection.add_destination(output_port)
-                if_node.graph.erase_node(external_node)  # erasing Result node
+                if_node.graph.remove_node(external_node.id)  # erasing Result node
 
         for in_port in if_node.in_ports().values():
             in_port.disconnect()
@@ -78,5 +79,3 @@ class IfConstCondition(MiddleReplacementPattern):
             if if_node.in_port(0).get_source().node.soft_get('type') != 'Const':
                 continue
             IfConstCondition.reduce_if(if_node)
-            shape_inference(if_node.graph)
-            if_node.graph.clean_up()

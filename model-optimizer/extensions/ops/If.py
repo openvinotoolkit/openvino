@@ -5,6 +5,7 @@ import logging as log
 
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.infer import partial_infer
+from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.op import Op
 
 
@@ -124,12 +125,13 @@ class If(Op):
         else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
         outputs_mapping = {}
         outputs_number = len(if_node.out_ports())
-        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of \'If\' with"' \
-                                                    'name \"{0}\"! then_graph must has {1} outputs' \
-            .format(if_node.name, outputs_number)
-        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of \'If\' with"' \
-                                                    'name \"{0}\"! else_graph must has {1} outputs' \
-            .format(if_node.name, outputs_number)
+
+        if outputs_number == 0 and len(if_node.out_ports(True)) != 0:
+            # shape inference for asserts
+            for node in if_node.out_nodes(True).values():
+                node.shape = int64_array([])
+            return
+
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
@@ -156,11 +158,13 @@ class If(Op):
                                                            'in \"{1}\" node!'.format(port_id, if_node.name)
             assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
                                                            'in \"{1}\" node!'.format(port_id, if_node.name)
+
             then_shape = then_else_nodes['then_graph'].in_port(0).get_connection().data.get_shape()
             else_shape = then_else_nodes['else_graph'].in_port(0).get_connection().data.get_shape()
-            equal_shapes = then_shape == else_shape
-            assert equal_shapes.all(), 'Cannot calculate shape for if.out_port[{0}]! ' \
-                                       'Shapes in then_graph and else_graph are not equal!'.format(port_id)
+            comparison = then_shape == else_shape
+            if not comparison.all():
+                log.debug("\'If\' node {0} has dynamic output [{1}] because output shape from then_graph is {2} and "
+                          "else_graph {3}".format(if_node.name, port_id, then_shape, else_shape))
             if_node.out_port(port_id).data.set_shape(then_shape)
 
     @staticmethod
