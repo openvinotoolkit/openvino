@@ -134,8 +134,8 @@ private:
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    Vmm vmm = Vmm(0);
-    Xbyak::Xmm xmm = Xbyak::Xmm(0);
+    Vmm vmm = Vmm(1);
+    Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
@@ -273,6 +273,16 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
     }
 
     referenceExecute(src_data, dst_data, mb);
+}
+
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
+    SizeVector dst_dims = jcp.dst_block_dims;
+    if (permute_kernel) {
+        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        return;
+    }
+
+    referenceExecute(src_data, dst_data, dst_dims[0]);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {

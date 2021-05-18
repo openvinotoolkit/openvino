@@ -7,7 +7,6 @@
 #include <utility>
 #include <cctype>
 #include <ie_core.hpp>
-
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 
 struct layer_params {
