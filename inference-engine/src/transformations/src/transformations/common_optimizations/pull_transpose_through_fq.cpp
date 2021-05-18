@@ -30,7 +30,6 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
 
-        const auto& inputs = fq->inputs();
         auto are_inputs_scalars = shape_size(fq->input_value(1).get_shape()) == 1 &&
                                   shape_size(fq->input_value(2).get_shape()) == 1 &&
                                   shape_size(fq->input_value(3).get_shape()) == 1 &&
