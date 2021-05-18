@@ -63,8 +63,8 @@ public:
   }
 
   void deleteTimer(const std::pair<std::string, float> &record) {
-    time_structure[record.first] = std::make_pair(tab_count - 1, record.second);
     tab_count--;
+    time_structure[record.first] = std::make_pair(tab_count, record.second);
   }
 
   /**
