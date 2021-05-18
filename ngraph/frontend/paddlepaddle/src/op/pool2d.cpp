@@ -133,8 +133,10 @@ namespace ngraph
                     else if (adaptive)
                     {
                         uint64_t pool_size_Height, pool_size_Width;
+
                         if (kernel_shape.size() == 1)
                         {
+                            // note: not tested on real models
                             pool_size_Height = pool_size_Width = kernel_shape[0];
                         }
                         else
@@ -155,7 +157,6 @@ namespace ngraph
 
                         if (pooling_type == "max")
                         {
-                            std::cout << "Convert MAx" << std::endl;
                             return node.default_single_output_mapping(
                                 {std::make_shared<ngraph::opset6::MaxPool>(
                                     data,
@@ -191,6 +192,7 @@ namespace ngraph
                         uint64_t kernel_h, kernel_w;
                         if (kernel_shape.size() == 1)
                         {
+                            // note: not tested on real models
                             kernel_h = kernel_w = kernel_shape[0];
                         }
                         else
@@ -199,13 +201,16 @@ namespace ngraph
                             kernel_w = kernel_shape[1];
                         }
 
-                        if ((input_h > 0) && (input_h + paddings[0] < kernel_h))
+                        PDPD_ASSERT(kernel_h > 0 && kernel_w > 0,
+                                    "pool2d kernel shape must be greater than 0");
+
+                        if ((input_h > 0) && (input_h + pad_begin[0] + pad_end[0] < kernel_h))
                         {
-                            kernel_h = input_h + paddings[0];
+                            kernel_h = input_h + pad_begin[0] + pad_end[0];
                         }
-                        if ((input_w > 0) && (input_w + paddings[1] < kernel_w))
+                        if ((input_w > 0) && (input_w + pad_begin[1] + pad_end[1] < kernel_w))
                         {
-                            kernel_w = input_w + paddings[1];
+                            kernel_w = input_w + pad_begin[1] + pad_end[1];
                         }
 
                         if (pooling_type == "max")
