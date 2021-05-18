@@ -1236,7 +1236,7 @@ def check_positive(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'output_dir', 'o', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if not isinstance(value, str):
         return value
