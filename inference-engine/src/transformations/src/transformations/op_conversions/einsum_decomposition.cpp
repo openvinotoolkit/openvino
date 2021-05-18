@@ -104,7 +104,6 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
                                         bool& is_separate_first) {
     // transpose is not needed if common labels, reduced labels
     // and separate labels indices go concurrently
-    bool is_transpose_needed = false;
     std::vector<int64_t> labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), reduced_labels_inds.begin(), reduced_labels_inds.end());
     labels_inds.insert(labels_inds.end(), separate_labels_inds.begin(), separate_labels_inds.end());
@@ -115,7 +114,6 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
 
     // transpose is not needed if common labels, separate labels
     // and reduced labels indices go concurrently
-    is_transpose_needed = false;
     labels_inds = common_labels_inds;
     labels_inds.insert(labels_inds.end(), separate_labels_inds.begin(), separate_labels_inds.end());
     labels_inds.insert(labels_inds.end(), reduced_labels_inds.begin(), reduced_labels_inds.end());
