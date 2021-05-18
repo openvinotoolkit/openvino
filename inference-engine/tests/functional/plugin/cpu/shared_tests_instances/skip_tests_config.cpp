@@ -86,7 +86,7 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 #ifdef __APPLE__
         // TODO: Issue 55717
-        retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
