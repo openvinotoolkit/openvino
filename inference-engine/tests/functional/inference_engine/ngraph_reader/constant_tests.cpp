@@ -3,7 +3,6 @@
 //
 
 #include <string>
-#include <legacy/ie_util_internal.hpp>
 #include "ngraph_reader_tests.hpp"
 
 using namespace InferenceEngine;
@@ -40,18 +39,13 @@ TEST_F(NGraphReaderTests, ReadConstantNetwork) {
 </net>
 )V0G0N";
 
-        IE_SUPPRESS_DEPRECATED_START
-        Core ie;
-        Blob::Ptr weights;
+    Core ie;
+    Blob::Ptr weights;
 
-        weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {5808}, Layout::C));
-        weights->allocate();
+    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {5808}, Layout::C));
+    weights->allocate();
 
-        auto network = ie.ReadNetwork(model, weights);
-        auto clonedNetwork = cloneNetwork(network);
-        auto clonedNet = cloneNet(network);
-
-        IE_SUPPRESS_DEPRECATED_END
+    auto network = ie.ReadNetwork(model, weights);
 }
 
 TEST_F(NGraphReaderTests, ReadConstantNetworkWithNegativeDimension) {

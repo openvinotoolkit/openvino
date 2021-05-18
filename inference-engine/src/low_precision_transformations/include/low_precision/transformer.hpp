@@ -303,10 +303,6 @@ private:
         std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>> transformations,
         GraphRewrite& pass,
         TransformationContext& context);
-
-    std::vector<element::Type> precisionIntersection(
-        const std::vector<element::Type>& v1,
-        const std::vector<element::Type>& v2) const noexcept;
 };
 
 class TRANSFORMATIONS_API TypeRelaxedReplacer : public GraphRewrite {

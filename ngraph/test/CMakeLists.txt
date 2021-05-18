@@ -67,6 +67,7 @@ set(SRC
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
+    op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
@@ -215,6 +216,7 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
