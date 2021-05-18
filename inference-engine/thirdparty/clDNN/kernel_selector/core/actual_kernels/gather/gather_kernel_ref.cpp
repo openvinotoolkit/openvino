@@ -166,7 +166,7 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
+    jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
 
     if (!params.fused_ops.empty()) {
