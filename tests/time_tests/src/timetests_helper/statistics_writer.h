@@ -58,12 +58,12 @@ public:
    * @brief Compute order for statistics operations.
    */
   void addTimer(const std::string name) {
-    tab_count++;
     time_struct_order.push_back(name);
+    tab_count++;
   }
 
   void deleteTimer(const std::pair<std::string, float> &record) {
-    time_structure[record.first] = std::make_pair(tab_count, record.second);
+    time_structure[record.first] = std::make_pair(tab_count - 1, record.second);
     tab_count--;
   }
 
@@ -74,10 +74,7 @@ public:
     if (!statistics_file)
       throw std::runtime_error("Statistic file path isn't set");
     for (auto& timer: time_struct_order) {
-      std::string tabs = "";
-      for (int i = 0; i < time_structure[timer].first; ++i) {
-        tabs = std::string(TAB* i, ' ');
-      }
+      std::string tabs = std::string(TAB* time_structure[timer].first, ' ');
       statistics_file << tabs << "- " << timer << ":" << '\n'
                       << tabs << "  " << "- " << time_structure[timer].second << '\n';
     }
