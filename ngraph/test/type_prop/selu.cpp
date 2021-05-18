@@ -55,26 +55,90 @@ TEST(type_prop, selu_basic_inference_f16_5D)
 
 TEST(type_prop, selu_incompatible_input_type_boolean)
 {
-    const auto param = make_shared<op::Parameter>(element::boolean, Shape{1, 32, 32});
-    const auto alpha = make_shared<op::Parameter>(element::f16, Shape{1});
-    const auto lambda = make_shared<op::Parameter>(element::f16, Shape{1});
-    ASSERT_THROW(std::make_shared<op::Selu>(param, alpha, lambda), ngraph::NodeValidationFailure);
+    // Invalid data input element type
+    try
+    {
+        auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 2, 3, 4});
+        const auto alpha = make_shared<op::Parameter>(element::boolean, Shape{1});
+        const auto lambda = make_shared<op::Parameter>(element::boolean, Shape{1});
+        auto selu = make_shared<op::Selu>(data, alpha, lambda);
+        // Data input expected to be of numeric type
+        FAIL() << "Invalid input type not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+    }
+    catch (...)
+    {
+        FAIL() << "Input type check failed for unexpected reason";
+    }
 }
 
 TEST(type_prop, selu_incompatible_input_type_i32)
 {
-    const auto param = make_shared<op::Parameter>(element::i32, Shape{1, 32, 32});
-    const auto alpha = make_shared<op::Parameter>(element::i32, Shape{1});
-    const auto lambda = make_shared<op::Parameter>(element::i32, Shape{1});
-    ASSERT_THROW(std::make_shared<op::Selu>(param, alpha, lambda), ngraph::NodeValidationFailure);
+    // Invalid data input element type
+    try
+    {
+        auto data = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
+        const auto alpha = make_shared<op::Parameter>(element::i32, Shape{1});
+        const auto lambda = make_shared<op::Parameter>(element::i32, Shape{1});
+        auto selu = make_shared<op::Selu>(data, alpha, lambda);
+        // Data input expected to be of numeric type
+        FAIL() << "Invalid input type not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+    }
+    catch (...)
+    {
+        FAIL() << "Input type check failed for unexpected reason";
+    }
 }
 
 TEST(type_prop, selu_incompatible_input_type_u16)
 {
-    const auto param = make_shared<op::Parameter>(element::u16, Shape{1, 32, 32});
-    const auto alpha = make_shared<op::Parameter>(element::u16, Shape{1});
-    const auto lambda = make_shared<op::Parameter>(element::u16, Shape{1});
-    ASSERT_THROW(std::make_shared<op::Selu>(param, alpha, lambda), ngraph::NodeValidationFailure);
+    // Invalid data input element type
+    try
+    {
+        auto data = make_shared<op::Parameter>(element::u16, Shape{1, 2, 3, 4});
+        const auto alpha = make_shared<op::Parameter>(element::u16, Shape{1});
+        const auto lambda = make_shared<op::Parameter>(element::u16, Shape{1});
+        auto selu = make_shared<op::Selu>(data, alpha, lambda);
+        // Data input expected to be of numeric type
+        FAIL() << "Invalid input type not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+    }
+    catch (...)
+    {
+        FAIL() << "Input type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, selu_incompatible_input_types)
+{
+    // Invalid data input element type
+    try
+    {
+        auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+        const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
+        const auto lambda = make_shared<op::Parameter>(element::u16, Shape{1});
+        auto selu = make_shared<op::Selu>(data, alpha, lambda);
+        // Data input expected to be of numeric type
+        FAIL() << "Inavlid input types not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types do not match"));
+    }
+    catch (...)
+    {
+        FAIL() << "Input type check failed for unexpected reason";
+    }
 }
 
 TEST(type_prop, selu_dynamic_rank_input_shape_2D)
