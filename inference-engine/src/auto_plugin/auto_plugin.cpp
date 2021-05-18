@@ -11,10 +11,12 @@
 #include <ie_metric_helpers.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
-#include <transformations/utils/utils.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 #include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
+#include "ngraph_ops/convolution_ie.hpp"
+#include "ngraph_ops/deconvolution_ie.hpp"
 
 namespace AutoPlugin {
 namespace {
@@ -27,24 +29,24 @@ namespace {
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
-        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-        if (isINTModel) {
-            return "INT8";
-        }
         for (auto & node : nGraphFunc->get_ordered_ops()) {
-            auto nodeSize = node->inputs().size();
-            auto nodeName = node->get_name();
-            if (nodeSize != 0) {
-                if (nodeName.find("Convolution") != std::string::npos) {
-                    auto layerType = node->input(0).get_element_type().get_type_name();
-                    if (layerType == "f32")
-                        return "FP32";
-                    if (layerType == "f16")
-                        return "FP16";
-                }
+            if (std::dynamic_pointer_cast<ngraph::op::FakeQuantize>(node)) {
+                return METRIC_VALUE(INT8);
+            }
+            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
+                std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+                auto layerType = node->input(0).get_element_type().get_type_name();
+                if (layerType == "f32")
+                    return METRIC_VALUE(FP32);
+                if (layerType == "f16")
+                    return METRIC_VALUE(FP16);
             }
         }
-        return "FP32";
+        return METRIC_VALUE(FP32);
     }
 }  // namespace
 
@@ -338,6 +340,8 @@ DeviceInformation AutoInferencePlugin::SelectDevice(const InferenceEngine::CNNNe
         return metaDevices.at(0);
     }
 
+    auto networkPrecision = GetNetworkPrecision(network);
+
     std::vector<DeviceInformation> CPU;
     std::vector<DeviceInformation> GPU;
 
@@ -352,7 +356,6 @@ DeviceInformation AutoInferencePlugin::SelectDevice(const InferenceEngine::CNNNe
         }
     }
 
-    auto networkPrecision = GetNetworkPrecision(network);
     if (CPU.empty() && GPU.empty()) {
         IE_THROW(NotFound) << "No available device found";
     }
