@@ -10,6 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
+#include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -35,7 +36,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF16) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -68,7 +69,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF32) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -101,7 +102,7 @@ TEST(TransformationTests, HSwishFusionWithReluMul) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithReluMul>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -135,7 +136,9 @@ TEST(TransformationTests, HSwishFusionWithoutRelu) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithoutRelu>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -166,7 +169,9 @@ TEST(TransformationTests, HSwishFusionWithClampMul) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithClampMul>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -197,7 +202,9 @@ TEST(TransformationTests, HSwishFusionWithClampDiv) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithClampDiv>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -230,7 +237,7 @@ TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithReluMul>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -270,7 +277,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -311,7 +318,9 @@ TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithoutRelu>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -350,7 +359,9 @@ TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithoutRelu>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -382,7 +393,7 @@ TEST(TransformationTests, HSwishFusionWithHSigmoidMul) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusionWithHSigmoidMul>();
+        manager.register_pass<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

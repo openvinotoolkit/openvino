@@ -147,7 +147,7 @@ TEST(TransformationTests, HSigmoidFusionWithoutRelu) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSigmoidFusionWithClamp) {
+TEST(TransformationTests, HSigmoidFusionWithClampMul) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -158,6 +158,36 @@ TEST(TransformationTests, HSigmoidFusionWithClamp) {
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(input);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, HSigmoidFusionWithClampDiv) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ngraph::opset6::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
+        auto add = std::make_shared<ngraph::opset6::Add>(input, add_constant);
+        auto clamp = std::make_shared<ngraph::opset6::Clamp>(add, 0.0f, 6.0f);
+        auto div_constant = ngraph::opset6::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
+        auto div = std::make_shared<ngraph::opset6::Divide>(clamp, div_constant);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
