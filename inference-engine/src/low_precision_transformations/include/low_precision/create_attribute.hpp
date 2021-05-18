@@ -48,8 +48,8 @@ public:
                 return false;
             }
             {
-                OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "CreateAttribute");
-                auto attribute = ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::create(op, params);
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreateAttribute");
+                const auto attribute = ngraph::VariantWrapper<AttributeType>::create(op, params);
                 if (attribute == nullptr) {
                     return false;
                 }

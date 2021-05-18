@@ -38,7 +38,7 @@ public:
             }
 
             {
-                OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "PropagateThroughPrecisionPreserved");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateThroughPrecisionPreserved");
 
                 if (!ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node)) {
                     return false;

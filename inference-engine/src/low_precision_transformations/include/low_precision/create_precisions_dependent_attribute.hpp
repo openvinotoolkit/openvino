@@ -42,7 +42,7 @@ public:
             }
 
             {
-                OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
                 auto &rt = node->get_rt_info();
 
                 const auto precisionPreservedAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(

@@ -158,7 +158,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     auto passConfig = get_pass_config();
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "LowPrecisionPrerequisites");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionPrerequisites");
         ngraph::pass::Manager manager(passConfig);
         auto prerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
         const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
@@ -169,13 +169,13 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     }
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "LowPrecisionStepTypeRelaxedReplacer");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionStepTypeRelaxedReplacer");
         TypeRelaxedReplacer pass;
         pass.run_on_function(f);
     }
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "LowPrecisionStepCommon");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionStepCommon");
         ngraph::pass::Manager manager(passConfig);
 //#define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
@@ -273,7 +273,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     }
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "LowPrecisionCleanup");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionCleanup");
         {
             ngraph::pass::Manager cleanupManager(passConfig);
             std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = cleanupManager.register_pass<ngraph::pass::GraphRewrite>();

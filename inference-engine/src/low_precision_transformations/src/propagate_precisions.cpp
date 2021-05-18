@@ -20,7 +20,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PropagatePrecisions, "Propag
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager;
     std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
-    precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(AttributeSource::OutputPort);
+    precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttributePtr, opset1::FakeQuantize>>(AttributeSource::OutputPort);
     precisionsPropagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<PrecisionsAttribute>>();
     precisionsPropagation->add_matcher<low_precision::PropagateToInput<PrecisionsAttribute>>();
     manager.run_passes(f);

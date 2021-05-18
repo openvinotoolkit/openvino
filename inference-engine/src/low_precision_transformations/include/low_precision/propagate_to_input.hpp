@@ -37,7 +37,7 @@ public:
             }
 
             {
-                OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "PropagateToInput");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateToInput");
 
                 for (auto input : node->inputs()) {
                     auto parentAttribute = getSourceOutputAttribute(input);

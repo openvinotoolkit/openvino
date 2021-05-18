@@ -49,7 +49,7 @@ public:
             }
 
             {
-                OV_ITT_SCOPED_TASK(itt::domains::LPT_LT, "UpdateSharedPrecisionPreserved");
+                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "UpdateSharedPrecisionPreserved");
                 for (auto input : node->inputs()) {
                     if (needToCheckExpectedAttributeType) {
                         if (getAttribute<ExpectedAttributeType>(input) == nullptr) {
