@@ -145,7 +145,6 @@ public:
         return dev <= Gna2DeviceVersion2_0 && isGnaHw(dev);
     }
     bool enforceLegacyCnnNeeded() const;
-    Gna2DeviceVersion getExecutionTargetDevice() const;
     static void checkGna2Status(Gna2Status status, const std::string& from);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
@@ -197,6 +196,9 @@ public:
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
+    Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
+    Gna2DeviceVersion getDefaultTarget() const;
+    Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 #endif
     void setOMPThreads(uint8_t const n_threads);
 
