@@ -229,7 +229,7 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
                                                                      ngraph::Shape{batch_size, num_directions, hidden_size});
         const auto C_t = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size, num_directions, hidden_size});
-        const auto seq_lenghts = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
+        const auto seq_lengths = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size});
         const auto B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
@@ -245,7 +245,7 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
         auto sequence_ie = std::make_shared<ngraph::op::LSTMSequenceIE>(X,
                                                                         in_1,
                                                                         in_2,
-                                                                        seq_lenghts,
+                                                                        seq_lengths,
                                                                         in_3,
                                                                         in_4,
                                                                         sequence->get_hidden_size(),

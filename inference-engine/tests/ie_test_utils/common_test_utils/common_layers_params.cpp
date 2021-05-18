@@ -209,18 +209,4 @@ void get_common_dims(const InferenceEngine::Blob &blob,
     }
 }
 
-std::ostream& operator<<(std::ostream & os, OpType type) {
-    switch (type) {
-        case OpType::SCALAR:
-            os << "SCALAR";
-            break;
-        case OpType::VECTOR:
-            os << "VECTOR";
-            break;
-        default:
-            IE_THROW() << "NOT_SUPPORTED_OP_TYPE";
-    }
-    return os;
-}
-
 }  // namespace CommonTestUtils

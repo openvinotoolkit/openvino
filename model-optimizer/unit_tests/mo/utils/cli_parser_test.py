@@ -14,7 +14,7 @@ import numpy.testing as npt
 
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms
 from mo.utils.error import Error
 
 
@@ -898,3 +898,71 @@ class PathCheckerFunctions(unittest.TestCase):
     def test_non_readable_file(self):
         with self.assertRaises(Error) as cm:
             readable_file(__class__.NOT_EXISTING_FILE)
+
+
+class TransformChecker(unittest.TestCase):
+    def test_empty(self):
+        self.assertEqual(parse_transform(""), [])
+
+    def test_single_pass(self):
+        self.assertEqual(parse_transform("LowLatency"), [("LowLatency", {})])
+
+    def test_single_pass_with_args(self):
+        self.assertEqual(parse_transform("LowLatency[num_iterations=2]"),
+                         [("LowLatency", {"num_iterations": 2})])
+
+    def test_single_pass_with_multiple_args(self):
+        self.assertEqual(parse_transform("LowLatency[num_iterations=2;dummy_attr=3.14]"),
+                         [("LowLatency", {"num_iterations": 2, "dummy_attr": 3.14})])
+
+    def test_multiple_passes_with_args(self):
+        self.assertEqual(parse_transform("LowLatency[num_iterations=2],DummyPass[type=ReLU]"),
+                         [("LowLatency", {"num_iterations": 2}),
+                          ("DummyPass", {"type": "ReLU"})])
+
+    def test_multiple_passes_with_args2(self):
+        self.assertEqual(parse_transform("LowLatency[num_iterations=2,3,4.15],DummyPass1,DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
+                         [("LowLatency",  {"num_iterations": [2,3,4.15]}),
+                          ("DummyPass1",  {}),
+                          ("DummyPass2",  {"types": ["ReLU", "PReLU"], "values": [1,2,3]})])
+
+    def test_multiple_passes_no_args(self):
+        self.assertEqual(parse_transform("DummyPass,LowLatency2"),
+                         [("DummyPass", {}), ("LowLatency2", {})])
+
+    def test_single_pass_neg(self):
+        self.assertRaises(Error, parse_transform, "LowLatency!")
+
+    def test_multiple_passes_neg(self):
+        self.assertRaises(Error, parse_transform, "LowLatency;DummyPass")
+
+    def test_single_pass_with_args_neg1(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[=2]")
+
+    def test_single_pass_with_args_neg2(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[key=]")
+
+    def test_single_pass_with_args_neg3(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[]")
+
+    def test_single_pass_with_args_neg4(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[key=value;]")
+
+    def test_single_pass_with_args_neg5(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[value]")
+
+    def test_single_pass_with_args_neg6(self):
+        self.assertRaises(Error, parse_transform, "LowLatency[key=value")
+
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_check_low_latency_is_available(self, available_transformations):
+        available_transformations.return_value = {"LowLatency": None}
+        try:
+            check_available_transforms([("LowLatency" ,"")], True)
+        except Error as e:
+            self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
+
+    @patch("mo.back.offline_transformations.get_available_transformations")
+    def test_check_dummy_pass_is_available(self, available_transformations):
+        available_transformations.return_value = {"LowLatency": None}
+        self.assertRaises(Error, check_available_transforms, [("DummyPass", "")], True)

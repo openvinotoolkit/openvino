@@ -190,9 +190,11 @@ private:
 
 class jit_squared_difference_emitter : public jit_emitter {
 public:
-    jit_squared_difference_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_squared_difference_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+                                   const MKLDNNNode* node,
                                    InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
-    jit_squared_difference_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+    jit_squared_difference_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ngraph::Node>& n,
                                    InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
