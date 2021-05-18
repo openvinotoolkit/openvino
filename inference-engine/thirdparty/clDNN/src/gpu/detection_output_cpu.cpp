@@ -38,8 +38,8 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     explicit detection_output_cpu(const detection_output_node& outer) : outer(outer) {}
 
     static void IntersectBBox(const bounding_box& bbox1,
-                        const bounding_box& bbox2,
-                        bounding_box& intersectBbox) {
+                              const bounding_box& bbox2,
+                              bounding_box& intersectBbox) {
         if (bbox2.xmin > bbox1.xmax || bbox2.xmax < bbox1.xmin ||
             bbox2.ymin > bbox1.ymax || bbox2.ymax < bbox1.ymin) {
             intersectBbox.xmin = 0;
@@ -175,11 +175,11 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     }
 
     void mxNetNms(const std::vector<std::vector<bounding_box>>& bboxes,
-                        const float nms_threshold,
-                        const int top_k,
-                        const bool share_location,
-                        std::map<int, std::vector<int>>& indices,
-                        std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
+                  const float nms_threshold,
+                  const int top_k,
+                  const bool share_location,
+                  std::map<int, std::vector<int>>& indices,
+                  std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
         std::sort(scoreIndexPairs.begin(),
                     scoreIndexPairs.end(),
                     SortScorePairDescend<std::pair<int, int>>);
@@ -209,10 +209,10 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     }
 
     static void caffeNMS(const std::vector<bounding_box>& bboxes,
-                          std::vector<std::pair<float, int>>& scores,
-                          const float nms_threshold,
-                          const int top_k,
-                          std::vector<int>& indices) {
+                         std::vector<std::pair<float, int>>& scores,
+                         const float nms_threshold,
+                         const int top_k,
+                         std::vector<int>& indices) {
         std::stable_sort(scores.begin(), scores.end(), SortScorePairDescend<int>);
 
         if (top_k > -1 && static_cast<size_t>(top_k) < static_cast<size_t>(scores.size())) {
@@ -238,7 +238,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
     template <typename T>
     static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                        const std::pair<float, T>& pair2) {
+                                     const std::pair<float, T>& pair2) {
         return pair1.first > pair2.first;
     }
 
@@ -247,7 +247,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                              const int num_of_images,
                              const std::vector<std::vector<std::vector<bounding_box>>>& all_bboxes,
                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                            std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
+                             std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
         mem_lock<dtype> lock{instance.output_memory()};
         auto out_ptr = lock.begin();
 
@@ -611,9 +611,9 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
     template <typename dtype>
     void prepare_data(const detection_output_inst& instance,
-                    std::vector<std::vector<std::vector<bounding_box>>>& bboxes,
-                    std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                    std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
+                      std::vector<std::vector<std::vector<bounding_box>>>& bboxes,
+                      std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
+                      std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
         assert(bboxes.size() == confidences.size());
 
         const auto& args = instance.argument;
