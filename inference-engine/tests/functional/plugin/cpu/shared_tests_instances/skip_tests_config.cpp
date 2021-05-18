@@ -87,7 +87,7 @@ std::vector<std::string> disabledTestPatterns() {
 #ifdef __APPLE__
         retVector.insert(retVector.end(), {
               // TODO: Issue 55717
-              R"(.*smoke_LPT.*ReduceMinTransformation.CompareWithRefImpl.*f32_Shape.*)",
+              R"(.*smoke_LPT.*ReduceMinTransformation\.CompareWithRefImpl.*f32_Shape.*)",
         });
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
