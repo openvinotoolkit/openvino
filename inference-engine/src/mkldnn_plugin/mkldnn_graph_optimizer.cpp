@@ -84,7 +84,6 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndSimpleOperation");
-    // TODO [NM]: While fusing simple operation into any node (except Eltwise) we need to check that other inputs are Constant nodes.
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
@@ -405,6 +404,7 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
 
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
         parentNode->setAlgorithm(EltwiseMulAdd);
+        parentNode->setTypeStr("MulAdd");
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
         graph.DropNode(childNode);
     }

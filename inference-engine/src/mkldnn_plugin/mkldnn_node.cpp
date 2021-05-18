@@ -1300,13 +1300,6 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto weightShape = getParentEdgeAt(i)->getDims().ToSizeVector();
-            // [NM] TODO: PRelu is not broadcastable
-            // WA: [1,32,46,46], [32] -> [1,32,46,46], [1, 32, 1, 1]
-            if (getAlgorithm() == EltwisePrelu && weightShape.size() == 1 && weightShape.back() != 1) {
-                auto newWeightShape = std::vector<size_t>(dataShape.size(), 1);
-                newWeightShape[1] = weightShape[0];
-                weightShape = newWeightShape;
-            }
             if (!isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
                 return false;
         }

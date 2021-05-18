@@ -211,11 +211,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
-            // [NM] TODO: Several network has model outputs which mismatch with result node name
             const auto &input = op->input_value(0);
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            auto name = input.get_tensor().get_name();
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            auto name = *input.get_tensor().get_names().begin();
             if (name.empty()) {
                 name = ngraph::op::util::create_ie_output_name(input);
             }
