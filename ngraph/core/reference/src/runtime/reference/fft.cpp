@@ -486,12 +486,15 @@ namespace ngraph
                 std::vector<int64_t> lengths_except_given_axis(const std::vector<int64_t>& v,
                                                                int64_t axis)
                 {
-                    if (v.empty())
+                    std::vector<int64_t> result;
+                    int64_t num_of_elems = static_cast<int64_t>(v.size());
+                    for (int64_t i = 0; i < num_of_elems; ++i)
                     {
-                        return v;
+                        if (i != axis)
+                        {
+                            result.push_back(v[i]);
+                        }
                     }
-                    std::vector<int64_t> result = v;
-                    result.erase(v.begin() + axis);
                     return result;
                 }
             } // namespace
@@ -539,7 +542,6 @@ namespace ngraph
                 // not transformed dimensions.
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
-                    std::fill(buffer.begin(), buffer.end(), complex_type{0.0f, 0.0f});
                     const auto outer_coords = coords_from_index(outer_idx, outer_strides);
                     int64_t outer_input_offset =
                         offset_from_coords_and_strides(outer_coords, input_outer_strides);
