@@ -111,7 +111,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -124,8 +124,9 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i] + inData[i], outData[i]);
+        }
     }
 }
 
@@ -181,7 +182,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -242,7 +243,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -255,8 +256,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+        for (size_t i = 0; i < inBlob->size(); i++) {
+            ASSERT_EQ(inData[i] + 5, outData[i]);
+        }
     }
 }
 
@@ -306,7 +308,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -361,7 +363,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -428,7 +430,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -498,7 +500,7 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -511,8 +513,9 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i]*2, outData[i]);
+        }
     }
 }
 
@@ -563,7 +566,7 @@ TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -718,11 +721,11 @@ TEST_P(PreprocessConversionTest, Infer) {
         if (iPrecision == InferenceEngine::Precision::FP32) {
             auto *inData = lockedMem.as<float*>();
             for (size_t i = 0; i < inBlob->size(); i++)
-                inData[desc.offset(i)] = i;
+                inData[desc.offset(i)] = static_cast<float>(i);
         } else if (iPrecision == InferenceEngine::Precision::U8) {
             auto *inData = lockedMem.as<std::uint8_t*>();
             for (size_t i = 0; i < inBlob->size(); i++)
-                inData[desc.offset(i)] = i;
+                inData[desc.offset(i)] = static_cast<std::uint8_t>(i);
         } else {
             ASSERT_TRUE(false);
         }

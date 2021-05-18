@@ -22,9 +22,6 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-
-#include "details/ie_exception.hpp"
-
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {
@@ -76,7 +73,11 @@ bool less_by_name(
     return l->get_friendly_name() < r->get_friendly_name();
 }
 
-
+bool less_by_parent_name(
+        const std::shared_ptr<ngraph::op::v0::Result> &l,
+        const std::shared_ptr<ngraph::op::v0::Result> &r) {
+    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+}
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t &typeInfo) {
     return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
@@ -550,8 +551,21 @@ Comparator::Result Comparator::compare(
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
 
-    std::sort(f1_results.begin(), f1_results.end(), less_by_name);
-    std::sort(f2_results.begin(), f2_results.end(), less_by_name);
+    auto cmp = less_by_name;
+    // In case if Result source output has more than one name so the Result may have any of this names as a friendly name
+    // And in case of multiple names we sort Result operation using their parent node names
+    if (std::any_of(f1_results.begin(), f1_results.end(), [](const std::shared_ptr<ngraph::Node> & node) {
+        const auto & t = node->input_value(0).get_tensor_ptr();
+        return t->get_names().size() > 1;
+    }) || std::any_of(f2_results.begin(), f2_results.end(), [](const std::shared_ptr<ngraph::Node> & node) {
+        const auto & t = node->input_value(0).get_tensor_ptr();
+        return t->get_names().size() > 1;
+    })) {
+        cmp = less_by_parent_name;
+    }
+
+    std::sort(f1_results.begin(), f1_results.end(), cmp);
+    std::sort(f2_results.begin(), f2_results.end(), cmp);
 
     if (f1_results.size() != f2_results.size()) {
         return Result::error(

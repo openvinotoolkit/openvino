@@ -9,7 +9,7 @@ from openvino.inference_engine import IECore
 
 
 def param_to_string(metric) -> str:
-    '''Convert a list / tuple of parameters returned from IE to a string'''
+    """Convert a list / tuple of parameters returned from IE to a string"""
     if isinstance(metric, (list, tuple)):
         return ', '.join([str(x) for x in metric])
     else:
@@ -19,11 +19,11 @@ def param_to_string(metric) -> str:
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
 
-# ---------------------------Initialize inference engine core----------------------------------------------------------
+    # ---------------------------Initialize inference engine core----------------------------------------------------------
     log.info('Creating Inference Engine')
     ie = IECore()
 
-# ---------------------------Get metrics of available devices----------------------------------------------------------
+    # ---------------------------Get metrics of available devices----------------------------------------------------------
     log.info('Available devices:')
     for device in ie.available_devices:
         log.info(f'{device} :')
@@ -46,7 +46,7 @@ def main():
             log.info(f'\t\t{config_key}: {param_to_string(config_val)}')
         log.info('')
 
-# ----------------------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------
     return 0
 
 

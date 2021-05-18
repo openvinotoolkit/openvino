@@ -32,6 +32,7 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/shuffle_channels_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
@@ -44,6 +45,7 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp"
+#include "transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
@@ -104,6 +106,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
     common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
@@ -159,8 +162,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    // need to convert to Gather-1 until plugins do not support Gather-7
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

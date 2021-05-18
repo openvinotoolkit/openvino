@@ -5,15 +5,29 @@ from .cimport offline_transformations_api_impl_defs as C
 from ..inference_engine.ie_api cimport IENetwork
 
 from libcpp cimport bool
+from libcpp.string cimport string
+from libc.stdint cimport int64_t
+
 
 def ApplyMOCTransformations(IENetwork network, bool cf):
     C.ApplyMOCTransformations(network.impl, cf)
 
-def ApplyLowLatencyTransformation(IENetwork network):
-    C.ApplyLowLatencyTransformation(network.impl)
+
+def ApplyPOTTransformations(IENetwork network, string device):
+    C.ApplyPOTTransformations(network.impl, device)
+
+
+def ApplyLowLatencyTransformation(IENetwork network, int64_t num_iterations=1):
+    C.ApplyLowLatencyTransformation(network.impl, num_iterations)
+
 
 def ApplyPruningTransformation(IENetwork network):
     C.ApplyPruningTransformation(network.impl)
+
+
+def GenerateMappingFile(IENetwork network, string path, bool extract_names):
+    C.GenerateMappingFile(network.impl, path, extract_names)
+
 
 def CheckAPI():
     C.CheckAPI()

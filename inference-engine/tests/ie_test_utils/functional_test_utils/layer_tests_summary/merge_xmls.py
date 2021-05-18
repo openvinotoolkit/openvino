@@ -1,17 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import xml.etree.ElementTree as ET
 import argparse
 import os
-from datetime import datetime
-import logging
 import glob
 
-logging.basicConfig()
-logger = logging.getLogger('XmlMerger')
-logger.setLevel(logging.INFO)
+import xml.etree.ElementTree as ET
 
+from utils import utils
+
+logger = utils.get_logger('XmlMerger')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -26,26 +24,15 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def update_passrates(results: ET.SubElement):
-    for device in results:
-        for op in device:
-            passed_tests = 0
-            total_tests = 0
-            for attrib in op.attrib:
-                if attrib == "passrate":
-                    continue
-                if attrib == "passed":
-                    passed_tests = int(op.attrib.get(attrib))
-                total_tests += int(op.attrib.get(attrib))
-            passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
-            op.set("passrate", str(round(passrate, 1)))
-
-
 def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
-        xml_root = ET.parse(xml).getroot()
+        try:
+            xml_root = ET.parse(xml).getroot()
+        except ET.ParseError:
+            logger.error(f' {xml} is corrupted and skipped')
+            continue
         xml_timestamp = xml_root.get("timestamp")
         if (timestamp is None) or (xml_timestamp < timestamp):
             timestamp = xml_timestamp
@@ -92,7 +79,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
                 ET.SubElement(ops_list, op.tag)
 
         timestamp = aggregate_test_results(results, xml_reports)
-        update_passrates(results)
+        utils.update_passrates(results)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 

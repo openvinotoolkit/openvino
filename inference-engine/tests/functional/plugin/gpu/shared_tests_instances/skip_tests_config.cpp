@@ -11,8 +11,6 @@ std::vector<std::string> disabledTestPatterns() {
     return {
             //TODO: Issue: 34748
             R"(.*(ComparisonLayerTest).*)",
-            // TODO: Issue: 39014
-            R"(.*CoreThreadingTestsWithIterations.*smoke_LoadNetwork.*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
             // Expected behavior
@@ -57,5 +55,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
+            // TODO: Issue: 54436
+            R"(.*LSTMSequence.*CompareWithRefs.*mode=PURE_SEQ_RAND_SEQ_LEN_PARAM.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
+            R"(.*LSTMSequence.*CompareWithRefs.*mode=CONVERT_TO_TI_RAND_SEQ_LEN_PARAM_seq.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
+            // TODO: Issue: 54194
+            R"(.*ActivationLayerTest.*SoftPlus.*)",
     };
 }

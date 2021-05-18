@@ -30,6 +30,7 @@
 #include "frontend/model_quantizer.hpp"
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
+#include "layers/gna_convolution_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
@@ -43,6 +44,7 @@ using namespace GNAPluginNS;
 
 #define CREATE(name) [](GNAGraphCompiler *p, CNNLayerPtr l) {p->name(l);}
 
+const GNALimitations::Cnn2D::Validator GNAGraphCompiler::cnn2dValidator;
 
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr) {
     this->gnamem = std::move(gnaMemPtr);
@@ -264,7 +266,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     // Map 2d convolution to 1d if it's possible
-    if (in_height > 1 && in_width > 1 && in_width == convolution._kernel_x && convolution._stride_x == 1) {
+    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, convolution._kernel_x, convolution._stride_x)) {
         in_width *= in_height;
         in_height = 1;
         out_width *= out_height;
@@ -297,9 +299,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         dnn->new_num_conv_columns = 0;
     }
 
-    // TODO: refine following condition
-    if (((in_channels > 1) && (in_height > 1) && (in_width > 1)) || // 3D input
-        (convolution._kernel_x != 1 && convolution._kernel_y != 1) || // 2D kernel
+    if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
         in_height != 1) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
@@ -452,6 +452,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
+    // Skip FakeQuantize and ScaleShift between Convolution and Input
+    if (LayerInfo(connectedInputLayer).isFakeQuantize()) {
+            connectedInputLayer = CNNNetPrevLayerSkipCertain(connectedInputLayer, 0, [](CNNLayerPtr l) {
+            return LayerInfo(l).isScaleShift();
+        });
+    }
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input) {
@@ -575,7 +581,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     }
     uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
 
-    uint32_t filter_n = convolution._out_depth;
+    const uint32_t filter_n = convolution._out_depth;
     uint32_t original_num_feature_map_rows = num_feature_map_rows;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
@@ -598,6 +604,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
+    cnn2dValidator.ValidateCnn2D(layer->name,
+        in_height, in_width, in_channels,
+        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
 
     float weight_scale_factor = 1.0f;
     float output_scale_factor = 1.0f;
@@ -622,6 +631,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         ptr_weights,
         ptr_biases);
 
+    currentComponent.num_bytes_per_input = inputs->getPrecision().size();
     currentComponent.num_bytes_per_output = outputs->getPrecision().size();
 
     if (inputs->getLayout() == Layout::NHWC) {
@@ -858,6 +868,21 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
+
+    bool is2DPooling = false;
+    if (dnnComponents.components.size() > 0) {
+        const auto last = dnnComponents.components.back();
+        if (last.dnnComponent.operation == kDnnConvolutional2dOp) {
+            is2DPooling = true;
+        } else if (last.dnnComponent.operation == kDnnPiecewiselinearOp && dnnComponents.components.size() > 1) {
+            const auto& prev2 = *std::prev(dnnComponents.components.cend(), 2);
+            is2DPooling = prev2.dnnComponent.operation == kDnnConvolutional2dOp;
+        }
+    }
+
+    if (is2DPooling) {
+        cnn2dValidator.ValidatePooling2D(layer->name, pooling._kernel_y, pooling._kernel_x, pooling._stride_y, pooling._stride_x);
+    }
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "pooling");
 
