@@ -72,9 +72,9 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
     }
 }
 
-static int GetGatherBatchDim(const gather_params& params) {
+static int64_t GetGatherBatchDim(const gather_params& params) {
     if (params.batch_dim < 0)
-        return GetNonEmptyDimsNumber(params.inputs[1]) + params.batch_dim;
+        return (int64_t)GetNonEmptyDimsNumber(params.inputs[1]) + params.batch_dim;
     else
         return params.batch_dim;
 }
