@@ -10,8 +10,8 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
 
 namespace {
-TEST_P(ResultLayerTest, Serialize) {
-    Serialize();
+TEST_P(ResultLayerTest, CompareWithRefs) {
+    Run();
 }
 
 std::vector<InferenceEngine::SizeVector> inputDims = {
