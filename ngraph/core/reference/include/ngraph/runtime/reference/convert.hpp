@@ -17,18 +17,25 @@ namespace ngraph
         {
             namespace detail
             {
-                inline void set_u1(uint8_t* buf, size_t idx)
+                inline void set_u1(uint8_t* buf, size_t idx, uint8_t val)
                 {
                     const int byte_idx = idx / 8;
                     const int bit_idx = 7 - (idx % 8);
-                    buf[byte_idx] |= (1 << bit_idx);
+                    if (val)
+                    {
+                        buf[byte_idx] |= (1 << bit_idx);
+                    }
+                    else
+                    {
+                        buf[byte_idx] &= ~(1 << bit_idx);
+                    }
                 }
 
                 inline uint8_t get_u1(const uint8_t* buf, size_t idx)
                 {
                     const int byte_idx = idx / 8;
                     const int bit_idx = 7 - (idx % 8);
-                    return buf[byte_idx] & (1 << bit_idx);
+                    return (buf[byte_idx] & (1 << bit_idx)) ? 1 : 0;
                 }
 
                 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val)
@@ -65,6 +72,26 @@ namespace ngraph
                     }
                     return val;
                 }
+                template <typename T>
+                T get_value(const uint8_t* buf, size_t idx, element::Type type)
+                {
+                    if (type == element::u1)
+                    {
+                        return detail::get_u1(buf, idx);
+                    }
+
+                    if (type == element::u4)
+                    {
+                        return detail::get_u4(buf, idx);
+                    }
+
+                    if (type == element::i4)
+                    {
+                        return detail::get_i4(buf, idx);
+                    }
+
+                    return static_cast<T>(buf[idx]);
+                }
             } // namespace detail
 
             template <typename TI, typename TO>
@@ -74,58 +101,32 @@ namespace ngraph
                          element::Type_t src_type,
                          element::Type_t dst_type)
             {
-                std::fill(out, out + count, 0);
-                if (dst_type == element::u1) // TODO: fix for LP source types
+                if (src_type == dst_type)
                 {
-                    for (size_t i = 0; i < count; ++i)
-                    {
-                        if (arg[i])
-                        {
-                            detail::set_u1(reinterpret_cast<uint8_t*>(out), i);
-                        }
-                    }
+                    std::memcpy(out, arg, count * sizeof(TO));
+                    return;
                 }
-                else if (src_type == element::u1) // TODO: fix for LP dst types
+
+                const uint8_t* input = reinterpret_cast<const uint8_t*>(arg);
+                uint8_t* output = reinterpret_cast<uint8_t*>(out);
+                for (size_t i = 0; i < count; ++i)
                 {
-                    for (size_t i = 0; i < count; ++i)
+                    if (dst_type == element::u1)
                     {
-                        if (detail::get_u1(reinterpret_cast<const uint8_t*>(arg), i))
-                        {
-                            out[i] = static_cast<TO>(1);
-                        }
+                        detail::set_u1(output, i, detail::get_value<uint8_t>(input, i, src_type));
                     }
-                }
-                else if (dst_type == element::u4) // TODO: fix for LP source types
-                {
-                    for (size_t i = 0; i < count; ++i)
+                    else if (dst_type == element::u4)
                     {
-                        detail::set_u4(reinterpret_cast<uint8_t*>(out), i, arg[i]);
+                        detail::set_u4(output, i, detail::get_value<uint8_t>(input, i, src_type));
                     }
-                }
-                else if (src_type == element::u4) // TODO: fix for LP dst types
-                {
-                    for (size_t i = 0; i < count; ++i)
+                    else if (dst_type == element::i4)
                     {
-                        out[i] = detail::get_u4(reinterpret_cast<const uint8_t*>(arg), i);
+                        detail::set_i4(output, i, detail::get_value<int8_t>(input, i, src_type));
                     }
-                }
-                else if (dst_type == element::i4) // TODO: fix for LP source types
-                {
-                    for (size_t i = 0; i < count; ++i)
+                    else
                     {
-                        detail::set_i4(reinterpret_cast<uint8_t*>(out), i, arg[i]);
+                        out[i] = detail::get_value<TO>(input, i, src_type);
                     }
-                }
-                else if (src_type == element::i4) // TODO: fix for LP dst types
-                {
-                    for (size_t i = 0; i < count; ++i)
-                    {
-                        out[i] = detail::get_i4(reinterpret_cast<const uint8_t*>(arg), i);
-                    }
-                }
-                else
-                {
-                    NGRAPH_CHECK(false, "Unimplemented");
                 }
             }
 

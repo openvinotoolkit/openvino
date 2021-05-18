@@ -46,6 +46,27 @@ namespace
 
         test_case.run();
     }
+
+    // TestCase doesn't support LP types
+    template <typename T_IN, typename T_OUT>
+    void LPConvertTest(const std::vector<T_IN>& input,
+                       const Shape& input_shape,
+                       const ngraph::element::Type& input_type,
+                       const std::vector<T_OUT>& expected_output,
+                       const ngraph::element::Type& expected_output_type)
+    {
+        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+        auto input_tesnor = backend->create_tensor(input_type, input_shape);
+        copy_data(input_tesnor, input);
+        auto output = backend->create_tensor(expected_output_type, input_shape);
+        auto handle = backend->compile(f);
+        handle->call_with_validate({output}, {input_tesnor});
+
+        std::vector<uint8_t> result(expected_output.size());
+        output->read(result.data(), result.size() * sizeof(uint8_t));
+        EXPECT_TRUE(test::all_close(expected_output, result));
+    }
 } // namespace
 
 // destination: boolean
@@ -411,6 +432,30 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i64)
 }
 
 // destination: u1
+NGRAPH_TEST(${BACKEND_NAME}, convert_u1_to_u1)
+{
+    const std::vector<uint8_t> input{0xF0};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u1;
+
+    const std::vector<uint8_t> expected_output{0xF0};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u4_to_u1)
+{
+    const std::vector<uint8_t> input{0x10, 0x01};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u4;
+
+    const std::vector<uint8_t> expected_output{0x90};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u1)
 {
     const std::vector<uint8_t> input{1, 0, 1, 0};
@@ -420,22 +465,47 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u1)
     const std::vector<uint8_t> expected_output{0xA0};
     const element::Type expected_output_type = ngraph::element::u1;
 
-    {
-        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
-        auto backend = runtime::Backend::create("${BACKEND_NAME}");
-        auto input_tesnor = backend->create_tensor(input_type, input_shape);
-        copy_data(input_tesnor, input);
-        auto output = backend->create_tensor(expected_output_type, input_shape);
-        auto handle = backend->compile(f);
-        handle->call_with_validate({output}, {input_tesnor});
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
 
-        std::vector<uint8_t> result(expected_output.size());
-        output->read(result.data(), result.size() * sizeof(uint8_t));
-        EXPECT_TRUE(test::all_close(expected_output, result));
-    }
+NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_u1)
+{
+    const std::vector<uint8_t> input{0x10, 0x01};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u4;
+
+    const std::vector<uint8_t> expected_output{0x90};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 // destination: u4
+NGRAPH_TEST(${BACKEND_NAME}, convert_u1_to_u4)
+{
+    const std::vector<uint8_t> input{0xF0};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u1;
+
+    const std::vector<uint8_t> expected_output{0x11, 0x11};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u4_to_u4)
+{
+    const std::vector<uint8_t> input{0x22, 0x33};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u4;
+
+    const std::vector<uint8_t> expected_output{0x22, 0x33};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+
 NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u4)
 {
     const std::vector<uint8_t> input{7, 0, 1, 15};
@@ -445,19 +515,19 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u4)
     const std::vector<uint8_t> expected_output{0x70, 0x1F};
     const element::Type expected_output_type = ngraph::element::u4;
 
-    {
-        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
-        auto backend = runtime::Backend::create("${BACKEND_NAME}");
-        auto input_tesnor = backend->create_tensor(input_type, input_shape);
-        copy_data(input_tesnor, input);
-        auto output = backend->create_tensor(expected_output_type, input_shape);
-        auto handle = backend->compile(f);
-        handle->call_with_validate({output}, {input_tesnor});
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
 
-        std::vector<uint8_t> result(expected_output.size());
-        output->read(result.data(), result.size() * sizeof(uint8_t));
-        EXPECT_TRUE(test::all_close(expected_output, result));
-    }
+NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_u4)
+{
+    const std::vector<uint8_t> input{0x22, 0x33};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i4;
+
+    const std::vector<uint8_t> expected_output{0x22, 0x33};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 // destination: u8

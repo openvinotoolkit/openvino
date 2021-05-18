@@ -1065,6 +1065,12 @@ IE_CPU.convert_u32_to_f32 # NOT_IMPLEMENTED
 IE_CPU.convert_i4_to_f32 # NOT_IMPLEMENTED
 IE_CPU.convert_u1_to_f32 # NOT_IMPLEMENTED
 IE_CPU.convert_u4_to_f32 # NOT_IMPLEMENTED
+IE_CPU.convert_u1_to_u1
+IE_CPU.convert_u4_to_u1
+IE_CPU.convert_i4_to_u1
+IE_CPU.convert_u1_to_u4
+IE_CPU.convert_u4_to_u4
+IE_CPU.convert_i4_to_u4
 
 #-------------------------------------------------------------------------------
 #
