@@ -354,7 +354,6 @@ set(MULTI_TEST_SRC
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
-    backend/experimental_detectron_roi_feature_extractor.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
