@@ -516,10 +516,12 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
     // step 1. transpose both operands so that common labels, separated and reduced labels
     // are grouped for both operands
     bool is_separate_first1 = false;
-    auto int_subscript1 = generate_grouping_subscript(input_subscript1, common_labels_inds1, separate_labels_inds1, reduced_labels_inds1, is_separate_first1);
+    auto int_subscript1 = generate_grouping_subscript(input_subscript1, common_labels_inds1, separate_labels_inds1,
+        reduced_labels_inds1, is_separate_first1);
     transpose_input(input_nodes, input_subscripts, int_subscript1, input_ind1, subgraph_nodes);
     bool is_separate_first2 = false;
-    auto int_subscript2 = generate_grouping_subscript(input_subscript2, common_labels_inds2, separate_labels_inds2, reduced_labels_inds2, is_separate_first2);
+    auto int_subscript2 = generate_grouping_subscript(input_subscript2, common_labels_inds2, separate_labels_inds2,
+        reduced_labels_inds2, is_separate_first2);
     transpose_input(input_nodes, input_subscripts, int_subscript2, input_ind2, subgraph_nodes);
 
     // step 2. reshape both operands so that separate labels and reduced labels are represented
@@ -564,7 +566,8 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
             int64_t separate1_dims_begin = (is_separate_first1 ? common_labels_inds1.size() : common_labels_inds1.size() + reduced_labels_inds1.size());
             int64_t separate1_dims_end = separate1_dims_begin + separate_labels_inds1.size();
             separate1_sub_shape = compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
-            matmul_operand1 = reshape_input_for_matmul(input_node1, common_sub_shape, separate1_sub_shape, reduced_sub_shape_prod, is_separate_first1, subgraph_nodes);
+            matmul_operand1 = reshape_input_for_matmul(input_node1, common_sub_shape, separate1_sub_shape,
+                reduced_sub_shape_prod, is_separate_first1, subgraph_nodes);
         }
 
         if (no_reshape_for_matmul2 == false || no_reshape_after_matmul == false) {
@@ -572,7 +575,8 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
             int64_t separate2_dims_begin = (is_separate_first2 ? common_labels_inds2.size() : common_labels_inds2.size() + reduced_labels_inds2.size());
             int64_t separate2_dims_end = separate2_dims_begin + separate_labels_inds2.size();
             separate2_sub_shape = compute_sub_shape(data_shape2, separate2_dims_begin, separate2_dims_end, subgraph_nodes);
-            matmul_operand2 = reshape_input_for_matmul(input_node2, common_sub_shape, separate2_sub_shape, reduced_sub_shape_prod, is_separate_first2, subgraph_nodes);
+            matmul_operand2 = reshape_input_for_matmul(input_node2, common_sub_shape, separate2_sub_shape,
+                reduced_sub_shape_prod, is_separate_first2, subgraph_nodes);
             subgraph_nodes.insert(subgraph_nodes.end(), {data_shape2});
         }
         subgraph_nodes.insert(subgraph_nodes.end(), {data_shape1});
