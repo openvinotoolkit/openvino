@@ -32,13 +32,12 @@ namespace ngraph
     {
         namespace reference
         {
-            void experimental_detectron_topk_rois(
-                const float* input_rois,
-                const float* input_probs,
-                const Shape& input_rois_shape,
-                const Shape& input_probs_shape,
-                size_t max_rois,
-                float* output_rois);
+            void experimental_detectron_topk_rois(const float* input_rois,
+                                                  const float* input_probs,
+                                                  const Shape& input_rois_shape,
+                                                  const Shape& input_probs_shape,
+                                                  size_t max_rois,
+                                                  float* output_rois);
 
             void experimental_detectron_topk_rois_postprocessing(
                 const HostTensorVector& outputs,
