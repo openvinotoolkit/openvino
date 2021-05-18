@@ -42,8 +42,8 @@ void op::v0::BatchNormInference::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(
         this,
-        m_epsilon > 0,
-        "Attribute 'epsilon' must have non-zero positive floating-point value. Got: ",
+        m_epsilon >= 0,
+        "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
         m_epsilon);
 
     set_output_size(1);
@@ -102,8 +102,8 @@ void op::v5::BatchNormInference::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(
         this,
-        m_epsilon > 0,
-        "Attribute 'epsilon' must have non-zero positive floating-point value. Got: ",
+        m_epsilon >= 0,
+        "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
         m_epsilon);
 
     set_output_size(1);
