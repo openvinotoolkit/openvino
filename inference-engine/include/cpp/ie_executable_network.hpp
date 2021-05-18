@@ -30,8 +30,8 @@ class IExecutableNetwork;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<IExecutableNetworkInternal>  _impl;
     details::SharedObjectLoader                  _so;
+    std::shared_ptr<IExecutableNetworkInternal>  _impl;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr

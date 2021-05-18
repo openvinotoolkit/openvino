@@ -25,8 +25,8 @@ class IVariableStateInternal;
  * @brief C++ exception based error reporting wrapper of API class IVariableState
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    std::shared_ptr<IVariableStateInternal>  _impl;
     details::SharedObjectLoader              _so;
+    std::shared_ptr<IVariableStateInternal>  _impl;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr

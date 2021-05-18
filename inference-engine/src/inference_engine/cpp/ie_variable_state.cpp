@@ -21,7 +21,7 @@ namespace InferenceEngine {
 
 VariableState::VariableState(const details::SharedObjectLoader& so,
                              const IVariableStateInternal::Ptr& impl)
-    : _impl(impl), _so(so) {
+    : _so(so), _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
 

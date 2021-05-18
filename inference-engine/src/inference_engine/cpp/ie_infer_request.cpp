@@ -43,7 +43,7 @@ namespace InferenceEngine {
 
 InferRequest::InferRequest(const details::SharedObjectLoader& so,
                            const IInferRequestInternal::Ptr&  impl)
-    : _impl(impl), _so(so) {
+    : _so(so), _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
 
