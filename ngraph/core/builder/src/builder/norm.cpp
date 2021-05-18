@@ -41,7 +41,8 @@ namespace ngraph
 
                     // Get inner part of equation: abs_values^p_node, then sum over reduction_axes.
                     shared_ptr<Node> values{make_shared<ngraph::opset1::Power>(abs_values, p_node)};
-                    values = make_shared<ngraph::opset1::ReduceSum>(values, reduction_axes, keep_dims);
+                    values =
+                        make_shared<ngraph::opset1::ReduceSum>(values, reduction_axes, keep_dims);
 
                     shared_ptr<Node> bias_node{ngraph::opset1::Constant::create(
                         values->get_element_type(), Shape{}, {bias})};
@@ -70,7 +71,8 @@ namespace ngraph
             const shared_ptr<Node> non_zero_values = make_shared<ngraph::opset1::Convert>(
                 make_shared<ngraph::opset1::NotEqual>(value, zero_node), value.get_element_type());
 
-            return make_shared<ngraph::opset1::ReduceSum>(non_zero_values, reduction_axes, keep_dims)
+            return make_shared<ngraph::opset1::ReduceSum>(
+                       non_zero_values, reduction_axes, keep_dims)
                 ->add_provenance_group_members_above({value});
         }
 
@@ -95,9 +97,10 @@ namespace ngraph
                                                   BiasMode bias_mode,
                                                   bool keep_dims)
         {
-            shared_ptr<Node> pow = make_shared<ngraph::opset1::Power>(value,
-                    make_shared<ngraph::opset1::Constant>(value.get_element_type(), Shape{}, 2));
-            shared_ptr<Node> values{make_shared<ngraph::opset1::ReduceSum>(pow, reduction_axes, keep_dims)};
+            shared_ptr<Node> pow = make_shared<ngraph::opset1::Power>(
+                value, make_shared<ngraph::opset1::Constant>(value.get_element_type(), Shape{}, 2));
+            shared_ptr<Node> values{
+                make_shared<ngraph::opset1::ReduceSum>(pow, reduction_axes, keep_dims)};
 
             shared_ptr<Node> bias_node{
                 ngraph::opset1::Constant::create(values->get_element_type(), Shape{}, {bias})};
