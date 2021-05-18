@@ -17,6 +17,7 @@ from mo.utils.error import Error
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 
+
 def restore_edges(graph: Graph, get_edges: callable):
     """
     Take a graph without edges and extract dependencies between nodes with the help of get_edges function.
@@ -159,6 +160,7 @@ def node_defs_to_str(node: Node):
 
 
 def update_ie_fields(attrs: dict, ir_version = None):
+    # we need to import this functions here to avoid circular dependent imports
     from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
     ir_v10_attrs = {
         'IE': [(
