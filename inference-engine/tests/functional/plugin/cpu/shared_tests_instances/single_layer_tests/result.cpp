@@ -10,10 +10,6 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
 
 namespace {
-TEST_P(ResultLayerTest, CompareWithRefs) {
-    Run();
-}
-
 std::vector<InferenceEngine::SizeVector> inputDims = {
     {7},       {1000},         {3, 5},       {65, 33},       {33, 65},
     {1, 1000}, {223, 217, 21}, {3, 4, 5, 1}, {3, 4, 1, 5, 1}};
