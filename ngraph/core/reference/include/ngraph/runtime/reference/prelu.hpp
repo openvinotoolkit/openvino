@@ -26,7 +26,8 @@ namespace ngraph
                        const Shape& slope_shape)
             {
                 Shape broadcasted_slope(slope_shape.begin(), slope_shape.end());
-                if (arg_shape.size() >= 3)
+                const bool is_onnx_more_than_1d_slope = slope_shape.size() > 1;
+                if (arg_shape.size() >= 3 && !is_onnx_more_than_1d_slope)
                 {
                     broadcasted_slope.insert(broadcasted_slope.end(), arg_shape.size() - 2, 1);
                 }

@@ -13,7 +13,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_2d) 
+NGRAPH_TEST(${BACKEND_NAME}, prelu_2d)
 {
     Shape shape_a{2, 6};
     Shape shape_b{6};
@@ -32,7 +32,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_1d) 
+NGRAPH_TEST(${BACKEND_NAME}, prelu_1d)
 {
     Shape shape_a{6};
     Shape shape_b{1};
@@ -100,7 +100,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_same_shape) 
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_same_shape)
 {
     Shape shape_a{2, 6};
     Shape shape_b{2, 6};
@@ -120,7 +120,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_same_shape)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_diff_shape) 
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_diff_shape)
 {
     Shape shape_a{2, 2, 2, 2};
     Shape shape_b{2, 1, 2};
@@ -137,7 +137,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_2d_diff_shape)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_diff_shape) 
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_diff_shape)
 {
     Shape shape_a{2, 2, 6};
     Shape shape_b{2, 1, 6};
@@ -161,7 +161,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_diff_shape)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_same_shape) 
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_same_shape)
 {
     Shape shape_a{2, 3, 2};
     Shape shape_b{2, 3, 2};
@@ -181,7 +181,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_prelu_3d_same_shape)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_broadcast_slope) 
+NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_broadcast_slope)
 {
     Shape shape_a{1, 2, 1, 2};
     Shape shape_b{2};
@@ -194,11 +194,11 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_broadcast_slope)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_a, {-1, -100, -1, -100});
+    test_case.add_expected_output<float>(shape_a, {-1, -1, -100, -100});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_slope) 
+NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_slope)
 {
     Shape shape_a{1, 5, 1, 1};
     Shape shape_b{5};
@@ -214,4 +214,3 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_slope)
     test_case.add_expected_output<float>(shape_a, {-1, 0, -3, -4, -5});
     test_case.run();
 }
-
