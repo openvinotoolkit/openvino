@@ -54,7 +54,7 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
     EXEC_NET_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState { _so, static_cast<std::shared_ptr<IVariableStateInternal>>(state) });
+            controller.emplace_back(VariableState{ _so, state });
         });
     return controller;
 }

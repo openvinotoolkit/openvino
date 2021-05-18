@@ -903,22 +903,19 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(network, deviceName, config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(network, context, config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -989,15 +986,13 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -1015,8 +1010,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
-    return { static_cast<details::SharedObjectLoader>(exec),
-             static_cast<std::shared_ptr<IExecutableNetworkInternal>>(exec) };
+    return { exec, exec };
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,

@@ -192,9 +192,8 @@ IE_SUPPRESS_DEPRECATED_END
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
-        for (auto&& _state : _impl->QueryState()) {
-            VariableState state{_so, static_cast<std::shared_ptr<IVariableStateInternal>>(_state)};
-            controller.emplace_back(state);
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(VariableState{_so, state});
         }
     )
     return controller;
