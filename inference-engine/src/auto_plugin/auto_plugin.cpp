@@ -32,7 +32,7 @@ namespace {
                 std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
                 std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
                 std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
-                auto layerType = node->input(0).get_element_type().get_type_name();
+                auto layerType = node->input(1).get_element_type().get_type_name();
                 if (layerType == "f32")
                     return METRIC_VALUE(FP32);
                 if (layerType == "f16")
