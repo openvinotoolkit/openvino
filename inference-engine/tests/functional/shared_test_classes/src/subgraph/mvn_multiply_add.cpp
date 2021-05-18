@@ -7,7 +7,7 @@
 namespace SubgraphTestsDefinitions {
 
 std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMultiplyAddParams> &obj) {
-    std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
     InferenceEngine::SizeVector inputShapes, constantShapes;
     InferenceEngine::Precision dataPrecision, axesPrecision;
     std::vector<int> axes;
@@ -31,7 +31,7 @@ std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMult
 }
 
 void MVNMultiplyAdd::SetUp() {
-    std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
     InferenceEngine::SizeVector inputShapes, constantShapes;
     InferenceEngine::Precision dataPrecision, axesPrecision;
     std::vector<int> axes;

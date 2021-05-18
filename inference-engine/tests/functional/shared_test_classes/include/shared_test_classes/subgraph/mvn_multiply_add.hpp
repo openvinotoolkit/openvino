@@ -14,7 +14,7 @@
 namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
-    std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>, // Input shape, Constant shape
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>,  // Input shape, Constant shape
     InferenceEngine::Precision,                                           // Data precision
     InferenceEngine::Precision,                                           // Axes precision
     std::vector<int>,                                                     // Axes

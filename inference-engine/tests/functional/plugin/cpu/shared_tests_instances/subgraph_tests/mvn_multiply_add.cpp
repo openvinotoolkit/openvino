@@ -5,15 +5,16 @@
 #include "subgraph_tests/mvn_multiply_add.hpp"
 
 using namespace SubgraphTestsDefinitions;
+using namespace InferenceEngine;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecision = {
-        InferenceEngine::Precision::FP32
+const std::vector<Precision> netPrecision = {
+        Precision::FP32
 };
 
-std::vector<InferenceEngine::Precision> idxPrecision = {
-        InferenceEngine::Precision::I64
+std::vector<Precision> idxPrecision = {
+        Precision::I64
 };
 
 const std::vector<bool> acrossChannels = {
@@ -35,23 +36,23 @@ const std::vector<std::string> epsMode = {
         "outside_sqrt"
 };
 
-const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_1D = {
-        { InferenceEngine::SizeVector{5}, InferenceEngine::SizeVector{5}},
-        { InferenceEngine::SizeVector{64}, InferenceEngine::SizeVector{64}},
+const std::vector<std::pair<SizeVector, SizeVector>> shapes_1D = {
+        std::pair<SizeVector, SizeVector>{ SizeVector{5}, SizeVector{5}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{64}, SizeVector{64}},
 };
 
-const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_2D = {
-        { InferenceEngine::SizeVector{1, 5}, InferenceEngine::SizeVector{1, 5}},
-        { InferenceEngine::SizeVector{2, 17}, InferenceEngine::SizeVector{1, 17}},
-        { InferenceEngine::SizeVector{9, 64}, InferenceEngine::SizeVector{1, 64}},
-        { InferenceEngine::SizeVector{5, 15}, InferenceEngine::SizeVector{1, 15}},
+const std::vector<std::pair<SizeVector, SizeVector>> shapes_2D = {
+        std::pair<SizeVector, SizeVector>{ SizeVector{1, 5}, SizeVector{1, 5}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{2, 17}, SizeVector{1, 17}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{9, 64}, SizeVector{1, 64}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{5, 15}, SizeVector{1, 15}},
 };
 
-const std::vector<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> shapes_3D = {
-        { InferenceEngine::SizeVector{1, 5, 8}, InferenceEngine::SizeVector{1, 5, 8}},
-        { InferenceEngine::SizeVector{2, 17, 9}, InferenceEngine::SizeVector{1, 1, 9}},
-        { InferenceEngine::SizeVector{1, 1, 10}, InferenceEngine::SizeVector{1, 1, 10}},
-        { InferenceEngine::SizeVector{2, 3, 3}, InferenceEngine::SizeVector{2, 3, 3}},
+const std::vector<std::pair<SizeVector, SizeVector>> shapes_3D = {
+        std::pair<SizeVector, SizeVector>{ SizeVector{1, 5, 8}, SizeVector{1, 5, 8}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{2, 17, 9}, SizeVector{1, 1, 9}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{1, 1, 10}, SizeVector{1, 1, 10}},
+        std::pair<SizeVector, SizeVector>{ SizeVector{2, 3, 3}, SizeVector{2, 3, 3}},
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
