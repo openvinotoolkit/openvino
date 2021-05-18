@@ -129,7 +129,7 @@ protected:
     InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
     InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
-    InferenceEngine::ExecutableNetwork executableNetwork;
+    InferenceEngine::ExecutableNetwork executableNetwork, refExecutableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
