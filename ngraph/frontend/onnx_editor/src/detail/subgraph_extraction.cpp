@@ -11,6 +11,12 @@
 
 using namespace ngraph::onnx_editor;
 
+enum class PortType
+{
+    InputPort,
+    OutputPort
+};
+
 namespace
 {
     void validate_node_index(const ONNX_NAMESPACE::GraphProto& graph, const int node_idx)
@@ -22,6 +28,23 @@ namespace
             "; nodes count in the model: ",
             std::to_string(graph.node_size()),
             ")");
+    }
+
+    void validate_port_index(const ONNX_NAMESPACE::GraphProto& graph,
+                             const int node_idx,
+                             const int port_idx,
+                             const PortType& port_type)
+    {
+        const int ports_number = (port_type == PortType::InputPort)
+                                     ? graph.node(node_idx).input().size()
+                                     : graph.node(node_idx).output().size();
+        NGRAPH_CHECK(port_idx >= 0 && port_idx < ports_number,
+                     "The specified node with index: ",
+                     std::to_string(node_idx),
+                     " has not ",
+                     (port_type == PortType::InputPort) ? "input" : "output",
+                     " port with index: ",
+                     std::to_string(port_idx));
     }
 
     template <typename T>
@@ -99,30 +122,20 @@ namespace
         return *it;
     }
 
-    std::string get_input_tensor_name(ONNX_NAMESPACE::GraphProto& graph, const InputEdge& edge)
+    std::string get_input_tensor_name(const ONNX_NAMESPACE::GraphProto& graph,
+                                      const InputEdge& edge)
     {
         validate_node_index(graph, edge.m_node_idx);
-        NGRAPH_CHECK(edge.m_port_idx >= 0 &&
-                         edge.m_port_idx <
-                             static_cast<int>(graph.node(edge.m_node_idx).input().size()),
-                     "Node with index: ",
-                     std::to_string(edge.m_node_idx),
-                     " has not input with index: ",
-                     std::to_string(edge.m_port_idx));
+        validate_port_index(graph, edge.m_node_idx, edge.m_port_idx, PortType::InputPort);
 
         return graph.node(edge.m_node_idx).input(edge.m_port_idx);
     }
 
-    std::string get_output_tensor_name(ONNX_NAMESPACE::GraphProto& graph, const OutputEdge& edge)
+    std::string get_output_tensor_name(const ONNX_NAMESPACE::GraphProto& graph,
+                                       const OutputEdge& edge)
     {
         validate_node_index(graph, edge.m_node_idx);
-        NGRAPH_CHECK(edge.m_port_idx >= 0 &&
-                         edge.m_port_idx <
-                             static_cast<int>(graph.node(edge.m_node_idx).output().size()),
-                     "Node with index: ",
-                     std::to_string(edge.m_node_idx),
-                     " has not output with index: ",
-                     std::to_string(edge.m_port_idx));
+        validate_port_index(graph, edge.m_node_idx, edge.m_port_idx, PortType::OutputPort);
 
         return graph.node(edge.m_node_idx).output(edge.m_port_idx);
     }

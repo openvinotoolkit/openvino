@@ -710,7 +710,7 @@ NGRAPH_TEST(onnx_editor, subgraph__invalid_port_idx)
     {
         std::string msg{e.what()};
         EXPECT_TRUE(
-            msg.find("Node with index: 0 has not input with index: 3") !=
+            msg.find("The specified node with index: 0 has not input port with index: 3") !=
             std::string::npos);
     }
 }

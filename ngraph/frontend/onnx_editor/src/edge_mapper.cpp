@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <onnx/onnx_pb.h>
 
+#include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_editor/edge_mapper.hpp"
 
@@ -64,30 +65,32 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
 int onnx_editor::EdgeMapper::get_node_output_idx(int node_index,
                                                  const std::string& output_name) const
 {
-    if (node_index >= static_cast<int>(m_node_outputs.size()))
-    {
-        throw ngraph_error("Node with index: " + std::to_string(node_index) +
-                           "is out of scope outputs list");
-    }
-    const auto out_port_idx = std::find(
-        std::begin(m_node_outputs[node_index]), std::end(m_node_outputs[node_index]), output_name);
-    if (out_port_idx == std::end(m_node_outputs[node_index]))
+    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_outputs.size()),
+                 "Node with index: ",
+                 std::to_string(node_index),
+                 "is out of scope outputs list");
+
+    const auto& node_outputs = m_node_outputs[node_index];
+    const auto out_port_idx =
+        std::find(std::begin(node_outputs), std::end(node_outputs), output_name);
+    if (out_port_idx == std::end(node_outputs))
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            " has not output with name: " + output_name);
     }
-    return (out_port_idx - std::begin(m_node_outputs[node_index]));
+    return (out_port_idx - std::begin(node_outputs));
 }
 
 int onnx_editor::EdgeMapper::get_node_input_idx(int node_index, const std::string& input_name) const
 {
-    if (node_index >= 0 && node_index >= static_cast<int>(m_node_inputs.size()))
-    {
-        throw ngraph_error("Node with index: " + std::to_string(node_index) +
-                           "is out of scope inputs list");
-    }
-    const auto matched_inputs = std::count(
-        std::begin(m_node_inputs[node_index]), std::end(m_node_inputs[node_index]), input_name);
+    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
+                 "Node with index: ",
+                 std::to_string(node_index),
+                 "is out of scope outputs list");
+
+    const auto& node_inputs = m_node_inputs[node_index];
+    const auto matched_inputs =
+        std::count(std::begin(node_inputs), std::end(node_inputs), input_name);
     if (matched_inputs == 0)
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
@@ -99,9 +102,8 @@ int onnx_editor::EdgeMapper::get_node_input_idx(int node_index, const std::strin
                            " has more than one inputs with name: " + input_name +
                            ". You should use port indexes to distinguish them.");
     }
-    const auto in_port_idx = std::find(
-        std::begin(m_node_inputs[node_index]), std::end(m_node_inputs[node_index]), input_name);
-    return (in_port_idx - std::begin(m_node_inputs[node_index]));
+    const auto in_port_idx = std::find(std::begin(node_inputs), std::end(node_inputs), input_name);
+    return (in_port_idx - std::begin(node_inputs));
 }
 
 InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
