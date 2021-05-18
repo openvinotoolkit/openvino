@@ -8,7 +8,7 @@ from mo.front.kaldi.extractor import kaldi_extractor, kaldi_type_extractors
 from mo.front.kaldi.loader.loader import load_kaldi_model
 from mo.graph.graph import Graph
 from mo.utils.error import Error
-from mo.utils.graph import send_shapes_info
+from mo.utils.graph import send_shapes_info, send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -29,4 +29,5 @@ class KaldiLoader(Loader):
         update_extractors_with_extensions(kaldi_type_extractors)
         extract_node_attrs(graph, lambda node: kaldi_extractor(node))
 
+        send_op_names_info('kaldi', graph)
         send_shapes_info('kaldi', graph)

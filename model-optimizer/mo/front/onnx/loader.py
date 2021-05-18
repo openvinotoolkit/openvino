@@ -77,6 +77,7 @@ def protobuf2nx(graph: Graph, pb):
         fw_name = node_id(node)
         id = graph.unique_id(fw_name)
         graph.add_node(id, pb=node, kind='op')
+        graph.op_names_statistic[node.op_type] += 1
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(node.input):

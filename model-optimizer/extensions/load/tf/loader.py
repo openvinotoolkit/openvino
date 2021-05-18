@@ -87,7 +87,6 @@ class TFLoader(Loader):
         del variables_values
 
         used_tensors = restore_edges(graph, get_tf_edges)
-        send_op_names_info(framework, graph)
 
         # Tensor names information corresponding to a node is stored on outgoing edges.
         # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -101,4 +100,5 @@ class TFLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        send_op_names_info(framework, graph)
         send_shapes_info(framework, graph)

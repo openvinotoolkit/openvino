@@ -11,6 +11,7 @@ import numpy as np
 from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 
 try:
     import openvino_telemetry as tm
@@ -315,25 +316,11 @@ def clear_tensor_names_info(nodes: list):
 
 def send_op_names_info(framework: str, graph: Graph):
     op_counter = Counter()
-    for node_name in graph.nodes:
-        node = Node(graph, node_name)
-        pb_info = node.soft_get('pb', None)
-        op_name = None
-        if pb_info is not None:
-            try:
-                if framework == 'tf' or framework == 'tf2':
-                    op_name = pb_info.op
-                elif framework == 'caffe':
-                    op_name = pb_info.type
-                elif framework == 'onnx':
-                    op_name = pb_info.op_type
-            except AttributeError:
-                pass
-        elif node.soft_get('op', None) is not None:
-            op_name = node.op
 
-        if op_name is not None:
-            op_counter[op_name] += 1
+    def gather_op_statistics(g: Graph, op_c: Counter = op_counter):
+        op_c += g.op_names_statistic
+
+    for_graph_and_each_sub_graph_recursively(graph, gather_op_statistics)
 
     t = tm.Telemetry()
     for op_name in op_counter:

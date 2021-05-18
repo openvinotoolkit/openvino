@@ -17,7 +17,6 @@ from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_ne
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
 from mo.utils.error import Error
-from mo.utils.graph import send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -152,6 +151,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
                        kind='op',
                        layer_i=layer_i,
                        layer_o=layer_o)
+        graph.op_names_statistic[component_type] += 1
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
@@ -163,8 +163,6 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         prev_layer_id = layer_id
         output_layer = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
-
-    send_op_names_info('kaldi', graph)
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -183,8 +181,6 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     prev_layer_id = input_name
 
     all_components = load_components(file_descr, graph)
-    
-    send_op_names_info('kaldi', graph)
 
     used_layers = set()
     for layer_id in all_components:
@@ -213,8 +209,6 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
 def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     file_descr.read(1)
     component_layer_map = load_topology_map(file_descr, graph)
-
-    send_op_names_info('kaldi', graph)
 
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
@@ -288,6 +282,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                            parameters=get_parameters(file_descr, start_index, end_index),
                            op=component_type,
                            kind='op')
+        graph.op_names_statistic[component_type] += 1
 
         all_components.append(layer_id)
         log.debug('{} (type is {}) was loaded'.format(layer_id, component_type))

@@ -14,7 +14,6 @@ from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, i
 from mo.front.mxnet.nd_to_params import build_params_file
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
-from mo.utils.graph import send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -108,11 +107,11 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
             node['value'] = np.zeros(rnn_states[node['name']])
         node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
+        if node['op'] != 'null':
+            graph.op_names_statistic[node['op']] += 1
         graph.node[node_name].update(common_mxnet_fields(Node(graph, node_name)))
         index_node_keys[i] = node_name
         fw_name_map[node_name] = node['name']
-
-    send_op_names_info('mxnet', graph)
 
     used_indices_set = set()
     for i, attrs in enumerate(model_nodes):

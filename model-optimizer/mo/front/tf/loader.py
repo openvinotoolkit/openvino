@@ -9,6 +9,7 @@ from distutils.version import LooseVersion
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.versions_checker import get_environment_setup
+from mo.graph.graph import Node
 
 try:
     import tensorflow.compat.v1 as tf_v1
@@ -259,6 +260,10 @@ def protobuf_attrs(pb:tf_v1.NodeDef):
 
 def protobuf2nx(graph, pb: tf_v1.GraphDef):
     fill_graph_with_nodes(graph, pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+
+    for node_name in graph.nodes:
+        node = Node(graph, node_name)
+        graph.op_names_statistic[node.pb.op] += 1
 
     # Create a library with auxiliary functions used in TensorFlow 2 operations
     if hasattr(pb, 'library') and hasattr(pb.library, 'function'):

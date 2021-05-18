@@ -48,7 +48,6 @@ class ONNXLoader(Loader):
             ) from e
         log.debug("Number of nodes in NX graph: {}".format(graph.number_of_nodes()))
 
-        send_op_names_info('onnx', graph)
         graph.__setattr__('name',
                           argv.model_name if argv.model_name else model_proto.graph.name)  # pylint: disable=no-member
         graph.graph['layout'] = 'NCHW'
@@ -61,4 +60,5 @@ class ONNXLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
+        send_op_names_info('onnx', graph)
         send_shapes_info('onnx', graph)
