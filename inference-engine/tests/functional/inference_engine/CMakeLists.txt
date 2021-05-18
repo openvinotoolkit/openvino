@@ -169,9 +169,9 @@ function(ie_headers_compilation_with_custom_flags)
     # To avoid further TBB find_package action in next call of this function. Some version of TBB
     # has an issue with cmake config which lead to fail in case of multiple call of find_package
     # from one cmake script file.
-    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+    set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+    set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
