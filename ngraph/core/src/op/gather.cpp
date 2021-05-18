@@ -20,6 +20,13 @@ op::v1::Gather::Gather(const Output<Node>& params,
     constructor_validate_and_infer_types();
 }
 
+int64_t ngraph::op::v1::Gather::get_axis() const
+{
+    if (!get_constant_from_source(input_value(2)))
+        return AXIS_NOT_SET_VALUE;
+    return GatherBase::get_axis();
+}
+
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
@@ -56,6 +63,14 @@ void op::v7::Gather::validate_and_infer_types()
                           "Axis element type must be of an integral number type.");
 
     op::util::GatherBase::validate_and_infer_types();
+}
+
+int64_t op::v7::Gather::get_batch_dims() const
+{
+    if (m_batch_dims < 0 && get_input_partial_shape(1).rank().is_static())
+        return m_batch_dims + get_input_partial_shape(1).rank().get_length();
+    else
+        return m_batch_dims;
 }
 
 bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)

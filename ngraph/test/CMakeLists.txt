@@ -67,6 +67,7 @@ set(SRC
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
+    op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
@@ -216,12 +217,15 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/gather.cpp
+    visitors/op/gelu.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
@@ -268,6 +272,7 @@ set(SRC
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unsqueeze.cpp
     uint4.cpp
     util.cpp
 )
@@ -338,6 +343,7 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
+    backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
     backend/divide.in.cpp
@@ -425,6 +431,7 @@ set(MULTI_TEST_SRC
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
+    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
 )
