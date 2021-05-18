@@ -17,18 +17,26 @@ namespace ngraph
                 NamedOutputs expand_v2(const NodeContext& node)
                 {
                     auto x = node.get_ng_input("X");
-                    std::vector<int32_t> shapeExpected;
-                    if (node.has_attribute<std::vector<int32_t>>("shape"))
+                    Output<Node> shapeExpectedNode;
+                    if (node.has_ng_input("Shape"))
                     {
-                        shapeExpected = node.get_attribute<std::vector<int32_t>>("shape");
+                        shapeExpectedNode = node.get_ng_input("Shape");
                     }
                     else
                     {
-                        throw std::runtime_error("expand: has no shape attribute");
-                    }
+                        std::vector<int32_t> shapeExpected;
+                        if (node.has_attribute<std::vector<int32_t>>("shape"))
+                        {
+                            shapeExpected = node.get_attribute<std::vector<int32_t>>("shape");
+                        }
+                        else
+                        {
+                            throw std::runtime_error("expand: has no shape attribute");
+                        }
 
-                    auto shapeExpectedNode = ngraph::opset6::Constant::create(
-                        ngraph::element::i32, {shapeExpected.size()}, shapeExpected);
+                        shapeExpectedNode = ngraph::opset6::Constant::create(
+                            ngraph::element::i32, {shapeExpected.size()}, shapeExpected);
+                    }
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Broadcast>(x, shapeExpectedNode)},
                         {"Out"});
