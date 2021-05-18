@@ -69,7 +69,9 @@ static void AllocateImplSingle(
                          bool isInputBlob = true) {
     auto userPrecision = userData.second->getTensorDesc().getPrecision();
     auto userLayout = userData.second->getTensorDesc().getLayout();
-
+    if (dims.size() > 0 && userLayout == InferenceEngine::Layout::SCALAR) {
+        userLayout = InferenceEngine::Layout::ANY;
+    }
     Blob::Ptr userBlob;
     userBlob = make_blob_with_precision({userPrecision, dims, userLayout});
     userBlob->allocate();
@@ -301,10 +303,10 @@ Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
                                }, dims);
             data = _outputs[name];
         }
-        checkBlob(data, name, false,
-                  foundOutput->getTensorDesc().getLayout() != SCALAR
-                  ? dims
-                  : oneVector);
+        // checkBlob(data, name, false,
+        //           foundOutput->getTensorDesc().getLayout() != SCALAR
+        //           ? dims
+        //           : oneVector);
     }
     return data;
 }
