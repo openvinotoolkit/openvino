@@ -15,6 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<double> epsilon = {
+    0.0,
     1e-6,
     1e-5,
     1e-4
