@@ -46,30 +46,10 @@ void LayerTestsCommon::Run() {
     }
 
     try {
-        std::cout << 1 << std::endl;
-        for (const auto &in : function->get_parameters()) {
-            std::cout << in << std::endl;
-        }
         LoadNetwork();
-        std::cout << 2 << std::endl;
-        for (const auto &in : function->get_parameters()) {
-            std::cout << in << std::endl;
-        }
         GenerateInputs();
-        std::cout << 3 << std::endl;
-        for (const auto &in : function->get_parameters()) {
-            std::cout << in << std::endl;
-        }
         Infer();
-        std::cout << 4 << std::endl;
-        for (const auto &in : function->get_parameters()) {
-            std::cout << in << std::endl;
-        }
         Validate();
-        std::cout << 5 << std::endl;
-        for (const auto &in : function->get_parameters()) {
-            std::cout << in << std::endl;
-        }
         s.updateOPsStats(function, PassRate::Statuses::PASSED);
     }
     catch (const std::runtime_error &re) {
@@ -318,10 +298,6 @@ void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &exp
 }
 
 void LayerTestsCommon::Validate() {
-    std::cout << 4.1 << std::endl;
-    for (const auto &in : function->get_parameters()) {
-        std::cout << in << std::endl;
-    }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
 
