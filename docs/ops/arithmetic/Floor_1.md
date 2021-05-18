@@ -6,6 +6,13 @@
 
 **Short description**: *Floor* performs element-wise floor operation with given tensor.
 
+**Detailed description**: For each element from the input tensor calculates corresponding
+element in the output tensor with the following formula:
+
+\f[
+a_{i} = floor(a_{i})
+\f]
+
 **Attributes**:
 
     No attributes available.
@@ -22,11 +29,6 @@
 
 * *T*: any numeric type.
 
-*Floor* does the following with the input tensor *a*:
-
-\f[
-a_{i} = floor(a_{i})
-\f]
 
 **Examples**
 
