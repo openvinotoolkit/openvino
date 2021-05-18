@@ -19,7 +19,7 @@ extern "C" MOCK_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "mock_py";
-    res->m_creator = [](FrontEndCapFlags flags) { return std::make_shared<FrontEndMockPy>(flags); };
+    res->m_creator = []() { return std::make_shared<FrontEndMockPy>(); };
 
     return res;
 }
