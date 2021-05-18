@@ -58,6 +58,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
@@ -146,6 +147,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
