@@ -30,7 +30,7 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     auto ie = PluginCache::get().ie();
 
     std::cout << "Load the network " << m_allocationsCount << " times..." << std::flush;
-    for (int i = 0; i < m_allocationsCount; ++i) {
+    for (unsigned int i = 0; i < m_allocationsCount; ++i) {
         ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 

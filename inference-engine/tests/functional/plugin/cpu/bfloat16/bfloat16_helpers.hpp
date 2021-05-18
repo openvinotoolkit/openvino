@@ -143,7 +143,7 @@ public:
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     InferenceEngine::Precision inputPrecision, netPrecision;
     std::map<std::string, std::string> expectedPrecisions;
-    float threshold = 2e-2;  // Is enough for tensor having abs maximum values less than 1
+    float threshold = 2e-2f;  // Is enough for tensor having abs maximum values less than 1
 
     static std::string getTestCaseName(testing::TestParamInfo<basicParams> obj) {
         InferenceEngine::Precision inputPrecision, netPrecision;
