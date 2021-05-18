@@ -214,6 +214,12 @@ class Core::Impl : public ICore {
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
 
+    bool DeviceSupportsImportExport(const std::string& deviceName) const override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        return DeviceSupportsImportExport(plugin);
+    }
+
     bool DeviceSupportsImportExport(const InferencePlugin& plugin) const {
         std::vector<std::string> supportedMetricKeys = plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
@@ -221,6 +227,13 @@ class Core::Impl : public ICore {
         bool supported = (it != supportedMetricKeys.end()) &&
                     plugin.GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {});
         return supported;
+    }
+
+    ExecutableNetwork ToExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl,
+                                          const std::string& deviceName) const override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        return plugin.ToExecutableNetwork(impl);
     }
 
     ExecutableNetwork LoadNetworkImpl(const CNNNetwork& network,

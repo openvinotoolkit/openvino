@@ -92,6 +92,10 @@ public:
         PLUGIN_CALL_STATEMENT(return actual->LoadNetwork(modelPath, config));
     }
 
+    ExecutableNetwork ToExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl) {
+        return ExecutableNetwork(impl, actual);
+    }
+
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;

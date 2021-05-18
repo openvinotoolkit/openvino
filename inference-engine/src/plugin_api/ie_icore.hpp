@@ -93,6 +93,15 @@ public:
                                             const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
+     * @brief Helper function to create an executable network from an internal implementation loaded by plugin
+     * @param impl Internal executable network implementation
+     * @param deviceName Name of device load executable network on
+     * @return An executable network reference
+     */
+    virtual ExecutableNetwork ToExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl,
+                                                  const std::string& deviceName) const = 0;
+
+    /**
      * @brief Query device if it supports specified network with specified configuration
      *
      * @param deviceName A name of a device to query
@@ -122,6 +131,15 @@ public:
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
+
+    /**
+     * @brief Checks whether device supports Export & Import functionality of network
+     *
+     * @param deviceName - A name of a device to get a metric value.
+     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
+     * this metric returns 'true', False otherwise.
+     */
+    virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
     /**
      * @brief Default virtual destructor

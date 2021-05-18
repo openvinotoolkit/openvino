@@ -144,11 +144,17 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 
 ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                               const std::map<std::string, std::string>& config) {
+    return DoLoadNetwork({}, network, config);
+}
+
+ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::DoLoadNetwork(const std::string& modelPath,
+                                                                         CNNNetwork network,
+                                                                         const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with MULTI device via InferenceEngine::Core object";
     }
 
-    if (network.getFunction() == nullptr) {
+    if (modelPath.empty() && network.getFunction() == nullptr) {
         IE_THROW() << "MULTI device supports just ngraph network representation";
     }
 
@@ -167,11 +173,22 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
+    std::once_flag readNetworkFlag;
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
-            auto exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            ExecutableNetwork exec_net;
+            if (modelPath.empty()) {
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+            } else {
+                std::call_once(readNetworkFlag, [&]() {
+                    network = GetCore()->ReadNetwork(modelPath, std::string());
+                });
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            }
             std::unique_lock<std::mutex> lock{load_mutex};
             executableNetworkPerDevice.insert({deviceName, exec_net});
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
@@ -203,6 +220,14 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                                           metaDevices,
                                                           multiNetworkConfig,
                                                           enablePerfCounters);
+}
+
+// Is called only when caching is enabled
+InferenceEngine::ExecutableNetwork MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                           const std::map<std::string, std::string>& config) {
+    CNNNetwork network;
+    auto res = DoLoadNetwork(modelPath, network, config);
+    return GetCore()->ToExecutableNetwork(res, GetMetric(METRIC_KEY(FULL_DEVICE_NAME), {}));
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,
