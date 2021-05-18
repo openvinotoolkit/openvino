@@ -4,12 +4,12 @@
 import logging as log
 import os
 import re
-
 from distutils.version import LooseVersion
+
+from mo.graph.graph import Node
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.versions_checker import get_environment_setup
-from mo.graph.graph import Node
 
 try:
     import tensorflow.compat.v1 as tf_v1

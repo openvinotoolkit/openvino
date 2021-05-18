@@ -9,9 +9,9 @@ import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 
 try:
     import openvino_telemetry as tm
