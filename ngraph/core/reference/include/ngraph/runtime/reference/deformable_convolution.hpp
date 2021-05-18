@@ -14,31 +14,53 @@ namespace ngraph
         {
             namespace def_conv_impl
             {
-                inline void validate_params(const Shape& in_shape,
-                                            const Shape& o_shape,
-                                            const Shape& f_shape,
-                                            const Strides& strides,
-                                            const Strides& dilations,
-                                            const CoordinateDiff& pads_begin,
-                                            const CoordinateDiff& pads_end)
+                inline void validate_deformable_convolution_params(const Shape& in_shape,
+                                                                   const Shape& o_shape,
+                                                                   const Shape& f_shape,
+                                                                   const Shape& out_shape,
+                                                                   const Strides& strides,
+                                                                   const Strides& dilations,
+                                                                   const CoordinateDiff& pads_begin,
+                                                                   const CoordinateDiff& pads_end,
+                                                                   const int64_t groups,
+                                                                   const int64_t deformable_groups)
                 {
                     // this implementation supports 2D deformable convolutions
                     NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
-
                     NGRAPH_CHECK(o_shape.size() == 4, "Unsupported offset rank: ", o_shape);
-
                     NGRAPH_CHECK(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
 
-                    const auto spatial_dims = in_shape.size() - 2;
-                    NGRAPH_CHECK(strides.size() == spatial_dims,
-                                 "Strides not definied for all and only spatial dimensions");
+                    NGRAPH_CHECK(in_shape[1] % groups == 0,
+                                 "Input channels of data batch input must be evenly divisible by "
+                                 "'groups' attribute");
+                    NGRAPH_CHECK(f_shape[0] % groups == 0,
+                                 "Output channels of filters must be evenly divisible by 'groups' "
+                                 "attribute");
 
-                    NGRAPH_CHECK(dilations.size() == spatial_dims,
-                                 "Dilations not defined for all and only spatial dimensions");
+                    const Shape scaled_f_shape = [f_shape](int64_t g) {
+                        Shape shape{f_shape};
+                        shape[1] *= g;
+                        return shape;
+                    }(groups);
 
-                    NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
-                                     (pads_begin.size() == spatial_dims),
-                                 "Pads not defined for all and only spatial dimensions");
+                    validate_convolution_parameters(in_shape,
+                                                    scaled_f_shape,
+                                                    out_shape,
+                                                    strides,
+                                                    dilations,
+                                                    pads_begin,
+                                                    pads_end);
+
+                    const Shape f_spatial_shape{std::next(f_shape.begin(), 2), std::end(f_shape)};
+                    const Shape o_spatial_shape{std::next(o_shape.begin(), 2), std::end(o_shape)};
+                    const Shape out_spatial_shape{std::next(out_shape.begin(), 2),
+                                                  std::end(out_shape)};
+
+                    NGRAPH_CHECK(o_shape[1] == deformable_groups * shape_size(f_spatial_shape) * 2,
+                                 "The channels dimension of offsets input is not "
+                                 "compatible with filters and 'deformable group' attribute");
+                    NGRAPH_CHECK(out_spatial_shape == o_spatial_shape,
+                                 "Spatial dimensions of output and offsets values must be equal");
                 }
 
                 inline Shape shape_reduce(const Shape& s) { return Shape(++s.begin(), s.end()); }
@@ -176,8 +198,16 @@ namespace ngraph
             {
                 using namespace def_conv_impl;
 
-                validate_params(
-                    in_shape, o_shape, f_shape, strides, dilation, pads_begin, pads_end);
+                validate_deformable_convolution_params(in_shape,
+                                                       o_shape,
+                                                       f_shape,
+                                                       out_shape,
+                                                       strides,
+                                                       dilation,
+                                                       pads_begin,
+                                                       pads_end,
+                                                       groups,
+                                                       deformable_groups);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later

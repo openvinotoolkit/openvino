@@ -42,6 +42,7 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
     if (is_type<opset1::Convolution>(parent) ||
         is_type<opset1::GroupConvolution>(parent) ||
+        is_type<opset1::ConvolutionBackpropData>(parent) ||
         (is_type<opset1::MatMul>(parent) &&
         (is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
         return nullptr;

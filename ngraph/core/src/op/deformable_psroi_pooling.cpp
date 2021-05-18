@@ -103,6 +103,9 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, m_group_size > 0, "Value of `group_size` attribute has to be greater than 0 ");
 
+    NODE_VALIDATION_CHECK(
+        this, m_output_dim > 0, "Value of `output_dim` attribute has to be greater than 0 ");
+
     int64_t output_rank = 4;
     std::vector<Dimension> output_dim_vec(output_rank, Dimension::dynamic());
     if (box_coords_pshape.rank().is_static())

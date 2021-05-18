@@ -12,14 +12,15 @@ namespace MKLDNNPlugin {
 
 class MKLDNNRollNode : public MKLDNNNode {
 public:
-    MKLDNNRollNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNRollNode() override = default;
+    MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     size_t calculateShiftOffset(size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize);
@@ -28,7 +29,7 @@ private:
     void rollImpl();
 
     std::vector<size_t> shape;
-    const static std::vector<size_t> supportedPrecisionSizes;
+    static const std::vector<size_t> supportedPrecisionSizes;
     std::string layerErrorPrefix;
     size_t numOfDims;
 

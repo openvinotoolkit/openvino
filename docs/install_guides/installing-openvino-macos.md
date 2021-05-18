@@ -24,7 +24,7 @@ The following components are installed by default:
 | Component                                                                                           | Description                                                                                                                                                                                                                                                  |
 | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe*, TensorFlow*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications                                                                                                               |
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                      |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
@@ -59,10 +59,15 @@ The development and target platforms have the same requirements, but you can sel
 
 **Software Requirements**
 
-- CMake 3.10 or higher
-- Python 3.6 - 3.7
-- Apple Xcode\* Command Line Tools
-- (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
+* CMake 3.10 or higher
+	+ [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
+	+ Add `/Applications/CMake.app/Contents/bin` to path (for default install) 
+* Python 3.6 - 3.7
+	+ [Install](https://www.python.org/downloads/mac-osx/) (choose 3.6.x or 3.7.x, not latest)
+	+ Add to path
+* Apple Xcode\* Command Line Tools
+	+ In the terminal, run `xcode-select --install` from any directory
+* (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
 
 **Operating Systems**
 
@@ -74,13 +79,13 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 The following steps will be covered:
 
-1. <a href="#Install-Core">Install the Intel® Distribution of OpenVINO™ Toolkit </a>.
+1. <a href="#Install-Core">Install the Intel® Distribution of OpenVINO™ Toolkit</a>.
 2. <a href="#set-the-environment-variables">Set the OpenVINO environment variables and (optional) Update to <code>.bash_profile</code></a>.
 3. <a href="#configure-the-model-optimizer">Configure the Model Optimizer</a>.
 4. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>.
 5. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>.
 
-## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
+## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
 If you have a previous version of the Intel® Distribution of OpenVINO™ toolkit installed, rename or delete these two directories:
 
@@ -125,15 +130,15 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
    ![](../img/openvino-install-macos-04.png)
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
-   Click **Next** to save the installation options and show the Installation summary screen.
+10. Click **Next** to save the installation options and show the Installation summary screen.
 
-10. On the **Installation summary** screen, press **Install** to begin the installation.
+11. On the **Installation summary** screen, click **Install** to begin the installation.
 
-11. When the first part of installation is complete, the final screen informs you that the core components have been installed
+12. When the first part of installation is complete, the final screen informs you that the core components have been installed
    and additional steps still required:
    ![](../img/openvino-install-macos-05.png)
 
-12. Click **Finish** to close the installation wizard. A new browser window opens to the next section of the Installation Guide to set the environment variables. If the installation did not indicate you must install dependencies, you can move ahead to [Set the Environment Variables](#set-the-environment-variables).  If you received a message that you were missing external software dependencies, listed under **Software Requirements** at the top of this guide, you need to install them now before continuing on to the next section.
+13. Click **Finish** to close the installation wizard. A new browser window opens to the next section of the Installation Guide to set the environment variables. If the installation did not indicate you must install dependencies, you can move ahead to [Set the Environment Variables](#set-the-environment-variables).  If you received a message that you were missing external software dependencies, listed under **Software Requirements** at the top of this guide, you need to install them now before continuing on to the next section.
 
 ## <a name="set-the-environment-variables"></a>Set the Environment Variables
 
@@ -143,22 +148,26 @@ You need to update several environment variables before you can compile and run 
    source /opt/intel/openvino_2021/bin/setupvars.sh
    ```  
 
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+
 <strong>Optional</strong>: The OpenVINO environment variables are removed when you close the shell. You can permanently set the environment variables as follows:
 
 1. Open the `.bash_profile` file in the current user home directory:
    ```sh
    vi ~/.bash_profile
    ```
-2. Press the **i** key to switch to the insert mode.
+2. Press the **i** key to switch to insert mode.
 
 3. Add this line to the end of the file:
    ```sh
    source /opt/intel/openvino_2021/bin/setupvars.sh
    ```
 
-3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
 
-4. To verify your change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
+4. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
+
+5. To verify your change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
 
 The environment variables are set. Continue to the next section to configure the Model Optimizer.
 
@@ -264,13 +273,13 @@ Proceed to the <a href="#get-started">Get Started</a> to get started with runnin
 
 Now you are ready to get started. To continue, see the following pages:
 * [OpenVINO™ Toolkit Overview](../index.md)
-* [Get Started Guide for Windows](../get_started/get_started_macos.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+* [Get Started Guide for macOS](../get_started/get_started_macos.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
 
-1. From the `<INSTALL_DIR>`, locate and open `openvino_toolkit_uninstaller.app`.
+1. From the the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
 2. Follow the uninstallation wizard instructions.
 3. When uninstallation is complete, click **Finish**. 
 

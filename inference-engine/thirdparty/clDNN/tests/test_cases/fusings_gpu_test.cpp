@@ -833,9 +833,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_prelu_eltwise,
                                              bc_test_params{CASE_CONV_FP16_4, 2, 4},
                                              }), );
 
-
 class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_2, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(get_output_layout(p))),
@@ -866,10 +869,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2,
 
 
 class conv_fp32_multi_eltwise_2_clamp : public ConvFusingTest {};
-
 TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
-    auto p = GetParam();
+    if (engine.get_info().supports_immad) {
+        return;
+    }
 
+    auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("eltwise1_data", get_mem(get_output_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
@@ -900,10 +905,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp,
 
 
 class conv_fp32_multi_eltwise_4_clamp : public ConvFusingTest {};
-
 TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
-    auto p = GetParam();
+    if (engine.get_info().supports_immad) {
+        return;
+    }
 
+    auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("eltwise1_data", get_mem(get_output_layout(p))),
         data("eltwise2_data", get_mem(get_output_layout(p))),
@@ -939,6 +946,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp,
 
 class conv_fp32_multi_eltwise_3_fusing : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("eltwise_data1", get_mem(get_output_layout(p))),
@@ -988,6 +999,7 @@ TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
                         eltwise("eltwise2", "eltwise1", "quantize", eltwise_mode::prod),
                         reorder("reorder_bfyx", "eltwise2", p.default_format, data_types::f32)
     );
+
     tolerance = 1.f;
     execute(p);
 }

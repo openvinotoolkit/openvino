@@ -67,8 +67,18 @@ void op::v1::Convolution::validate_and_infer_types()
                           "Element types must be numeric. Got: ",
                           result_et);
 
+    Rank result_ps_rank;
+    NODE_VALIDATION_CHECK(
+        this,
+        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
+        "Data batch and filters inputs must have same rank. Got: ",
+        data_batch_pshape,
+        " and ",
+        filters_pshape);
+
     PartialShape result_shape =
         validate_and_infer_convolution_forward_output_shape(this,
+                                                            result_ps_rank,
                                                             data_batch_pshape,
                                                             filters_pshape,
                                                             m_auto_pad,
@@ -92,11 +102,13 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_auto_pad);
 }
 
-constexpr NodeTypeInfo op::v1::ConvolutionBackpropData::type_info;
 shared_ptr<Node> op::v1::Convolution::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
+
+// *** ConvolutionBackpropData OP SET 1 ***
+NGRAPH_RTTI_DEFINITION(op::v1::ConvolutionBackpropData, "ConvolutionBackpropData", 1);
 
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,

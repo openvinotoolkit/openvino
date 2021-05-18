@@ -37,7 +37,7 @@ struct Config {
         gna_proc_type = r.gna_proc_type;
 #else
         pluginGna2AccMode = r.pluginGna2AccMode;
-        pluginGna2DeviceConsistent = r.pluginGna2DeviceConsistent;
+        swExactMode = r.swExactMode;
 #endif
         inputScaleFactors = r.inputScaleFactors;
         gnaFlags = r.gnaFlags;
@@ -55,11 +55,14 @@ struct Config {
     std::string dumpXNNPath;
     std::string dumpXNNGeneration;
 
+    std::string gnaExecTarget;
+    std::string gnaCompileTarget;
+
 #if GNA_LIB_VER == 1
     intel_gna_proc_t gna_proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
 #else
     Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
-    Gna2DeviceVersion pluginGna2DeviceConsistent = Gna2DeviceVersion1_0;
+    bool swExactMode = true;
 #endif
 
     std::vector<float> inputScaleFactors;

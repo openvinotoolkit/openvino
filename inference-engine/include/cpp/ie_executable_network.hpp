@@ -35,8 +35,8 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     std::shared_ptr<IExecutableNetworkInternal> _impl;
     std::shared_ptr<details::SharedObjectLoader> _so;
 
-    explicit ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
-                               const std::shared_ptr<details::SharedObjectLoader>&  so);
+    ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
+                      const std::shared_ptr<details::SharedObjectLoader>&  so);
 
     friend class InferencePlugin;
 

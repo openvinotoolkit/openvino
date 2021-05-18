@@ -4,8 +4,9 @@
 
 #pragma once
 
+#include <cfloat>
 #include <ie_blob.h>
-#include <single_layer_common.hpp>
+#include <gtest/gtest.h>
 #include <legacy/ie_layers_internal.hpp>
 #include "common_test_utils/common_layers_params.hpp"
 

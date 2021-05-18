@@ -6,7 +6,6 @@ import ast
 import logging as log
 import os
 import re
-import sys
 from collections import OrderedDict
 from itertools import zip_longest
 
@@ -254,6 +253,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'and biases are quantized to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
+    common_group.add_argument('--transform',
+                              help='Apply additional transformations. ' +
+                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon. ' +
+                                   'Examples: "--transform LowLatency" or ' +
+                                   '          "--transform LowLatency[num_iterations=2]" ' +
+                                   'Available transformations: "LowLatency"',
+                              default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
                               action=DeprecatedStoreTrue)
@@ -1125,6 +1132,95 @@ def get_absolute_path(path_to_file: str) -> str:
     if not os.path.isabs(file_path):
         file_path = os.path.join(os.getcwd(), file_path)
     return file_path
+
+
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def convert_string_to_real_type(value: str):
+    values = value.split(',')
+    for i in range(len(values)):
+        value = values[i]
+        if value.isdigit():
+            values[i] = int(value)
+        elif isfloat(value):
+            values[i] = float(value)
+
+    return values[0] if len(values) == 1 else values
+
+
+def parse_transform(transform: str) -> list:
+    transforms = []
+
+    if len(transform) == 0:
+        return transforms
+
+    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
+
+    # Check that all characters were matched otherwise transform key value is invalid
+    key_len = len(transform)
+    for transform in all_transforms:
+        # In regexp we have 4 groups where 1st group - transformation_name,
+        #                                  2nd group - [args],
+        #                                  3rd group - args, <-- nested group
+        #                                  4th group - EOL
+        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
+        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
+        if len(transform) != 4:
+            raise Error("Unexpected transform key structure: {}".format(transform))
+        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
+
+    if key_len != 0:
+        raise Error("Unexpected transform key structure: {}".format(transform))
+
+    for transform in all_transforms:
+        name = transform[0]
+        args = transform[2]
+
+        args_dict = {}
+
+        if len(args) != 0:
+            for arg in args.split(';'):
+                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
+                if not m:
+                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
+
+                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
+
+        transforms.append((name, args_dict))
+
+    return transforms
+
+
+def check_available_transforms(transforms: list, ie_is_available: bool):
+    """
+    This function check that transformations specified by user are available.
+    :param transforms: list of user specified transformations
+    :param ie_is_available: True if IE Python API is available and False if it is not
+    :return: raises an Error if IE or transformation is not available
+    """
+    if not ie_is_available and len(transforms) != 0:
+        raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
+            ','.join([name for name, _ in transforms])))
+
+    from mo.back.offline_transformations import get_available_transformations
+    available_transforms = get_available_transformations()
+
+    missing_transformations = []
+    for name, _ in transforms:
+        if name not in available_transforms.keys():
+            missing_transformations.append(name)
+
+    if len(missing_transformations) != 0:
+        raise Error('Following transformations ({}) are not available. '
+                    'List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                      ','.join(available_transforms.keys())))
+    return True
 
 
 def check_positive(value):
