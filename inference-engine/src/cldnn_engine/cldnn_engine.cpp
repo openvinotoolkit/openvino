@@ -836,12 +836,13 @@ clDNNEngine::NetworkPerfStats  clDNNEngine::NetworkMemBandwidthTolerance(const I
                 const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < NetworkPerfStats::memThresholdNotLimited;
                 worst_case = std::min(factor, worst_case);
-                std::cout <<  (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32")
+                std::cout <<  (isINT8 ? " INT8," : isBF16 ? " FP16/BF16," : " FP32")
                           << ", Input0: " << dataSizeInput0
                           << ", Input1: " << dataSizeInput1 << (non_const ? " non_const, " : " const")
                           << ", Output: " << dataSizeOutput
                           << ", total_data: " << total_data
-                          << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                          // << " L2_cache_size: " << L2_cache_size
+                          << "   FACTOR: " << factor << std::endl;
             }
         } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -873,9 +874,10 @@ clDNNEngine::NetworkPerfStats  clDNNEngine::NetworkMemBandwidthTolerance(const I
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_convs += factor < NetworkPerfStats::memThresholdNotLimited;
                 worst_case = std::min(factor, worst_case);
-                std::cout <<  (isINT8 ? " INT8 " : isBF16 ? " BF16 " : " FP32")
+                std::cout <<  (isINT8 ? " INT8 " : isBF16 ? " FP16/BF16 " : " FP32")
                           << ", dataSize: " << dataSizeInput + dataSizeOutput
-                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                          // << ", L2_cache_size: " << L2_cache_size
+                          << "   FACTOR: " << factor << std::endl;
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -901,9 +903,10 @@ clDNNEngine::NetworkPerfStats  clDNNEngine::NetworkMemBandwidthTolerance(const I
                 mem_limited_deconvs += factor < NetworkPerfStats::memThresholdNotLimited;
                 worst_case = std::min(factor, worst_case);
                 std::cout << ", kernel "<< shape[2]<< "x" << shape[2]
-                          << (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,")
+                          << (isINT8 ? " INT8," : isBF16 ? " FP16/BF16," : " FP32,")
                           << ", dataSize: " << dataSizeInput + dataSizeOutput
-                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                          // << ", L2_cache_size: " << L2_cache_size
+                          << "   FACTOR: " << factor << std::endl;
             }
         }
     }

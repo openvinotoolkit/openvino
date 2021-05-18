@@ -28,9 +28,12 @@ namespace AutoBatchPlugin {
         typedef typename std::add_pointer<TYPE>::type TYPEPTR;
         auto ptr = batched_blob->buffer().as<TYPEPTR>();
         auto sizePerBatch = batched_blob->size() / batch_num;
+        auto layout = batched_blob->getTensorDesc().getLayout();
         SizeVector dims = batched_blob->getTensorDesc().getDims();
 
-        if (dims[0] == batch_num) {
+        if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
+            || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
+            || layout == InferenceEngine::Layout::NDHWC) {
             dims[0] = 1;
             assert(batched_blob->getTensorDesc().getPrecision() == precision);
             return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
@@ -136,11 +139,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInfe
 
 void AutoBatchInferRequest::InferImpl() {
     auto _event = _workerInferRequest->_event;
-    auto numReady = ++_workerInferRequest->_numRequestsReady;
-    if (numReady == _workerInferRequest->_batchSize) {
-        _workerInferRequest->_numRequestsReady = 0;
-        _workerInferRequest->_inferRequest.StartAsync();
-    }
+    _workerInferRequest->ReportArrival();
     _event.get();
     if (_needPerfCounters) {
         _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();

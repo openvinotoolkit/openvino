@@ -647,8 +647,8 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::string
     if (deviceNameOrig == "GPU") {
         std::map<std::string, Parameter> options;
         options["MODEL_ADDRESS"] = &network;
-        auto optimalBatchSize = 4;// _impl->GetCPPPluginByName(deviceNameOrig).GetMetric(METRIC_KEY(OPTIMAL_BATCH),
-                                                                            // options).as<unsigned int>();
+        auto optimalBatchSize = _impl->GetCPPPluginByName(deviceNameOrig).GetMetric(METRIC_KEY(OPTIMAL_BATCH),
+                                                                            options).as<unsigned int>();
         auto function = network.getFunction();
         bool bDetectionOutput = false;
         for (auto &&node : function->get_ops()) {

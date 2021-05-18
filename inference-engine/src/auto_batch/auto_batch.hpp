@@ -82,6 +82,14 @@ public:
         std::promise<void>              _cond;
         std::shared_future<void>        _event;
         std::atomic_int                 _numRequestsReady = {0};
+        void ReportArrival() {
+            _numRequestsReady++;
+            if (_numRequestsReady == _batchSize) {
+                _numRequestsReady = 0;
+                _inferRequest.StartAsync();
+            }
+            // workerRequestPtr->_cond.
+        }
     };
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
