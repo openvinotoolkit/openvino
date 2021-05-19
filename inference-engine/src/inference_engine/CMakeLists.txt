@@ -22,14 +22,17 @@ file (GLOB LIBRARY_SRC
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
 set(LEGACY_LIBRARY_SHARED_SRCS
-    # "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    # "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    # "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
-    # "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp"
+    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
+    "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
+    "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp"
     )
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "USE_STATIC_IE"
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp" PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -129,7 +132,6 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
-                                                    #   $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -163,12 +165,12 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
-target_include_directories(${TARGET_NAME} INTERFACE
+target_include_directories(${TARGET_NAME}
+    INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
             $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            # $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-            )
+    PRIVATE
+        $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
