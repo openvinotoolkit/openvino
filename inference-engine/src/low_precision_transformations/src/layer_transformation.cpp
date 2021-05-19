@@ -30,14 +30,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
     deqPrecision(params.deqPrecision),
     support3DTensorOnActivations(params.support3DTensorOnActivations),
-    deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio),
-    quantizationIntervalAsymmetryThreshold(0.002f),
-    zeroThreshold(1.e-6f),
-    minQuantizationLevels(2ul) {}
-
-void LayerTransformation::setParams(const Params& params) {
-    //
-}
+    deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
@@ -45,16 +38,6 @@ void LayerTransformation::setContext(TransformationContext* context) noexcept {
 
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
-}
-
-void LayerTransformation::setQuantizedTensorAlignmentOnActivations(
-    const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
-    this->quantizedTensorAlignmentOnActivations = quantizedTensorAlignmentOnActivations;
-}
-
-void LayerTransformation::setQuantizedTensorAlignmentOnWeights(
-    const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
-    this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
 }
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -116,10 +99,6 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
         }
     }
     return true;
-}
-
-bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex) const {
-    return canSubtractBeHandled(op, NetworkHelper::getDequantization(op, parentIndex));
 }
 
 bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
@@ -188,18 +167,6 @@ void LayerTransformation::printDequantizationValues(
         "   shifts   : " << toStream(dequantizationShifts).str() << std::endl;
 }
 #endif
-
-void LayerTransformation::setQuantizationIntervalAsymmetryThreshold(const float value) {
-    this->quantizationIntervalAsymmetryThreshold = value;
-}
-
-void LayerTransformation::setZeroThreshold(const float value) {
-    this->zeroThreshold = value;
-}
-
-void LayerTransformation::setMinQuantizationLevels(const size_t levels) {
-    this->minQuantizationLevels = levels;
-}
 
 LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
     // TODO: workaround: hardcoded values
