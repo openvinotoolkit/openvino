@@ -16,7 +16,6 @@
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/common/subgraph.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -252,115 +251,6 @@ void ConcatTransformation::fillDequantizationNodes(
 
 std::shared_ptr<Node> ConcatTransformation::concatenateDeqNodes(NodeVector& nodes) const {
     return nodes.size() == 1ul ? nodes[0] : fold<ngraph::opset1::Concat>(nodes, 1);
-}
-
-void ConcatTransformation::addDequantizationLayers(
-    TransformationContext& context,
-    ngraph::pass::low_precision::Subgraph& subgraph,
-    std::function<void(
-        std::shared_ptr<ngraph::Node> layer,
-        std::shared_ptr<ngraph::Node> child,
-        const std::string originalLayerName,
-        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const {
-    std::unordered_map<std::string, ngraph::Node*> outputs;
-    for (size_t i = 0; i < context.function->get_output_size(); ++i) {
-        ngraph::Node* node = context.function->get_output_op(i).get();
-        if (node->get_input_size() != 1ul) {
-            THROW_IE_LPT_EXCEPTION(*node) << "unexpected inputs count for result node";
-        }
-
-        outputs.emplace(node->get_input_node_shared_ptr(0)->get_friendly_name(), node);
-    }
-
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> notHandledSubgraphLayers = subgraph.layers;
-    while (notHandledSubgraphLayers.size() != 0ul) {
-        const auto layerIt = notHandledSubgraphLayers.begin();
-        std::shared_ptr<ngraph::Node> layer = layerIt->second;
-        notHandledSubgraphLayers.erase(layerIt);
-
-        std::vector<FakeQuantizeDequantization> layerDequantizations;
-
-        for (size_t i = 0; i < layer->get_output_size(); ++i) {
-            const auto childInputs = layer->get_output_target_inputs(i);
-            for (const auto childInput : childInputs) {
-                ngraph::Node& child = *childInput.get_node();
-
-                if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
-                    std::shared_ptr<ngraph::Node> source = layer;
-                    const std::shared_ptr<ngraph::Node> destination = child.shared_from_this();
-
-                    if (layerDequantizations.size() == 0ul) {
-                        // fill layerDequantizations collection
-                        getLayerDequantizationCallback(source, destination, source->get_friendly_name(), layerDequantizations);
-                    }
-
-                    {
-                        NodeVector convertNodes;
-                        NodeVector subtractNodes;
-                        NodeVector multiplyNodes;
-
-                        // forming nodes for concatenation
-                        fillDequantizationNodes(layerDequantizations, layer, convertNodes, subtractNodes, multiplyNodes);
-
-                        // TODO: the second place (first is FQ decomposition) where dequantization operations are inserted
-                        if (!convertNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
-                            std::shared_ptr<ngraph::Node> convert =
-                                convertNodes[0]->clone_with_new_inputs({ destination->get_input_source_output(sourceOutputIdx) });
-
-                            insert_new_node_between(source, destination, convert);
-                            ngraph::copy_runtime_info({ layer, convert }, convert);
-                            source = convert;
-                        }
-
-                        // concatenation axis is 1
-                        if (!subtractNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
-                            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<DequantizationSubtract>(
-                                destination->get_input_source_output(sourceOutputIdx),
-                                NetworkHelper::toScalarIfPossible(concatenateDeqNodes(subtractNodes)));
-
-                            insert_new_node_between(source, destination, subtract);
-                            ngraph::copy_runtime_info({ layer, subtract }, subtract);
-                            source = subtract;
-                        }
-
-                        if (!multiplyNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
-                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-                                DequantizationMultiply(
-                                    destination->get_input_source_output(sourceOutputIdx),
-                                    NetworkHelper::toScalarIfPossible(concatenateDeqNodes(multiplyNodes))),
-                                    layerDequantizations[0].multiply->get_output_element_type(0));
-
-                            insert_new_node_between(source, destination, multiply);
-                            ngraph::copy_runtime_info({ layer, multiply }, multiply);
-                            source = multiply;
-                        }
-                    }
-
-                    // first input is used
-                    const ngraph::element::Type precision = layerDequantizations[0].data.get_element_type();
-                    layer->set_output_type(0, precision, layer->get_output_partial_shape(0));
-
-                    const auto it = outputs.find(layer->get_friendly_name());
-                    if (it != outputs.end() && is_type<ngraph::opset1::Result>(child.shared_from_this())) {
-                        const std::string originalName = layer->get_friendly_name();
-                        const std::string newName = layer->get_friendly_name() + LayerTransformation::originalLayerPostfix;
-                        layer->set_friendly_name(newName);
-
-                        // Split & VariadicSplit have other naming rules
-                        if (is_type<opset1::Split>(layer) || is_type<opset1::VariadicSplit>(layer)) {
-                            source->set_friendly_name(originalName + "." + std::to_string(i));
-                        } else {
-                            source->set_friendly_name(originalName);
-                        }
-                        subgraph.layers[layer->get_friendly_name()] = layer;
-                    }
-                }
-            }
-        }
-    }
 }
 
 bool ConcatTransformation::isHandled(const TransformationContext& context, const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations) {

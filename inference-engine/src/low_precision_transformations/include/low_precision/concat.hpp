@@ -13,7 +13,6 @@
 #include <ngraph/ngraph.hpp>
 
 #include "layer_transformation.hpp"
-#include "common/subgraph.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
 namespace ngraph {
@@ -29,15 +28,6 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 
 protected:
-    void addDequantizationLayers(
-        TransformationContext& context,
-        ngraph::pass::low_precision::Subgraph& subgraph,
-        std::function<void(
-            std::shared_ptr<ngraph::Node> layer,
-            std::shared_ptr<ngraph::Node> child,
-            const std::string originalLayerName,
-            std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const;
-
     static bool isHandled(
         const TransformationContext& context,
         const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations);
