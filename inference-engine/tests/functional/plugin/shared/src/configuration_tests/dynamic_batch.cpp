@@ -141,10 +141,10 @@ namespace ConfigurationTestsDefinitions {
                 outputs.push_back(infer_requests[i].GetBlob(name));
             }
             for (int j = 0; j < reference_outputs[i].size(); j++) {
-                if (reference_outputs[i][j].size() < outputs[j]->byteSize()) {
+                if (reference_outputs[i][j].second.size() < outputs[j]->byteSize()) {
                     auto actual_ptr = outputs[j]->buffer().as<uint8_t*>();
-                    for (int k = reference_outputs[i][j].size(); k < outputs[j]->byteSize(); k++) actual_ptr[k] = 0;
-                    reference_outputs[i][j].resize(outputs[j]->byteSize());
+                    for (int k = reference_outputs[i][j].second.size(); k < outputs[j]->byteSize(); k++) actual_ptr[k] = 0;
+                    reference_outputs[i][j].second.resize(outputs[j]->byteSize());
                 }
             }
             Compare(reference_outputs[i], outputs);
