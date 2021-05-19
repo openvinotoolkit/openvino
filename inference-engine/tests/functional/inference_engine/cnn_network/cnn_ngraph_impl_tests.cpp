@@ -42,7 +42,7 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-TEST(CNNNGraphImplTests, TestInvalidReshapeNoThrow) {
+TEST(CNNNGraphImplTests, TestReshapeWithSameShape) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
@@ -53,7 +53,7 @@ TEST(CNNNGraphImplTests, TestInvalidReshapeNoThrow) {
     }
 
     auto net = InferenceEngine::CNNNetwork(f);
-    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({4})}}));
+    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 4000})}}));
 }
 
 TEST(CNNNGraphImplTests, TestInvalidReshape) {
