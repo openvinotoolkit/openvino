@@ -12,6 +12,8 @@
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
 #include "template_itt.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "blob_factory.hpp"
 
 using namespace TemplatePlugin;
 using namespace InferenceEngine;
@@ -64,46 +66,27 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          bool isInputBlob = true) {
     for (auto&& userData : userDataMap) {
-        auto& dims = userData.second->getTensorDesc().getDims();
-        const auto devicePrecision = Precision::FP32;
+        const auto& dims = userData.second->getTensorDesc().getDims();
         const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
-        auto userPrecision = userData.second->getTensorDesc().getPrecision();
-        auto userLayout = userData.second->getTensorDesc().getLayout();
+        const auto userPrecision = userData.second->getTensorDesc().getPrecision();
+        const auto userLayout = userData.second->getTensorDesc().getLayout();
 
-        Blob::Ptr userBlob;
-        switch (userPrecision) {
-            case Precision::U8: {
-                userBlob = InferenceEngine::make_shared_blob<std::uint8_t>({userPrecision, dims, userLayout});
-            } break;
-            case Precision::FP32 : {
-                userBlob = InferenceEngine::make_shared_blob<float>({userPrecision, dims, userLayout});
-            } break;
-            default: IE_THROW(NotImplemented) << "Template Plugin: Unsupported Input/Output Precision";
-        }
+        const auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(userData.first));
+        Blob::Ptr userBlob = make_blob_with_precision({userPrecision, dims, userLayout});
         userBlob->allocate();
         userBlobMap[userData.first] = userBlob;
 
-        auto networkPrecision = GetNetworkPrecision(userData.first);
         Blob::Ptr deviceBlob;
-        switch (networkPrecision) {
-            case ngraph::element::Type_t::f32 : {
-                if (userPrecision == devicePrecision && userLayout == deviceLayout) {
-                    deviceBlob = userBlob;
-                } else {
-                    deviceBlob = InferenceEngine::make_shared_blob<float>({devicePrecision, dims, deviceLayout});
-                }
-            } break;
-            default: IE_THROW(NotImplemented) << "Template Plugin: Unsupported network Input/Output Presision";
-        }
-        if (userBlob != deviceBlob) {
-            if (isInputBlob) {
-                // preprocessing converts user input blob to desired device input blob automatically
-                deviceBlob->allocate();
-            } else {
-                // NOTE: this is not supported for output user blobs yet
-                IE_THROW(NotImplemented) << "Template Plugin: does not support setPrecision, setLayout for outputs";
+        if (userPrecision == networkPrecision && userLayout == deviceLayout) {
+            deviceBlob = userBlob;
+        } else {
+            if (userLayout != deviceLayout && !isInputBlob) {
+               IE_THROW(NotImplemented) << "Template Plugin: does not support setLayout for outputs";
             }
+            deviceBlob = make_blob_with_precision({networkPrecision, dims, deviceLayout});
+            deviceBlob->allocate();
         }
+
         deviceBlobMap[userData.first] = deviceBlob;
     }
 }
@@ -159,6 +142,66 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                 default : {
                     IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I64 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I64 : break;
+                case Precision::I32 : {
+                    blobCopy<int64_t , int32_t>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I16 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I16 : break;
+                case Precision::FP32 : {
+                    blobCopy<int16_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I8 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I8 : break;
+                case Precision::FP32 : {
+                    blobCopy<int8_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::BOOL : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::BOOL : break;
+                case Precision::FP32 : {
+                    blobCopy<bool , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::U16 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::U16 : break;
+                case Precision::FP32 : {
+                    blobCopy<uint16_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
