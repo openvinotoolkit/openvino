@@ -237,7 +237,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        auto prevLayer = PrevFunctionalLayer(l, LayerInfo(l).isGemm() ? 1 : 0);
 
         // No need to instert identity activation
         // when activation was already there before pooling
@@ -899,6 +899,25 @@ void InsertCopyLayerPass::run() {
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
+    // Concat has multiple connections to the same input
+    for (auto & l : *pLayers) {
+        if (!LayerInfo(l).isConcat()) continue;
+
+        // Insert copy layers after concat inputs with multiple connections to concat
+        std::set<DataPtr> parents;
+        for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
+            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            auto inputData = l->insData[input_idx].lock();
+            if (parents.find(inputData) != std::end(parents)) {
+                auto parent = getCreatorLayer(inputData);
+                IE_ASSERT(parent.lock() != nullptr);
+                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+            } else {
+                parents.insert(inputData);
+            }
+        }
+    }
+
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
 
@@ -975,7 +994,7 @@ void InsertCopyLayerPass::run() {
                 }
             }
             if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
-            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - (LayerInfo(l).isInput() ? 0 : 1);
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
                 if (currentCopyIdx < MemoryLayers.size()) {
@@ -1896,7 +1915,9 @@ void FuseFQIntoWeightsPass::run() {
         }
 
         // check whether this FQ represents weights - it need to be at index 1 of weightable layer
-        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+        const size_t weightsIdx = 1;
+        const size_t biasesIdx = 2;
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, weightsIdx, isNonFunctional);
 
         if (prevLayerAt1 != fqLayer) {
             continue;
@@ -1908,11 +1929,11 @@ void FuseFQIntoWeightsPass::run() {
 
         GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
 
-        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx);
         auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
         // 1. broke existing connections - by detaching fq subgraph from rest of graph
-        auto prevData = weightableLayer->insData[1].lock();
+        auto prevData = weightableLayer->insData[weightsIdx].lock();
         auto prevLayer = getCreatorLayer(prevData).lock();
         auto weightDims = prevLayer->outData.front()->getDims();
         prevLayer->outData.clear();
@@ -2163,14 +2184,15 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Connect all next layers after FQ to the layer that is before FQ
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
-            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-            if (insDatas.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                    << LAYER_NAME(nextLayers[i]) << " is not correct";
-            }
-
             if (isFQFuseAllowed) {
-                nextLayers[i]->insData[insDatas.front()] = prevData;
+                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+                if (insDatas.empty()) {
+                    THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                        << LAYER_NAME(nextLayers[i]) << " is not correct";
+                }
+                for (int insDataIdx : insDatas) {
+                    nextLayers[i]->insData[insDataIdx] = prevData;
+                }
                 getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
             }
 
@@ -2189,12 +2211,6 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
         }
     };
 
-    auto foundPartToTranspose = [](const std::vector<TranspositionInfo> &transpositionInfo) {
-        auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
-            [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
-        return partToTranspose != std::end(transpositionInfo);
-    };
-
     for (auto &&l : *pLayers) {
         if (LayerInfo(l).isScaleShift()) {
             std::vector<TranspositionInfo> transpositionInfo;
@@ -2202,11 +2218,11 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
                 transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
                 // If no convolutions are found try to find them in next layers
-                if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
+                if (!FoundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                     transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
                 }
             }
-            if (foundPartToTranspose(transpositionInfo)) {
+            if (FoundPartToTranspose(transpositionInfo)) {
                 if (l->input()->getDims().front() > 1) {
                     THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
                 }
@@ -2237,7 +2253,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 std::vector<TranspositionInfo> transpositionInfo;
                 auto prevLayer = InferenceEngine::CNNNetPrevLayer(l);
                 transpositionInfo = FindTranspositionInfoFromPrevLayers(prevLayer);
-                if (foundPartToTranspose(transpositionInfo)) {
+                if (FoundPartToTranspose(transpositionInfo)) {
                     if (l->input()->getDims().front() > 1) {
                         THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
                     }
@@ -2264,7 +2280,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 std::vector<TranspositionInfo> transpositionInfo;
                 auto nextLayer = getInputTo(l->outData[0]).begin()->second;
                 transpositionInfo = FindTranspositionInfoFromNextLayers(nextLayer);
-                if (foundPartToTranspose(transpositionInfo)) {
+                if (FoundPartToTranspose(transpositionInfo)) {
                     if (l->outData[0]->getDims().front() > 1) {
                         THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
                     }
@@ -2301,10 +2317,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             }
             // Find a convolution in previous or next layers
             auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!foundPartToTranspose(transpositionInfo)) {
+            if (!FoundPartToTranspose(transpositionInfo)) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
-            if (foundPartToTranspose(transpositionInfo)) {
+            if (FoundPartToTranspose(transpositionInfo)) {
                 auto blob = secondInput->blobs["custom"];
                 ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
                                             blob->buffer().as<uint8_t*>(), true, transpositionInfo);
@@ -2330,7 +2346,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                     continue;
                 }
                 auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
-                bool transposeInput = foundPartToTranspose(transpositionInfo);
+                bool transposeInput = FoundPartToTranspose(transpositionInfo);
                 if (nonConstInputIx == 0) {
                     transpose = transposeInput;
                 } else if (transposeInput != transpose) {

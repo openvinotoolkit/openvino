@@ -4,7 +4,7 @@
 
 #include "transformations/remove_extra_reshapes.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace GNAPluginNS;
@@ -12,8 +12,8 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(RemoveExtraReshapes, "RemoveExtraReshapes", 0);
 
 RemoveExtraReshapes::RemoveExtraReshapes() {
-    const auto reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>();
-    const auto pooling = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({reshape});
+    const auto reshape = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>();
+    const auto pooling = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({reshape});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();

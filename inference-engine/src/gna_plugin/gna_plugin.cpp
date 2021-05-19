@@ -57,6 +57,10 @@
 #include <transformations/op_conversions/convert_padded2valid_conv.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
+#include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
+#include "transformations/insert_transpose_before_matmul.hpp"
+#include "transformations/reorder_activation_and_pooling.hpp"
+#include "transformations/swap_input_matmul_gna.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -665,6 +669,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<InsertTransposeBeforeMatmul>();
+        manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<InsertTransposeAfterConvOrPool>();
+        manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -731,6 +739,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
+        passes->registerPass<InsertCopyLayerPass>();
+
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
@@ -740,9 +750,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
+
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
-        passes->registerPass<InsertCopyLayerPass>();
+
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
@@ -1048,7 +1059,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                 if (!inputsDesc->orientation_in.count(inputLayer->name)) {
                     inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
                 } else {
-                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in) {
+                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in &&
+                        dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
                         THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << "cannot be calculated";
                     }
                 }
@@ -1340,7 +1352,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             details::product(++std::begin(exportOutputDims), std::end(exportOutputDims));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
-        if (transpose_output_info != std::end(transpose_outputs_info)) {
+        if (transpose_output_info != std::end(transpose_outputs_info) && FoundPartToTranspose(transpose_output_info->second)) {
             size_t transposed_data_size = 0;
             for (const auto &part_transposition_info : transpose_output_info->second) {
                 transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
