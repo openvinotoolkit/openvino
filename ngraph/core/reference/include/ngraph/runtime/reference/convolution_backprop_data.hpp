@@ -247,10 +247,10 @@ namespace ngraph
                         // strides is already applied (through 0's extension in input)
                         // padding = pads_begin + pads_end, formula below is using
                         // params.pad_begin/params.pads_end:
-                        const size_t expected_dim = out_shape_3d[i] - ((input_shape[i + 2] - 1) -
-                                                    filters_shape[i + 2] + params.pads_begin[i] +
-                                                    params.pads_end[i] + 2 +
-                                                    params.output_padding[i]);
+                        const size_t expected_dim =
+                            out_shape_3d[i] - ((input_shape[i + 2] - 1) - filters_shape[i + 2] +
+                                               params.pads_begin[i] + params.pads_end[i] + 2 +
+                                               params.output_padding[i]);
                         params.pads_end[i] += expected_dim;
                     }
                 }
