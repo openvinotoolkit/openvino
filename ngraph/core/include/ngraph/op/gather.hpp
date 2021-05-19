@@ -46,7 +46,8 @@ namespace ngraph
                 /// \param data The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
                 /// \param axis The tensor is a dimension index to gather data from
-                /// \param batch_dims The number of batch dimension in data and indices tensors
+                /// \param batch_dims The number of batch dimension in data and indices tensors.
+                /// If batch_dims = 0 Gather v7 is identical to Gather v1.
                 Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis,

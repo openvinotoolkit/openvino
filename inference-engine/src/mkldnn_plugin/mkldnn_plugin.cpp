@@ -74,7 +74,9 @@
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
+#include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
+#include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/group_convolution.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
@@ -164,6 +166,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    if (useLpt) {
+        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+    }
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
 
     auto pass_config = manager.get_pass_config();
@@ -322,7 +329,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
             .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
+            .remove<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>());
 
         transformer.transform(nGraphFunc);
     }
