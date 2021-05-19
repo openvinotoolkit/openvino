@@ -179,7 +179,7 @@ protected:
     }
 };
 
-class GnaPadded2Valid2DConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
+class Gna30Padded2ValidConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
 protected:
     void Run() override {
         GnaLayerTestCheck::SkipTestCheck();
@@ -198,7 +198,7 @@ TEST_P(Padded2ValidConvTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(GnaPadded2Valid2DConvTest, CompareWithRefs) {
+TEST_P(Gna30Padded2ValidConvTest, CompareWithRefs) {
     Run();
 }
 
@@ -213,7 +213,10 @@ const std::vector<std::map<std::string, std::string>> configs1D = {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "1"},
         {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}
-    },
+    }
+};
+
+const std::vector<std::map<std::string, std::string>> configs1D_Gna30 = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "1"},
@@ -309,7 +312,17 @@ INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Padded2ValidConvTest,
         ::testing::ValuesIn(models)),
     Padded2ValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_2DPadded2Valid, GnaPadded2Valid2DConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Gna30Padded2ValidConvTest,
+    ::testing::Combine(
+        conv1DParams,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs1D_Gna30),
+        ::testing::ValuesIn(input1DNHWC),
+        ::testing::ValuesIn(models)),
+    Gna30Padded2ValidConvTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_2DPadded2Valid, Gna30Padded2ValidConvTest,
     ::testing::Combine(
         conv2DParams,
         ::testing::ValuesIn(netPrecisions),
@@ -317,6 +330,6 @@ INSTANTIATE_TEST_CASE_P(smoke_2DPadded2Valid, GnaPadded2Valid2DConvTest,
         ::testing::ValuesIn(configs2D),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
-    GnaPadded2Valid2DConvTest::getTestCaseName);
+    Gna30Padded2ValidConvTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
