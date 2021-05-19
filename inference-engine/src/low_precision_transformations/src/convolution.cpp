@@ -42,7 +42,27 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(context, convolution)) {
-        return false;
+        auto weightInput = convolution->get_input_node_shared_ptr(1);
+        std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(weightInput);
+        FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
+                                                    NetworkHelper::getDequantization(convolution, 1ul) :
+                                                    NetworkHelper::getDequantization(reshapeFromWeights);
+        if (dequantization.empty()) {
+            const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
+            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            if (reshapeFromWeights != nullptr) {
+                resultConstant = fold_reshape<opset1::Reshape>(
+                        resultConstant,
+                        reshapeFromWeights->input_value(1),
+                        false);
+            }
+            if (as_type_ptr<opset1::Constant>(resultConstant)) {
+                replace_node(weightInput, resultConstant);
+            }
+        } else {
+            NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
+        }
+        return true;
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);

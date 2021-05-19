@@ -215,17 +215,9 @@ void LayerTestsCommon::ConfigureNetwork() {
 
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
-
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    std::map<std::string, std::string> templateCfg = {};
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        templateCfg[InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED] =
-                InferenceEngine::PluginConfigParams::YES;
-    }
-    refExecutableNetwork = core->LoadNetwork(cnnNetwork, "TEMPLATE", templateCfg);
 }
 
 void LayerTestsCommon::GenerateInputs() {
@@ -245,11 +237,16 @@ void LayerTestsCommon::GenerateInputs() {
 void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
 
-    size_t i = 0;
-    for (const auto &input : refExecutableNetwork.GetInputsInfo()) {
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
         auto blob = inputs[i];
-        inferRequest.SetBlob(input.first, blob);
-        i++;
+        inferRequest.SetBlob(info->name(), blob);
     }
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
         configuration.count(InferenceEngine::PluginConfigParams::YES)) {
@@ -260,27 +257,57 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
-    auto req = refExecutableNetwork.CreateInferRequest();
-    size_t i = 0;
-    for (const auto &input : refExecutableNetwork.GetInputsInfo()) {
-        auto blob = inputs[i];
-        req.SetBlob(input.first, blob);
-        i++;
+    // nGraph interpreter does not support f16/bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
+    function->validate_nodes_and_infer_types();
+
+    auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
+    auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
+    for (std::size_t i = 0; i < inputs.size(); ++i) {
+        const auto &input = inputs[i];
+        const auto &inputSize = input->byteSize();
+
+        auto &referenceInput = referenceInputs[i];
+        referenceInput.resize(inputSize);
+
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto buffer = lockedMemory.as<const std::uint8_t *>();
+        std::copy(buffer, buffer + inputSize, referenceInput.data());
+
+        refInputsTypes[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(memory->getTensorDesc().getPrecision());
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = refExecutableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        req.SetBatch(batchSize);
+
+    const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
+    std::vector<ngraph::element::Type_t> convertType;
+    convertType.reserve(outputsInfo.size());
+        for (const auto &output : outputsInfo) {
+                convertType.push_back(
+                    FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                        output.second->getTensorDesc().getPrecision()));
+        }
+
+    std::vector<std::vector<std::uint8_t>> expectedOutputs;
+    switch (refMode) {
+        case INTERPRETER: {
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes, convertType);
+            break;
+        }
+        case CONSTANT_FOLDING: {
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
+            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
+            break;
+        }
+        case IE: {
+            // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
     }
-    req.Infer();
-    std::vector<std::vector<std::uint8_t>> outs;
-    for (const auto &out : executableNetwork.GetOutputsInfo()) {
-        const auto &blob = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(req.GetBlob(out.first));
-        auto memView = blob->rmap().as<const std::uint8_t *>();
-        std::vector<uint8_t> data(memView, memView + blob->byteSize());
-        outs.push_back(data);
-    }
-    return outs;
+
+    return expectedOutputs;
 }
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {

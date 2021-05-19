@@ -20,7 +20,7 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-    if (!NetworkHelper::isQuantizeSupported(layer)) {
+    if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }
 
@@ -149,7 +149,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Add>(eltwise) && checkElementwise(eltwise)) {
         if (is_type<opset1::Convolution>(fq::getData(eltwise)) ||
-            is_type<opset1::GroupConvolution>(fq::getData(eltwise))) {
+            is_type<opset1::GroupConvolution>(fq::getData(eltwise)) ||
+            is_type<opset1::ConvolutionBackpropData>(fq::getData(eltwise)) ||
+            is_type<opset1::GroupConvolutionBackpropData>(fq::getData(eltwise))) {
             return nullptr;
         }
 

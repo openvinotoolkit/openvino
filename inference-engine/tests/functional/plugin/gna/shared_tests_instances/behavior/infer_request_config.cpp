@@ -19,7 +19,9 @@ namespace {
     const std::vector<std::map<std::string, std::string>> Inconfigs = {
             {{InferenceEngine::GNAConfigParams::KEY_GNA_SCALE_FACTOR, "1.0"}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION, "I8"}},
-            {{InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE, "gfile"}},
+            {{InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE, "gfile"},
+             {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0},
+             {InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_AUTO}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_FP32}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW}},
