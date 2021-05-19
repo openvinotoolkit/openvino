@@ -325,7 +325,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
             const auto blobSize = inBlob->byteSize();
             const auto inBlobBuf = inBlob->cbuffer().as<uint8_t *>();
             std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + blobSize);
-            std::vector<uint8_t> reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front();
+            auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
             ref.push_back(reOutData);
         }
     }

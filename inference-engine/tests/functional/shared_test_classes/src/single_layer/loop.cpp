@@ -246,7 +246,7 @@ namespace LayerTestsDefinitions {
     }
 
     // Predefined ref output
-    std::vector<std::vector<std::uint8_t>> StaticShapeLoopTest::PredefinedRefs() {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> StaticShapeLoopTest::PredefinedRefs() {
         bool auto_concat_out = (axis != -1);
         const auto n_iter = actual_n_iter();
 
@@ -256,8 +256,10 @@ namespace LayerTestsDefinitions {
 
         using namespace CommonTestUtils;
         InferenceEngine::TensorDesc tdesc {data_prc, ref_shape, InferenceEngine::TensorDesc::getLayoutByDims(ref_shape)};
-        std::vector<uint8_t> res(byte_size(tdesc));
-        auto out = make_blob_with_precision(tdesc, res.data());
+        std::pair<ngraph::element::Type, std::vector<uint8_t>> res;
+        res.first = function->get_result()->get_element_type();
+        res.second = std::vector<uint8_t>(byte_size(tdesc));
+        auto out = make_blob_with_precision(tdesc, res.second.data());
 
         std::vector<float> vals(n_iter);
         float val = start_value;

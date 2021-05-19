@@ -46,7 +46,6 @@ public:
     }
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         size_t axis, numSplits;
         std::vector<size_t> inputShape, outIndices;
         InferenceEngine::Precision netPrecision;

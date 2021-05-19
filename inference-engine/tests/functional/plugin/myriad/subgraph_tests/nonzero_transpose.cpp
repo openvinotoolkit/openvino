@@ -20,8 +20,6 @@ using Parameters = std::tuple<
 class NonZero_Transpose : public testing::WithParamInterface<Parameters>, virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
-
         const auto& parameters = GetParam();
         const auto& dataType = std::get<0>(parameters);
         const auto& dataDims = std::get<1>(parameters);

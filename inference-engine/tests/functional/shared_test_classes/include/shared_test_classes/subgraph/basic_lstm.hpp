@@ -37,7 +37,7 @@ protected:
     std::vector<float> hidden_memory_init;
     std::vector<float> cell_memory_init;
     void SetUp() override;
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
 };
 
 }  // namespace SubgraphTestsDefinitions

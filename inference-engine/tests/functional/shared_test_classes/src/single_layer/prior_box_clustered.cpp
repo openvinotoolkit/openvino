@@ -56,7 +56,6 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
 }
 
 void PriorBoxClusteredLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
         inPrc, outPrc, inLayout, outLayout,

@@ -90,13 +90,15 @@ void DetectionOutputLayerTest::GenerateInputs() {
     }
 }
 
-void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
-    ASSERT_EQ(expected.size(), actual->byteSize());
+void DetectionOutputLayerTest::Compare(
+        const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+        const InferenceEngine::Blob::Ptr &actual) {
+    ASSERT_EQ(expected.second.size(), actual->byteSize());
 
     size_t expSize = 0;
     size_t actSize = 0;
 
-    const auto &expectedBuffer = expected.data();
+    const auto &expectedBuffer = expected.second.data();
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
     IE_ASSERT(memory);
     const auto lockedMemory = memory->wmap();
