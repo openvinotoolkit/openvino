@@ -257,20 +257,11 @@ public:
     virtual ~LayerTransformation() = default;
     virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
 
-    void setParams(const Params& params);
     void setContext(TransformationContext* context) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
-    void setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
-    void setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
-
-    void setQuantizationIntervalAsymmetryThreshold(const float value);
-    void setZeroThreshold(const float value);
-    void setMinQuantizationLevels(const size_t levels);
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-
-    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex = 0ul) const;
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -307,12 +298,6 @@ protected:
     element::Type deqPrecision;
     bool support3DTensorOnActivations;
     bool deconvolutionSpecificChannelsRatio;
-
-    // absolute value, used to determine quantization interval asymmetry
-    float quantizationIntervalAsymmetryThreshold;
-    // absolute value, used to determine zero
-    float zeroThreshold;
-    size_t minQuantizationLevels;
 
     static const char originalLayerPostfix[];
     TransformationContext* context;
