@@ -33,20 +33,10 @@ LayerTransformation::LayerTransformation(const Params& params) :
     deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
-    minQuantizationLevels(2ul),
-    paramsManager(nullptr),
-    layerTransformationsManager(nullptr) {}
+    minQuantizationLevels(2ul) {}
 
 void LayerTransformation::setParams(const Params& params) {
     //
-}
-
-void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
-    this->paramsManager = paramsManager;
-}
-
-void LayerTransformation::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
-    this->layerTransformationsManager = layerTransformationsManager;
 }
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -323,84 +313,6 @@ DataPrecision LayerTransformation::getDataPrecision(
         }
     }
     return DataPrecision(element::undefined, 0.f, 0.f, false);
-}
-
-void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const {
-    if (availablePrecisions.empty()) {
-        return;
-    }
-
-    const std::vector<std::shared_ptr<Node>> children = NetworkHelper::consumers(layer);
-    for (auto child : children) {
-        if (child->get_type_info().is_castable(opset1::FakeQuantize::get_type_info_static())) {
-            // FakeQuantize layer updates precision
-            continue;
-        }
-
-        if (!layerTransformationsManager->isQuantized(child)) {
-            // low precision chain is interrupted here: next operation supported precisions are ignored
-            continue;
-        }
-
-        const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
-        if (childPrecisionsOnActivations.size() == 0ul) {
-            continue;
-        }
-
-        for (size_t index = 0ul; index < availablePrecisions.size();) {
-            const element::Type availablePrecision = availablePrecisions[index];
-            if (!std::any_of(
-                    childPrecisionsOnActivations.begin(),
-                    childPrecisionsOnActivations.end(),
-                    [&](const element::Type precision) { return availablePrecision == precision; })) {
-                availablePrecisions.erase(availablePrecisions.begin() + index);
-            } else {
-                ++index;
-            }
-        }
-
-        if (!layerTransformationsManager->isPrecisionPreserved(child)) {
-            continue;
-        }
-
-        fillAvailablePrecisions(child, availablePrecisions);
-        if (availablePrecisions.empty()) {
-            return;
-        }
-    }
-}
-
-std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
-        const std::shared_ptr<Node>& op) const noexcept {
-    std::queue<std::shared_ptr<Node>> notHandledChildren;
-
-    for (const auto& output : op->outputs()) {
-        for (const auto& input : output.get_target_inputs()) {
-            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-            notHandledChildren.emplace(child);
-        }
-    }
-
-    std::vector<std::shared_ptr<Node>> resultChildren;
-
-    while (!notHandledChildren.empty()) {
-        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
-        notHandledChildren.pop();
-
-        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
-            resultChildren.push_back(operation);
-            continue;
-        }
-
-        for (const auto& output : operation->outputs()) {
-            for (const auto& input : output.get_target_inputs()) {
-                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-                notHandledChildren.emplace(child);
-            }
-        }
-    }
-
-    return resultChildren;
 }
 
 std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
