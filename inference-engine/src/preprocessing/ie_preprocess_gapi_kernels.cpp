@@ -843,46 +843,54 @@ struct typed_chan_to_plane_row {
         };
     }
 };
-
-template<typename isa_tag_t>
-static void chanToPlaneRowTypeDisp(isa_tag_t, const cv::gapi::fluid::View& in, int chan,
-                cv::gapi::fluid::Buffer& out) {
-    GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
-
-    const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row<isa_tag_t>{}, nullptr);
-
-    GAPI_DbgAssert(rowFunc);
-
-    rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
-}
-
-struct chanToPlaneISA {
-    using f_t = void (*)(const cv::gapi::fluid::View& in, int chan, cv::gapi::fluid::Buffer& out);
-
-    template<typename isa_tag_t>
-    f_t operator()(type_to_type<isa_tag_t>){
-        return [](const cv::gapi::fluid::View& in, int chan, cv::gapi::fluid::Buffer& out) -> void{
-            chanToPlaneRowTypeDisp(isa_tag_t{}, in, chan, out);
-        };
-    }
-};
-
 } //namespace
 
+template <typename isa_tag_t>
+struct choose_impl {
 GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View& in, int chan,
                     cv::gapi::fluid::Buffer& out) {
-        // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
-        // So, disable it for now.
-        using isas = remove_t<isas_set, avx512_tag>;
+        GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
 
-        const auto chanToPlaneISAFunc = type_dispatch<isas>(is_isa_present{}, chanToPlaneISA{}, nullptr);
-        GAPI_DbgAssert(chanToPlaneISAFunc);
+        const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row<isa_tag_t>{}, nullptr);
 
-        chanToPlaneISAFunc(in, chan, out);
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
     }
 };
+};
+
+namespace {
+struct chanToPlaneISA {
+    cv::gapi::GKernelPackage& pckg;
+
+    chanToPlaneISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
+
+    template<typename isa_tag_t>
+    bool operator()(type_to_type<isa_tag_t>){
+        pckg.include<typename choose_impl<isa_tag_t>::FChanToPlane>();
+
+        //at the moment type_dispatch requires something to be returned by the lambda
+        return true;
+    }
+};
+}  //namespace
+
+cv::gapi::GKernelPackage FChanToPlaneChooseISA() {
+    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
+    // So, disable it for now.
+    using isas = remove_t<isas_set, avx512_tag>;
+
+    cv::gapi::GKernelPackage pckg;
+    chanToPlaneISA ctpISA{pckg};
+
+    type_dispatch<isas>(is_isa_present{}, ctpISA, false);
+
+
+    return pckg;
+}
 
 //----------------------------------------------------------------------
 
@@ -2621,9 +2629,12 @@ GAPI_FLUID_KERNEL(FDivC, GDivC, false) {
 using namespace kernels;
 
 cv::gapi::GKernelPackage preprocKernels() {
-    return cv::gapi::kernels
-        < FChanToPlane
-        , FScalePlanes
+    return combine(
+        FChanToPlaneChooseISA(),
+        cv::gapi::kernels
+        < //FChanToPlane
+        //,
+        FScalePlanes
         , FScalePlanes4
         , FScalePlane
         , FScalePlane32f
@@ -2643,7 +2654,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FConvertDepth
         , FSubC
         , FDivC
-        >();
+        >());
 }
 
 }  // namespace gapi
