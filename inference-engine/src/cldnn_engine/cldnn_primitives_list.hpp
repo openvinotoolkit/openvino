@@ -205,5 +205,8 @@ REGISTER_FACTORY(v5, GatherND);
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 
+// ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, Gather);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

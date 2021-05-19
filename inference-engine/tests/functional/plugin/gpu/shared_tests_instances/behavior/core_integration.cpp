@@ -11,6 +11,8 @@
 #endif
 #include "gpu/gpu_context_api_ocl.hpp"
 
+#include "cldnn/cldnn_config.hpp"
+
 using namespace BehaviorTestsDefinitions;
 
 namespace {
@@ -57,6 +59,16 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_DEVICE_GOPS,
+        ::testing::Values("GPU")
+);
+
+INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_DEVICE_TYPE,
+        ::testing::Values("GPU")
+);
+
+INSTANTIATE_TEST_CASE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("GPU")
 );
@@ -78,6 +90,66 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         nightly_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
+        ::testing::Values("GPU")
+);
+
+//
+// GPU specific metrics
+//
+using IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    uint64_t t = p;
+
+    std::cout << "GPU device total memory size: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+}
+
+INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE,
+        ::testing::Values("GPU")
+);
+
+using IEClassGetMetricTest_GPU_UARCH_VERSION = IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
+    std::string t = p;
+
+    std::cout << "GPU device uarch: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+}
+
+INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_UARCH_VERSION,
+        ::testing::Values("GPU")
+);
+
+using IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    int t = p;
+
+    std::cout << "GPU EUs count: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+}
+
+INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT,
         ::testing::Values("GPU")
 );
 
