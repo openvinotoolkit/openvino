@@ -231,7 +231,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         }
     },
 
-    // Actual & Transformed:
+    // Actual:
     //
     // Parameter   Constant   Constant Constant
     //  |U8         |U8        |FP32    |I8
@@ -243,6 +243,22 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //      \FP32   /FP32      |FP32   /FP32
     //       \     /           |      /
     //       Multiply         Multiply
+    //         \FP32         /FP32
+    //          \           /
+    //           Convolution
+    //
+    // Transformed:
+    //
+    // Parameter   Constant
+    //  |U8         |U8
+    //  |           |
+    // Convert    Convert
+    //   \FP32    /FP32
+    //    \      /
+    //    Subtract  Constant
+    //      \FP32   /FP32
+    //       \     /
+    //       Multiply       Constant
     //         \FP32         /FP32
     //          \           /
     //           Convolution
@@ -262,8 +278,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
-            { std::vector<float>{ 2.f }, ngraph::element::f32},
+            {},
+            { std::vector<float>{ -3.75f }, ngraph::element::f32},
             {},
             ngraph::element::f32,
             {}
@@ -434,12 +450,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {1000.f}, element::f32, {}, false },
                 { {0.02f}, element::f32, {}, false }
             },
-            {
-                { ngraph::element::f32, false },
-                { {127.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            { std::vector<float>{ -3.75f }, ngraph::element::f32},
             {},
             ngraph::element::f32,
             {}
