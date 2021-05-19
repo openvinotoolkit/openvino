@@ -185,7 +185,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
         loads.push_back([&]() {
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
-            ExecutableNetwork exec_net;
+            SoExecutableNetworkInternal exec_net;
             if (modelPath.empty()) {
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
             } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {

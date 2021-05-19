@@ -7,6 +7,7 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <mutex>
 #include <functional>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -113,6 +114,8 @@ public:
 };
 
 class MockExecutableNetwork : public ExecutableNetworkInternal {
+    std::mutex m_pluginMutex;
+
 public:
     MockExecutableNetwork() {}
     MOCK_METHOD1(ExportImpl, void(std::ostream& networkModel));
@@ -122,9 +125,18 @@ public:
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
     MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
-    MOCK_METHOD1(setNetworkInputs, void(const InferenceEngine::InputsDataMap networkInputs));
-    MOCK_METHOD1(setNetworkOutputs, void(const InferenceEngine::OutputsDataMap networkOutputs));
-    MOCK_METHOD1(SetPointerToPlugin, void(IInferencePlugin::Ptr plugin));
+    MOCK_METHOD1(setNetworkInputs, void(const InputsDataMap networkInputs));
+    MOCK_METHOD1(setNetworkOutputs, void(const OutputsDataMap networkOutputs));
+
+    void Export(std::ostream& networkModel) override {
+        std::lock_guard<std::mutex> guard(m_pluginMutex);
+        ExecutableNetworkInternal::Export(networkModel);
+    }
+
+    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) override {
+        std::lock_guard<std::mutex> guard(m_pluginMutex);
+        ExecutableNetworkInternal::SetPointerToPlugin(plugin);
+    }
 };
 
 //------------------------------------------------------
@@ -374,7 +386,6 @@ private:
         }));
         EXPECT_CALL(*net, setNetworkInputs(_)).Times(AnyNumber());
         EXPECT_CALL(*net, setNetworkOutputs(_)).Times(AnyNumber());
-        EXPECT_CALL(*net, SetPointerToPlugin(_)).Times(AnyNumber());
     }
 };
 
