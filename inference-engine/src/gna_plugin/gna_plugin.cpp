@@ -662,6 +662,11 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+
+    if (!gnaFlags->sw_fp32) {
+        InitGNADevice();
+    }
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -669,7 +674,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
-        manager.register_pass<ngraph::pass::Conv2dDecomposition>();
+        if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0)
+            manager.register_pass<ngraph::pass::Conv2dDecomposition>();
         manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<InsertTransposeBeforeMatmul>();
@@ -859,15 +865,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty()) {
+    if (!graphCompiler.memory_connection.empty() && gnaFlags->gna_lib_async_threads_num != 1) {
+        // TODO: check if updating the number of threads is needed for sw_fp32
         gnaFlags->gna_lib_async_threads_num = 1;
+        if (!gnaFlags->sw_fp32)
+            InitGNADevice();
     }
 
     if (gnaFlags->sw_fp32) {
         gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
         graphCompiler.setGNAMemoryPtr(gnamem);
-    } else {
-        InitGNADevice();
     }
 
     // keep inputs information and create input primitives

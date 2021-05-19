@@ -153,7 +153,9 @@ bool pass::Conv2dDecomposition::run_on_function(std::shared_ptr<Function> f) {
             output_shape.size() != 4 ||
             conv->get_dilations().size() != 2 ||
             conv->get_strides().size() != 2 ||
-            input.get_shape()[0] != 1) {
+            input.get_shape()[0] != 1 ||
+            filters.get_shape()[2] == 1 ||
+            filters.get_shape()[3] == 1) {
             continue;
         }
         // TODO: Check if filter weights are not dynamic
