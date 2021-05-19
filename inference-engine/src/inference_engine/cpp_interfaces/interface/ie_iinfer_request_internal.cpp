@@ -322,4 +322,12 @@ void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Bl
     // during pre-processing
     preproc_ptr->setRoiBlob(from);
 }
+
+void* IInferRequestInternal::GetUserData() noexcept {
+    return _userData;
+}
+
+void IInferRequestInternal::SetUserData(void* userData) noexcept {
+    _userData = userData;
+}
 }  // namespace InferenceEngine

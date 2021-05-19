@@ -127,4 +127,33 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     ASSERT_NO_THROW(req.StartAsync());
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
+
+TEST_P(CallbackTests, LegacyCastAndSetuserDataGetUserData) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+    int userData = 0;
+    {
+        IE_SUPPRESS_DEPRECATED_START
+        InferenceEngine::IInferRequest::Ptr ireq = req;
+        ASSERT_EQ(InferenceEngine::OK, ireq->SetUserData(static_cast<void*>(&userData), nullptr));
+        ASSERT_EQ(InferenceEngine::OK, ireq->SetCompletionCallback(
+                [](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+                    void* userDataPtr = nullptr;
+                    ASSERT_EQ(InferenceEngine::OK, request->GetUserData(&userDataPtr, nullptr));
+                    ASSERT_NE(nullptr, userDataPtr);
+                    *static_cast<int*>(userDataPtr) = 42;
+                }));
+        IE_SUPPRESS_DEPRECATED_END
+    }
+    req.StartAsync();
+    req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    ASSERT_EQ(42, userData);
+}
+
 }  // namespace BehaviorTestsDefinitions
