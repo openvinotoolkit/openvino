@@ -35,6 +35,8 @@ private:
     size_t srcBatchStride = 1;
     size_t idxBatchStride = 1;
     size_t dstBatchStride = 1;
+    size_t dataSize = 1;
+    size_t len = 1;
 
     static const size_t GATHER_DATA = 0;
     static const size_t GATHER_INDEXES = 1;

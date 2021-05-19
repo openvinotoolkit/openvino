@@ -20,6 +20,12 @@ bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>&
             errorMessage = "Only opset7 Gather operation is supported";
             return false;
         }
+
+        auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
+        if (!ngraph::as_type_ptr<const ngraph::op::Constant>(axesOp)) {
+            errorMessage = "Only Constant operation on 'axis' input is supported";
+            return false;
+        }
     } catch (...) {
         return false;
     }
@@ -89,6 +95,7 @@ void MKLDNNGatherNode::createPrimitive() {
     const SizeVector srcDims = getParentEdgeAt(GATHER_DATA)->getDims().ToSizeVector();
     const SizeVector idxDims = getParentEdgeAt(GATHER_INDEXES)->getDims().ToSizeVector();
     const SizeVector dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    dataSize = getParentEdgeAt(GATHER_DATA)->getDesc().getPrecision().size();
 
     indexRange = srcDims[axis];
     batchSize = std::accumulate(srcDims.begin(), srcDims.begin() + batchDims, 1, std::multiplies<size_t>());
@@ -97,6 +104,7 @@ void MKLDNNGatherNode::createPrimitive() {
     srcBatchStride = std::accumulate(srcDims.begin() + batchDims, srcDims.end(), 1, std::multiplies<size_t>());
     idxBatchStride = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1, std::multiplies<size_t>());
     dstBatchStride = std::accumulate(dstDims.begin() + batchDims, dstDims.end(), 1, std::multiplies<size_t>());
+    len = dataLength * dataSize;
 
     if (dataLength == 0)
         IE_THROW() << errorPrefix_ << "had incorrect input parameters dimension!";
@@ -106,8 +114,6 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
     const int32_t* srcIndexes = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDEXES)->getMemoryPtr()->GetPtr());
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const size_t dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[GATHER_DATA].desc.getPrecision().size();
-    const size_t len = dataLength * dataSize;
 
     parallel_for2d(batchSize, idxBatchStride, [&](const size_t i, const size_t j) {
         const unsigned int idx = static_cast<uint32_t>(srcIndexes[i * idxBatchStride + j]);
