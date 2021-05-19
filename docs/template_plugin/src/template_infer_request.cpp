@@ -69,32 +69,24 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
         auto& dims = userData.second->getTensorDesc().getDims();
         const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
         auto userPrecision = userData.second->getTensorDesc().getPrecision();
-//        const auto devicePrecision = Precision::FP32;
         auto userLayout = userData.second->getTensorDesc().getLayout();
-
 
         auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(userData.first));
         Blob::Ptr userBlob = make_blob_with_precision({userPrecision, dims, userLayout});
         userBlob->allocate();
         userBlobMap[userData.first] = userBlob;
 
-
-        Blob::Ptr deviceBlob = userBlob;
+        Blob::Ptr deviceBlob;
         if (userPrecision == networkPrecision && userLayout == deviceLayout) {
             deviceBlob = userBlob;
         } else {
+            if (userLayout != deviceLayout) {
+               IE_THROW(NotImplemented) << "Template Plugin: does not support setLayout for outputs";
+            }
             deviceBlob = make_blob_with_precision({networkPrecision, dims, deviceLayout});
             deviceBlob->allocate();
         }
-//        if (userBlob != deviceBlob) {
-//            if (isInputBlob) {
-//                // preprocessing converts user input blob to desired device input blob automatically
-//                deviceBlob->allocate();
-//            } else {
-//                // NOTE: this is not supported for output user blobs yet
-//                IE_THROW(NotImplemented) << "Template Plugin: does not support setPrecision, setLayout for outputs";
-//            }
-//        }
+
         deviceBlobMap[userData.first] = deviceBlob;
     }
 }
@@ -201,7 +193,7 @@ void TemplateInferRequest::inferPreprocess() {
     auto start = Time::now();
     // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-//    IInferRequestInternal::execDataPreprocessing(_deviceInputs);
+   IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];
