@@ -711,7 +711,7 @@ cdef class InputInfoCPtr:
     def input_data(self):
         cdef C.DataPtr c_data_ptr = deref(self._ptr).getInputData()
         data_ptr = DataPtr()
-        data_ptr._ptr = c_data_ptr
+        data_ptr._ptr = C.to_shared_without_deallocation(c_data_ptr)
         return data_ptr
 
     ## tensor_desc of this input

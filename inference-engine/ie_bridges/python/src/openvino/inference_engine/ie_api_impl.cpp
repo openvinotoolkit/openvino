@@ -322,7 +322,7 @@ std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNet
     InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
     std::map<std::string, InferenceEngine::DataPtr> pyInputs;
     for (const auto& item : inputsDataMap) {
-        pyInputs[item.first] = item.second->getInputData();
+        pyInputs[item.first] = InferenceEngine::DataPtr(item.second->getInputData().get(),[](InferenceEngine::Data *){});
     }
     return pyInputs;
 }
@@ -331,7 +331,7 @@ std::map<std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::I
     InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
     std::map<std::string, InferenceEngine::InputInfo::CPtr> pyInputs;
     for (const auto& item : inputsDataMap) {
-        pyInputs[item.first] = item.second;
+        pyInputs[item.first] = InferenceEngine::InputInfo::CPtr(item.second.get(),[](const InferenceEngine::InputInfo *){});
     }
     return pyInputs;
 }
@@ -340,7 +340,7 @@ std::map<std::string, InferenceEngine::CDataPtr> InferenceEnginePython::IEExecNe
     InferenceEngine::ConstOutputsDataMap outputsDataMap = actual.GetOutputsInfo();
     std::map<std::string, InferenceEngine::CDataPtr> pyOutputs;
     for (const auto& item : outputsDataMap) {
-        pyOutputs[item.first] = item.second;
+        pyOutputs[item.first] = InferenceEngine::CDataPtr(item.second.get(),[](const InferenceEngine::Data *){});
     }
     return pyOutputs;
 }
@@ -612,4 +612,8 @@ PyObject* InferenceEnginePython::IECore::getMetric(const std::string& deviceName
 PyObject* InferenceEnginePython::IECore::getConfig(const std::string& deviceName, const std::string& name) {
     InferenceEngine::Parameter param = actual.GetConfig(deviceName, name);
     return parse_parameter(param);
+}
+
+InferenceEngine::DataPtr InferenceEnginePython::to_shared_without_deallocation(InferenceEngine::DataPtr data){
+    return InferenceEngine::DataPtr(data.get(),[](InferenceEngine::Data *){});
 }

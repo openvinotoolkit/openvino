@@ -222,3 +222,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef string get_version()
 
     cdef IENetwork read_network(string path_to_xml, string path_to_bin)
+
+    cdef DataPtr to_shared_without_deallocation(DataPtr data)

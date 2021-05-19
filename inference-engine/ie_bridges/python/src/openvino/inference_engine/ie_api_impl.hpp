@@ -187,4 +187,6 @@ std::string get_version();
 
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
 
+InferenceEngine::DataPtr to_shared_without_deallocation(InferenceEngine::DataPtr data);
+
 };  // namespace InferenceEnginePython
