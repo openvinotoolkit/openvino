@@ -94,6 +94,11 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
+    auto attribute = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
+    if (attribute->get()->sharedValue->precisions.empty()) {
+        return false;
+    }
+
     const ngraph::element::Type precision = layer->get_output_element_type(0);
     if (DataPrecision::isSupported(precision)) {
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
