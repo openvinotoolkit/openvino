@@ -74,13 +74,21 @@
   * **Default value**: `1`
   * **Required**: *no*
 
+* *bilinear_interpolation_mode*
+
+  * **Description**: *bilinear_interpolation_mode* is possible options for performing bilinear interpolation.
+  * **Range of values**: `strict_boundaries`, `fuzzy_boundaries` 
+  * **Type**: `string`
+  * **Default value**: `fuzzy_boundaries`
+  * **Required**: *no*
+  
 **Inputs**:
 
 *   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
 
 *   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). Required.
 
-*   **3**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). Required. ????
+*   **3**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). Required. (or Optional??)
 
 *   **4**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
 
