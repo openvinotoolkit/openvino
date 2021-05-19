@@ -12,6 +12,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include <ie_algorithm.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
@@ -22,10 +23,11 @@ namespace AutoPlugin {
 namespace {
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
+        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        if (isINTModel) {
+            return METRIC_VALUE(INT8);
+        }
         for (auto & node : nGraphFunc->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::op::FakeQuantize>(node)) {
-                return METRIC_VALUE(INT8);
-            }
             if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
