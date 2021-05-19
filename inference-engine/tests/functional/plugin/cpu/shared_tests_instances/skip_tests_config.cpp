@@ -72,8 +72,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
-        // Incorrect BF16 processing in the CPU plug-in DFT implementation. Issue: 55748
-        R"(.*DFTLayerTest.*BF16.*)",
     };
         // TODO: 54718 Accuracy mismatch
 #ifdef _WIN32
