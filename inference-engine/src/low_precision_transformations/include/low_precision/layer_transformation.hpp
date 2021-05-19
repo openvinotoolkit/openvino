@@ -13,8 +13,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "iparams_manager.hpp"
-#include "ilayer_transformations_manager.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -260,8 +258,6 @@ public:
     virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
 
     void setParams(const Params& params);
-    void setParamsManager(IParamsManager* paramsManager) noexcept;
-    void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
     void setContext(TransformationContext* context) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
@@ -295,10 +291,6 @@ public:
             const QuantizationDetails& quantizationDetails,
             const std::vector<element::Type>& precisions) const;
 
-    void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
-
-    std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptPrecisionPreserved(const std::shared_ptr<Node>& op) const noexcept;
-
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     static void printDequantizationInfo(const std::shared_ptr<Node>& layer);
@@ -323,8 +315,6 @@ protected:
     size_t minQuantizationLevels;
 
     static const char originalLayerPostfix[];
-    IParamsManager* paramsManager;
-    ILayerTransformationsManager* layerTransformationsManager;
     TransformationContext* context;
 
 protected:
