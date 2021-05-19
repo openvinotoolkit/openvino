@@ -11,6 +11,8 @@ from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
+from generator import generator, generate
+
 
 class TestSplitOp(unittest.TestCase):
     nodes = {
@@ -189,6 +191,8 @@ class TestAttributedVariadicSplitOp(unittest.TestCase):
         self.assertTrue(node.out_port(3).disconnected())
         self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
 
+
+@generator
 class TestVariadicSplitOp(unittest.TestCase):
     nodes = {
         'input': {'kind': 'op'},
@@ -220,12 +224,14 @@ class TestVariadicSplitOp(unittest.TestCase):
         ('split_output_2_data', 'output_2'),
     ]
 
-    def test_splitv_scalar_axis(self):
+    @generate(*[int64_array(2),
+                int64_array([2])])
+    def test_variadic_split_axis(self, axis):
         lengths = int64_array([2, 13, 10])
         graph = build_graph(self.nodes, self.edges,
                             {
                                 'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
-                                'split_axis_data': {'value': np.array(2)},
+                                'split_axis_data': {'value': axis},
                                 'split_lengths_data': {'value': lengths},
                                 'split_op': {'out_ports_count': 4},
                             }
@@ -241,12 +247,14 @@ class TestVariadicSplitOp(unittest.TestCase):
         for out in range(ont_nodes_count):
             self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
 
-    def test_splitv_1D_axis(self):
+    @generate(*[int64_array([[2], [2]]),
+                int64_array([2, 2])])
+    def test_negative_variadic_split_axis(self, axis):
         lengths = int64_array([2, 13, 10])
         graph = build_graph(self.nodes, self.edges,
                             {
                                 'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
-                                'split_axis_data': {'value': np.array([2])},
+                                'split_axis_data': {'value': axis},
                                 'split_lengths_data': {'value': lengths},
                                 'split_op': {'out_ports_count': 4},
                             }
@@ -255,9 +263,8 @@ class TestVariadicSplitOp(unittest.TestCase):
         for p in range(len(node.out_edges()), node.out_ports_count):
             node.add_output_port(p)
 
-        VariadicSplit.infer(node)
-
-        ont_nodes_count = len(node.out_edges())
-        self.assertTrue(ont_nodes_count == 3)
-        for out in range(ont_nodes_count):
-            self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
+        try:
+            VariadicSplit.infer(node)
+        except AssertionError as e:
+            self.assertTrue(e.args[0] == 'VariadicSplit `axis` should be scalar or tensor with shape [1], '
+                                         'but it`s not for node split_op')
