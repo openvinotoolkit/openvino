@@ -36,15 +36,14 @@ private:
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
 
     template <typename T>
-    IE::ExecutableNetworkInternal::Ptr LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
+    std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
         if (GetCore() == nullptr) {
             IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
         }
-        
         auto fullConfig = mergeConfigs(_config, config);
         auto metaDevices = GetDeviceChoice(fullConfig);
         DeviceInformation selectedDevice;
-        IE::ExecutableNetwork executableNetwork;
+        IE::SoExecutableNetworkInternal executableNetwork;
         while (!metaDevices.empty()) {
             selectedDevice = SelectDevice(metaDevices, networkPrecision);
             try {

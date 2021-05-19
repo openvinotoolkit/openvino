@@ -13,6 +13,7 @@
 #include "auto_infer_request.hpp"
 
 namespace AutoPlugin {
+using namespace InferenceEngine;
 
 AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network) :
     _network(network) {
