@@ -788,37 +788,6 @@ struct is_isa_present {
     }
 };
 
-template<typename T>
-struct chanToPlaneImplF {
-    using f_t = void (*)(const T* in, int chan, int chs, T* out, int length);
-    template<typename isa_tag_t>
-    f_t operator()(type_to_type<isa_tag_t>){
-        return [](const T* in, int chan, int chs, T* out, int length) -> void{
-            chanToPlaneRowImpl(isa_tag_t{}, in, chan, chs, out, length);
-        };
-    }
-};
-
-
-template<typename T>
-void chanToPlaneRowImpl(scalar_tag, const T*   in, int chan, int chs, T* out, int length) {
-    for (int x = 0; x < length; x++) {
-        out[x] = in[x*chs + chan];
-    }
-}
-
-template<typename T>
-static void chanToPlaneRowISADisp(const T* in, int chan, int chs, T* out, int length) {
-    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
-    // So, disable it for now.
-    using isas = remove_t<isas_set, avx512_tag>;
-
-    const auto chanToPlaneRowImplFunc = type_dispatch<isas>(is_isa_present{}, chanToPlaneImplF<T>{}, nullptr);
-    GAPI_DbgAssert(chanToPlaneRowImplFunc);
-
-    chanToPlaneRowImplFunc(in, chan, chs, out, length);
-}
-
 //    GAPI_OCV_KERNEL(OCVChanToPlane, ChanToPlane) {
 //        static void run(const cv::Mat &in, int chan, cv::Mat &out) {
 //            out.create(in.rows, in.cols, in.depth());
@@ -853,6 +822,14 @@ namespace {
 
 using chan_to_plane_supported_types = typelist<uint8_t, float>;
 
+template<typename T>
+void chanToPlaneRowImpl(scalar_tag, const T*   in, int chan, int chs, T* out, int length) {
+    for (int x = 0; x < length; x++) {
+        out[x] = in[x*chs + chan];
+    }
+}
+
+template<typename isa_tag_t>
 struct typed_chan_to_plane_row {
     using p_f = void (*)(const uint8_t* in, int chan, int chs, uint8_t* out, int length);
 
@@ -862,23 +839,48 @@ struct typed_chan_to_plane_row {
             const auto inT  = reinterpret_cast<const type*>(in);
                   auto outT = reinterpret_cast<      type*>(out);
 
-            chanToPlaneRowISADisp(inT, chan, chs, outT, length);
+            chanToPlaneRowImpl(isa_tag_t{}, inT, chan, chs, outT, length);
         };
     }
 };
+
+template<typename isa_tag_t>
+static void chanToPlaneRowTypeDisp(isa_tag_t, const cv::gapi::fluid::View& in, int chan,
+                cv::gapi::fluid::Buffer& out) {
+    GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
+
+    const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row<isa_tag_t>{}, nullptr);
+
+    GAPI_DbgAssert(rowFunc);
+
+    rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
+}
+
+struct chanToPlaneISA {
+    using f_t = void (*)(const cv::gapi::fluid::View& in, int chan, cv::gapi::fluid::Buffer& out);
+
+    template<typename isa_tag_t>
+    f_t operator()(type_to_type<isa_tag_t>){
+        return [](const cv::gapi::fluid::View& in, int chan, cv::gapi::fluid::Buffer& out) -> void{
+            chanToPlaneRowTypeDisp(isa_tag_t{}, in, chan, out);
+        };
+    }
+};
+
 } //namespace
 
 GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View& in, int chan,
                     cv::gapi::fluid::Buffer& out) {
-        GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
+        // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
+        // So, disable it for now.
+        using isas = remove_t<isas_set, avx512_tag>;
 
-        const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row{}, nullptr);
+        const auto chanToPlaneISAFunc = type_dispatch<isas>(is_isa_present{}, chanToPlaneISA{}, nullptr);
+        GAPI_DbgAssert(chanToPlaneISAFunc);
 
-        GAPI_DbgAssert(rowFunc);
-
-        rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
+        chanToPlaneISAFunc(in, chan, out);
     }
 };
 
