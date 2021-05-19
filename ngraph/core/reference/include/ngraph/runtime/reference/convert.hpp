@@ -92,37 +92,40 @@ namespace ngraph
 
                     return static_cast<T>(buf[idx]);
                 }
-            } // namespace detail
 
-            template <typename TI, typename TO>
-            void convert(const TI* arg,
-                         TO* out,
-                         size_t count,
-                         element::Type_t src_type,
-                         element::Type_t dst_type)
-            {
-                const uint8_t* input = reinterpret_cast<const uint8_t*>(arg);
-                uint8_t* output = reinterpret_cast<uint8_t*>(out);
-                for (size_t i = 0; i < count; ++i)
+                template <typename TI, typename TO>
+                void lp_convert(const TI* arg,
+                                TO* out,
+                                size_t count,
+                                element::Type_t src_type,
+                                element::Type_t dst_type)
                 {
-                    if (dst_type == element::u1)
+                    const uint8_t* input = reinterpret_cast<const uint8_t*>(arg);
+                    uint8_t* output = reinterpret_cast<uint8_t*>(out);
+                    for (size_t i = 0; i < count; ++i)
                     {
-                        detail::set_u1(output, i, detail::get_value<uint8_t>(input, i, src_type));
-                    }
-                    else if (dst_type == element::u4)
-                    {
-                        detail::set_u4(output, i, detail::get_value<uint8_t>(input, i, src_type));
-                    }
-                    else if (dst_type == element::i4)
-                    {
-                        detail::set_i4(output, i, detail::get_value<int8_t>(input, i, src_type));
-                    }
-                    else
-                    {
-                        out[i] = detail::get_value<TO>(input, i, src_type);
+                        if (dst_type == element::u1)
+                        {
+                            detail::set_u1(
+                                output, i, detail::get_value<uint8_t>(input, i, src_type));
+                        }
+                        else if (dst_type == element::u4)
+                        {
+                            detail::set_u4(
+                                output, i, detail::get_value<uint8_t>(input, i, src_type));
+                        }
+                        else if (dst_type == element::i4)
+                        {
+                            detail::set_i4(
+                                output, i, detail::get_value<int8_t>(input, i, src_type));
+                        }
+                        else
+                        {
+                            out[i] = detail::get_value<TO>(input, i, src_type);
+                        }
                     }
                 }
-            }
+            } // namespace detail
 
             template <typename TI, typename TO>
             typename std::enable_if<!std::is_same<TO, char>::value>::type

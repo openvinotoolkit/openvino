@@ -61,11 +61,11 @@ namespace convert
             ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
             ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4)))
         {
-            runtime::reference::convert(arg->get_data_ptr<INPUT_ET>(),
-                                        out->get_data_ptr<OUTPUT_ET>(),
-                                        element_count,
-                                        INPUT_ET,
-                                        OUTPUT_ET);
+            runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
+                                                   out->get_data_ptr<OUTPUT_ET>(),
+                                                   element_count,
+                                                   INPUT_ET,
+                                                   OUTPUT_ET);
         }
         else
         {
