@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_plugin_ptr.hpp>
 #include <file_utils.h>
 #include "details/ie_so_loader.h"
+#include <cpp/ie_plugin.hpp>
 
 using namespace std;
 using namespace InferenceEngine;

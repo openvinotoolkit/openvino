@@ -123,6 +123,63 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale_and_zero_point)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale_and_zero_point.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f});                      // scale
+    test_case.add_input(std::vector<uint8_t>{128});                     // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 164, -214, -236});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f});                      // scale
+    test_case.add_input(std::vector<uint8_t>{128, 7});                  // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 406, -214, 6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_inputs)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_inputs.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19});              // x
+    test_case.add_input(std::vector<float>{2.0f});                   // scale
+    test_case.add_input(std::vector<uint8_t>{128});                  // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_point)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_zero_point.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f, 1.0f});                // scale
+    test_case.add_input(std::vector<uint8_t>{128});                     // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 82, -214, -118});
+    test_case.run();
+}
+
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint8)
 {
     auto function = onnx_import::import_onnx_model(
