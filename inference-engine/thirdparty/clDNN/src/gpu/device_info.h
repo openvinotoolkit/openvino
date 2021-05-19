@@ -43,7 +43,13 @@ struct device_info_internal : cldnn::device_info {
          supports_usm,
          dev_name,
          driver_version,
-         dev_type
+         dev_type,
+         gfx_ver,
+         device_id,
+         num_slices,
+         num_sub_slices_per_slice,
+         num_eus_per_sub_slice,
+         num_threads_per_eu,
         };
     }
 };

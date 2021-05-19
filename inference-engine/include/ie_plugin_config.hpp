@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 
@@ -147,6 +150,36 @@ DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
  * @brief Metric which defines the device architecture.
  */
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
+
+/**
+ * @brief Enum to define possible device types
+ */
+enum class DeviceType {
+    integrated = 0,
+    discrete = 1,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+    switch (deviceType) {
+        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
+        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
+        default: os << "unknown"; break;
+    }
+
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
+ */
+DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
+
+/**
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ */
+DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
 
 /**
  * @brief Metric which defines support of import/export functionality by plugin
