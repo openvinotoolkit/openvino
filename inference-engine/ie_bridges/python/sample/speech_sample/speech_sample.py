@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16)')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
+    args.add_argument('-we', '--export_embedded_gna_model', type=str,
+                      help='Optional. Write GNA embedded model to file using path/filename provided.')
+    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str,
+                      help='Optional. GNA generation configuration string for embedded export. '
+                      'Can be GNA1 (default) or GNA3.')
 
     return parser.parse_args()
 
@@ -233,6 +238,10 @@ def main():
 
             plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
 
+        if args.export_embedded_gna_model:
+            plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
+            plugin_config['GNA_FIRMWARE_MODEL_IMAGE_GENERATION'] = args.embedded_gna_configuration
+
     device_str = f'HETERO:{",".join(devices)}' if 'HETERO' in args.device else devices[0]
 
     log.info('Loading the model to the plugin')
@@ -246,6 +255,12 @@ def main():
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
         exec_net.export(args.export_gna_model)
+        return 0
+
+    # TODO: Find a model that applicable for this option
+    if args.export_embedded_gna_model:
+        log.info(f'Exported GNA embedded model to file {args.export_embedded_gna_model}')
+        log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
         return 0
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
