@@ -41,8 +41,8 @@ namespace ngraph
                 std::vector<int64_t> idx(input_rois_num);
                 std::iota(idx.begin(), idx.end(), int64_t{0});
                 std::sort(idx.begin(), idx.end(), [&input_probs](int64_t i1, int64_t i2) {
-                            return input_probs[i1] > input_probs[i2];
-                          });
+                    return input_probs[i1] > input_probs[i2];
+                });
 
                 for (int64_t i = 0; i < top_rois_num; ++i)
                 {
