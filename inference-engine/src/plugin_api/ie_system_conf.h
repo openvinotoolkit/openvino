@@ -16,12 +16,6 @@
 namespace InferenceEngine {
 
 /**
- * @brief Provides the reference to static thread_local std::exception_ptr
- * @return A an exception pointer
- */
-INFERENCE_ENGINE_API_CPP(std::exception_ptr&) CurrentException();
-
-/**
  * @brief      Checks whether OpenMP environment variables are defined
  * @ingroup    ie_dev_api_system_conf
  *

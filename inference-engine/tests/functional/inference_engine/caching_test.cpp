@@ -12,7 +12,6 @@
 #include <gmock/gmock.h>
 
 #include "ie_core.hpp"
-#include "ie_plugin_ptr.hpp"
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
@@ -30,7 +29,7 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
-#include "ie_plugin_cpp.hpp"
+#include "cpp/ie_plugin.hpp"
 
 using namespace InferenceEngine;
 using namespace ::testing;

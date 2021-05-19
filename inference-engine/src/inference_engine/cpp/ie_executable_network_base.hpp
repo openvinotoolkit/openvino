@@ -15,7 +15,6 @@
 #include <vector>
 
 #include <ie_iexecutable_network.hpp>
-#include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp/exception2status.hpp"

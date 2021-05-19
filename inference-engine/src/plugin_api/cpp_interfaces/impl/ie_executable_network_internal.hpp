@@ -86,7 +86,7 @@ public:
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
      */
-    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
+    virtual void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
         _plugin = plugin;
     }
 
@@ -115,7 +115,6 @@ public:
     RemoteContext::Ptr GetContext() const override {
         IE_THROW(NotImplemented);
     }
-
 
     /**
      * @brief      Creates an inference request public implementation.

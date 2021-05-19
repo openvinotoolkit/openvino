@@ -15,8 +15,10 @@
 #include <string>
 
 namespace InferenceEngine {
+
 class IExecutableNetworkInternal;
 class IVariableStateInternal;
+
 /**
  * @interface IInferRequestInternal
  * @brief An internal API of synchronous inference request to be implemented by plugin,
@@ -212,7 +214,7 @@ protected:
     int m_curBatch = -1;  //!< Current batch value used in dynamic batching
 
     /**
-     * @brief A shared pointer to ExecutableNetworkInternal interface
+     * @brief A shared pointer to IInferRequestInternal
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
@@ -223,5 +225,10 @@ protected:
      */
     ~IInferRequestInternal();
 };
+
+/**
+ * @brief SOPointer to IInferRequestInternal.
+ */
+using SoIInferRequestInternal = details::SOPointer<IInferRequestInternal>;
 
 }  // namespace InferenceEngine

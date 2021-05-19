@@ -110,7 +110,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const std::string &modelPath,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string &modelPath,
                                   const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
     void SetCore(InferenceEngine::ICore*) noexcept override {}

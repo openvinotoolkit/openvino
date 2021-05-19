@@ -13,9 +13,12 @@
 #include <ie_remote_context.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include <details/ie_so_pointer.hpp>
 
 namespace InferenceEngine {
+
 class IInferRequestInternal;
+
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
@@ -108,5 +111,10 @@ public:
      */
     virtual RemoteContext::Ptr GetContext() const = 0;
 };
+
+/**
+ * @brief SOPointer to IExecutableNetworkInternal.
+ */
+using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

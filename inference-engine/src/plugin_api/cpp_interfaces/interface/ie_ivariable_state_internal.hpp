@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_blob.h>
+#include <details/ie_so_pointer.hpp>
 
 #include <memory>
 #include <string>
@@ -67,5 +68,10 @@ public:
  * @brief For compatibility reasons.
  */
 using IMemoryStateInternal = IVariableStateInternal;
+
+/**
+ * @brief SOPointer to IVariableStateInternal.
+ */
+using SoIVariableStateInternal = details::SOPointer<IVariableStateInternal>;
 
 }  // namespace InferenceEngine

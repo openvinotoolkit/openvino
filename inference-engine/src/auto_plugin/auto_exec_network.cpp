@@ -13,11 +13,12 @@
 #include "auto_infer_request.hpp"
 
 namespace AutoPlugin {
-    using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(const ExecutableNetwork& network,
-                                             const DeviceInformation& deviceInfo,
-                                             const bool               needPerfCounters) :
+using namespace InferenceEngine;
+
+AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network,
+                                             const DeviceInformation&           deviceInfo,
+                                             const bool                         needPerfCounters) :
     _deviceInfo(deviceInfo),
     _network(network),
     _config(deviceInfo.config.begin(), deviceInfo.config.end()),
@@ -28,32 +29,32 @@ AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
 IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                          OutputsDataMap networkOutputs) {
-    auto inferRequest = _network.CreateInferRequest();
+    SoIInferRequestInternal inferRequest = { _network, _network->CreateInferRequest() };
     return std::make_shared<AutoInferRequest>(networkInputs, networkOutputs, inferRequest);
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
-    _network.Export(networkModel);
+    _network->Export(networkModel);
 }
 
 RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
-  return _network.GetContext();
+  return _network->GetContext();
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
-    return _network.GetExecGraphInfo();
+    return _network->GetExecGraphInfo();
 }
 
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
-    return _network.GetMetric(name);
+    return _network->GetMetric(name);
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-    _network.SetConfig(config);
+    _network->SetConfig(config);
 }
 
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    return _network.GetConfig(name);
+    return _network->GetConfig(name);
 }
 
 }  // namespace AutoPlugin

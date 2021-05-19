@@ -6,7 +6,7 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <ie_version.hpp>
-#include <ie_plugin_cpp.hpp>
+#include <cpp/ie_plugin.hpp>
 
 #include <cpp/ie_infer_async_request_base.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
@@ -169,12 +169,6 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
 }
 
 
-TEST(InferencePluginTests, throwsOnNullptrCreation) {
-    InferenceEnginePluginPtr nulptr;
-    InferencePlugin plugin;
-    ASSERT_THROW(plugin = InferencePlugin(nulptr), Exception);
-}
-
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;
     ASSERT_THROW(plg.GetVersion(), Exception);
@@ -198,9 +192,4 @@ TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
 TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
     InferencePlugin plg;
     ASSERT_THROW(plg.SetConfig({{}}), Exception);
-}
-
-TEST(InferencePluginTests, nothrowsUninitializedCast) {
-    InferencePlugin plg;
-    ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }

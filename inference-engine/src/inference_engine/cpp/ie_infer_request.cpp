@@ -32,7 +32,7 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(InferCancelled)
 
 #define INFER_REQ_CALL_STATEMENT(...)                                                              \
-    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                    \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                     \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -41,15 +41,10 @@ namespace InferenceEngine {
         IE_THROW(Unexpected);                                                                      \
     }
 
-InferRequest::InferRequest(const std::shared_ptr<IInferRequestInternal>&        impl,
-                           const std::shared_ptr<details::SharedObjectLoader>&  so) :
-    _impl{impl},
-    _so{so} {
-    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";
-}
-
-InferRequest::~InferRequest() {
-    _impl = {};
+InferRequest::InferRequest(const details::SharedObjectLoader& so,
+                           const IInferRequestInternal::Ptr&  impl)
+    : _so(so), _impl(impl) {
+    IE_ASSERT(_impl != nullptr);
 }
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
@@ -144,7 +139,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callback) {
     INFER_REQ_CALL_STATEMENT(
-        auto weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -167,7 +162,7 @@ IE_SUPPRESS_DEPRECATED_START
 
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
-        IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        IInferRequest::Ptr weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -198,7 +193,7 @@ std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState(state, _so));
+            controller.emplace_back(VariableState{_so, state});
         }
     )
     return controller;

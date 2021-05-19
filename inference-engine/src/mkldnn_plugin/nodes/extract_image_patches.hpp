@@ -6,6 +6,7 @@
 #include "base.hpp"
 #include <vector>
 #include <set>
+#include <cassert>
 
 namespace InferenceEngine {
 namespace Extensions {

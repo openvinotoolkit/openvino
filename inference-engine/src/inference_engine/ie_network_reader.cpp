@@ -52,7 +52,7 @@ class Reader: public IReader {
                            << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                            << getIELibraryPath();
             }
-            ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
+            ptr = {readersLibraryPath};
         });
 
         return ptr;

@@ -164,7 +164,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     multiNetworkConfig.insert(*priorities);
 
-    DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
+    DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
     for (auto& p : metaDevices) {
@@ -192,7 +192,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     for (auto n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=
-                        n.second.GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+                        n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
             } catch (...) {
             }

@@ -173,8 +173,8 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath,
-                                          const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Registers extension within plugin
@@ -274,6 +274,14 @@ public:
 protected:
     ~IInferencePlugin() = default;
 };
+
+namespace details {
+template <>
+class SOCreatorTrait<IInferencePlugin> {
+public:
+    static constexpr auto name = "CreatePluginEngine";
+};
+}  // namespace details
 
 }  // namespace InferenceEngine
 
