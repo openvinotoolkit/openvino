@@ -28,9 +28,9 @@ class AutoExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSaf
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    AutoExecutableNetwork(const InferenceEngine::ExecutableNetwork&                             network,
-                          const DeviceInformation&                                              deviceInfo,
-                          const bool                                                            needPerfCounters = false);
+    AutoExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal&  network,
+                          const DeviceInformation&                             deviceInfo,
+                          const bool                                           needPerfCounters = false);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -43,7 +43,7 @@ public:
     ~AutoExecutableNetwork() override;
 
     DeviceInformation                                            _deviceInfo;
-    InferenceEngine::ExecutableNetwork                           _network;
+    InferenceEngine::SoExecutableNetworkInternal                 _network;
     std::unordered_map<std::string, InferenceEngine::Parameter>  _config;
     bool                                                         _needPerfCounters = false;
 };

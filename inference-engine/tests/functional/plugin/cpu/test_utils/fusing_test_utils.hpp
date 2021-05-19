@@ -166,7 +166,7 @@ const auto fusingReluAdd = fusingSpecificParams{std::make_shared<postNodesMgr>(s
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
-                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
@@ -221,7 +221,7 @@ const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<
                 auto localPrc = inpNode->get_element_type();
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
-                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);

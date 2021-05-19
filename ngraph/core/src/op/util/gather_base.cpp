@@ -64,25 +64,26 @@ void op::util::GatherBase::validate_and_infer_types()
 
     if (axis_is_set)
     {
-        int64_t axis = get_axis();
+        int64_t axis = get_axis(); // will be normalized to positive if data_rank is static
 
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
-        // indices_rank are static. If at least one of them is negative we cannot check their
-        // consistency.
-        NODE_VALIDATION_CHECK(this,
-                              batch_dims <= axis || batch_dims < 0 || axis < 0,
-                              "The batch_dims <= axis. But instead got: batch_dims = ",
-                              batch_dims,
-                              ", axis = ",
-                              axis);
+        // indices_rank are static.
+        // If at least one of them is negative we cannot check their consistency.
+        NODE_VALIDATION_CHECK(
+            this,
+            batch_dims <= axis || batch_dims < 0 || axis < 0,
+            "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
+            batch_dims,
+            ", axis = ",
+            axis);
 
-        NODE_VALIDATION_CHECK(this,
-                              (axis >= 0 && axis < data_rank.get_length()) ||
-                                  data_rank.is_dynamic(),
-                              "The axis must be >= 0 and < data_rank. But instead got axis = ",
-                              axis,
-                              " data_rank = ",
-                              data_rank.get_interval());
+        NODE_VALIDATION_CHECK(
+            this,
+            data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
+            "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
+            axis,
+            " data_rank = ",
+            data_rank.get_interval());
     }
 
     if (indices_rank.is_static() && batch_dims >= 0)
