@@ -16,6 +16,7 @@
 #include <mkldnn_extension_utils.h>
 #include <utils/general_utils.h>
 #include <ngraph/ops.hpp>
+#include <cpu/x64/jit_generator.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -48,7 +49,20 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    isPrimitivesPriorityDefined = op->get_rt_info().count("PrimitivesPriority") != 0;
+    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
+    });
+    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
+        if (!withBiases)
+            return MKLDNNMemoryDesc();
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
+    });
+
+    if (!implPriorities.empty()) {
+        isPrimitivesPriorityDefined = true;
+        isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end();
+        isWino &= mkldnn::impl::cpu::x64::mayiuse(mkldnn::impl::cpu::x64::avx512_common);
+    }
 
     auto convolutionOp = ngraph::as_type_ptr<ngraph::op::v1::Convolution>(op);
     auto groupConvolutionOp = ngraph::as_type_ptr<ngraph::op::v1::GroupConvolution>(op);
@@ -131,6 +145,10 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
+    // winograd support only constant weights and bias
+    isWino &= getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Input &&
+              (getOriginalInputsNumber() > 2 ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Input) : true);
+
     withBiases = getOriginalInputsNumber() == 3;
 
     withSum = false;
@@ -147,6 +165,35 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 expectedInputEdgesNum++;
             }
         }
+    }
+
+    if (isWinograd()) {
+        std::vector<MKLDNNEdgePtr> edgesToRemove;
+        internalBlobs.push_back(createInternalBlob(weightDims, 1, isGrouped));
+        edgesToRemove.push_back(getParentEdgeAt(1));
+
+        if (withBiases) {
+            internalBlobs.push_back(createInternalBlob(biasesDims, 2));
+            edgesToRemove.push_back(getParentEdgeAt(2));
+        }
+
+        if (expectedInputEdgesNum - getOriginalInputsNumber() > 0) {
+            size_t reconnectPort = 1;
+            for (size_t startPort = 2 + (withBiases ? 1 : 0); startPort < expectedInputEdgesNum; startPort++) {
+                getParentEdgeAt(startPort)->setChildPort(reconnectPort);
+                reconnectPort++;
+            }
+        }
+
+        for (size_t i = 0; i < edgesToRemove.size(); i++) {
+            removeEdge(edgesToRemove[i]);
+        }
+
+        expectedInputEdgesNum -= getOriginalInputsNumber() - 1;
+        if (withBiases) {
+            inDims.erase(inDims.begin() + 2);
+        }
+        inDims.erase(inDims.begin() + 1);
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
@@ -440,14 +487,11 @@ void MKLDNNConvolutionNode::createPrimitive() {
     prim.reset(new convolution_forward(prim_desc));
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto wei = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    if (withBiases) {
-        auto bias = getParentEdgesAtPort(2)[0]->getMemoryPtr()->GetPrimitive();
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, wei}, {DNNL_ARG_BIAS, bias}, {DNNL_ARG_DST, dst}};
-    } else {
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, wei}, {DNNL_ARG_DST, dst}};
-    }
+    if (withBiases)
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
+    else
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNConvolutionNode::created() const {
@@ -474,8 +518,8 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
     std::vector<mkldnn::algorithm> algorithms;
 
-    // TODO [NM]: We cannot map wino_format on tensor descriptor for now
-    // algorithms.push_back(algorithm::convolution_winograd);
+    if (isWinograd())
+        algorithms.push_back(algorithm::convolution_winograd);
     algorithms.push_back(mkldnn::algorithm::convolution_direct);
 
     for (auto alg : algorithms) {
@@ -720,6 +764,14 @@ MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_ite
 
 bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
+}
+
+const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
+    return isWinograd() ? internalBlobMemory[0]->GetPrimitive() : getParentEdgeAt(1)->getMemory().GetPrimitive();
+}
+
+const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
+    return isWinograd() ? internalBlobMemory[1]->GetPrimitive() : getParentEdgeAt(2)->getMemory().GetPrimitive();
 }
 
 InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
