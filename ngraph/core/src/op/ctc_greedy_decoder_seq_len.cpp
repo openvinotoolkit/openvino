@@ -110,7 +110,9 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
 
     if (logits_is_static_rank && seq_len_is_static_rank)
     {
-        batch_size = seq_len_pshape[0] & logits_pshape[0];
+        auto tmp_batch = seq_len_pshape[0];
+        if (Dimension::merge(tmp_batch, tmp_batch, logits_pshape[0]))
+            batch_size = tmp_batch;
     }
 
     set_output_type(0, m_classes_index_type, PartialShape{batch_size, time_size});

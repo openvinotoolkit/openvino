@@ -41,6 +41,11 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
+void ngraph::op::v0::NormalizeL2::validate_and_infer_types()
+{
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);

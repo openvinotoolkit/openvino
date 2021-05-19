@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
+#include <numeric>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -155,4 +156,45 @@ bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const
 bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const
 {
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const
+{
+    const auto& inputs = input_values();
+    bool has_labeled_input = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& out) {
+        return out.get_tensor().get_value_label().size();
+    });
+    if (!has_labeled_input)
+        return false;
+
+    std::map<size_t, std::string> idx_to_label;
+    HostTensorVector idx_inputs(inputs.size());
+    size_t curr_idx = 0;
+    for (size_t input_id = 0; input_id < inputs.size(); ++input_id)
+    {
+        const auto& input = inputs[input_id];
+        const auto& input_label = input.get_tensor().get_value_label();
+        // TODO: dynamic shape check
+        const auto& num_elements =
+            input_label.empty() ? shape_size(input.get_shape()) : input_label.size();
+        std::vector<size_t> index_values(num_elements);
+        std::iota(index_values.begin(), index_values.end(), curr_idx);
+        curr_idx += input_label.size();
+        for (size_t i = 0; i < num_elements; ++i)
+            idx_to_label[index_values[i]] = (input_label.empty() ? "" : input_label[i]);
+
+        // TODO: dynamic shape check
+        const auto& constant =
+            op::Constant::create(input.get_element_type(), input.get_shape(), index_values);
+        idx_inputs[input_id] = std::make_shared<HostTensor>(constant);
+    }
+    // TODO: dynamic shape check
+    const auto& output_tensor =
+        std::make_shared<HostTensor>(get_output_element_type(0), get_output_shape(0));
+    evaluate({output_tensor}, idx_inputs);
+    const auto& output_idxs = std::make_shared<op::Constant>(output_tensor)->cast_vector<size_t>();
+    output_labels[0].resize(output_idxs.size());
+    for (size_t i = 0; i < output_idxs.size(); ++i)
+        output_labels[0][i] = idx_to_label[output_idxs[i]];
+    return true;
 }

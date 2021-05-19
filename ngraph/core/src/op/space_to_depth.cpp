@@ -62,25 +62,25 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
 
     auto data = input_value(0);
 
-    if (data_pshape.is_static())
+    if (data_pshape.rank().is_static())
     {
-        const auto& data_shape = data.get_shape();
-
+        const auto& input_rank = data_pshape.rank().get_length();
         NODE_VALIDATION_CHECK(
             this,
-            !(data_shape.size() < 3),
+            input_rank >= 3,
             "The input tensor with rank lower than 3 is not supported (input rank: ",
-            data_shape.size(),
+            input_rank,
             ")");
 
-        auto multiplier = std::pow(m_blocksize, data_shape.size() - 2);
+        auto multiplier = std::pow(m_blocksize, input_rank - 2);
 
-        auto out_shape = data_shape;
+        auto out_shape = data_pshape;
         out_shape[1] *= multiplier;
-        for (size_t i = 2; i < out_shape.size(); i++)
+        for (auto i = 2; i < input_rank; i++)
         {
             NODE_VALIDATION_CHECK(this,
-                                  m_blocksize > 0 && !(out_shape[i] % m_blocksize),
+                                  m_blocksize > 0 && (out_shape[i].is_dynamic() ||
+                                                      !(out_shape[i].get_length() % m_blocksize)),
                                   "The dimension on position: ",
                                   i,
                                   " equal to: ",
@@ -88,7 +88,8 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
                                   " must be a multiple of m_blocksize: ",
                                   m_blocksize);
 
-            out_shape[i] /= m_blocksize;
+            out_shape[i] = out_shape[i].is_static() ? out_shape[i].get_length() / m_blocksize
+                                                    : Dimension::dynamic();
         }
 
         set_output_size(1);

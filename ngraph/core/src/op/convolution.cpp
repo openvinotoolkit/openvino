@@ -175,13 +175,14 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = get_constant_from_source(input_value(2)))
+        PartialShape pshape;
+        if (evaluate_as_partial_shape(input_value(2), pshape) && pshape.is_static())
         {
-            shape = const_op->get_shape_val();
+            shape = pshape.to_shape();
         }
         else
         {
-            shape = PartialShape::dynamic();
+            shape = PartialShape::dynamic(m_strides.size());
         }
     }
     return shape;
@@ -290,39 +291,54 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
     PartialShape result_shape;
     if (is_output_shape_present)
     {
-        if (output_pshape.is_static() && filters_pshape.is_static() && data_pshape.is_static())
+        if (output_pshape.rank().is_static() && filters_pshape.rank().is_static() &&
+            data_pshape.rank().is_static())
         {
-            Shape output_shape = output_pshape.to_shape();
-            const Shape data_shape = data_pshape.to_shape();
-            const Shape filters_shape = filters_pshape.to_shape();
-            const size_t num_spatial_dims = data_shape.size() - 2;
-
+            const auto& num_spatial_dims = data_pshape.rank().get_length() - 2;
             NODE_VALIDATION_CHECK(this,
-                                  output_shape.size() == num_spatial_dims,
+                                  output_pshape.rank().get_length() == num_spatial_dims,
                                   "Output shape should be specified only and for "
                                   "all spatial dimensions.");
 
             // If auto_pad has one of following mode we infer paddings. Otherwise in
             // EXPLICIT auto_pad mode we use what is provided.
+            PartialShape output_shape;
             if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
             {
-                opset1::infer_conv_backprop_auto_padding(
-                    Shape{std::next(data_shape.begin(), 2), std::end(data_shape)},
-                    Shape{std::next(filters_shape.begin(), 2), std::end(filters_shape)},
-                    output_shape,
-                    m_strides,
-                    m_dilations,
-                    m_auto_pad,
-                    m_output_padding,
-                    m_pads_begin,
-                    m_pads_end);
+                const PartialShape filters_shape = std::vector<Dimension>{
+                    std::next(filters_pshape.begin(), 2), std::end(filters_pshape)};
+                const PartialShape data_shape = std::vector<Dimension>{
+                    std::next(data_pshape.begin(), 2), std::end(data_pshape)};
+                if (output_pshape.is_static() && filters_shape.is_static() &&
+                    data_shape.is_static())
+                {
+                    Shape out_shape = output_pshape.to_shape();
+                    opset1::infer_conv_backprop_auto_padding(data_shape.to_shape(),
+                                                             filters_shape.to_shape(),
+                                                             out_shape,
+                                                             m_strides,
+                                                             m_dilations,
+                                                             m_auto_pad,
+                                                             m_output_padding,
+                                                             m_pads_begin,
+                                                             m_pads_end);
+                    output_shape = out_shape;
+                }
+                else
+                {
+                    output_shape = PartialShape::dynamic(num_spatial_dims);
+                }
             }
-
+            else
+            {
+                output_shape = output_pshape;
+            }
+            std::vector<Dimension> resulting_output_shape(output_shape.begin(), output_shape.end());
             // C_OUTPUT
-            output_shape.insert(output_shape.begin(), filters_shape.at(1));
+            resulting_output_shape.insert(resulting_output_shape.begin(), filters_pshape[1]);
             // N
-            output_shape.insert(output_shape.begin(), data_shape.at(0));
-            output_pshape = output_shape;
+            resulting_output_shape.insert(resulting_output_shape.begin(), data_pshape[0]);
+            output_pshape = resulting_output_shape;
         }
         set_input_is_relevant_to_shape(2);
     }

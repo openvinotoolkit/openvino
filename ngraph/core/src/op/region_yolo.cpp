@@ -57,19 +57,19 @@ void op::RegionYolo::validate_and_infer_types()
                           "Type of input is expected to be a floating point type. Got: ",
                           input_et);
 
-    if (get_input_partial_shape(0).is_static())
+    if (get_input_partial_shape(0).rank().is_static())
     {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        Shape output_shape;
+        PartialShape input_shape = get_input_partial_shape(0);
+        std::vector<Dimension> output_shape;
         int end_axis = m_end_axis;
         if (m_end_axis < 0)
         {
-            m_end_axis += input_shape.size();
+            m_end_axis += input_shape.rank().get_length();
         }
 
         if (m_do_softmax)
         {
-            size_t flat_dim = 1;
+            Dimension flat_dim = 1;
             for (int64_t i = 0; i < m_axis; i++)
             {
                 output_shape.push_back(input_shape[i]);
@@ -79,7 +79,7 @@ void op::RegionYolo::validate_and_infer_types()
                 flat_dim *= input_shape[i];
             }
             output_shape.push_back(flat_dim);
-            for (size_t i = end_axis + 1; i < input_shape.size(); i++)
+            for (auto i = end_axis + 1; i < input_shape.rank().get_length(); i++)
             {
                 output_shape.push_back(input_shape[i]);
             }
@@ -87,11 +87,11 @@ void op::RegionYolo::validate_and_infer_types()
         else
         {
             output_shape = {input_shape[0],
-                            (m_num_classes + m_num_coords + 1) * m_mask.size(),
+                            Dimension((m_num_classes + m_num_coords + 1) * m_mask.size()),
                             input_shape[2],
                             input_shape[3]};
         }
-        set_output_type(0, input_et, output_shape);
+        set_output_type(0, input_et, PartialShape(output_shape));
     }
     else
     {

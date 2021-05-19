@@ -152,7 +152,9 @@ void op::v1::Pad::validate_and_infer_types()
         std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
         for (size_t i = 0; i < implied_rank; i++)
         {
-            if (arg_shape[i].is_static())
+            if (pads_begin_coord[i] == 0 && pads_end_coord[i] == 0)
+                result_dims[i] = arg_shape[i];
+            else if (arg_shape[i].is_static())
             {
                 ptrdiff_t result_dim =
                     pads_begin_coord[i] + arg_shape[i].get_length() + pads_end_coord[i];

@@ -318,17 +318,8 @@ static std::string pretty_partial_shape(const PartialShape& shape)
         for (int64_t i = 0; i < shape.rank().get_length(); i++)
         {
             if (!first)
-            {
                 ss << ",";
-            }
-            if (shape[i].is_dynamic())
-            {
-                ss << shape[i];
-            }
-            else
-            {
-                ss << shape[i].get_length();
-            }
+            ss << shape[i];
             first = false;
         }
         ss << "]";
@@ -417,17 +408,9 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements)
     return ss.str();
 }
 
-std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
+std::string value_to_string(std::shared_ptr<op::Constant> constant, size_t max_elements)
 {
     std::stringstream ss;
-    ss << "{" << node->get_element_type().get_type_name() << "}";
-    ss << pretty_partial_shape(node->get_output_partial_shape(0));
-
-    if (!op::is_constant(node))
-        return ss.str();
-
-    ss << "\nvalue: ";
-    const auto constant = as_type_ptr<op::Constant>(node);
     switch (constant->get_output_element_type(0))
     {
     case element::Type_t::undefined: ss << "[ undefined value ]"; break;
@@ -458,6 +441,67 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     return ss.str();
 }
 
+std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
+{
+    std::stringstream ss;
+    ss << "{" << node->get_element_type().get_type_name() << "}";
+    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+
+    if (!op::is_constant(node))
+        return ss.str();
+
+    ss << "\nvalue: ";
+    const auto constant = as_type_ptr<op::Constant>(node);
+    ss << value_to_string(constant, max_elements);
+    return ss.str();
+}
+
+string pretty_output_value(const Output<Node>& output)
+{
+    static const int const_max_elements = getenv_int("NGRAPH_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+
+    stringstream ss;
+    const auto& tensor = output.get_tensor();
+    if (tensor.has_and_set_bound())
+        ss << "\\ncommon:"
+           << value_to_string(std::make_shared<op::Constant>(tensor.get_lower_value()),
+                              const_max_elements);
+    else
+    {
+        if (const auto& lower = tensor.get_lower_value())
+            ss << "\\nlower:"
+               << value_to_string(std::make_shared<op::Constant>(lower), const_max_elements);
+        else
+            ss << "\\nno lower bound";
+        if (const auto& upper = tensor.get_upper_value())
+            ss << "\\nupper:"
+               << value_to_string(std::make_shared<op::Constant>(upper), const_max_elements);
+        else
+            ss << "\\nno upper bound";
+    }
+    return ss.str();
+}
+
+string pretty_output_label(const Output<Node>& output)
+{
+    const auto& label = output.get_tensor().get_value_label();
+    if (label.empty())
+        return "\\nno label";
+    stringstream ss;
+    bool first = true;
+    ss << "\\nlabel:[";
+    for (const auto& i : label)
+    {
+        if (!first)
+            ss << ",";
+        ss << i;
+        first = false;
+    }
+
+    ss << "]";
+    return ss.str();
+}
+
 string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 {
     vector<string> attributes;
@@ -480,6 +524,8 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 
         static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
         static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtov = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_VALUES");
+        static const bool nvtol = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_LABELS");
         static const bool nvtio = getenv_bool("NGRAPH_VISUALIZE_TREE_IO");
 
         if (nvtos || nvtot || nvtio)
@@ -505,6 +551,10 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                     label << "{" << output.get_element_type().get_type_name() << "}";
                 if (nvtos)
                     label << pretty_partial_shape(output.get_partial_shape());
+                if (nvtov)
+                    label << pretty_output_value(output);
+                if (nvtol)
+                    label << pretty_output_label(output);
             }
         }
 

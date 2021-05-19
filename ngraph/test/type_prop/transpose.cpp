@@ -9,6 +9,21 @@
 using namespace std;
 using namespace ngraph;
 
+TEST(type_prop, transpose_arg_static_input_order_static_batch_dim_name)
+{
+    auto batch = Dimension(5, "batch");
+
+    auto p_shape = PartialShape{batch, 4, 6, 8};
+    auto arg = make_shared<op::Parameter>(element::f32, p_shape);
+    auto input_order = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{2, 1, 0, 3});
+
+    auto r = make_shared<op::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({6, 4, batch, 8}));
+    EXPECT_EQ(r->get_output_partial_shape(0)[2].get_name(), "batch");
+}
+
 TEST(type_prop, transpose_arg_static_input_order_static_ok)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});

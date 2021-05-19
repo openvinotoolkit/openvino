@@ -86,6 +86,7 @@ namespace ngraph
                                                 const AxisVector& axes_mapping_val,
                                                 const PartialShape& target_shape) const;
 
+                static Shape get_shape_from_ht(const HostTensorPtr& input1);
                 Shape get_target_shape(const HostTensorPtr& input1) const;
             };
         }

@@ -48,12 +48,13 @@ void mark_layout_independent_batch(ngraph::opset1::Parameter* parameter, ngraph:
     }
 }
 
-void mark_no_batch(ngraph::op::Parameter* parameter) {
+void mark_no_batch(ngraph::op::Parameter* parameter, ngraph::Node* node) {
     auto &shape = parameter->get_partial_shape();
     for (auto &dim : shape) {
         dim = ngraph::Dimension(dim.get_min_length(), dim.get_max_length(), "");
     }
     parameter->set_partial_shape(shape);
+    NGRAPH_UNREACHABLE(node);
 }
 
 void mark_with_unique_dimension_names(std::shared_ptr<ngraph::Function> f) {
@@ -96,7 +97,7 @@ void find_batch(std::shared_ptr<ngraph::Function> f) {
                 if (!batch_dim_name.empty())
                     mark_batch(raw_parameter, {batch_dim_name});
                 else
-                    mark_no_batch(raw_parameter);
+                    mark_no_batch(raw_parameter, curr_node);
                 continue; // batch was or was not found at this point -- there is no point in searching further            }
             }
             // node is not layout obvious -- checking if dims were propagated through
@@ -110,7 +111,7 @@ void find_batch(std::shared_ptr<ngraph::Function> f) {
             }
 
             if (!all_outputs_marked_with_name) {
-                mark_no_batch(raw_parameter);
+                mark_no_batch(raw_parameter, curr_node);
                 continue; // dimensions name propagation stopped
             }
 
@@ -176,11 +177,12 @@ bool check_batch_tracks_through_all_the_nodes(std::shared_ptr<ngraph::Function> 
                     others_are_static &= dim.is_static();
                 else
                     name_stays = true;
-            all_outputs_has_batch &= name_stays && others_are_static;
+            all_outputs_has_batch &= name_stays; // && others_are_static;
         }
         if (any_input_has_batch && !all_outputs_has_batch &&
             !ngraph::is_type<ngraph::opset3::ShapeOf>(node) && !ngraph::is_type<ngraph::opset1::ShapeOf>(node)) {
             failed_to_propagate_batch = true;
+            std::cout << "Lost batch: " << node << std::endl;
         }
     }
     const auto &results = f->get_results();
@@ -216,7 +218,10 @@ bool ngraph::pass::FindBatch::run_on_function(std::shared_ptr<ngraph::Function> 
     f->validate_nodes_and_infer_types();
 
     bool failed_to_propagate_batch = check_batch_tracks_through_all_the_nodes(f);
-
+    std::cout << (failed_to_propagate_batch ? "fail" : "success") << std::endl;
+    for (const auto& p : f->get_parameters())
+        std::cout << p << std::endl;
+    NGRAPH_CHECK(!failed_to_propagate_batch);
     if (failed_to_propagate_batch) {
         // return function to the initial state
         for (const auto& item : parameter_to_shape) {

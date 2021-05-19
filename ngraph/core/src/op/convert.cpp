@@ -164,3 +164,12 @@ bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) cons
 {
     return convert::evaluate_bound(this, output_values, true);
 }
+
+bool op::v0::Convert::evaluate_label(TensorLabelVector& output_labels) const
+{
+    const auto input_labels = get_input_tensor(0).get_value_label();
+    if (input_labels.empty())
+        return false;
+    output_labels[0] = input_labels;
+    return true;
+}

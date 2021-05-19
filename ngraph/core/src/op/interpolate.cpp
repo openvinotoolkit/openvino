@@ -56,14 +56,12 @@ void op::v0::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (const auto& const_shape = get_constant_from_source(input_value(1)))
+    PartialShape pshape;
+    if (evaluate_as_partial_shape(input_value(1), pshape))
     {
-        auto out_shape = const_shape->cast_vector<int64_t>();
         size_t i = 0;
         for (auto axis : m_attrs.axes)
-        {
-            output_shape[axis] = Dimension(out_shape[i++]);
-        }
+            output_shape[axis] = pshape[i++];
     }
     set_output_type(0, get_input_element_type(0), output_shape);
 }
@@ -198,12 +196,12 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
 
 void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
-                                             const std::vector<int64_t>& sizes) const
+                                             const PartialShape& sizes) const
 {
     size_t i = 0;
     for (auto axis : axes)
     {
-        output_shape[axis] = Dimension(sizes[i++]);
+        output_shape[axis] = sizes[i++];
     }
 }
 
@@ -213,16 +211,13 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 
     PartialShape padded_input_shape = input_shape;
 
-    for (int64_t i = 0; i < input_rank; ++i)
-    {
-        if (input_shape[i].is_static())
-        {
-            auto new_length =
-                m_attrs.pads_begin[i] + m_attrs.pads_end[i] + input_shape[i].get_length();
-            padded_input_shape[i] = Dimension(new_length);
-        }
+    for (int64_t i = 0; i < input_rank; ++i) {
+        if (m_attrs.pads_begin[i] == 0 && m_attrs.pads_end[i] == 0)
+            padded_input_shape[i] = input_shape[i];
+        else
+            padded_input_shape[i] =
+                Dimension(m_attrs.pads_begin[i]) + Dimension(m_attrs.pads_end[i]) + input_shape[i];
     }
-
     return padded_input_shape;
 }
 
@@ -268,7 +263,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
     // of the output shape. Hence, all components of the output shape should be dynamic.
-    if (input_values().size() == 4 && !is_type<op::Constant>(input_value(3).get_node()))
+    if (input_values().size() == 4 && !get_constant_from_source(input_value(3)))
     {
         PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);
@@ -300,11 +295,9 @@ void op::v4::Interpolate::validate_and_infer_types()
     }
     else
     {
-        if (const auto& const_shape = get_constant_from_source(input_value(1)))
-        {
-            auto sizes = const_shape->cast_vector<int64_t>();
+        PartialShape sizes;
+        if (evaluate_as_partial_shape(input_value(1), sizes))
             infer_using_shapes(output_shape, axes, sizes);
-        }
     }
 
     set_output_type(0, get_input_element_type(0), output_shape);

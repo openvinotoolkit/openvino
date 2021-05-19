@@ -30,6 +30,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/dimensions_tracking.hpp>
 
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
@@ -332,6 +333,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     }
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
+
+    ngraph::pass::Manager m;
+    m.register_pass<::ngraph::pass::FindBatch>();
+    m.run_passes(_ngraph_function);
 
     const auto& results = _ngraph_function->get_results();
     bool outputs_are_static = all_of(

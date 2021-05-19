@@ -113,20 +113,8 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
         ngraph::Dimension::value_type out_cols_cast =
             static_cast<ngraph::Dimension::value_type>(out_cols);
 
-        PartialShape output_Pshape;
-        if (input_Pshape[0].is_dynamic())
-        {
-            output_Pshape =
-                PartialShape{input_Pshape[0], out_depth_cast, out_rows_cast, out_cols_cast};
-        }
-        else
-        {
-            ngraph::Dimension::value_type input_batch_cast =
-                static_cast<ngraph::Dimension::value_type>(input_Pshape[0].get_length());
-            output_Pshape =
-                PartialShape{input_batch_cast, out_depth_cast, out_rows_cast, out_cols_cast};
-        }
-
+        auto output_Pshape =
+            PartialShape{input_Pshape[0], out_depth_cast, out_rows_cast, out_cols_cast};
         if (input_rows == 0 || input_cols == 0)
         {
             output_Pshape = input_Pshape;

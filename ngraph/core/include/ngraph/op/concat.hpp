@@ -53,6 +53,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
                 bool evaluate_lower(const HostTensorVector& output_values) const override;
                 bool evaluate_upper(const HostTensorVector& output_values) const override;
+                bool evaluate_label(TensorLabelVector& output_labels) const override;
 
             protected:
                 /// \ brief m_axis stores default value for all iterations

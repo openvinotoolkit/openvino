@@ -60,46 +60,42 @@ shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new
 void op::DepthToSpace::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
-    PartialShape data_pshape = get_input_partial_shape(0);
+    auto data_shape = get_input_partial_shape(0);
+    auto data_rank = data_shape.rank();
 
     const auto& data_type = get_input_element_type(0);
+    set_output_type(0, data_type, PartialShape::dynamic(data_rank));
 
-    auto data = input_value(0);
-
-    if (data_pshape.is_static())
+    if (data_rank.is_static())
     {
-        const auto& data_shape = data.get_shape();
-
         NODE_VALIDATION_CHECK(
             this,
-            !(data_shape.size() < 3),
+            !(data_rank.get_length() < 3),
             "The input tensor with rank lower than 3 is not supported (input rank: ",
-            data_shape.size(),
+            data_rank.get_length(),
             ")");
 
-        auto divider = std::pow(m_blocksize, data_shape.size() - 2);
+        auto divider = std::pow(m_blocksize, data_rank.get_length() - 2);
         NODE_VALIDATION_CHECK(this, (divider), "DepthToSpace: The divider must not be 0");
 
         NODE_VALIDATION_CHECK(this,
-                              m_blocksize > 0 && !(data_shape[1] % m_blocksize),
+                              m_blocksize > 0 && (data_shape[1].is_dynamic() ||
+                                                  !(data_shape[1].get_length() % m_blocksize)),
                               "DepthToSpace: The input data's 'channels' axis size: ",
                               data_shape[1],
                               " must be a equivalent to 'block_size'^'spatial_dims': ",
                               divider);
 
         auto out_shape = data_shape;
-        out_shape[1] /= divider;
-        for (size_t i = 2; i < out_shape.size(); i++)
+        out_shape[1] =
+            out_shape[1].is_static() ? out_shape[1].get_length() / divider : Dimension::dynamic();
+        for (auto i = 2; i < data_rank.get_length(); i++)
         {
             out_shape[i] *= m_blocksize;
         }
 
         set_output_size(1);
         set_output_type(0, data_type, out_shape);
-    }
-    else
-    {
-        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 

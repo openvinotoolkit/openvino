@@ -617,6 +617,22 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     }
 }
 
+TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape_labled)
+{
+    const auto& target_shape = PartialShape{{2, "0_DIM"}, {1, 10, "1_DIM"}, {-1, "2_DIM"}, 7};
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto target = make_shared<op::Parameter>(element::i32, target_shape);
+    const auto shape_of = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
+
+    auto bc = make_shared<TypeParam>(data, shape_of, axes_mapping);
+    ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0), target_shape);
+    for (auto i = 0; i < target_shape.rank().get_length(); ++i)
+        ASSERT_EQ(bc->get_output_partial_shape(0)[i].get_name(), target_shape[i].get_name());
+}
+
 REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_numpy,
                            broadcast_axes_mapping,
@@ -646,7 +662,8 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_numpy_input_target_shape_static_rank,
                            broadcast_numpy_input_static_shape,
                            broadcast_numpy_input_partially_dynamic,
-                           broadcast_numpy_static_dims_incorrect);
+                           broadcast_numpy_static_dims_incorrect,
+                           broadcast_dynamic_values_of_target_shape_labled);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:

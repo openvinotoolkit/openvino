@@ -172,7 +172,17 @@ namespace matmul
                                       ? arg1_shape_tmp[i].get_max_length()
                                       : arg0_shape_tmp[i].get_max_length();
                 }
-                output_shape[i] = Dimension(lower_bound, upper_bound);
+                // name setting
+                std::string name;
+                if (arg0_shape_tmp[i].get_name() == arg1_shape_tmp[i].get_name())
+                    name = arg0_shape_tmp[i].get_name();
+                else if (arg0_shape_tmp[i].get_name().empty())
+                    name = arg1_shape_tmp[i].get_name();
+                else if (arg1_shape_tmp[i].get_name().empty())
+                    name = arg0_shape_tmp[i].get_name();
+                else
+                    name = "";
+                output_shape[i] = Dimension(lower_bound, upper_bound, name);
             }
         }
 

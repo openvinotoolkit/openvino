@@ -180,18 +180,47 @@ void op::v1::StridedSlice::validate_and_infer_types()
 
     if (begin_const && end_const && strides)
     {
+        const auto& input_shape = get_input_partial_shape(0);
+        const auto& begin_mask_axis_set = convert_mask_to_axis_set(get_begin_mask());
+        const auto& end_mask_axis_set = convert_mask_to_axis_set(get_end_mask());
+        const auto& new_axis_mask_axis_set = convert_mask_to_axis_set(get_new_axis_mask());
+        const auto& shrink_mask_axis_set = convert_mask_to_axis_set(get_shrink_axis_mask());
+        const auto& ellipsis_mask_axis_set = convert_mask_to_axis_set(get_ellipsis_mask());
+
+        const auto& begin_vector = begin_const->cast_vector<int64_t>();
+        const auto& end_vector = end_const->cast_vector<int64_t>();
+        const auto& stride_vector = strides->cast_vector<int64_t>();
+
         set_output_type(0,
                         get_input_element_type(0),
                         infer_slice_shape(this,
-                                          get_input_partial_shape(0),
-                                          begin_const->cast_vector<int64_t>(),
-                                          end_const->cast_vector<int64_t>(),
-                                          strides->cast_vector<int64_t>(),
-                                          convert_mask_to_axis_set(get_begin_mask()),
-                                          convert_mask_to_axis_set(get_end_mask()),
-                                          convert_mask_to_axis_set(get_new_axis_mask()),
-                                          convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                          convert_mask_to_axis_set(get_ellipsis_mask())));
+                                          input_shape,
+                                          begin_vector,
+                                          end_vector,
+                                          stride_vector,
+                                          begin_mask_axis_set,
+                                          end_mask_axis_set,
+                                          new_axis_mask_axis_set,
+                                          shrink_mask_axis_set,
+                                          ellipsis_mask_axis_set));
+
+        auto output_shape = get_output_partial_shape(0);
+
+        bool strides_are_positive = std::all_of(
+            stride_vector.cbegin(), stride_vector.cend(), [](const int64_t& s) { return s > 0; });
+        if (new_axis_mask_axis_set.empty() && shrink_mask_axis_set.empty() &&
+            ellipsis_mask_axis_set.empty() && strides_are_positive)
+        {
+            for (auto i = 0; i < output_shape.rank().get_length(); ++i)
+            {
+                if (input_shape[i] == output_shape[i])
+                {
+                    output_shape[i] =
+                        input_shape[i]; // deliver name of the input dimension to the output
+                }
+            }
+            set_output_type(0, get_input_element_type(0), output_shape);
+        }
     }
     else
     {
@@ -304,4 +333,13 @@ bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values)
         !input_value(3).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
+        return false;
+    return default_label_evaluator(this, output_labels);
 }

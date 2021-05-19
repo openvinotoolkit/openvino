@@ -268,7 +268,7 @@ namespace ngraph
                 /// \param sizes sizes for interpolated axes
                 void infer_using_shapes(PartialShape& output_shape,
                                         const std::vector<int64_t>& axes,
-                                        const std::vector<int64_t>& sizes) const;
+                                        const PartialShape& sizes) const;
             };
         } // namespace v4
 

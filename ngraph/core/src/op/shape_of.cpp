@@ -210,6 +210,24 @@ namespace shape_of
         }
         return true;
     }
+
+    bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
+    {
+        NGRAPH_CHECK(shape_of_node->outputs().size() == output_labels.size());
+        const auto& input_shape = shape_of_node->get_input_partial_shape(0);
+        NGRAPH_CHECK(input_shape.rank().is_static());
+        const auto& num_dims = input_shape.rank().get_length();
+        output_labels[0].resize(num_dims);
+        bool label_is_set = false;
+        for (auto i = 0; i < num_dims; ++i)
+        {
+            const auto& name = input_shape[i].get_name();
+            if (!name.empty())
+                label_is_set = true;
+            output_labels[0][i] = name;
+        }
+        return label_is_set;
+    }
 }
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
@@ -229,6 +247,11 @@ bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) cons
 bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const
 {
     return shape_of::evaluate_bound_shape(this, output_values, true);
+}
+
+bool op::v3::ShapeOf::evaluate_label(TensorLabelVector& output_labels) const
+{
+    return shape_of::evaluate_label(this, output_labels);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
@@ -301,4 +324,9 @@ bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) cons
 bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const
 {
     return shape_of::evaluate_bound_shape(this, output_values, true);
+}
+
+bool op::v0::ShapeOf::evaluate_label(TensorLabelVector& output_labels) const
+{
+    return shape_of::evaluate_label(this, output_labels);
 }

@@ -509,6 +509,14 @@ bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
     return default_upper_bound_evaluator(this, output_values);
 }
 
+bool op::v1::Gather::evaluate_label(TensorLabelVector& output_labels) const
+{
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
+        return false;
+    return default_label_evaluator(this, output_labels);
+}
+
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     // try the regular constant folding just for the Gather node

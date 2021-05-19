@@ -22,7 +22,7 @@ TEST(type_prop, static_value_propagation)
 
 TEST(type_prop, interval_value_propagation)
 {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8, "B"), 2, 3});
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
 
     auto r = make_shared<op::v1::Reshape>(param, shape_of, false);

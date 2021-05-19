@@ -494,8 +494,14 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     return evaluate(arg0, out, pair_broadcast_axes.second);
 }
 
+Shape op::util::BroadcastBase::get_shape_from_ht(const HostTensorPtr& input1)
+{
+    return get_target_shape_from_ht(input1);
+}
+
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
 {
+    // unused ill-formed method was kept for backward compatibility
     Shape target_shape;
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
     if (shape_constant)
@@ -516,7 +522,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
-    Shape target_shape = get_target_shape(inputs[1]);
+    Shape target_shape = get_target_shape_from_ht(inputs[1]);
 
     PartialShape result_shape;
     std::pair<bool, AxisSet> pair_broadcast_axes;
@@ -527,15 +533,10 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
         AxisVector axes_mapping_val;
         const auto axes_mapping_constant =
             as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-        if (axes_mapping_constant)
-        {
-            axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
-        }
-        else
-        {
-            // read from HT and save as AxisVector
-            get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
-        }
+
+        // read from HT and save as AxisVector
+        get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
+
         pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
         validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
         result_shape = target_shape;

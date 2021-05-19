@@ -157,6 +157,13 @@ bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) co
     return default_upper_bound_evaluator(this, output_values);
 }
 
+bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_label_evaluator(this, output_labels);
+}
+
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,
                                       const OutputVector& inputs_values)
 {
