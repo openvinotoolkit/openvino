@@ -66,12 +66,12 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          bool isInputBlob = true) {
     for (auto&& userData : userDataMap) {
-        auto& dims = userData.second->getTensorDesc().getDims();
+        const auto& dims = userData.second->getTensorDesc().getDims();
         const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
-        auto userPrecision = userData.second->getTensorDesc().getPrecision();
-        auto userLayout = userData.second->getTensorDesc().getLayout();
+        const auto userPrecision = userData.second->getTensorDesc().getPrecision();
+        const auto userLayout = userData.second->getTensorDesc().getLayout();
 
-        auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(userData.first));
+        const auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(userData.first));
         Blob::Ptr userBlob = make_blob_with_precision({userPrecision, dims, userLayout});
         userBlob->allocate();
         userBlobMap[userData.first] = userBlob;
@@ -80,7 +80,7 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
         if (userPrecision == networkPrecision && userLayout == deviceLayout) {
             deviceBlob = userBlob;
         } else {
-            if (userLayout != deviceLayout) {
+            if (userLayout != deviceLayout && !isInputBlob) {
                IE_THROW(NotImplemented) << "Template Plugin: does not support setLayout for outputs";
             }
             deviceBlob = make_blob_with_precision({networkPrecision, dims, deviceLayout});
