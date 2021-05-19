@@ -405,7 +405,7 @@ void prepare_quantization::remove_fake_reorders(program_impl& p, reorder_node& r
 }
 
 template<typename W_T, typename AZP_T>
-void fill_compensation_typed(W_T* w, AZP_T* azp, W_T* wzp, float* comp, int GS, int OC, int IC, int KS) {
+void fill_compensation_typed(W_T* w, AZP_T* azp, W_T* wzp, float* comp, const int GS, const int OC, const int IC, const int KS) {
     for (int g = 0; g < GS; g++) {
         for (int oc = 0; oc < OC; oc++) {
             float c = 0.f;
@@ -458,15 +458,15 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
 
     auto fill_compensation = [&](int groups, memory_impl* w, memory_impl* azp, memory_impl* wzp,
                                     memory_impl::ptr compensation) {
-        auto wl = w->get_layout();
+        const auto& wl = w->get_layout();
 
-        int& GS = groups;
-        int OC = wl.size.batch[0] / GS;
-        int IC = wl.size.feature[0];  // already divided by GS
-        int KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
+        const int& GS = groups;
+        const int& OC = wl.size.batch[0] / GS;
+        const int& IC = wl.size.feature[0];  // already divided by GS
+        const int& KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
 
-        auto w_dt = wl.data_type;
-        auto azp_dt = azp->get_layout().data_type;
+        const auto& w_dt = wl.data_type;
+        const auto& azp_dt = azp->get_layout().data_type;
 
         mem_lock<float> comp_lock{compensation};
 
@@ -542,9 +542,11 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
 
     cldnn::program_node* new_input = &in0;
     cldnn::program_node* new_a_zp = nullptr;
+    cldnn::program_node* new_w_zp = nullptr;
 
     bool need_compensation = false;
 
+    auto output_size = convolution_node.get_output_layout().size;
     int ofm = in1.get_output_layout().size.batch[0];
     int ifm = in0.get_output_layout().size.feature[0];
     int ofm_aligned = ((ofm + 31) / 32) * 32;
@@ -569,10 +571,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
         need_compensation = true;
     }
 
+    std::vector<primitive_id> w_zero_points = {};
     std::vector<primitive_id> weights = old_conv_prim->weights;
     cldnn::program_node* new_weights = &in1;
-    std::vector<primitive_id> w_zero_points = {};
-    cldnn::program_node* new_w_zp = nullptr;
     if (asymmetric_weights) {
         new_weights = &in1.get_dependency(0);
         new_w_zp = &in1.get_dependency(1);
@@ -593,13 +594,13 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
 
     std::vector<primitive_id> compensation = {};
     cldnn::program_node* new_compenstation = nullptr;
-    int groups = static_cast<int>(convolution_node.get_groups());
     if (need_compensation) {
         auto l = layout{data_types::f32, format::bfyx, tensor{1, ofm_aligned, 1, 1}};
         auto data_to_allocate = p.get_engine().allocate_memory(l, 0, false);
         auto w = &new_weights->as<data>().get_attached_memory();
         auto azp = asymmetric_data ? &new_a_zp->as<data>().get_attached_memory() : nullptr;
         auto wzp = asymmetric_weights ? &new_w_zp->as<data>().get_attached_memory() : nullptr;
+        int groups = static_cast<int>(convolution_node.get_groups());
         fill_compensation(groups, w, azp, wzp, data_to_allocate);
         layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
         float zero = 0.f;
@@ -623,7 +624,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
     if (new_compenstation)
         dependencies.push_back(new_compenstation);
 
-    auto output_size = convolution_node.get_output_layout().size;
     auto new_conv_prim = std::make_shared<convolution>(
                 convolution_node.id() + "_asymmetric",
                 input,
