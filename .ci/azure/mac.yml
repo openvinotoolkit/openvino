@@ -133,7 +133,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
 
