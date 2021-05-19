@@ -20,7 +20,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     ConcatTransformation(const Params& params) : LayerTransformation(params) {}
     ~ConcatTransformation() override {};

@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
+class LP_TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:
     MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
     ~MultiplyTransformation() override {}
