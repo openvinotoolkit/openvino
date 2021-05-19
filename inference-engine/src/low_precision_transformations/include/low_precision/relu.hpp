@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:
     ReluTransformation(const Params& params) : LayerTransformation(params) {}
     ~ReluTransformation() override {}

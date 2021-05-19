@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {
 public:
     SplitTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
