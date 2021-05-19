@@ -14,7 +14,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
+class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:
     ReduceMeanTransformation(const Params& params);
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;

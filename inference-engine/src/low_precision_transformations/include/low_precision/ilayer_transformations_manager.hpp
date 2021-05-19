@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <ngraph/node.hpp>
-#include "transformations_visibility.hpp"
+#include "lpt_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @brief low precision transformation component interface.
   */
-class TRANSFORMATIONS_API ILayerTransformationsManager {
+class LP_TRANSFORMATIONS_API ILayerTransformationsManager {
 public:
     virtual bool isQuantized(const std::shared_ptr<Node>& layer) const noexcept = 0;
     virtual bool isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept = 0;

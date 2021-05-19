@@ -20,7 +20,7 @@ using namespace std;
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API LowPrecisionTransformations: public ngraph::pass::GraphRewrite, IParamsManager, ILayerTransformationsManager {
+class LP_TRANSFORMATIONS_API LowPrecisionTransformations: public ngraph::pass::GraphRewrite, IParamsManager, ILayerTransformationsManager {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 

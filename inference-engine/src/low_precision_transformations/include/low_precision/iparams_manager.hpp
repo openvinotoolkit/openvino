@@ -6,7 +6,7 @@
 
 #include <vector>
 #include <ngraph/ngraph.hpp>
-#include <transformations_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @brief low precision transformation component interface.
   */
-class TRANSFORMATIONS_API IParamsManager {
+class LP_TRANSFORMATIONS_API IParamsManager {
 public:
     // TODO FIXME: it is not correct to have a string as a key here, try to use NodeTypeInfo
     virtual std::vector<element::Type> getPrecisionsOnActivations(const Node& op) const noexcept = 0;

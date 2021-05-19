@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
+class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:
     ConvolutionTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
