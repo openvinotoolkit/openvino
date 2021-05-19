@@ -55,16 +55,11 @@ add_library(${TARGET_NAME} STATIC
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Legacy library")
-
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 
