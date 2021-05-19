@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 
 namespace LayerTestsDefinitions {

@@ -30,7 +30,7 @@ public:
         ExecutableNetworkInternal::Export(networkModel);
     }
     const std::string exportString = "MockExecutableNetworkInternal";
-    void ExportImpl(std::ostream& networkModel) override {
+    void Export(std::ostream& networkModel) override {
         networkModel << exportString << std::endl;
     }
     MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));

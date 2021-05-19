@@ -63,14 +63,15 @@ public:
 
     void Export(const std::string& modelFileName) override {
         // we need to write to stringstream first
-        // because in case of exception in ExportImpl the file is not created
+        // because in case of exception in Export(std::ostream&) the file is not created
         std::stringstream strm;
-        ExportImpl(strm);
+        Export(strm);
         std::ofstream(modelFileName.c_str()) << strm.rdbuf();
     }
 
     void Export(std::ostream& networkModel) override {
-        ExportImpl(networkModel);
+        (void)networkModel;
+        IE_THROW(NotImplemented);
     }
 
     CNNNetwork GetExecGraphInfo() override {
@@ -134,17 +135,6 @@ protected:
      */
     virtual IInferRequestInternal::Ptr CreateInferRequestImpl(InputsDataMap networkInputs,
                                                               OutputsDataMap networkOutputs) = 0;
-
-    /**
-     * @brief Exports an internal hardware-dependent model to a stream.
-     * @note The function is called from ExecutableNetworkInternal::Export(std::ostream&),
-     * which performs common export first and calls this plugin-dependent implementation after.
-     * @param networkModel A stream to export network to.
-     */
-    virtual void ExportImpl(std::ostream& networkModel) {
-        (void)networkModel;
-        IE_THROW(NotImplemented);
-    }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

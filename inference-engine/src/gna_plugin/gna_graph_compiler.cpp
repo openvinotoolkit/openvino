@@ -30,6 +30,7 @@
 #include "frontend/model_quantizer.hpp"
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
+#include "layers/gna_convolution_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
@@ -265,7 +266,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     // Map 2d convolution to 1d if it's possible
-    if (in_height > 1 && in_width > 1 && in_width == convolution._kernel_x && convolution._stride_x == 1) {
+    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, convolution._kernel_x, convolution._stride_x)) {
         in_width *= in_height;
         in_height = 1;
         out_width *= out_height;
@@ -298,9 +299,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         dnn->new_num_conv_columns = 0;
     }
 
-    // TODO: refine following condition
-    if (((in_channels > 1) && (in_height > 1) && (in_width > 1)) || // 3D input
-        (convolution._kernel_x != 1 && convolution._kernel_y != 1) || // 2D kernel
+    if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
         in_height != 1) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
@@ -1028,13 +1027,8 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
-            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
-
             connectInput(layer, &concatLayerInfo.gna_ptr,
-                         concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
-
-            // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
-            bytesAllocated = inputLayer.tensorSize;
+                inputLayer.tensorSize, inputLayer.offset, idx, false);
 
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {

@@ -40,6 +40,17 @@ INSTANTIATE_TEST_CASE_P(
 
 using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
 
+TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+    std::stringstream strm;
+    ExecutableNetwork executableNetwork;
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
+}
+
 TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Core ie;

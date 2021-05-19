@@ -58,7 +58,7 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    void ExportImpl(std::ostream& modelFile) override;
+    void Export(std::ostream& modelFile) override;
 
 private:
     void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
