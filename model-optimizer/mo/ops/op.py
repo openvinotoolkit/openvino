@@ -129,9 +129,9 @@ class Op(object):
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
 
             # handling of debug information
-            if inp[1] in inp[0].out_ports():
+            if inp[0].has_port('out', inp[1]):
                 debug_info = inp[0].out_port(inp[1]).get_tensor_debug_info()
-                if debug_info is not None:
+                if debug_info is not None and len(debug_info) > 0:
                     edge_attr.update({'fw_tensor_debug_info': debug_info})
                     edge_attr['data_attrs'].append('fw_tensor_debug_info')
 
