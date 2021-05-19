@@ -37,7 +37,8 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
@@ -50,7 +51,7 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     } else if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
         ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
+    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
@@ -65,7 +66,8 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
@@ -75,7 +77,7 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
 
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
+    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else if (targetDevice == CommonTestUtils::DEVICE_MYRIAD) {
         ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else {

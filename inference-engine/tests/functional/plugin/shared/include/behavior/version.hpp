@@ -23,7 +23,8 @@ TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::string refError = "The plugin does not support";
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(targetDevice);
         ASSERT_EQ(versions.size(), 1);
