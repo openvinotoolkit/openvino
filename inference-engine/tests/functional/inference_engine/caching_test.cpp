@@ -173,7 +173,7 @@ public:
     std::unique_ptr<MkDirGuard> m_dirCreator;
     TestLoadType                m_type;
     std::string                 m_cacheDir;
-    using LoadFunction = std::function<void(Core&)>;
+    using LoadFunction = std::function<ExecutableNetwork(Core&)>;
     using LoadFunctionWithCfg = std::function<void(Core&, const std::map<std::string, std::string> &)>;
     LoadFunction                m_testFunction;
     LoadFunctionWithCfg         m_testFunctionWithCfg;
@@ -242,11 +242,11 @@ public:
     LoadFunction getLoadFunction(TestLoadType type) const {
         switch (type) {
             case TestLoadType::ECNN:
-                return [&](Core& ie) { performReadAndLoad(ie); };
+                return [&](Core& ie) { return performReadAndLoad(ie); };
             case TestLoadType::EContext:
-                return [&](Core& ie) { performReadAndLoadWithContext(ie); };
+                return [&](Core& ie) { return performReadAndLoadWithContext(ie); };
             case TestLoadType::EModelName:
-                return [&](Core& ie) { performLoadByName(ie); };
+                return [&](Core& ie) { return performLoadByName(ie); };
         }
         return nullptr;
     }
@@ -263,22 +263,22 @@ public:
         return nullptr;
     }
 
-    void performLoadByName(Core& ie, const std::map<std::string, std::string>& config = {}) const {
-        ie.LoadNetwork(modelName, deviceToLoad, config);
+    ExecutableNetwork performLoadByName(Core& ie, const std::map<std::string, std::string>& config = {}) const {
+        return ie.LoadNetwork(modelName, deviceToLoad, config);
     }
 
-    void performReadAndLoad(Core& ie, const std::map<std::string, std::string>& config = {}) const {
+    ExecutableNetwork performReadAndLoad(Core& ie, const std::map<std::string, std::string>& config = {}) const {
         auto cnnNetwork = ie.ReadNetwork(modelName);
         if (m_cnnCallback) m_cnnCallback(cnnNetwork);
-        ie.LoadNetwork(cnnNetwork, deviceToLoad, config);
+        return ie.LoadNetwork(cnnNetwork, deviceToLoad, config);
     }
 
-    void performReadAndLoadWithContext(Core& ie, const std::map<std::string, std::string>& config = {}) const {
+    ExecutableNetwork performReadAndLoadWithContext(Core& ie, const std::map<std::string, std::string>& config = {}) const {
         auto cnnNetwork = ie.ReadNetwork(modelName);
         EXPECT_CALL(*mockPlugin, GetDefaultContext(_)).Times(AnyNumber());
         auto context = ie.GetDefaultContext(deviceToLoad);
         if (m_cnnCallback) m_cnnCallback(cnnNetwork);
-        ie.LoadNetwork(cnnNetwork, context, config);
+        return ie.LoadNetwork(cnnNetwork, context, config);
     }
 
     std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet() {
@@ -1371,6 +1371,15 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
             .Times(AnyNumber()).WillRepeatedly(Return(false));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    DataPtr inData = std::make_shared<Data>("in", Precision::FP32);
+    InputInfo inpInfo;
+    inpInfo.setInputData(inData);
+    InputInfo::CPtr cptr = std::make_shared<InputInfo>(inpInfo);
+    ConstInputsDataMap inputMap {{"Input1", cptr}};
+    CDataPtr dataptr = std::make_shared<Data>("out", Precision::FP32);
+    ConstOutputsDataMap outputMap {{"Output1", dataptr}};
+    EXPECT_CALL(*net, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(inputMap));
+    EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(outputMap));
     if (m_remoteContext) {
         return; // skip the remote Context test for Multi plugin
     }
@@ -1392,7 +1401,11 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            ASSERT_NO_THROW(m_testFunction(ie));
+            ExecutableNetwork exeNet;
+            ASSERT_NO_THROW(exeNet = m_testFunction(ie));
+            // Verify that inputs and outputs are set for Multi Executable Network
+            ASSERT_EQ(exeNet.GetInputsInfo().size(), inputMap.size());
+            ASSERT_EQ(exeNet.GetOutputsInfo().size(), outputMap.size());
         });
     }
 }

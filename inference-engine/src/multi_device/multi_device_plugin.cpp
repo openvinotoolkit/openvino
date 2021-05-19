@@ -142,9 +142,31 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
+void MultiDeviceInferencePlugin::SetExeNetworkInfo(InferenceEngine::ExecutableNetworkInternal::Ptr exeNetwork,
+                                                   const InferenceEngine::ConstInputsDataMap& devInputs,
+                                                   const InferenceEngine::ConstOutputsDataMap& devOutputs) {
+    // Set inputs/outputs and pointer to plugin manually here
+    InputsDataMap _inputs, clonedInputs;
+    OutputsDataMap _outputs, clonedOutputs;
+    for (auto& it : devInputs) {
+        InputInfo::CPtr devData = it.second;
+        InputInfo::Ptr data = std::make_shared<InputInfo>(*devData);
+        _inputs[it.first] = data;
+    }
+    for (auto& it : devOutputs) {
+        CDataPtr devData = it.second;
+        DataPtr data = std::make_shared<Data>(*devData);
+        _outputs[it.first] = data;
+    }
+    copyInputOutputInfo(_inputs, _outputs, clonedInputs, clonedOutputs);
+    exeNetwork->setNetworkInputs(clonedInputs);
+    exeNetwork->setNetworkOutputs(clonedOutputs);
+    exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
 // Is called only when caching is enabled
-    InferenceEngine::IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
-                                                                           const std::map<std::string, std::string>& config) {
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                        const std::map<std::string, std::string>& config) {
     CNNNetwork network;
     return LoadExeNetworkImpl(modelPath, network, config);
 }
@@ -223,10 +245,16 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    return std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
-                                                          metaDevices,
-                                                          multiNetworkConfig,
-                                                          enablePerfCounters);
+    auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
+                                                               metaDevices,
+                                                               multiNetworkConfig,
+                                                               enablePerfCounters);
+    if (!modelPath.empty()) {
+        SetExeNetworkInfo(impl,
+                          executableNetworkPerDevice.begin()->second->GetInputsInfo(),
+                          executableNetworkPerDevice.begin()->second->GetOutputsInfo());
+    }
+    return impl;
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,
