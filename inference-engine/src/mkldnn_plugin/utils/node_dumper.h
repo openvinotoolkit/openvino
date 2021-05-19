@@ -31,25 +31,25 @@ public:
 private:
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
     void dump(const BlobDumper& bd, const std::string& file) const;
-    bool shouldBeDumped(const MKLDNNNodePtr &node) const;
+    bool shouldBeDumped(const MKLDNNNodePtr &node, const std::string& portsKind) const;
 
-    enum class DUMP_FORMAT {
+    enum class FORMAT {
         BIN,
         TEXT,
     };
 
-    DUMP_FORMAT parseDumpFormat(const std::string& format) const;
+    FORMAT parseDumpFormat(const std::string& format) const;
     void formatNodeName(std::string& name) const;
 
-    DUMP_FORMAT dumpFormat;
+    FORMAT dumpFormat;
     std::string dumpDirName;
     int count;
 
     enum FILTER {
+        BY_PORTS,
         BY_EXEC_ID,
         BY_TYPE,
         BY_NAME,
-        COUNT,
     };
 
     std::unordered_map<FILTER, std::string> dumpFilters;
