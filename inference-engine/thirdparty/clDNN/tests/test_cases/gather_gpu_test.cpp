@@ -13,7 +13,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
-    //  Dictionary : 2x2x2x2x2x2  
+    //  Dictionary : 2x2x2x2x2x2
     //  Indexes : 2x2x2x1
     //  Axis : 5
     //  batch_dim : -1
@@ -30,19 +30,19 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     //  55.f  56.f  57.f  58.f  59.f  60.f  61.f  62.f  63.f  64.f
     //
     //  Output:
-    //  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f, 
-    //  9.f,  10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 
-    //  17.f, 17.f, 19.f, 19.f, 21.f, 21.f, 23.f, 23.f, 
-    //  25.f, 25.f, 27.f, 27.f, 29.f, 29.f, 31.f, 31.f, 
-    //  33.f, 33.f, 35.f, 35.f, 37.f, 37.f, 39.f, 39.f, 
-    //  41.f, 41.f, 43.f, 43.f, 45.f, 45.f, 47.f, 47.f, 
-    //  50.f, 49.f, 52.f, 51.f, 54.f, 53.f, 56.f, 55.f, 
+    //  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,
+    //  9.f,  10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f,
+    //  17.f, 17.f, 19.f, 19.f, 21.f, 21.f, 23.f, 23.f,
+    //  25.f, 25.f, 27.f, 27.f, 29.f, 29.f, 31.f, 31.f,
+    //  33.f, 33.f, 35.f, 35.f, 37.f, 37.f, 39.f, 39.f,
+    //  41.f, 41.f, 43.f, 43.f, 45.f, 45.f, 47.f, 47.f,
+    //  50.f, 49.f, 52.f, 51.f, 54.f, 53.f, 56.f, 55.f,
     //  58.f, 57.f, 60.f, 59.f, 62.f, 61.f, 64.f, 63.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2} }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 2 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2} }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 2 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_x;
     int64_t batch_dim = -1;
 
@@ -63,14 +63,14 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     set_values(input2, {
         0.f, 1.f,
         0.f, 0.f,
-        
+
         0.f, 0.f,
         1.f, 0.f
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfwzyx, tensor(2, 2, 2, 2, 2, 2), batch_dim)
     );
@@ -83,16 +83,16 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
-        1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f, 
-        9.f,  10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 
-        17.f, 17.f, 19.f, 19.f, 21.f, 21.f, 23.f, 23.f, 
-        25.f, 25.f, 27.f, 27.f, 29.f, 29.f, 31.f, 31.f, 
-        33.f, 33.f, 35.f, 35.f, 37.f, 37.f, 39.f, 39.f, 
-        41.f, 41.f, 43.f, 43.f, 45.f, 45.f, 47.f, 47.f, 
-        50.f, 49.f, 52.f, 51.f, 54.f, 53.f, 56.f, 55.f, 
+        1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,
+        9.f,  10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f,
+        17.f, 17.f, 19.f, 19.f, 21.f, 21.f, 23.f, 23.f,
+        25.f, 25.f, 27.f, 27.f, 29.f, 29.f, 31.f, 31.f,
+        33.f, 33.f, 35.f, 35.f, 37.f, 37.f, 39.f, 39.f,
+        41.f, 41.f, 43.f, 43.f, 45.f, 45.f, 47.f, 47.f,
+        50.f, 49.f, 52.f, 51.f, 54.f, 53.f, 56.f, 55.f,
         58.f, 57.f, 60.f, 59.f, 62.f, 61.f, 64.f, 63.f
     };
 
@@ -102,7 +102,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
 }
 
 TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
-    //  Dictionary : 3x2x3x4x2  
+    //  Dictionary : 3x2x3x4x2
     //  Indexes : 3x2x3x1
     //  Axis : 3
     //  batch_dim : -1
@@ -133,10 +133,10 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     //  119.f 120.f 115.f 116.f 113.f 114.f 125.f 126.f 121.f 122.f 123.f 124.f
     //  133.f 134.f 129.f 130.f 131.f 132.f 141.f 142.f 137.f 138.f 139.f 140.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 3 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 2, 4, 3} }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 3 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = -1;
 
@@ -171,17 +171,17 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     set_values(input2, {
         0.f, 0.f, 0.f,
         3.f, 1.f, 0.f,
-        
+
         1.f, 1.f, 1.f,
         2.f, 0.f, 3.f,
-        
+
         3.f, 1.f, 0.f,
         2.f, 0.f, 1.f
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, tensor(3, 2, 2, 3, 3), batch_dim)
     );
@@ -194,7 +194,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f,   2.f,   1.f,   2.f,   1.f,   2.f,
@@ -213,7 +213,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
         77.f,  78.f,  73.f,  74.f,  79.f,  80.f,
         85.f,  86.f,  81.f,  82.f,  87.f,  88.f,
         93.f,  94.f,  89.f,  90.f,  95.f,  96.f,
-        
+
 
         103.f, 104.f,  99.f,  100.f, 97.f,  98.f,
         111.f, 112.f, 107.f, 108.f, 105.f, 106.f,
@@ -251,28 +251,28 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     //  29.f 16.f 75.f 74.f 74.f  8.f 29.f 29.f  7.f 18.f 54.f 54.f 38.f 16.f 40.f 40.f 74.f 24.f
     //  74.f 25.f 82.f 74.f 71.f  9.f 92.f 71.f 80.f 64.f 27.f 80.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 3, 1, 5 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 4, 4, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 3, 1, 5 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 4, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = 1;
 
     set_values(input1, {
         FLOAT16(84.f), FLOAT16( 7.f), FLOAT16(10.f), FLOAT16(69.f), FLOAT16(13.f),
-        FLOAT16(47.f), FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(65.f), FLOAT16(28.f), 
-        FLOAT16( 5.f), FLOAT16(12.f), FLOAT16(56.f), FLOAT16(54.f), FLOAT16( 9.f), 
-        
-        FLOAT16(31.f), FLOAT16(12.f), FLOAT16(71.f), FLOAT16(55.f), FLOAT16( 8.f), 
-        FLOAT16(73.f), FLOAT16(16.f), FLOAT16(29.f), FLOAT16(81.f), FLOAT16(81.f), 
-        FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(74.f), FLOAT16(75.f), FLOAT16(51.f), 
+        FLOAT16(47.f), FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(65.f), FLOAT16(28.f),
+        FLOAT16( 5.f), FLOAT16(12.f), FLOAT16(56.f), FLOAT16(54.f), FLOAT16( 9.f),
 
-        FLOAT16( 7.f), FLOAT16(29.f), FLOAT16( 6.f), FLOAT16(72.f), FLOAT16(18.f), 
-        FLOAT16(38.f), FLOAT16(54.f), FLOAT16(19.f), FLOAT16(70.f), FLOAT16(16.f), 
-        FLOAT16(74.f), FLOAT16(40.f), FLOAT16(72.f), FLOAT16(88.f), FLOAT16(24.f), 
-        
-        FLOAT16(14.f), FLOAT16(75.f), FLOAT16(74.f), FLOAT16(82.f), FLOAT16(25.f), 
-        FLOAT16(48.f), FLOAT16(13.f), FLOAT16(71.f), FLOAT16(92.f), FLOAT16( 9.f), 
+        FLOAT16(31.f), FLOAT16(12.f), FLOAT16(71.f), FLOAT16(55.f), FLOAT16( 8.f),
+        FLOAT16(73.f), FLOAT16(16.f), FLOAT16(29.f), FLOAT16(81.f), FLOAT16(81.f),
+        FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(74.f), FLOAT16(75.f), FLOAT16(51.f),
+
+        FLOAT16( 7.f), FLOAT16(29.f), FLOAT16( 6.f), FLOAT16(72.f), FLOAT16(18.f),
+        FLOAT16(38.f), FLOAT16(54.f), FLOAT16(19.f), FLOAT16(70.f), FLOAT16(16.f),
+        FLOAT16(74.f), FLOAT16(40.f), FLOAT16(72.f), FLOAT16(88.f), FLOAT16(24.f),
+
+        FLOAT16(14.f), FLOAT16(75.f), FLOAT16(74.f), FLOAT16(82.f), FLOAT16(25.f),
+        FLOAT16(48.f), FLOAT16(13.f), FLOAT16(71.f), FLOAT16(92.f), FLOAT16( 9.f),
         FLOAT16(73.f), FLOAT16( 8.f), FLOAT16(80.f), FLOAT16(27.f), FLOAT16(64.f)
     });
 
@@ -284,8 +284,8 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(4, 3, 1, 4), batch_dim)
     );
@@ -298,23 +298,23 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
-        69.f, 10.f, 69.f, 13.f, 
-        65.f,  8.f, 65.f, 28.f, 
-        54.f, 56.f, 54.f,  9.f, 
+        69.f, 10.f, 69.f, 13.f,
+        65.f,  8.f, 65.f, 28.f,
+        54.f, 56.f, 54.f,  9.f,
 
-        55.f, 71.f, 71.f, 12.f, 
-        81.f, 29.f, 29.f, 16.f, 
+        55.f, 71.f, 71.f, 12.f,
+        81.f, 29.f, 29.f, 16.f,
         75.f, 74.f, 74.f,  8.f,
 
-        29.f, 29.f,  7.f, 18.f, 
-        54.f, 54.f, 38.f, 16.f, 
+        29.f, 29.f,  7.f, 18.f,
+        54.f, 54.f, 38.f, 16.f,
         40.f, 40.f, 74.f, 24.f,
 
-        74.f, 25.f, 82.f, 74.f, 
-        71.f,  9.f, 92.f, 71.f, 
+        74.f, 25.f, 82.f, 74.f,
+        71.f,  9.f, 92.f, 71.f,
         80.f, 64.f, 27.f, 80.f
     };
 
@@ -340,10 +340,10 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     //  Output:
     //  1.f 1.f 4.f 3.f 5.f 5.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     size_t batch_dim = -1;
 
@@ -359,8 +359,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 1), batch_dim)
     );
@@ -373,10 +373,10 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
-        1.f, 1.f, 
+        1.f, 1.f,
         4.f, 3.f,
         5.f, 5.f,
     };
@@ -403,10 +403,10 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     //  Output:
     //  1.f 1.f 4.f 3.f 5.f 5.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     int64_t batch_dim = 1;
 
@@ -422,8 +422,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 2, 1, 1), batch_dim)
     );
@@ -436,7 +436,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 1.f, 4.f,
@@ -465,10 +465,10 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     //  Output:
     //  1.f 1.f 4.f 3.f 5.f 5.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_f;
     size_t batch_dim = 0;
 
@@ -484,8 +484,8 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     });
 
     topology topology;
-    topology.add(input_layout("InputDictionary", input1.get_layout()));
-    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, format::bfyx, tensor(3, 3, 1, 2), batch_dim)
     );
@@ -498,18 +498,18 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
-        1.f, 1.f, 
+        1.f, 1.f,
         2.f, 1.f,
         1.f, 1.f,
 
-        3.f, 3.f, 
+        3.f, 3.f,
         4.f, 3.f,
         3.f, 3.f,
 
-        5.f, 5.f, 
+        5.f, 5.f,
         6.f, 5.f,
         5.f, 5.f
     };

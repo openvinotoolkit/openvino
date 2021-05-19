@@ -854,8 +854,8 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 };
 
 static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.core_frequency / 1000.f;
-    auto numEUs = info.cores_count;
+    auto freqGHz = info.gpu_frequency / 1000.f;
+    auto numEUs = info.execution_units_count;
     auto opsPerComputeBlock = 0;
     auto computeBlockIPC = 1.0f;
     switch (dt) {
@@ -934,7 +934,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)) {
-        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.cores_count);
+        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.execution_units_count);
     } else if (name == GPU_METRIC_KEY(UARCH_VERSION)) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {
