@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <utility>
-#include <map>
-
 #include <inference_engine.hpp>
+#include <map>
 #include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <samples/csv_dumper.hpp>
+#include <samples/slog.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 // @brief statistics reports types
 static constexpr char noCntReport[] = "no_counters";
@@ -36,30 +35,29 @@ public:
         EXECUTION_RESULTS,
     };
 
-    explicit StatisticsReport(Config config) : _config(std::move(config)) {
+    explicit StatisticsReport(Config config): _config(std::move(config)) {
         _separator =
 #if defined _WIN32 || defined __CYGWIN__
-    #   if defined UNICODE
-        L"\\";
-    #   else
-        "\\";
-    #   endif
+    #if defined UNICODE
+            L"\\";
+    #else
+            "\\";
+    #endif
 #else
-        "/";
+            "/";
 #endif
         if (_config.report_folder.empty())
             _separator = "";
     }
 
-    void addParameters(const Category &category, const Parameters& parameters);
+    void addParameters(const Category& category, const Parameters& parameters);
 
     void dump();
 
-    void dumpPerformanceCounters(const std::vector<PerformaceCounters> &perfCounts);
+    void dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts);
 
 private:
-    void dumpPerformanceCountersRequest(CsvDumper& dumper,
-                                        const PerformaceCounters& perfCounts);
+    void dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts);
 
     // configuration of current benchmark execution
     const Config _config;

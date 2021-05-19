@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 #include <cpp/ie_executable_network.hpp>
-#include <ie_iexecutable_network.hpp>
 
 using namespace ::testing;
 using namespace std;

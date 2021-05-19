@@ -165,7 +165,7 @@ namespace
     {
         return vt == Interval::s_max ? -1 : vt;
     }
-}
+} // namespace
 
 Dimension::value_type Dimension::get_max_length() const
 {

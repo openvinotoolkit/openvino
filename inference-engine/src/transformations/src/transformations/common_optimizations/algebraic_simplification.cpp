@@ -38,7 +38,6 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
         }
 
         auto axis = gather->get_axis();
-
         if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
             NGRAPH_DEBUG << "axis value not set";
             return false;

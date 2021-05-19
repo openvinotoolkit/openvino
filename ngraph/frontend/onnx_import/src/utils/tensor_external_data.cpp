@@ -25,7 +25,7 @@ namespace ngraph
                     if (entry.key() == "offset")
                         m_offset = std::stoi(entry.value());
                     if (entry.key() == "length")
-                        m_data_lenght = std::stoi(entry.value());
+                        m_data_length = std::stoi(entry.value());
                     if (entry.key() == "checksum")
                         m_sha1_digest = std::stoi(entry.value());
                 }
@@ -43,11 +43,11 @@ namespace ngraph
                 if (external_data_stream.fail())
                     throw error::invalid_external_data{*this};
 
-                std::streamsize read_data_lenght;
-                if (m_data_lenght == 0) // read entire file
-                    read_data_lenght = external_data_stream.tellg();
+                std::streamsize read_data_length;
+                if (m_data_length == 0) // read entire file
+                    read_data_length = external_data_stream.tellg();
                 else
-                    read_data_lenght = m_data_lenght;
+                    read_data_length = m_data_length;
 
                 const auto page_size = 4096;
                 if (m_offset != 0 && m_offset % page_size != 0)
@@ -65,8 +65,8 @@ namespace ngraph
                 }
 
                 std::string read_data;
-                read_data.resize(read_data_lenght);
-                external_data_stream.read(&read_data[0], read_data_lenght);
+                read_data.resize(read_data_length);
+                external_data_stream.read(&read_data[0], read_data_length);
                 external_data_stream.close();
 
                 return read_data;
@@ -78,10 +78,10 @@ namespace ngraph
                 s << "ExternalDataInfo(";
                 s << "data_full_path: " << m_data_location;
                 s << ", offset: " << m_offset;
-                s << ", data_lenght: " << m_data_lenght;
+                s << ", data_length: " << m_data_length;
                 s << ", sha1_digest: " << m_sha1_digest << ")";
                 return s.str();
             }
-        }
-    }
-}
+        } // namespace detail
+    }     // namespace onnx_import
+} // namespace ngraph

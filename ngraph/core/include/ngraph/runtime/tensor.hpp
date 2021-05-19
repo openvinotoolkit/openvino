@@ -57,10 +57,12 @@ namespace ngraph
             /// \brief Get the stale value of the tensor. A tensor is stale if its data is
             /// changed.
             /// \return true if there is new data in this tensor
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             bool get_stale() const;
 
             /// \brief Set the stale value of the tensor. A tensor is stale if its data is
             /// changed.
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             void set_stale(bool val);
 
             /// \brief Write bytes directly into the tensor
@@ -75,14 +77,16 @@ namespace ngraph
 
             /// \brief check tensor for new data, call may block.
             ///    backends may use this to ensure tensor is updated (eg: lazy eval).
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             virtual void wait_for_read_ready() {}
             /// \brief notify tensor of new data, call may block.
             ///    backends may use this as indication of new data in tensor.
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             virtual void wait_for_write_ready() {}
 
         protected:
             std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
             bool m_stale;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

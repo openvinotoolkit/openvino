@@ -171,7 +171,7 @@ namespace
         }
         return static_cast<int64_t>(static_cast<float>(bound) * scale);
     }
-}
+} // namespace
 
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
@@ -263,7 +263,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
     // of the output shape. Hence, all components of the output shape should be dynamic.
-    if (input_values().size() == 4 && !get_constant_from_source(input_value(3)))
+    if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3)))
     {
         PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);

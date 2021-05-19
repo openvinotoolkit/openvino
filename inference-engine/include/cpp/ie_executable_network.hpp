@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <ostream>
 #include <map>
 #include <memory>
 #include <string>
@@ -34,8 +35,8 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     std::shared_ptr<IExecutableNetworkInternal> _impl;
     std::shared_ptr<details::SharedObjectLoader> _so;
 
-    explicit ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
-                               const std::shared_ptr<details::SharedObjectLoader>&  so);
+    ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
+                      const std::shared_ptr<details::SharedObjectLoader>&  so);
 
     friend class InferencePlugin;
 
@@ -74,16 +75,6 @@ public:
     ConstInputsDataMap GetInputsInfo() const;
 
     /**
-     * @deprecated The method Will be removed
-     * @brief reset owned object to new pointer.
-     *
-     * Essential for cases when simultaneously loaded networks not expected.
-     * @param newActual actual pointed object
-     */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
-    void reset(std::shared_ptr<IExecutableNetwork> newActual);
-
-    /**
      * @brief Creates an inference request object used to infer the network.
      *
      * The created request has allocated input and output blobs (that can be changed later).
@@ -91,16 +82,6 @@ public:
      * @return InferRequest object
      */
     InferRequest CreateInferRequest();
-
-    /**
-     * @deprecated Use ExecutableNetwork::CreateInferRequest
-     * @copybrief IExecutableNetwork::CreateInferRequest
-     *
-     * Wraps IExecutableNetwork::CreateInferRequest.
-     * @return shared pointer on InferenceEngine::InferRequest object
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::CreateInferRequest instead")
-    InferRequest::Ptr CreateInferRequestPtr();
 
     /**
      * @brief Exports the current executable network.
@@ -121,31 +102,12 @@ public:
     void Export(std::ostream& networkModel);
 
     /**
-     * @deprecated Will be removed. Use operator bool
-     * @brief cast operator is used when this wrapper initialized by LoadNetwork
-     * @return A shared pointer to IExecutableNetwork interface.
-     */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed. Use operator bool")
-    operator std::shared_ptr<IExecutableNetwork>();
-
-    /**
      * @copybrief IExecutableNetwork::GetExecGraphInfo
      *
      * Wraps IExecutableNetwork::GetExecGraphInfo.
      * @return CNNetwork containing Executable Graph Info
      */
     CNNNetwork GetExecGraphInfo();
-
-    /**
-     * @deprecated Use InferRequest::QueryState instead
-     * @brief Gets state control interface for given executable network.
-     *
-     * State control essential for recurrent networks
-     *
-     * @return A vector of Memory State objects
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<VariableState> QueryState();
 
     /**
      * @brief Sets configuration for current executable network
@@ -196,6 +158,47 @@ public:
      * @return true if current ExecutableNetwork object is initialized, false - otherwise
      */
     explicit operator bool() const noexcept;
+
+    IE_SUPPRESS_DEPRECATED_START
+    /**
+     * @deprecated The method Will be removed
+     * @brief reset owned object to new pointer.
+     *
+     * Essential for cases when simultaneously loaded networks not expected.
+     * @param newActual actual pointed object
+     */
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
+    void reset(std::shared_ptr<IExecutableNetwork> newActual);
+
+    /**
+     * @deprecated Will be removed. Use operator bool
+     * @brief cast operator is used when this wrapper initialized by LoadNetwork
+     * @return A shared pointer to IExecutableNetwork interface.
+     */
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed. Use operator bool")
+    operator std::shared_ptr<IExecutableNetwork>();
+
+    /**
+     * @deprecated Use ExecutableNetwork::CreateInferRequest
+     * @copybrief IExecutableNetwork::CreateInferRequest
+     *
+     * Wraps IExecutableNetwork::CreateInferRequest.
+     * @return shared pointer on InferenceEngine::InferRequest object
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::CreateInferRequest instead")
+    InferRequest::Ptr CreateInferRequestPtr();
+
+    /**
+     * @deprecated Use InferRequest::QueryState instead
+     * @brief Gets state control interface for given executable network.
+     *
+     * State control essential for recurrent networks
+     *
+     * @return A vector of Memory State objects
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<VariableState> QueryState();
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace InferenceEngine

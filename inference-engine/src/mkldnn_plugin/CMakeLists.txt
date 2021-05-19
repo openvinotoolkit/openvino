@@ -12,25 +12,20 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
-file(GLOB_RECURSE SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+if (ENABLE_CPU_DEBUG_CAPS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
+endif()
 
-file(GLOB HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+                          ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER MKL_VERSION)
+addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 
 include_directories(
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_BINARY_DIR}/include
-)
-
-if (GEMM STREQUAL "MKL")
-    log_rpath_from_dir(MKL "${MKL}/lib")
-endif()
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 # create plugin
 
@@ -50,21 +45,16 @@ if(SELECTIVE_BUILD STREQUAL "ON")
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
+                                             inference_engine
+                                             inference_engine_transformations
+                                             inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 SSE42 ANY
-                    nodes/argmax_imp.cpp
-        API         nodes/argmax_imp.hpp
-        NAME        arg_max_execute
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
                     nodes/proposal_imp.cpp
@@ -81,7 +71,6 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
@@ -101,17 +90,3 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# install
-
-if(GEMM STREQUAL "MKL")
-    install(DIRECTORY "${MKL}/include"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx
-            COMPONENT cpu)
-    install(FILES "${MKLLIB}"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx/lib
-            COMPONENT cpu)
-    install(FILES "${MKL}/version.info"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx
-            COMPONENT cpu)
-endif()

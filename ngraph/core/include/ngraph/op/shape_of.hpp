@@ -53,7 +53,7 @@ namespace ngraph
                 bool m_is_foldable = true;
                 element::Type m_output_type;
             };
-        }
+        } // namespace v3
 
         namespace v0
         {
@@ -91,7 +91,7 @@ namespace ngraph
             private:
                 bool m_is_foldable = true;
             };
-        }
+        } // namespace v0
         using v0::ShapeOf;
-    }
-}
+    } // namespace op
+} // namespace ngraph

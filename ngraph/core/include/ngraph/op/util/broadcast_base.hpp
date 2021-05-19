@@ -59,9 +59,10 @@ namespace ngraph
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
                                         const Shape output_shape) const;
 
-                bool evaluate(const HostTensorPtr& arg0,
-                              const HostTensorPtr& out,
-                              const AxisSet& broadcast_axes) const;
+                bool evaluate_broadcast(const HostTensorPtr& arg0,
+                                        const HostTensorPtr& out,
+                                        const AxisSet& broadcast_axes) const;
+
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
 
@@ -89,6 +90,6 @@ namespace ngraph
                 static Shape get_shape_from_ht(const HostTensorPtr& input1);
                 Shape get_target_shape(const HostTensorPtr& input1) const;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

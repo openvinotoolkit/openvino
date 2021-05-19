@@ -12,9 +12,10 @@ from openvino.inference_engine import IECore
 
 
 def parse_args() -> argparse.Namespace:
-    '''Parse and return command line arguments'''
+    """Parse and return command line arguments"""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
+    # fmt: off
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to an .xml or .onnx file with a trained model.')
@@ -37,7 +38,7 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Mean value of green channel for mean value subtraction in postprocessing.')
     args.add_argument('--mean_val_b', default=0, type=float,
                       help='Optional. Mean value of blue channel for mean value subtraction in postprocessing.')
-
+    # fmt: on
     return parser.parse_args()
 
 
@@ -45,7 +46,7 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
-# ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
+    # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating Inference Engine')
     ie = IECore()
 
@@ -57,7 +58,7 @@ def main():
         log.info(f'Loading the {args.device} configuration: {args.config}')
         ie.set_config({'CONFIG_FILE': args.config}, args.device)
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
+    # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
     # (.xml and .bin files) or (.onnx file)
     net = ie.read_network(model=args.model)
@@ -69,7 +70,7 @@ def main():
         log.error('Sample supports only single output topologies')
         return -1
 
-# ---------------------------Step 3. Configure input & output----------------------------------------------------------
+    # ---------------------------Step 3. Configure input & output----------------------------------------------------------
     log.info('Configuring input and output blobs')
     # Get names of input and output blobs
     input_blob = next(iter(net.input_info))
@@ -82,15 +83,15 @@ def main():
     # Set a batch size to a equal number of input images
     net.batch_size = len(args.input)
 
-# ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+    # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
 
-# ---------------------------Step 5. Create infer request--------------------------------------------------------------
-# load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-# instance which stores infer requests. So you already created Infer requests in the previous step.
+    # ---------------------------Step 5. Create infer request--------------------------------------------------------------
+    # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
+    # instance which stores infer requests. So you already created Infer requests in the previous step.
 
-# ---------------------------Step 6. Prepare input---------------------------------------------------------------------
+    # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     original_images = []
 
     n, c, h, w = net.input_info[input_blob].input_data.shape
@@ -109,11 +110,11 @@ def main():
 
         input_data[i] = image
 
-# ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     res = exec_net.infer(inputs={input_blob: input_data})
 
-# ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # ---------------------------Step 8. Process output--------------------------------------------------------------------
     res = res[out_blob]
 
     for i in range(n):
@@ -136,9 +137,8 @@ def main():
         cv2.imwrite(f'out_{i}.bmp', output_image)
         log.info(f'Image out_{i}.bmp created!')
 
-# ----------------------------------------------------------------------------------------------------------------------
-    log.info('This sample is an API example, '
-             'for any performance measurements please use the dedicated benchmark_app tool\n')
+    # ----------------------------------------------------------------------------------------------------------------------
+    log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
 
 

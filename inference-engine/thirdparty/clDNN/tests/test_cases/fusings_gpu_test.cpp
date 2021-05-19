@@ -157,7 +157,6 @@ public:
     void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {
         auto outputs_ref = not_fused.execute();
         auto outputs_fused = fused.execute();
-
         auto get_reorders_count = [](network& net) -> size_t {
             size_t count = 0;
             for (auto& pi : net.get_primitives_info()) {
@@ -187,7 +186,6 @@ public:
             description << "  " << i.original_id << " " << i.kernel_id << std::endl;
         }
         SCOPED_TRACE(description.str());
-
         // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
         ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
@@ -324,6 +322,8 @@ public:
     layout get_activations_zp_layout(T& p) {
         return layout{ p.data_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1} };
     }
+
+
 
     layout get_single_element_layout(T& p) {
         return layout{ p.default_type, p.default_format, tensor{1, 1, 1, 1} };
@@ -831,6 +831,224 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_prelu_eltwise,
                                              bc_test_params{CASE_CONV_FP16_2, 2, 4},
                                              bc_test_params{CASE_CONV_FP16_3, 2, 4},
                                              bc_test_params{CASE_CONV_FP16_4, 2, 4},
+                                             }), );
+
+class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_2, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise1", "conv_prim", "eltwise_data", eltwise_mode::sum),
+        eltwise("eltwise2", "eltwise1", "conv_prim", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise2", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, ""};
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 2, 4},
+                                             bc_test_params{CASE_CONV_FP32_3, 2, 4},
+                                             bc_test_params{CASE_CONV_FP32_4, 2, 4},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 2, 4},
+                                             bc_test_params{CASE_CONV_FP16_3, 2, 4},
+                                             bc_test_params{CASE_CONV_FP16_4, 2, 4},
+                                             }), );
+
+
+class conv_fp32_multi_eltwise_2_clamp : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("eltwise1_data", get_mem(get_output_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise1", "conv_prim", "eltwise1_data", eltwise_mode::sum),
+        activation("activation", "eltwise1", activation_func::clamp, {0.5f, 2.5f}),
+        eltwise("eltwise2", "activation", "conv_prim", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise2", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, ""};
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 2, 5},
+                                             bc_test_params{CASE_CONV_FP32_3, 2, 5},
+                                             bc_test_params{CASE_CONV_FP32_4, 2, 5},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 2, 5},
+                                             bc_test_params{CASE_CONV_FP16_3, 2, 5},
+                                             bc_test_params{CASE_CONV_FP16_4, 2, 5},
+                                             }), );
+
+
+class conv_fp32_multi_eltwise_4_clamp : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("eltwise1_data", get_mem(get_output_layout(p))),
+        data("eltwise2_data", get_mem(get_output_layout(p))),
+        data("eltwise4_data", get_mem(get_output_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise1_add", "conv_prim", "eltwise1_data", eltwise_mode::sum),
+        activation("activation", "eltwise1_add", activation_func::clamp, {0.5f, 2.5f}),
+        eltwise("eltwise2_mul", "activation", "conv_prim", eltwise_mode::prod),
+        eltwise("eltwise3_div", "eltwise2_mul", "eltwise2_data", eltwise_mode::prod),
+        eltwise("eltwise4_add", "eltwise3_div", "eltwise4_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise4_add", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, ""};
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 2, 7},
+                                             bc_test_params{CASE_CONV_FP32_3, 2, 7},
+                                             bc_test_params{CASE_CONV_FP32_4, 2, 7},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 2, 7},
+                                             bc_test_params{CASE_CONV_FP16_3, 2, 7},
+                                             bc_test_params{CASE_CONV_FP16_4, 2, 7},
+                                             }), );
+
+
+class conv_fp32_multi_eltwise_3_fusing : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
+    if (engine.get_info().supports_immad) {
+        return;
+    }
+
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("eltwise_data1", get_mem(get_output_layout(p))),
+        data("eltwise_data2", get_mem(get_output_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise1", "conv_prim", "eltwise_data1", eltwise_mode::sum),
+        eltwise("eltwise2", "conv_prim", "eltwise_data2", eltwise_mode::sum),
+        eltwise("eltwise3", "eltwise1", "eltwise2", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise3", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, ""};
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_3_fusing,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 2, 5},
+                                             bc_test_params{CASE_CONV_FP32_3, 2, 5},
+                                             bc_test_params{CASE_CONV_FP32_4, 2, 5},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 2, 5},
+                                             bc_test_params{CASE_CONV_FP16_3, 2, 5},
+                                             bc_test_params{CASE_CONV_FP16_4, 2, 5},
+                                             }), );
+
+
+
+class conv_fp32_multi_eltwise_quantization : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                        data("weights", get_mem(get_weights_layout(p))),
+                        data("bias", get_mem(get_bias_layout(p))),
+                        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+                        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                        data("eltwise_data1", get_mem(get_output_layout(p))),
+                        convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                        quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+                        eltwise("eltwise1", "conv_prim", "eltwise_data1", eltwise_mode::sum),
+                        eltwise("eltwise2", "eltwise1", "quantize", eltwise_mode::prod),
+                        reorder("reorder_bfyx", "eltwise2", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 4, 5},
+                                             bc_test_params{CASE_CONV_FP32_4, 4, 5},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 4, 5},
+                                             bc_test_params{CASE_CONV_FP16_3, 4, 5},
+                                             bc_test_params{CASE_CONV_FP16_4, 4, 5},
+                                             }), );
+
+
+class conv_fp32_multi_eltwise_concat : public ConvFusingTest {};
+TEST_P(conv_fp32_multi_eltwise_concat, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("eltwise_data1", get_mem(get_output_layout(p))),
+        data("eltwise_data2", get_mem(get_output_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise1", "conv_prim", "eltwise_data1", eltwise_mode::sum),
+        eltwise("eltwise2", "conv_prim", "eltwise_data2", eltwise_mode::sum),
+        concatenation("concat",
+            {"eltwise1", "eltwise2"},
+            concatenation::concatenation_axis::along_f,
+            data_types::i8,
+            padding{{0, 0, 0, 0}, 0}),
+        reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, ""};
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_concat,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                             bc_test_params{CASE_CONV_FP32_2, 5, 5},
+                                             bc_test_params{CASE_CONV_FP32_3, 5, 5},
+                                             bc_test_params{CASE_CONV_FP32_4, 5, 5},
+
+                                             bc_test_params{CASE_CONV_FP16_2, 5, 5},
+                                             bc_test_params{CASE_CONV_FP16_3, 5, 5},
+                                             bc_test_params{CASE_CONV_FP16_4, 5, 5},
                                              }), );
 
 class conv_fp32_eltwise_b_fs_zyx_fsv16 : public ConvFusingTest {};
@@ -3452,6 +3670,26 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise,
         mvn_test_params{ CASE_MVN_3D_U8_3, 2, 3 },
         mvn_test_params{ CASE_MVN_3D_U8_4, 2, 3 },
         mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3 },
+}), );
+
+class mvn_eltwise_f16 : public MVNFusingTest {};
+TEST_P(mvn_eltwise_f16, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
+                 mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
+                 data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
+                 eltwise("eltw", {"mvn", "eltw_data"}, eltwise_mode::sum, data_types::f16),
+                 reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32)
+    );
+
+    tolerance = 0.1f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise_f16,
+    ::testing::ValuesIn(std::vector<mvn_test_params>{
+        mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
 }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -6409,7 +6647,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
 
 struct permute_reorder_params {
     tensor in_shape;
-    tensor out_shape;
     std::vector<uint16_t> permute_order1;
     std::vector<uint16_t> permute_order2;
     data_types permute_type;
@@ -6420,20 +6657,47 @@ struct permute_reorder_params {
     size_t expected_not_fused_primitives;
 };
 
-#define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},    {1, 16, 32, 2},    {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
-#define CASE_PERMUTE_REORDER_F32_1 {2, 16, 16, 16},   {2, 16, 16, 16},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16}, {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F32_1 {2, 7, 9, 27},  {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
-#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
-#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+// type change
+#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
-#define CASE_PERMUTE_REORDER_S8_0 {1, 15, 4, 5},    {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_S8_1 {1, 2, 15, 4, 5}, {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+// dim change
+#define CASE_PERMUTE_REORDER_4D_TO_5D_F32_0 {1, 16, 8, 16}, {1, 2, 0, 3}, {0, 3, 1, 4, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfzyx
+#define CASE_PERMUTE_REORDER_4D_TO_6D_F32_1 {1, 16, 8, 16}, {0, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfwzyx
+#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_1 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_5D_TO_6D_F32_2 {1, 16, 8, 4, 16}, {0, 4, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
+#define CASE_PERMUTE_REORDER_6D_TO_4D_F32_0 {1, 16, 4, 5, 4, 16}, {0, 2, 5, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfwzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_6D_TO_5D_F32_1 {1, 16, 4, 5, 4, 16}, {0, 2, 5, 3, 4, 1}, {0, 3, 4, 1, 2}, data_types::f32, data_types::f32, format::bfwzyx, format::bfzyx
 
-#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 18, 1, 2, 2},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+// permute_opt for blocked format
+#define CASE_PERMUTE_REORDER_TILED_F32_0 {1, 256, 2, 64}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_1 {1, 78, 2, 259}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_2 {1, 48, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 4, 1},  data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+
+// permute_opt for blocked format => reorder to differnt dim
+#define CASE_PERMUTE_REORDER_TILED_F32_3 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+
+// permute opt for blocked format => reorder to different dim/type
+#define CASE_PERMUTE_REORDER_TILED_I8_4 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_5 {1, 48, 3, 256}, {0, 3, 1, 2}, {0, 2, 4, 3, 1},  data_types::f16, data_types::f32, format::b_fs_yx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_6 {1, 48, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 5, 4, 3, 1},  data_types::f16, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
+
+// permute opt for non_blocked format => reorder to differnt dim/type
+#define CASE_PERMUTE_REORDER_TILED_F16_7 {1, 48, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_8 {1, 28, 2, 2, 3, 256}, {0, 5, 1, 2, 3, 4}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfwzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_9 {1, 24, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_10 {1, 35, 3, 253}, {0, 3, 1, 2}, {0, 2, 4, 3, 1},  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_11 {1, 32, 3, 253}, {0, 3, 1, 2}, {0, 2, 4, 5, 3, 1},  data_types::f16, data_types::f32, format::bfyx, format::bfwzyx
 
 class PermuteReorderFusingTest : public ::BaseFusingTest<permute_reorder_params> {
 public:
@@ -6460,7 +6724,7 @@ TEST_P(permute_redundant_reorder, basic) {
         input_layout("input", get_input_layout(p)),
         permute("permute1", "input",    p.permute_order1),
         reorder("reorder1", "permute1", p.output_format, p.output_type), // to be fused
-        permute("permute2", "reorder1", p.permute_order2)                // dummy last op to make reorder n
+        permute("permute2", "reorder1", p.permute_order2)                  // dummy last op to make reorder fused
     );
     tolerance = 1e-5f;
     execute(p);
@@ -6474,11 +6738,72 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F16_0, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F16_1, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F16_2, 3, 4},
-                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_0, 3, 4},
-                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_1, 3, 4},
-                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_TO_F16_0, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_S8_TO_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_TO_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_TO_F16_0, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_U8_TO_F16_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_4D_TO_5D_F32_0, 3, 3},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_4D_TO_6D_F32_1, 3, 3},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_4D_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_4D_F32_1, 3, 3},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_6D_F32_2, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_6D_TO_4D_F32_0, 3, 3},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_6D_TO_5D_F32_1, 3, 3},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_I8_4, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_7, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_8, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_9, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_10, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_11, 3, 4},
+                                }),);
+
+class permute_act_reorder : public PermuteReorderFusingTest {};
+
+TEST_P(permute_act_reorder, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        permute("permute1", "input",    p.permute_order1),
+        activation("activation", "permute1", activation_func::abs),
+        reorder("reorder1", "activation", p.output_format, p.output_type),    // to be fused
+        permute("permute2", "reorder1", p.permute_order2)                // dummy last op to make reorder fused
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_act_reorder,
+                            ::testing::ValuesIn(std::vector<permute_reorder_params> {
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_0, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_1, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_2, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_0, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_1, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_2, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_4D_TO_5D_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_4D_TO_6D_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_4D_F32_0, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_4D_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_5D_TO_6D_F32_2, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_6D_TO_4D_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_6D_TO_5D_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_0, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_7, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_8, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5},
                                 }),);
 
 class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {

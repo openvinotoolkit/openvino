@@ -67,7 +67,8 @@ class InsertReverseChannels(BackReplacementPattern):
 
         for name, parameter, _ in suitable_params:
             reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels'}).create_node()
-            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0),
+                                                              attributes_save_mode='source')
             parameter.out_port(0).connect(reverse_channels.in_port(0))
 
 
@@ -309,7 +310,13 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
 
             src = port.get_connection().get_source()
-            port.get_connection().set_source(reverse_channels_copy.out_port(0))
+            if src.node.soft_get('type') == 'Parameter':
+                # For Parameter nodes tensor debug attributes should not move to the last node
+                # of subgraph. It is needed for the proper mapping of input framework name.
+                # For this reason "source" mode is used to keep tensor debug attributes at Parameter node.
+                port.get_connection().set_source(reverse_channels_copy.out_port(0), attributes_save_mode="source")
+            else:
+                port.get_connection().set_source(reverse_channels_copy.out_port(0))
             src.connect(reverse_channels_copy.in_port(0))
 
             copies.append(reverse_channels_copy)

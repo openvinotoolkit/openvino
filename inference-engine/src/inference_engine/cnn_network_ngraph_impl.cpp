@@ -95,6 +95,28 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 }
 
+void CNNNetworkNGraphImpl::validateFunctionNames() const {
+    // nGraph function parameters and pre-Results operations should have unique names
+    std::unordered_set<std::string> unique_names;
+    for (const auto& param : _ngraph_function->get_parameters()) {
+        if (unique_names.count(param->get_friendly_name())) {
+            IE_THROW() << "Function contains several inputs with one friendly name!";
+        }
+        unique_names.insert(param->get_friendly_name());
+    }
+    for (const auto& result : _ngraph_function->get_results()) {
+        const auto& parent = result->get_input_node_shared_ptr(0);
+        auto name = parent->get_friendly_name();
+        if (parent->get_output_size() > 1) {
+            name += "." + std::to_string(result->get_input_source_output(0).get_index());
+        }
+        if (unique_names.count(name) && !ngraph::op::is_parameter(parent)) {
+            IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
+        }
+        unique_names.insert(name);
+    }
+}
+
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
@@ -113,6 +135,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         info->setPrecision(prc);
         network.setInputInfo(info);
     };
+
+    validateFunctionNames();
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
@@ -149,6 +173,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
+    validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
 
@@ -214,6 +239,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
         for (const auto & layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
             if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
+                // Check that output port exists
+                if (layer->outputs().size() <= outputIndex) {
+                    return DescriptionBuffer(OUT_OF_BOUNDS, resp)
+                    << "port index " << outputIndex << " exceeds the number of layer outputs " << layer->outputs().size();
+                }
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
@@ -227,6 +257,13 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
+                // Check that we cannot add Result to layer with non unique friendly name
+                try {
+                    validateFunctionNames();
+                } catch (...) {
+                    _ngraph_function->remove_result(result);
+                    throw;
+                }
 
                 if (_outputData.count(outputName) == 0) {
                     reshape();
@@ -261,6 +298,10 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
     auto params = _ngraph_function->get_parameters();
+    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+        return lhs->get_friendly_name() < rhs->get_friendly_name();
+    });
+
     for (const auto& param : params) {
         if (param->get_partial_shape().rank().is_dynamic())
             continue;

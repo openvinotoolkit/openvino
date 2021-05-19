@@ -24,7 +24,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 |:---                              |:---
 | Validated Models                 | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Supported devices                | See [Execution Modes section](#execution-modes) below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
@@ -61,14 +61,14 @@ will be removed in GNA hardware version 3 and higher.
 
 Several execution modes are supported via the `-d` flag:
 
-- `CPU` - all calculation will be performed on CPU device using CPU Plugin.
-- `GPU` - all calculation will be performed on GPU device using GPU Plugin.
-- `MYRIAD` - all calculation will be performed on Intel® Neural Compute Stick 2 device using VPU MYRIAD Plugin.
-- `GNA_AUTO` - the GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
-- `GNA_HW` - the GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
-- `GNA_SW` - deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
-- `GNA_SW_FP32` - substitutes parameters and calculations from low precision to floating point (FP32).
-- `GNA_SW_EXACT` - the GNA device is emulated in bit-exact mode.
+- `CPU` - All calculation are performed on CPU device using CPU Plugin.
+- `GPU` - All calculation are performed on GPU device using GPU Plugin.
+- `MYRIAD` - All calculation are performed on Intel® Neural Compute Stick 2 device using VPU MYRIAD Plugin.
+- `GNA_AUTO` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
+- `GNA_HW` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
+- `GNA_SW` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
+- `GNA_SW_FP32` - Substitutes parameters and calculations from low precision to floating point (FP32).
+- `GNA_SW_EXACT` - GNA device is emulated in bit-exact mode.
 
 #### Loading and Saving Models
 
@@ -137,7 +137,7 @@ Running the application with the empty list of options yields the usage message 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
 ```sh
-python mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax
+python mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Assuming that the model optimizer (`mo.py`), Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces
@@ -153,14 +153,16 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 
 ### Speech Inference
 
-Once the IR is created, you can use the following command to do inference on Intel^&reg; Processors with the GNA co-processor (or emulation library):
+Once the IR is created, you can use the following command to do inference on Intel&reg; Processors with the GNA co-processor (or emulation library):
 
 ```sh
 ./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
 ```
 
 Here, the floating point Kaldi-generated reference neural network scores (`dev93_scores_10.ark`) corresponding to the input feature file (`dev93_10.ark`) are assumed to be available
-for comparison. All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr). Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the [previous Model preparation section](#model-preparation).
+for comparison. 
+
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr). Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
 > **NOTES**:
 >
@@ -230,8 +232,7 @@ nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats
 ```sh
 ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
 ```
-
-Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the [previous Model preparation section](#model-preparation).
+Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
 

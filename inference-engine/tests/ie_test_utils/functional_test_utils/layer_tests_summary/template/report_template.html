@@ -26,23 +26,24 @@
         integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
         crossorigin="anonymous"></script>
 -->
+
 <hr class="my-4">
-<h2>Operations coverage summary {{ timestamp }}</h2>
+<h2>Operations coverage summary: {{report_tag}} {{ timestamp }}</h2>
 <hr class="my-4">
 <table class="table table-hover" id="legend">
     <thead>
     <tr>
-        <th class="table-info" scope="col"></th>
-        <th scope="col">Not verified Ngraph references</th>
+        <th scope="col"><span style="color: red">"Operation_name"-"opset_version"</span></th>
+        <th><span style="color: black"> Not verified Ngraph references</span></th>
     </tr>
-        <tr>
+    <tr>
         <th class="table-secondary" scope="col"></th>
-        <th scope="col">Collected statistic info</th>
+        <th>Collected statistic info</th>
     </tr>
     </thead>
 </table>
 <table class="table table-hover" id="report">
-    <thead>
+    <thead style="position: sticky; top: 0">
     <tr>
         <th class="table-primary" scope="col">Operation</th>
         {% for d in devices -%}
@@ -56,7 +57,18 @@
         {% for d in devices -%}
         <td class="table-secondary" >{{results[d]|length}}</td>
         {% endfor %}
-
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">Trusted op counter (passrate=100%):</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{trusted_ops[d]}}</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">Tested op counter:</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{general_test_count[d]}}</td>
+        {% endfor %}
     </tr>
         <tr>
         <th class="table-secondary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
@@ -77,7 +89,7 @@
         {% if op in verified_operations -%}
             <th scope="row">{{ op }}</th>
         {% else -%}
-            <th  class="table-info" scope="row">{{ op }}</th>
+        <th scope="row"><span style="color: red">{{ op }}</span></th>
         {% endif -%}
         {% for d in devices -%}
         {% if op in results[d] -%}

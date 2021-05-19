@@ -11,35 +11,38 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
+#include "ie_api.h"
 #include "ie_blob.h"
-#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 
-IE_SUPPRESS_DEPRECATED_START
-class IVariableState;
-IE_SUPPRESS_DEPRECATED_END
+namespace details {
+class SharedObjectLoader;
+}
+
+class IVariableStateInternal;
 
 /**
  * @brief C++ exception based error reporting wrapper of API class IVariableState
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    IE_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<IVariableState> actual = nullptr;
-    IE_SUPPRESS_DEPRECATED_END
-    details::SharedObjectLoader::Ptr plugin = nullptr;
+    std::shared_ptr<IVariableStateInternal> _impl = nullptr;
+    std::shared_ptr<details::SharedObjectLoader> _so = nullptr;
+
+    /**
+     * @brief Constructs VariableState from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
+     * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
+     */
+    VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
+                  const std::shared_ptr<details::SharedObjectLoader>& so);
+
+    friend class InferRequest;
+    friend class ExecutableNetwork;
 
 public:
-    IE_SUPPRESS_DEPRECATED_START
-    /**
-     * @brief constructs VariableState from the initialized std::shared_ptr
-     * @param pState Initialized shared pointer
-     * @param plg Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
-     */
-    explicit VariableState(std::shared_ptr<IVariableState> pState, details::SharedObjectLoader::Ptr plg = {});
-    IE_SUPPRESS_DEPRECATED_END
-
     /**
      * @copybrief IVariableState::Reset
      *

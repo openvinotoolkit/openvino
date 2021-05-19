@@ -552,7 +552,7 @@ namespace ngraph
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-}
+} // namespace ngraph
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
@@ -947,6 +947,13 @@ bool Node::evaluate(const HostTensorVector& output_values,
                     const HostTensorVector& input_values) const
 {
     return false;
+}
+
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values,
+                    const EvaluationContext& evaluationContext) const
+{
+    return evaluate(output_values, input_values);
 }
 
 bool Node::evaluate_lower(const HostTensorVector& output_values) const

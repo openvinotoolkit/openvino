@@ -67,6 +67,21 @@ public:
                                           const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
+     * @brief Creates an executable network from a model file.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param modelPath Path to model
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+                                          const std::map<std::string, std::string>& config) = 0;
+
+    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
@@ -99,6 +114,14 @@ public:
      * @return Metric value corresponding to metric key.
      */
     virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
+
+    /**
+     * @brief Returns devices available for neural networks inference
+     *
+     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * If there more than one device of specific type, they are enumerated with .# suffix.
+     */
+    virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
      * @brief Default virtual destructor

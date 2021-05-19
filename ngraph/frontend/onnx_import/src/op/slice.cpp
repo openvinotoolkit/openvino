@@ -15,14 +15,6 @@
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 
-namespace
-{
-    int64_t get_valid_array_idx(int64_t idx, int64_t last_idx)
-    {
-        return (idx >= 0) ? std::min(idx, last_idx) : std::max<int64_t>(0, last_idx + idx);
-    }
-}
-
 namespace ngraph
 {
     namespace onnx_import
@@ -62,7 +54,7 @@ namespace ngraph
                 ///       value) or ignored (1 value)
                 ///
                 /// \param[in] axes                 Axes input of ONNX Slice operator
-                /// \param[in] slice_indices_length Lenght of Slice indices
+                /// \param[in] slice_indices_length Length of Slice indices
                 ///                                 (starts, ends, steps)
                 ///
                 /// \return Mask attribute in format required by StridedSlice:v1
@@ -163,7 +155,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {

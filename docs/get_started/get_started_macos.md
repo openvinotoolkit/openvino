@@ -95,9 +95,10 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Image Classification demo script</strong></summary>
 
-To run the script to perform inference on a CPU:
+To run the script to view the sample image and perform inference on the CPU:
 
 ```sh
+open car.png
 ./demo_squeezenet_download_convert_run.sh
 ```
 
@@ -171,7 +172,7 @@ The script:
 To run the script that performs inference on a CPU:
 
 ```sh
-./demo_squeezenet_download_convert_run.sh
+./demo_benchmark_app.sh
 ```
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>
@@ -210,7 +211,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader). 
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader). 
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, and other resources.
 - Train your own model.
         
@@ -312,6 +313,8 @@ Models in the Intermediate Representation format always include a pair of `.xml`
 - **REQUIRED:** `model_name.xml`
 - **REQUIRED:** `model_name.bin`
 
+The conversion may also create a `model_name.mapping` file, but it is not needed for running inference.
+
 This guide uses the public SqueezeNet 1.1 Caffe\* model to run the Image Classification Sample. See the example to download a model in the <a href="#download-models">Download Models</a> section to learn how to download this model.
 
 The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to the IR. 
@@ -376,7 +379,7 @@ To run the **Image Classification** code sample with an input image on the IR:
    ```
 3. Run the code sample executable, specifying the input media file, the IR of your model, and a target device on which you want to perform inference:
    ```sh
-   classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+   ./classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
    ```
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
@@ -473,6 +476,24 @@ source /opt/intel/openvino_2021/bin/setupvars.sh
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
 
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.13 or later installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos_README) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
+build_samples.sh
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+build_demos.sh
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `~/inference_engine_samples_build/intel64/Release`
+* `~/inference_engine_cpp_samples_build/intel64/Release`
+* `~/inference_engine_demos_build/intel64/Release`
+
 Template to call sample code or a demo application:
 
 ```sh
@@ -482,8 +503,8 @@ Template to call sample code or a demo application:
 With the sample information specified, the command might look like this:
 
 ```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos/object_detection_demo
+./object_detection_demo -i ~/Videos/catshow.mp4 -m ~/ir/fp32/mobilenet-ssd.xml -d CPU
 ```
 
 ## <a name="advanced-samples"></a> Advanced Demo Use 

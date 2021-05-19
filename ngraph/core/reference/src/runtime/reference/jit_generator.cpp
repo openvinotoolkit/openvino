@@ -159,6 +159,26 @@ namespace ngraph
             }
 
             template <>
+            void Generator::copy<int8_t>(const Xbyak::Reg64& dst,
+                                         const Xbyak::Reg64& src,
+                                         const Xbyak::Reg64& size)
+            {
+                push(rsi);
+                push(r15);
+
+                xor_(rsi, rsi);
+
+                foreach (rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+                    mov(r15b, byte[src + idx * sizeof(int8_t)]);
+                    mov(byte[dst + idx * sizeof(int8_t)], r15b);
+                })
+                    ;
+
+                pop(r15);
+                pop(rsi);
+            }
+
+            template <>
             void Generator::copy<uint16_t>(const Xbyak::Reg64& dst,
                                            const Xbyak::Reg64& src,
                                            const Xbyak::Reg64& size)
@@ -213,6 +233,6 @@ namespace ngraph
             {
                 copy<uint32_t>(dst, src, size);
             }
-        }
-    }
-}
+        } // namespace jit
+    }     // namespace runtime
+} // namespace ngraph

@@ -371,19 +371,21 @@ namespace {
 
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
-    // conv->relu->maxpooling
-    // changing it to conv->maxpooling->relu
+    // conv->activation->maxpooling
+    // changing it to conv->maxpooling->activation
     for (auto & l : *pLayers) {
         auto pool = LayerInfo(l);
         if (!pool.isMaxPooling()) continue;
 
         // don't reorder if pooling is 2D for CNN2D
         auto pooling = dynamic_cast<PoolingLayer*>(l.get());
-        if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
+        // todo: return the check for stride after it'll be fixed in MO for Kaldi models
+        if (pooling == nullptr || (is2D(pooling->_kernel))) continue;
 
         // checking prev layer type
-        auto activation = LayerInfo(CNNNetPrevLayer(l));
-        if (!activation.isActivation()) continue;
+        auto actLayer = CNNNetPrevLayer(l);
+        auto activation = LayerInfo(actLayer);
+        if (!activation.isActivation() || actLayer->insData.size() > 1) continue;
 
         // if activation came from convolution
         auto convolution = LayerInfo(CNNNetPrevLayer(static_cast<InferenceEngine::CNNLayer*>(activation)));
@@ -775,7 +777,39 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
 void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    auto createIdentityLayer = [quantized, this](const TensorDesc& tensorDesc) {
+        int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
+        auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
+        CNNLayerPtr activationLayer =
+            std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
+        CNNLayerPtr activationLayerWithQuant = quantized ?
+                                        InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
+                                        activationLayer;
+        auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), tensorDesc);
+        getCreatorLayer(dataPtr) = activationLayerWithQuant;
+        activationLayerWithQuant->outData.push_back(dataPtr);
+        return activationLayerWithQuant;
+    };
+
     for (auto & l : *pLayers) {
+        if (LayerInfo(l).isPooling()) {
+            // Identity should be inserted after 1D pooling if it's the last functional layer.
+            auto pooling = LayerInfo(l).as<PoolingLayer*>();
+            IE_ASSERT(pooling != nullptr);
+            if (is2D(pooling->_kernel)) continue;
+
+            auto hasNextFuncLayer = CNNNetHasNextLayerSkipCertain(l, 0, 0, [](CNNLayerPtr layer) {
+                return LayerInfo(layer).isNonFunctional();
+            });
+            if (hasNextFuncLayer) continue;
+
+            auto identityLayer = createIdentityLayer(l->outData[0]->getTensorDesc());
+            gnalog() << "Inserted "<< identityLayer->name << " after " << l->name << std::endl;
+
+            auto nextLayer = CNNNetCheckNextLayerSkipCertain(l, 0, 0, true, [](CNNLayerPtr layer) { return false; }).first;
+            CNNNetworkInsertLayer(l, nextLayer, identityLayer);
+        }
+
         for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
@@ -815,15 +849,6 @@ void InsertIdentityLayerPass::run() {
             if (reconnected)
                 continue;
 
-            int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
-            // actual insertion
-            auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
-
-            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
-
-            CNNLayerPtr activationLayer =
-                std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
-
             // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
             // detecting ins-data-idx
             size_t insDataIdx = std::numeric_limits<size_t>::max();
@@ -838,13 +863,10 @@ void InsertIdentityLayerPass::run() {
             }
 
             auto inputData = true_layer->insData[insDataIdx].lock();
+            auto identityLayer = createIdentityLayer(inputData->getTensorDesc());
 
-            auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
-            auto activationLayerWithQuant = quantized ?
-                                            InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
-                                            activationLayer;
-            getCreatorLayer(dataPtr) = activationLayerWithQuant;
-            activationLayerWithQuant->outData.push_back(dataPtr);
+            gnalog() << "Inserted "<< identityLayer->name << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
+
             // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
@@ -858,14 +880,14 @@ void InsertIdentityLayerPass::run() {
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("output_offset") != prev->params.end()) {
-                activationLayerWithQuant->params["output_offset"] = prev->params["output_offset"];
+                identityLayer->params["output_offset"] = prev->params["output_offset"];
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("original_num_rows") != prev->params.end()) {
-                activationLayerWithQuant->params["original_num_rows"] = prev->params["original_num_rows"];
+                identityLayer->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
+            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), identityLayer);
         }
     }
 }
@@ -1167,7 +1189,7 @@ void InsertConcatAligningFilterPass::run() {
                 getCreatorLayer(outData) = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
 
-                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant, invalid_data_idx, input_idx);
             }
             offset += outputSize;
         }
@@ -1660,6 +1682,10 @@ void BreakFusingOfOutputLayersPass::run() {
 #endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
+        /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
+         * since scaleshift layers will be inserted between the pooling and activations
+         */
+        if (LayerInfo(layer).isPooling()) continue;
         for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
@@ -1994,7 +2020,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst()) {
+        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
             return true;
         }
 
@@ -2119,7 +2145,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const or activation layer
+        // FQ Layer is fused only when previous layer is const, memory or activation layer
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();

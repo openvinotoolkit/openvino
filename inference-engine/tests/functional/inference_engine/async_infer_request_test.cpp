@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -74,10 +73,14 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
     ASSERT_THROW(req.SetCompletionCallback(f), InferenceEngine::Exception);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST(InferRequestCPPTests, throwsOnUninitializedCast) {
     InferRequest req;
     ASSERT_THROW((void)static_cast<IInferRequest::Ptr>(req), InferenceEngine::Exception);
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 TEST(InferRequestCPPTests, throwsOnUninitializedQueryState) {
     InferRequest req;

@@ -106,6 +106,6 @@ namespace ngraph
                 std::vector<int64_t> m_shrink_axis_mask;
                 std::vector<int64_t> m_ellipsis_mask;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

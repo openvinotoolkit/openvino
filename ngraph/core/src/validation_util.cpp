@@ -224,8 +224,45 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
     return output_shape;
 }
 
+void ngraph::validate_conv_params_spatial_dimensions(const Node* node,
+                                                     const size_t num_spatial_dims,
+                                                     const op::PadType auto_pad,
+                                                     Strides& strides,
+                                                     Strides& dilations,
+                                                     CoordinateDiff& pads_begin,
+                                                     CoordinateDiff& pads_end)
+{
+    if (strides.size() == 0)
+    {
+        strides = Strides(num_spatial_dims, 1);
+    }
+    if (dilations.size() == 0)
+    {
+        dilations = Strides(num_spatial_dims, 1);
+    }
+    if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID)
+    {
+        pads_begin = CoordinateDiff(num_spatial_dims, 0);
+    }
+    if (pads_end.size() == 0 || auto_pad == op::PadType::VALID)
+    {
+        pads_end = CoordinateDiff(num_spatial_dims, 0);
+    }
+    NODE_VALIDATION_CHECK(node,
+                          strides.size() == num_spatial_dims,
+                          "Strides should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          dilations.size() == num_spatial_dims,
+                          "Dilations should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          pads_begin.size() == num_spatial_dims &&
+                              pads_end.size() == num_spatial_dims,
+                          "Pads should be defined for all and only spatial features.");
+}
+
 PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
     const Node* node,
+    const Rank& result_ps_rank,
     const PartialShape& data_batch_pshape,
     const PartialShape& filters_pshape,
     const op::PadType auto_pad,
@@ -234,51 +271,12 @@ PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
     CoordinateDiff& pads_begin,
     CoordinateDiff& pads_end)
 {
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(
-        node,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-        "Data batch and filters inputs must have same rank. Got: ",
-        data_batch_pshape,
-        " and ",
-        filters_pshape);
-
     PartialShape result_shape = PartialShape::dynamic();
     if (result_ps_rank.is_static())
     {
-        const size_t num_spatial_dims = result_ps_rank.get_length() - 2;
-        if (strides.size() == 0)
-        {
-            strides = Strides(num_spatial_dims, 1);
-        }
-
-        if (dilations.size() == 0)
-        {
-            dilations = Strides(num_spatial_dims, 1);
-        }
-
-        if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID)
-        {
-            pads_begin = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        if (pads_end.size() == 0 || auto_pad == op::PadType::VALID)
-        {
-            pads_end = CoordinateDiff(num_spatial_dims, 0);
-        }
-
-        NODE_VALIDATION_CHECK(node,
-                              strides.size() == num_spatial_dims,
-                              "Strides should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(node,
-                              dilations.size() == num_spatial_dims,
-                              "Dilations should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(node,
-                              pads_begin.size() == num_spatial_dims &&
-                                  pads_end.size() == num_spatial_dims,
-                              "Pads should be defined for all and only spatial features.");
+        const auto num_spatial_dims = result_ps_rank.get_length() - 2;
+        validate_conv_params_spatial_dimensions(
+            node, num_spatial_dims, auto_pad, strides, dilations, pads_begin, pads_end);
 
         result_shape = PartialShape::dynamic(result_ps_rank);
         if (data_batch_pshape.rank().is_static())
@@ -485,8 +483,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              data_batch_shape.rank().get_length() >= 3 &&
-                                  data_batch_shape.rank().get_length() <= 5,
+                              (data_batch_shape.rank().get_length() >= 3 &&
+                               data_batch_shape.rank().get_length() <= 5),
                           "Data batch must have rank of at least 4 or 5 (one batch axis, ",
                           "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
@@ -582,7 +580,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // messages.
     std::stringstream ss;
     bool first = true;
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         if (!first)
         {
@@ -596,24 +594,30 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // Infer output element type.
     element::Type et_result{input_element_type};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               element::Type::merge(et_result, et_result, inp.m_element_type),
                               "Input element types do not match.");
     }
 
+    NODE_VALIDATION_CHECK(node,
+                          et_result.is_dynamic() || et_result.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          et_result);
+
     // Extract channel dimension from input shape.
     Dimension channel_dim{Dimension::dynamic()};
 
-    NODE_VALIDATION_CHECK(node,
-                          input_shape.is_dynamic() || input_shape.rank().get_length() >= 2,
-                          "Input argument must have rank of at least 2 (input argument shape: ",
-                          input_shape,
-                          ").");
-
-    if (input_shape.rank().is_static())
+    Rank input_rank = input_shape.rank();
+    if (input_rank.is_static())
     {
+        NODE_VALIDATION_CHECK(node,
+                              input_rank.get_length() >= 2,
+                              "Input argument must have rank of at least 2 (input argument shape: ",
+                              input_shape,
+                              ").");
+
         channel_dim = input_shape[1];
     }
 
@@ -621,7 +625,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // "channel_dim".
     PartialShape channel_shape{PartialShape::dynamic()};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               PartialShape::merge_into(channel_shape, inp.m_shape),
@@ -1235,7 +1239,7 @@ namespace
     }
 
     vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) { return {inputs.at(0)}; }
-}
+} // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 {
@@ -1258,14 +1262,15 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 
 void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                            const OutputVector& outputs)
+                            const OutputVector& outputs,
+                            const EvaluationContext& evaluation_context)
 {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
-        [&output_tensor_map](Node* node,
-                             const HostTensorVector& input_tensors) -> HostTensorVector {
+        [&output_tensor_map, &evaluation_context](
+            Node* node, const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
-            for (auto v : node->outputs())
+            for (const auto& v : node->outputs())
             {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end())
@@ -1278,7 +1283,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                     output_tensors.push_back(it->second);
                 }
             }
-            if (node->evaluate(output_tensors, input_tensors))
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context))
             {
                 return output_tensors;
             }
@@ -1287,7 +1292,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                 NGRAPH_CHECK(false, "Evaluation failed on ", node);
             }
         });
-    for (auto value : outputs)
+    for (const auto& value : outputs)
     {
         evaluator.evaluate(value);
     }

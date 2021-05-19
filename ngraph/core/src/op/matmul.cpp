@@ -256,7 +256,7 @@ namespace matmul
         }
         return rc;
     }
-} // namespace
+} // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

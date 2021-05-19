@@ -96,5 +96,5 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream&, const ngraph::descriptor::Tensor&);
-    }
-}
+    } // namespace descriptor
+} // namespace ngraph

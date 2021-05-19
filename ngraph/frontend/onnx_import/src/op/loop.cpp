@@ -61,7 +61,7 @@ namespace ngraph
                         }
                         return false;
                     }
-                }
+                } // namespace
 
                 OutputVector loop(const Node& node)
                 {
@@ -70,7 +70,15 @@ namespace ngraph
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
 
-                    const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
+                    std::map<std::size_t, std::string> loop_carried_dependencies_map;
+                    for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++)
+                    {
+                        loop_carried_dependencies_map[i + 2] =
+                            loop_carried_dependencies[i].get_node()->get_friendly_name();
+                    }
+
+                    const Subgraph& body_graph{
+                        node.get_subgraph_from_attribute("body", loop_carried_dependencies_map)};
                     auto body_outputs = body_graph.get_ng_outputs();
                     const auto& body_inputs = body_graph.get_ng_parameters();
 

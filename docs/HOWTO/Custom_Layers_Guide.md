@@ -51,65 +51,45 @@ To see the operations that are supported by each device plugin for the Inference
 
 ### Custom Operation Support for the Model Optimizer
 
-Model Optimizer model conversion pipeline is described in details in "Model Conversion Pipeline" section on the
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
-It is recommended to read that article first for a better understanding of the following material.
+Model Optimizer model conversion pipeline is described in detail in "Model Conversion Pipeline" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). It is best to read that article first for a better understanding of the following material.
 
-Model Optimizer provides extensions mechanism to support new operations and implement custom model transformations to
-generate optimized IR. This mechanism is described in the "Model Optimizer Extensions" section on the
+Model Optimizer provides an extensions mechanism to support new operations and implement custom model transformations to generate optimized IR. This mechanism is described in the "Model Optimizer Extensions" section of 
 [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
-Two types of the Model Optimizer extensions should be implemented to support custom operation at minimum:
-1. Operation class for a new operation. This class stores information about the operation, its attributes, shape
-inference function, attributes to be saved to an IR and some others internally used attributes. Refer to the
-"Model Optimizer Operation" section on the
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
-detailed instruction on how to implement it.
+Two types of the Model Optimizer extensions should be implemented to support custom operations, at a minimum:
+1. Operation class for a new operation. This class stores information about the operation, its attributes, shape inference function, attributes to be saved to an IR and some others internally used attributes. Refer to the "Model Optimizer Operation" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement it.
 2. Operation attributes extractor. The extractor is responsible for parsing framework-specific representation of the
 operation and uses corresponding operation class to update graph node attributes with necessary attributes of the
-operation. Refer to the "Operation Extractor" section on the
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
-detailed instruction on how to implement it.
+operation. Refer to the "Operation Extractor" section of
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement it.
 
-> **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered
-> in the "Graph Transformation Extensions" section on the
-> [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+> **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
 ## Custom Operations Extensions for the Inference Engine
 
-Inference Engine provides extensions mechanism to support new operations. This mechanism is described in the
-[Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+Inference Engine provides extensions mechanism to support new operations. This mechanism is described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
 
-Each device plugin includes a library of optimized implementations to execute known operations which must be extended to
-execute a custom operation. The custom operation extension is implemented according to the target device:
+Each device plugin includes a library of optimized implementations to execute known operations which must be extended to execute a custom operation. The custom operation extension is implemented according to the target device:
 
 - Custom Operation CPU Extension
    - A compiled shared library (`.so` or `.dll`) needed by the CPU Plugin for executing the custom operation
    on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
    details.
 - Custom Operation GPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with a
-   operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the
-   [How to Implement Custom GPU Operations](../IE_DG/Extensibility_DG/GPU_Kernel.md) for more details.
+   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with an operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the [How to Implement Custom GPU Operations](../IE_DG/Extensibility_DG/GPU_Kernel.md) for more details.
 - Custom Operation VPU Extension
-   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with a
-   operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to the
-   [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
+   - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with an  operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
 
-Also, it is necessary to implement nGraph custom operation according to the
-[Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
-operation and correctly infer output tensors shape and type.
+Also, it is necessary to implement nGraph custom operation according to [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
+operation and correctly infer output tensor shape and type.
 
 ## Enabling Magnetic Resonance Image Reconstruction Model
-This chapter provides a step-by-step instruction on how to enable the magnetic resonance image reconstruction model
-implemented in the [repository](https://github.com/rmsouza01/Hybrid-CS-Model-MRI/) using a custom operation on CPU. The
-example is prepared for a model generated from the repository with hash `2ede2f96161ce70dcdc922371fe6b6b254aafcc8`.
+This chapter provides step-by-step instructions on how to enable the magnetic resonance image reconstruction model implemented in the [repository](https://github.com/rmsouza01/Hybrid-CS-Model-MRI/) using a custom operation on CPU. The example is prepared for a model generated from the repository with hash `2ede2f96161ce70dcdc922371fe6b6b254aafcc8`.
 
 ### Download and Convert the Model to a Frozen TensorFlow\* Model Format
-The original pre-trained model is provided in the hdf5 format which is not supported by OpenVINO directly and needs to
-be converted to TensorFlow\* frozen model format first.
+The original pre-trained model is provided in the hdf5 format which is not supported by OpenVINO directly and needs to be converted to TensorFlow\* frozen model format first.
 
-1. Download repository `https://github.com/rmsouza01/Hybrid-CS-Model-MRI`:<br
+1. Download repository `https://github.com/rmsouza01/Hybrid-CS-Model-MRI`:<br>
 ```bash
     git clone https://github.com/rmsouza01/Hybrid-CS-Model-MRI
     git checkout 2ede2f96161ce70dcdc922371fe6b6b254aafcc8
@@ -159,6 +139,8 @@ for more details and command line parameters used for the model conversion.
 ```bash
 ./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
 ```
+> **NOTE:** This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
+> the OpenVINO supports this model out of the box.
 
 Model Optimizer produces the following error:
 ```bash
@@ -231,15 +213,11 @@ model. The implementation of the Model Optimizer operation should be saved to `m
 
 The attribute `inverse` is a flag specifying type of the FFT to apply: forward or inverse.
 
-See the "Model Optimizer Operation" section on the
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
-detailed instruction on how to implement the operation.
+See the "Model Optimizer Operation" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement the operation.
 
 Now it is necessary to implement extractor for the "IFFT2D" operation according to the
-"Operation Extractor" section on the 
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). The
-following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of  them is used
-in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
+"Operation Extractor" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). The
+following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of  them is used in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
 
 @snippet FFT_ext.py fft_ext:extractor
 
@@ -255,8 +233,7 @@ consumed with the "Complex" operation to produce a tensor of complex numbers. Th
 operations can be removed so the "FFT" operation will get a real value tensor encoding complex numbers. To achieve this
 we implement the front phase transformation which searches for a pattern of two "StridedSlice" operations with specific
 attributes producing data to "Complex" operation and removes it from the graph. Refer to the
-"Pattern-Defined Front Phase Transformations" section on the
-[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for more
+"Pattern-Defined Front Phase Transformations" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for more
 information on how this type of transformation works. The code snippet should be saved to the file
 `mo_extensions/front/tf/Complex.py`.
 
@@ -284,7 +261,7 @@ Now it is possible to convert the model using the following command line:
 ./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
 ```
 
-The sub-graph corresponding to the originally non-supported one is depicted on the image below:
+The sub-graph corresponding to the originally non-supported one is depicted in the image below:
 
 ![Converted sub-graph](img/converted_subgraph.png)
 
@@ -293,8 +270,7 @@ The sub-graph corresponding to the originally non-supported one is depicted on t
 
 ### Inference Engine Extension Implementation
 Now it is necessary to implement the extension for the CPU plugin with operation "FFT" introduced previously. The code
-below is based on the template extension described on the
-[Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+below is based on the template extension described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
 
 #### CMake Build File
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
@@ -334,7 +310,7 @@ The last step is to create an extension library "extension.cpp" and "extension.h
 operation for the CPU plugin. The code of  the library is described in the [Extension Library](../IE_DG/Extensibility_DG/Extension.md).
 
 ### Building and Running the Custom Extension
-In order to build the extension run the following:<br>
+To build the extension, run the following:<br>
 ```bash
 mkdir build && cd build
 source /opt/intel/openvino_2021/bin/setupvars.sh

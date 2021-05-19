@@ -55,7 +55,7 @@ namespace
         axes_known = true;
         return std::make_pair(axes_known, broadcast_axes);
     }
-}
+} // namespace
 
 std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const
 {
@@ -126,7 +126,7 @@ namespace
         }
         return result_shape;
     }
-}
+} // namespace
 
 bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs,
                                            const HostTensorVector& inputs) const
@@ -232,7 +232,7 @@ namespace
         }
         return broadcast_mode;
     }
-}
+} // namespace
 
 constexpr NodeTypeInfo op::v1::Broadcast::type_info;
 

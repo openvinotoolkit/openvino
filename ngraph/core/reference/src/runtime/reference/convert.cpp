@@ -16,6 +16,11 @@ namespace ngraph
                 template <typename src_t, typename dst_t>
                 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
 
+                template <typename src_t, typename dst_t>
+                void jit_convert_vec_prepare(jit::Generator&)
+                {
+                }
+
                 template <>
                 void jit_convert_vec<uint8_t, float16>(jit::Generator& gen,
                                                        const Xbyak::RegExp& src,
@@ -30,6 +35,7 @@ namespace ngraph
                     gen.vpmovzxbd(i32vec, u8vec);
                     gen.vcvtdq2ps(fvec, i32vec);
                     gen.vcvtps2ph(f16vec, fvec, 0);
+                    gen.vzeroupper();
                     gen.movdqu(gen.xword[dst], f16vec);
                 }
 
@@ -46,6 +52,61 @@ namespace ngraph
                     gen.vmovups(gen.yword[dst], f32vec);
                 }
 
+                template <>
+                void jit_convert_vec_prepare<float, int8_t>(jit::Generator& gen)
+                {
+                    auto order = gen.ymm1;
+                    auto addr = gen.r15;
+
+                    static const int8_t offsets[32] = {0,  4,  8,  12, -1, -1, -1, -1, -1, -1, -1,
+                                                       -1, -1, -1, -1, -1, -1, -1, -1, -1, 0,  4,
+                                                       8,  12, -1, -1, -1, -1, -1, -1, -1, -1};
+
+                    gen.mov(addr, (size_t)offsets);      // get offsets[] address
+                    gen.vmovdqu(order, gen.yword[addr]); // save offsets[] to ymm register
+                }
+
+                template <>
+                void jit_convert_vec<float, int8_t>(jit::Generator& gen,
+                                                    const Xbyak::RegExp& src,
+                                                    const Xbyak::RegExp& dst)
+                {
+                    auto order = gen.ymm1;
+                    auto p32vec = gen.ymm2;
+                    auto p32vec_lo = gen.xmm2;
+                    auto p32vec_hi = gen.xmm3;
+
+                    gen.vcvtps2dq(p32vec, gen.yword[src]); // convert 8 floats to 8 ints
+                    gen.vpshufb(p32vec, p32vec, order); // Shuffle the bytes according to the order
+                    gen.vextracti128(p32vec_hi, p32vec, 1);    // extract upper part of p32vec
+                    gen.vpor(p32vec_lo, p32vec_lo, p32vec_hi); // p32vec_lo = p32vec_lo | p32vec_hi
+                    gen.movq(gen.qword[dst], p32vec_lo);       // save the result
+                }
+
+                template <>
+                void jit_convert_vec_prepare<float16, int8_t>(jit::Generator& gen)
+                {
+                    jit_convert_vec_prepare<float, int8_t>(gen);
+                }
+
+                template <>
+                void jit_convert_vec<float16, int8_t>(jit::Generator& gen,
+                                                      const Xbyak::RegExp& src,
+                                                      const Xbyak::RegExp& dst)
+                {
+                    auto order = gen.ymm1;
+                    auto p32vec = gen.ymm2;
+                    auto p32vec_lo = gen.xmm2;
+                    auto p32vec_hi = gen.xmm3;
+
+                    gen.vcvtph2ps(p32vec, gen.xword[src]); // convert 8 fp16's to 8 floats
+                    gen.vcvtps2dq(p32vec, p32vec);         // convert 8 floats to 8 ints
+                    gen.vpshufb(p32vec, p32vec, order); // Shuffle the bytes according to the order
+                    gen.vextracti128(p32vec_hi, p32vec, 1);    // extract upper part of p32vec
+                    gen.vpor(p32vec_lo, p32vec_lo, p32vec_hi); // p32vec_lo = p32vec_lo | p32vec_hi
+                    gen.movq(gen.qword[dst], p32vec_lo);       // save the result
+                }
+
                 class jit_convert_array : public jit::Generator
                 {
                     typedef struct context
@@ -60,6 +121,7 @@ namespace ngraph
                         void (*convert_vec)(jit::Generator&,
                                             const Xbyak::RegExp&,
                                             const Xbyak::RegExp&);
+                        void (*prepare)(jit::Generator&);
                     } context_t;
 
                     jit_convert_array(const context_t& ctx)
@@ -75,6 +137,8 @@ namespace ngraph
                         Label tail, exit;
 
                         preamble();
+
+                        ctx.prepare(*this);
 
                         mov(reg_src, ptr[param + offsetof(args_t, src)]);
                         mov(reg_dst, ptr[param + offsetof(args_t, out)]);
@@ -136,7 +200,8 @@ namespace ngraph
                             static const jit_convert_array::context_t context{
                                 {sizeof(src_t), &jit::Generator::copy<src_t>},
                                 {sizeof(dst_t), &jit::Generator::copy<dst_t>},
-                                jit_convert_vec<src_t, dst_t>};
+                                jit_convert_vec<src_t, dst_t>,
+                                jit_convert_vec_prepare<src_t, dst_t>};
 
                             static jit_convert_array generator(context);
 
@@ -145,45 +210,50 @@ namespace ngraph
                         return nullptr;
                     }
                 };
+
+                template <typename TI, typename TO>
+                void convert_impl(const TI* arg, TO* out, size_t count)
+                {
+                    auto converter = jit_convert_array::get<TI, TO>();
+
+                    if (converter)
+                    {
+                        jit_convert_array::args_t args = {arg, out, count};
+                        converter(&args);
+                    }
+                    else
+                    {
+                        for (size_t i = 0; i < count; ++i)
+                        {
+                            out[i] = static_cast<TO>(arg[i]);
+                        }
+                    }
+                }
             } // namespace
 
             template <>
             void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count)
             {
-                auto converter = jit_convert_array::get<uint8_t, float16>();
-
-                if (converter)
-                {
-                    jit_convert_array::args_t args = {arg, out, count};
-                    converter(&args);
-                }
-                else
-                {
-                    for (size_t i = 0; i < count; ++i)
-                    {
-                        out[i] = static_cast<float16>(arg[i]);
-                    }
-                }
+                convert_impl(arg, out, count);
             }
 
             template <>
             void convert<float16, float>(const float16* arg, float* out, size_t count)
             {
-                auto converter = jit_convert_array::get<float16, float>();
-
-                if (converter)
-                {
-                    jit_convert_array::args_t args = {arg, out, count};
-                    converter(&args);
-                }
-                else
-                {
-                    for (size_t i = 0; i < count; ++i)
-                    {
-                        out[i] = static_cast<float>(arg[i]);
-                    }
-                }
+                convert_impl(arg, out, count);
             }
-        }
-    }
-}
+
+            template <>
+            void convert<float, int8_t>(const float* arg, int8_t* out, size_t count)
+            {
+                convert_impl(arg, out, count);
+            }
+
+            template <>
+            void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count)
+            {
+                convert_impl(arg, out, count);
+            }
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

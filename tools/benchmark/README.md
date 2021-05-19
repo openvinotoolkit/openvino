@@ -142,6 +142,11 @@ Options:
                         parameters. Please note, command line parameters have
                         higher priority then parameters from configuration
                         file.
+  -cdir CACHE_DIR, --cache_dir CACHE_DIR
+                        Optional. Enable model caching to specified directory
+  -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
+                        Optional. Loads model from file directly without
+                        read_network.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

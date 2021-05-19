@@ -234,7 +234,7 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
 namespace ngraph
 {
     template <>
-    EnumNames<op::DepthToSpace::DepthToSpaceMode>&
+    NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>&
         EnumNames<op::DepthToSpace::DepthToSpaceMode>::get()
     {
         static auto enum_names = EnumNames<op::DepthToSpace::DepthToSpaceMode>(
@@ -250,7 +250,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::DepthToSpace::DepthToSpaceMode op::DepthToSpace::mode_from_string(const std::string& mode) const
 {

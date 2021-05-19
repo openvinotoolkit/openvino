@@ -11,7 +11,6 @@
 #include <ie_plugin_config.hpp>
 
 #include "tests_common.hpp"
-#include "tests_common_func.hpp"
 #include "format_reader_ptr.h"
 #include "single_layer_common.hpp"
 
@@ -24,8 +23,6 @@
 #include <ngraph/partial_shape.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
-
-#include "ie_parallel.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -429,7 +426,7 @@ TEST_P(RandomROITest, PreprocRandomROITest)
         if (_isAsync)
         {
             req.StartAsync();
-            req.Wait(IInferRequest::WaitMode::RESULT_READY);
+            req.Wait(InferRequest::WaitMode::RESULT_READY);
         }
         else
         {
@@ -534,7 +531,7 @@ TEST_P(CropResizeTest, resizeTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -570,7 +567,7 @@ TEST_P(CropResizeTest, resizeAfterLoadTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -652,7 +649,7 @@ TEST_P(CropResizeTest, cropRoiTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -771,7 +768,7 @@ TEST_P(BatchResizeTest, batchTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -911,7 +908,7 @@ TEST_P(DynamicBatchResizeTest, dynamicBatchTest) {
     req.SetBatch(batch_size);
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -999,7 +996,7 @@ TEST_P(ReorderTest, reorderTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -1147,7 +1144,7 @@ TEST_P(NV12ColorConvertTest, NV12Test) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
