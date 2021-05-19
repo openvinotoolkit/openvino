@@ -233,9 +233,7 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
             callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::BF16:
-            LayerTestsCommon::Compare<ngraph::bfloat16, ngraph::bfloat16>(
-                    reinterpret_cast<const ngraph::bfloat16 *>(expected.second.data()),
-                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
+            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold);
             break;
         case InferenceEngine::Precision::FP16:
             callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold);
