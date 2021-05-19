@@ -34,14 +34,16 @@ struct gather : public primitive_base<gather> {
     /// @param idx Input indexes primitive id.
     /// @param axis Gathering axis.
     /// @param output_shape Output shape.
+    /// @param batch_dim Batch_dim
     gather(const primitive_id& id,
            const primitive_id& dict,
            const primitive_id& idx,
            const gather_axis axis,
            const format& output_format,
            const tensor& output_shape,
+           const int64_t batch_dim = 0,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_format(output_format), output_shape(output_shape) {}
+        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_format(output_format), output_shape(output_shape), batch_dim(batch_dim) {}
 
     /// @brief Gathering axis
     gather_axis axis;
@@ -49,6 +51,8 @@ struct gather : public primitive_base<gather> {
     format output_format;
     /// @brief Gather output shape
     tensor output_shape;
+    /// @brief Gathering batch_dim
+    int64_t batch_dim;
 };
 /// @}
 /// @}
