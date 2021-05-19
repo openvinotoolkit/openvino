@@ -486,16 +486,6 @@ namespace ngraph
                 std::vector<int64_t> lengths_except_given_axis(const std::vector<int64_t>& v,
                                                                int64_t axis)
                 {
-//                     std::vector<int64_t> result;
-//                     int64_t num_of_elems = static_cast<int64_t>(v.size());
-//                     for (int64_t i = 0; i < num_of_elems; ++i)
-//                     {
-//                         if (i != axis)
-//                         {
-//                             result.push_back(v[i]);
-//                         }
-//                     }
-//                     return result;
                     int64_t num_of_elems = static_cast<int64_t>(v.size());
                     if (v.empty() || axis < 0 || axis >= num_of_elems)
                     {
