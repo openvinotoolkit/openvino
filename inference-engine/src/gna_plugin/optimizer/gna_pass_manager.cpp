@@ -1189,7 +1189,7 @@ void InsertConcatAligningFilterPass::run() {
                 getCreatorLayer(outData) = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
 
-                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant, invalid_data_idx, input_idx);
             }
             offset += outputSize;
         }
