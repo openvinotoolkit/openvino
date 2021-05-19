@@ -12,9 +12,9 @@
 #include <auto_plugin/auto_config.hpp>
 #include <ie_core.hpp>
 #include <multi-device/multi_device_config.hpp>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "compilation_context.hpp"
@@ -23,6 +23,7 @@
 #include "ie_cache_manager.hpp"
 #include "ie_cache_guard.hpp"
 #include "ie_itt.hpp"
+#include "file_utils.h"
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
