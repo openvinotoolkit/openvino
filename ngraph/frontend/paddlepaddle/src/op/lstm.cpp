@@ -196,7 +196,9 @@ namespace ngraph
                     auto prev_inputs = node.get_ng_inputs("Input");
                     Output<Node> prev_output = prev_inputs[0];
                     LSTMAttributes attrs(node);
-                    Output<Node> Y_h, Y_c;
+                    OutputVector final_h;
+                    OutputVector final_c;
+                    auto axis_const = std::make_shared<opset6::Constant>(element::i64, Shape{}, 0);
                     for (int i = 0; i < attrs.m_layers; i++)
                     {
                         LSTMNgInputMap input_map(node, prev_output, i);
@@ -216,12 +218,17 @@ namespace ngraph
                             opset6::Constant::create(element::i64, Shape{3}, {0, 0, -1});
                         prev_output =
                             std::make_shared<opset6::Reshape>(prev_output, out_shape, true);
-                        Y_h = lstm_sequence->output(1);
-                        Y_c = lstm_sequence->output(2);
+
+                        final_h.push_back(
+                            builder::opset1::reorder_axes(lstm_sequence->output(1), {1, 0, 2}));
+                        final_c.push_back(
+                            builder::opset1::reorder_axes(lstm_sequence->output(2), {1, 0, 2}));
                     }
+
                     NamedOutputs named_outputs;
                     named_outputs["Out"] = {prev_output};
-                    named_outputs["State"] = {Y_h, Y_c};
+                    named_outputs["State"] = {std::make_shared<opset6::Concat>(final_h, 0),
+                                              std::make_shared<opset6::Concat>(final_c, 0)};
                     return named_outputs;
                 }
 
