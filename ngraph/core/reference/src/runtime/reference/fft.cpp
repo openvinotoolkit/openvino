@@ -502,7 +502,7 @@ namespace ngraph
                         return v;
                     }
                     auto result = v;
-                    v.erase(v.begin() + axis);
+                    result.erase(result.begin() + axis);
                     return result;
                 }
             } // namespace
