@@ -178,7 +178,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Select", Select},
         { "ShuffleChannels", ShuffleChannels},
         { "DFT", DFT},
-        { "IDFT", DFT}
+        { "IDFT", DFT},
         { "Abs", Math},
         { "Acos", Math},
         { "Acosh", Math},
@@ -201,7 +201,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Sinh", Math},
         { "SoftPlus", Math},
         { "Softsign", Math},
-        { "Tan", Math}
+        { "Tan", Math},
 };
 
 Type TypeFromName(const std::string type) {

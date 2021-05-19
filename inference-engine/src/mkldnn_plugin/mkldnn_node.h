@@ -92,8 +92,8 @@ enum Type {
     Roll,
     Reference,
     ShuffleChannels,
-    DFT
-    Math
+    DFT,
+    Math,
 };
 
 Type TypeFromName(const std::string type);
