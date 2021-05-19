@@ -1599,14 +1599,14 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
 
         const auto isSubnormal = [](const float value) {
             const uint32_t *u32data = reinterpret_cast<const uint32_t*>(&value);
-            return (*u32data) && ((*u32data) & (0xFF << 23)) == 0;
+            return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
         for (int i = 0; i < newInputScale.size(); i++) {
             float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
 
             newInputScale[i] = isc * scalesBuffer[i];
-            if (std::abs(newInputScale[i]) < std::numeric_limits<float>::min()) {
+            if (isSubnormal(newInputScale[i])) {
                 newInputScale[i] = 0.f;
                 // zero value have to be shifted if it's not in input range
                 float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
@@ -1625,7 +1625,7 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
             float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
 
             newInputShift[i] = ish + shiftsBuffer[i] * isc + zeroShift[i];
-            if (std::abs(newInputShift[i]) < std::numeric_limits<float>::min()) {
+            if (isSubnormal(newInputShift[i])) {
                 newInputShift[i] = 0.f;
             }
         }

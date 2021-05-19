@@ -132,9 +132,6 @@ ngraph::matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
         new_ops.push_back(last.get_node_shared_ptr());
 
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
-        new_ops.push_back(last.get_node_shared_ptr());
-
         // if convolution is followed by add we need to replace add before output reshape to fuse conv+bias on plug-in side
         std::shared_ptr<ngraph::Node> addToReplace = nullptr;
         std::shared_ptr<ngraph::Node> reshapedAdd = nullptr;
@@ -152,7 +149,7 @@ ngraph::matcher_pass_callback get_callback() {
                     newBiasShape.push_back(1);
                     auto newBias = ngraph::op::util::reshapeTo(addToReplace->input_value(1), newBiasShape);
                     reshapedAdd = std::make_shared<ngraph::opset1::Add>(last, newBias);
-                    reshapedAdd->set_friendly_name(addToReplace->get_friendly_name());
+                    reshapedAdd->set_friendly_name(addToReplace->get_friendly_name() + "/new");
                     biasOps.push_back(newBias);
                     biasOps.push_back(reshapedAdd);
                 }
@@ -168,6 +165,7 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         last = ngraph::op::util::reshapeTo(last, output_shape);
+        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
         ngraph::replace_node(node, last.get_node_shared_ptr());
         ngraph::copy_runtime_info(node, new_ops);
         return true;

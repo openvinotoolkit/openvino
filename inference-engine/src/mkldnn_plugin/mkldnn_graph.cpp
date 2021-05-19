@@ -212,7 +212,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
             const auto &input = op->input_value(0);
-            auto name = *input.get_tensor().get_names().begin();
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (name.empty()) {
                 name = ngraph::op::util::create_ie_output_name(input);
             }

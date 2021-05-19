@@ -100,14 +100,6 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const auto fusingPRelu1D = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-    {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-        auto shape = inpNode->get_shape();
-        ngraph::Shape newShape({shape[1]});
-        auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
-        return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
-    }, "PRelu1D"}}), {"PRelu"}};
-
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
