@@ -296,6 +296,37 @@ class Port:
                 fw_names += get_tensor_names_list(out_node.attrs())
         return fw_names
 
+    def get_tensor_debug_info(self, port_renumber: bool = False):
+        def get_tensor_debug_info_from_attrs(attrs):
+            tensor_names_list = []
+            if 'fw_tensor_debug_info' in attrs:
+                if attrs['fw_tensor_debug_info'] is None:
+                    return tensor_names_list
+                else:
+                    return attrs['fw_tensor_debug_info']
+            return tensor_names_list
+
+        assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
+
+        fw_debug_info = []
+        if self.node.graph.stage == 'front':
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                fw_debug_info += get_tensor_debug_info_from_attrs(out_edge)
+        else:
+            # before port renumbering we use sequential numbering
+            node_idx = self.idx
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
+
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                fw_debug_info += get_tensor_debug_info_from_attrs(out_node.attrs())
+        return fw_debug_info
+
     def disconnect(self):
         if self.type == 'out':
             consumer_ports = self.get_destinations()
