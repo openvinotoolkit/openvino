@@ -26,9 +26,6 @@ std::vector<std::string> disabledTestPatterns() {
             ".*PreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
-            // TODO: Issue: 41461
-            R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-            R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
             // TODO: Issue: 43511
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",

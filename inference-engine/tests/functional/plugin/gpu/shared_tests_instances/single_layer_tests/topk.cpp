@@ -33,7 +33,6 @@ const std::vector<ngraph::opset4::TopK::Mode> modes = {
 };
 
 const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
-        ngraph::opset4::TopK::SortType::NONE,
         ngraph::opset4::TopK::SortType::SORT_INDICES,
         ngraph::opset4::TopK::SortType::SORT_VALUES,
 };
