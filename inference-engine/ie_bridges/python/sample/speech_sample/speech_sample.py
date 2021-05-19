@@ -29,11 +29,11 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Read reference score file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL, GNA_AUTO, '
-                      'GNA_HW, GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable. '
+                      'GNA_HW, GNA_SW, GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1)')
+    args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1).')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
-                      help='Optional. Weight bits for quantization: 8 or 16 (default 16)')
+                      help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
