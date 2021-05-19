@@ -23,8 +23,8 @@ public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork LoadNetwork(const std::string& modelPath,
-                                                   const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+                                                                 const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;

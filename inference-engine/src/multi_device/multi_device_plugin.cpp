@@ -143,11 +143,10 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 }
 
 // Is called only when caching is enabled
-InferenceEngine::ExecutableNetwork MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+    InferenceEngine::IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                            const std::map<std::string, std::string>& config) {
     CNNNetwork network;
-    auto res = LoadExeNetworkImpl(modelPath, network, config);
-    return GetCore()->ToExecutableNetwork(res, GetName());
+    return LoadExeNetworkImpl(modelPath, network, config);
 }
 
 ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
@@ -178,7 +177,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     multiNetworkConfig.insert(*priorities);
 
-    DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
+    DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
@@ -217,7 +216,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     for (auto n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=
-                        n.second.GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+                        n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
             } catch (...) {
             }

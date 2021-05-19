@@ -15,7 +15,7 @@
 
 #include <ie_parameter.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp/ie_executable_network.hpp>
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
 #include "threading/ie_itask_executor.hpp"
 
@@ -63,8 +63,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
-                                          const std::map<std::string, std::string>& config = {}) = 0;
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -78,8 +78,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                          const std::map<std::string, std::string>& config) = 0;
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -89,17 +89,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
-                                            const std::map<std::string, std::string>& config = {}) = 0;
-
-    /**
-     * @brief Helper function to create an executable network from an internal implementation loaded by plugin
-     * @param impl Internal executable network implementation
-     * @param deviceName Name of device load executable network on
-     * @return An executable network reference
-     */
-    virtual ExecutableNetwork ToExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>& impl,
-                                                  const std::string& deviceName) const = 0;
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+                                                      const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

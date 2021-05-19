@@ -49,7 +49,7 @@ MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, s
     }
 }
 
-InferenceEngine::ExecutableNetwork
+InferenceEngine::IExecutableNetworkInternal::Ptr
 MockPlugin::LoadNetwork(const std::string &modelPath,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
