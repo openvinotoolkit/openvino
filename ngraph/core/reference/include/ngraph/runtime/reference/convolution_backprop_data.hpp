@@ -67,8 +67,7 @@ namespace ngraph
                                         for (int i_x = 0; i_x < input_3d[2]; ++i_x)
                                         {
                                             input_zeros.push_back(
-                                                in[offset_channel + i_x + offset_i_y +
-                                                   offset_i_z]);
+                                                in[offset_channel + i_x + offset_i_y + offset_i_z]);
 
                                             if (i_x < input_3d[2] - 1)
                                             {
@@ -81,15 +80,21 @@ namespace ngraph
 
                                         if (i_y < input_3d[1] - 1)
                                         {
-                                            const auto new_size = output_3d[2] * (strides_3d[1] - 1);
-                                            input_zeros.insert(input_zeros.begin() + input_zeros.size(), new_size, 0);
+                                            const auto new_size =
+                                                output_3d[2] * (strides_3d[1] - 1);
+                                            input_zeros.insert(input_zeros.begin() +
+                                                                   input_zeros.size(),
+                                                               new_size,
+                                                               0);
                                         }
                                     }
 
                                     if (i_z < input_3d[0] - 1)
                                     {
-                                        const auto new_size = output_3d[1] * output_3d[2] * (strides_3d[0] - 1);
-                                        input_zeros.insert(input_zeros.begin() + input_zeros.size(), new_size, 0);
+                                        const auto new_size =
+                                            output_3d[1] * output_3d[2] * (strides_3d[0] - 1);
+                                        input_zeros.insert(
+                                            input_zeros.begin() + input_zeros.size(), new_size, 0);
                                     }
                                 }
                             }
@@ -108,12 +113,13 @@ namespace ngraph
                     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++)
                     {
                         int total_padding = strides[idx] * (in_spatial_shape[idx] - 1) +
-                                              dilations[idx] * (f_spatial_shape[idx] - 1) + 1 -
-                                              out_spatial_shape[idx] + output_padding[idx];
+                                            dilations[idx] * (f_spatial_shape[idx] - 1) + 1 -
+                                            out_spatial_shape[idx] + output_padding[idx];
                         size_t padded_dim = std::max<size_t>(total_padding, 0);
                         size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
-                        size_t out_spatial_dim =
-                            (in_spatial_shape[idx] - 1) * strides[idx] + filter_dilated_dim - padded_dim + output_padding[idx];
+                        size_t out_spatial_dim = (in_spatial_shape[idx] - 1) * strides[idx] +
+                                                 filter_dilated_dim - padded_dim +
+                                                 output_padding[idx];
                         infer_spatial_shape.push_back(out_spatial_dim);
                     }
                 }
@@ -297,8 +303,14 @@ namespace ngraph
                 Strides conv_filter_dilation = filter_dilation;
                 auto conv_input_data = delta_in;
 
-                validate_convolution_backprop_parameters(
-                    in_shape, filter_shape, out_shape, stride, filter_dilation, forward_in_pad_bellow, forward_in_pad_above, output_padding);
+                validate_convolution_backprop_parameters(in_shape,
+                                                         filter_shape,
+                                                         out_shape,
+                                                         stride,
+                                                         filter_dilation,
+                                                         forward_in_pad_bellow,
+                                                         forward_in_pad_above,
+                                                         output_padding);
 
                 // Note that we only reverse the spatial dimensions here (loop
                 // starts at 2)
@@ -332,9 +344,10 @@ namespace ngraph
                     {
                         for (size_t j = 0; j < filter_shape[0]; j++)
                         {
-                            const auto delta = temp_reversed.begin() + j * filter_shape[1] * filter_size +
-                                         i * filter_size;
-                            const auto out = reversed.begin() + i * filter_shape[0] * filter_size +  j * filter_size;
+                            const auto delta = temp_reversed.begin() +
+                                               j * filter_shape[1] * filter_size + i * filter_size;
+                            const auto out = reversed.begin() + i * filter_shape[0] * filter_size +
+                                             j * filter_size;
                             std::copy(delta, delta + filter_size, out);
                         }
                     }
