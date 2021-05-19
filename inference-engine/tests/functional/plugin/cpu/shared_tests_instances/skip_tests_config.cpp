@@ -74,6 +74,11 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
+        // TODO: iefode: fix BF16 tests (PR5624)
+        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
+        R"(.*smoke_PSROIPoolingAverageLayoutTest.*BF16.*)",
+        R"(.*smoke_PSROIPoolingBilinearLayoutTest.*BF16.*)",
+        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
     };
         // TODO: 54718 Accuracy mismatch
 #ifdef _WIN32
@@ -83,6 +88,10 @@ std::vector<std::string> disabledTestPatterns() {
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
               R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
         });
+#endif
+#ifdef __APPLE__
+        // TODO: Issue 55717
+        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,

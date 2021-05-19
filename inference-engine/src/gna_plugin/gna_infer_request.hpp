@@ -9,6 +9,7 @@
 #include <map>
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "cpp/ie_infer_request.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {

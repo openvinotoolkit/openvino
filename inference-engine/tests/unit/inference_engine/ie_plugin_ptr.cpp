@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_plugin_ptr.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include "details/ie_so_loader.h"
 
@@ -19,7 +18,7 @@ class PluginTest: public ::testing::Test {
 protected:
     unique_ptr<SharedObjectLoader> sharedObjectLoader;
     std::function<IInferencePlugin*(IInferencePlugin*)> createPluginEngineProxy;
-    InferenceEnginePluginPtr getPtr();
+    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> getPtr();
 
     std::string get_mock_engine_name() {
         std::string mockEngineName("mock_engine");
@@ -41,20 +40,20 @@ protected:
 };
 
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
-    ASSERT_NO_THROW(InferenceEnginePluginPtr ptr(get_mock_engine_name()));
+    ASSERT_NO_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr(get_mock_engine_name()));
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), Exception);
+    EXPECT_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin>(std::string{"unknown_plugin"}), Exception);
 }
 
-InferenceEnginePluginPtr PluginTest::getPtr() {
-    InferenceEnginePluginPtr smart_ptr(get_mock_engine_name());
+InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> PluginTest::getPtr() {
+    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> smart_ptr(get_mock_engine_name());
     return smart_ptr;
 }
 
 TEST_F(PluginTest, canSetConfiguration) {
-    InferenceEnginePluginPtr ptr = getPtr();
+    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr = getPtr();
     // TODO: dynamic->reinterpret because of clang/gcc cannot
     // dynamically cast this MOCK object
     ASSERT_TRUE(dynamic_cast<MockPlugin*>(ptr.operator->())->config.empty());

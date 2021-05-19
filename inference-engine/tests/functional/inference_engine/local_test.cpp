@@ -252,9 +252,6 @@ TEST_F(LocaleTests, WithUSLocale) {
     testBody();
 }
 
-// issues with RTTI on OSX once we compiled inference_engine_legacy as STATIC library
-#ifndef __APPLE__
-
 TEST_F(LocaleTests, WithRULocaleOnLSTM) {
     setlocale(LC_ALL, "ru_RU.UTF-8");
     testBody(true);
@@ -264,8 +261,6 @@ TEST_F(LocaleTests, WithUSLocaleOnLSTM) {
     setlocale(LC_ALL, "en_US.UTF-8");
     testBody(true);
 }
-
-#endif
 
 TEST_F(LocaleTests, DISABLED_WithRULocaleCPP) {
     auto prev = std::locale();
