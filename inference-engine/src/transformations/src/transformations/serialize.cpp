@@ -173,7 +173,7 @@ private:
 
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
-    std::string& m_node_type_name;
+    const std::string& m_node_type_name;
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
 
@@ -281,7 +281,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
 public:
     XmlSerializer(pugi::xml_node& data,
-                  std::string& node_type_name,
+                  const std::string& node_type_name,
                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler)
         : m_xml_node(data)
@@ -330,10 +330,15 @@ public:
             auto version_attr = layer.attribute("version");
 
             type_attr.set_value(attrs.get_type_name().c_str());
-            version_attr.set_value(attrs.get_opset_name().c_str());
+
+            if (!attrs.get_opset_name().empty()) {
+                version_attr.set_value(attrs.get_opset_name().c_str());
+            } else {
+                layer.remove_attribute("version");
+            }
 
             // Update node attributes in data field
-            for (const auto & attr : attrs.get_attrs()) {
+            for (const auto & attr : attrs) {
                 m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
             }
         } else {
@@ -406,23 +411,6 @@ public:
         }
     }
 };
-
-void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
-                           const ngraph::Node* n) {
-    for (const auto& param : n->get_rt_info()) {
-        if (auto variant =
-                std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
-            std::string name = param.first;
-            std::string value = variant->get();
-
-            if (name == "layerType") {
-                node_type_name = value;
-            } else {
-                data.append_attribute(name.c_str()).set_value(value.c_str());
-            }
-        }
-    }
-}
 
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
@@ -576,6 +564,23 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
     return name;
 }
 
+void visit_exec_graph_node(pugi::xml_node& layer, const ngraph::Node* n) {
+    auto data = layer.child("data");
+    for (const auto& param : n->get_rt_info()) {
+        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
+            const std::string & name = param.first;
+            const std::string & value = variant->get();
+
+            if (name == "layerType") {
+                layer.attribute("type").set_value(value.c_str());
+                continue;
+            }
+
+            data.append_attribute(name.c_str()).set_value(value.c_str());
+        }
+    }
+}
+
 bool is_exec_graph(const ngraph::Function& f) {
     // go over all operations and check whether performance stat is set
     for (const auto& op : f.get_ops()) {
@@ -666,8 +671,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets,
                         ConstantWriter& constant_node_write_handler) {
-    const bool exec_graph = is_exec_graph(f);
-
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
@@ -678,36 +681,30 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
+    const bool exec_graph = is_exec_graph(f);
+
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
+        const std::string & node_type_name{node->get_type_name()};
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
-        layer.append_attribute("name").set_value(
-            get_node_unique_name(unique_names, node).c_str());
-        auto layer_type_attribute = layer.append_attribute("type");
+        layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+        layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
-            layer.append_attribute("version").set_value(
-                get_opset_name(node, custom_opsets).c_str());
+            layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
         }
 
-        // <layers/data>
-        pugi::xml_node data = layer.append_child("data");
-        std::string node_type_name{node->get_type_name()};
-
-        // must be executed before visit_attributes which can change values
-        layer_type_attribute.set_value(translate_type_name(node_type_name).c_str());
-
         // <layers/data> general attributes
+        pugi::xml_node data = layer.append_child("data");
+        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
+        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+
         if (exec_graph) {
-            visit_exec_graph_node(data, node_type_name, node);
-        } else {
-            XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
-            NGRAPH_CHECK(node->visit_attributes(visitor),
-                         "Visitor API is not supported in ", node);
-            rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+            visit_exec_graph_node(layer, node);
         }
 
         const bool data_attr_size =

@@ -76,6 +76,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     ${PUGI}
                     ${NGRAPH_LIBRARIES}
                     ${EXPORT_DEPENDENCIES}
+                    inference_engine_transformations
     )
 
     # USE_STATIC_IE is passed
@@ -114,7 +115,8 @@ function(add_common_utils ADD_TARGET_NAME)
         PRIVATE
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        )
+            $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+            )
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 endfunction()

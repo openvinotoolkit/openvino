@@ -798,9 +798,11 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
             auto a = ngraph::as_type<
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
-        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+        const auto beg = static_cast<unsigned char *>(a->get()->get_ptr());
         const auto end = beg + a->get()->size();
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
+    } else if (auto framework_node_attr = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        insert(name, framework_node_attr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name +
                          " [drop `void` comparison which is '" + adapter.get_type_info().name +
@@ -878,6 +880,8 @@ void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::Va
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
         verify_mem_buf(name, a->get());
+    } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        verify(name, attrs->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name +
                         " [drop `void` comparison which is '" + adapter.get_type_info().name +

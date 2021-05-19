@@ -336,7 +336,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(prim_info), output_size);
 
-            if (is_output) {    // create additinal result node
+            if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
                 node2layer[prim_info.original_id] = return_node;
                 return_node->set_output_type(0,
