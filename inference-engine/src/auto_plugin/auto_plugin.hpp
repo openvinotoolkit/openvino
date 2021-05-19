@@ -30,9 +30,40 @@ public:
 
 private:
     std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
-
-protected:
+    std::vector<std::string> GetOptimizationCapabilities() const;
+    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
+    static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
+
+    template <typename T>
+    std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
+        if (GetCore() == nullptr) {
+            IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+        }
+        auto fullConfig = mergeConfigs(_config, config);
+        auto metaDevices = GetDeviceChoice(fullConfig);
+        DeviceInformation selectedDevice;
+        IE::SoExecutableNetworkInternal executableNetwork;
+        while (!metaDevices.empty()) {
+            selectedDevice = SelectDevice(metaDevices, networkPrecision);
+            try {
+                executableNetwork = GetCore()->LoadNetwork(param, selectedDevice.deviceName, selectedDevice.config);
+                break;
+            } catch (...) {
+                auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
+                    [=](const DeviceInformation& d)->bool{return d.deviceName == selectedDevice.deviceName;});
+                if (eraseDevice == metaDevices.end()) {
+                    IE_THROW() << "Didn't find the selected device name";
+                }
+                metaDevices.erase(eraseDevice);
+                executableNetwork = {};
+            }
+        }
+        if (!executableNetwork) {
+            IE_THROW() << "Failed to load network by AUTO plugin";
+        }
+        return std::make_shared<AutoExecutableNetwork>(executableNetwork);
+    }
 };
 
 }  // namespace AutoPlugin
