@@ -10,7 +10,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API NormalizeL2Transformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API NormalizeL2Transformation : public LayerTransformation {
 public:
     NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

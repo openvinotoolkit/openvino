@@ -30,7 +30,7 @@ namespace low_precision {
 /**
 * @brief NetworkHelper class encapsulates manipulations with nGraph function.
 */
-class TRANSFORMATIONS_API NetworkHelper {
+class LP_TRANSFORMATIONS_API NetworkHelper {
 public:
     // Return true if `type` can be castable to at least one of `type`
     static bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);

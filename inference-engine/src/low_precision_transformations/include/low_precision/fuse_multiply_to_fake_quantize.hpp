@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation {
 public:
     FuseMultiplyToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {}
     ~FuseMultiplyToFakeQuantizeTransformation() override {}

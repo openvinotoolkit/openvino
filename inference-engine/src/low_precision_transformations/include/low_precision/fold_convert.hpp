@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API FoldConvertTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API FoldConvertTransformation : public LayerTransformation {
 public:
     FoldConvertTransformation(const Params& params) : LayerTransformation(params) {}
     ~FoldConvertTransformation() override {}

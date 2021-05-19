@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:
     FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
 public:
     AvgPoolTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

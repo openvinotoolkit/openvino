@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
 public:
     StridedSliceTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

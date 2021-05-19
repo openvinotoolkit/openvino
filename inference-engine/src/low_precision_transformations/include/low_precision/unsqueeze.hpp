@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
 public:
     UnsqueezeTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
+class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
 public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

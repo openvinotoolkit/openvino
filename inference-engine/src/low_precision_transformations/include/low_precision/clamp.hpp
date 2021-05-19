@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
 public:
     ClampTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

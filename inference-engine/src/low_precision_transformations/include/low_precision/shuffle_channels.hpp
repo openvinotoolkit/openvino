@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
 public:
     ShuffleChannelsTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

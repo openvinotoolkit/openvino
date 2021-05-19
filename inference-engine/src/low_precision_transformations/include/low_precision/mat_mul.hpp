@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
 public:
     MatMulTransformation(const Params& params) : LayerTransformation(params) {}
     ~MatMulTransformation() override {}
