@@ -275,7 +275,8 @@ postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
     # Call normalize Split outputs for generated IR by ir-reader
-    'Split': AddFakeOutputsToSplit.split_normalize_outputs
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 
