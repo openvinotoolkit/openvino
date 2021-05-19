@@ -41,14 +41,14 @@ namespace ngraph
                 if (m_select_last_index == 1)
                 {
                     // Example (ArgMin):
-                    // The goal is to get the index of the last occurence of 
+                    // The goal is to get the index of the last occurence of the
                     // minimum value present in given input tensor.
                     //
                     // Input:           [1, 2, 1, 3, 4, 4]
                     // Expected output: [2]
                     //
-                    // Top-K is always returning the "most-left" result. The trick is to 
-                    // reverse input to find the "most-right" occurence which is equal to 
+                    // Top-K is always returning the "most-left" result. The trick is to
+                    // reverse input to find the "most-right" occurence which is equal to
                     // the last occurence in the original input.
                     // reverse = [4, 4, 3, 1, 2, 1]
                     //
@@ -63,7 +63,7 @@ namespace ngraph
                     // Now using two Substract ops calculate resulting index:
                     // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
                     // result = res_index - 1 = 3 - 1 = 2
- 
+
                     const auto axis_node =
                         default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
                     const auto reverse = std::make_shared<opset1::Reverse>(
