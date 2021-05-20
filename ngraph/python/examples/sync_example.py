@@ -14,16 +14,16 @@ from openvino.inference_engine import IECore
 from openvino.inference_engine import TensorDesc
 from openvino.inference_engine import Blob
 
-from helpers import get_images
+import helpers
 
-# Read images from a folder
-img = get_images()[0]
+# Generate random image
+img = helpers.generate_random_images(num=1)[0]
 
 # Read and Load of network
 ie = IECore()
 ie_network = ie.read_network(
-    '/home/jiwaszki/testdata/models/test_model/test_model_fp32.xml',
-    '/home/jiwaszki/testdata/models/test_model/test_model_fp32.bin')
+    helpers.get_example_model_path(),
+    helpers.get_example_weights_path())
 executable_network = ie.load_network(network=ie_network,
                                      device_name='CPU',
                                      config={})
@@ -57,9 +57,9 @@ result_infer_request = request.infer({'data': img})
 
 # Print results using output names from network output_info
 for key in executable_network.output_info:
-    print("Infer request result: ")
-    print(result_infer_request[key])
     print("Executable Network result: ")
     print(result_executable_network[key])
+    print("Infer request result: ")
+    print(result_infer_request[key])
     assert np.allclose(result_infer_request[key],
                        result_executable_network[key])
