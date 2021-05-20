@@ -96,11 +96,15 @@ namespace
         }
         else
         {
+            // If tensor descriptor couldn't be find value info have to be set as:
+            // - Fully dynamic shape: ?
+            // - Unknown data type
             auto dynamic_value_info = ONNX_NAMESPACE::ValueInfoProto();
             dynamic_value_info.set_name(tensor_name);
             auto type = dynamic_value_info.mutable_type();
             auto tensor_type = type->mutable_tensor_type();
-            tensor_type->set_elem_type(0);
+            tensor_type->set_elem_type(
+                ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED);
             return dynamic_value_info;
         }
     }
