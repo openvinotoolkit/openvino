@@ -32,7 +32,7 @@ namespace ngraph
     {
         namespace reference
         {
-            template<typename T>
+            template <typename T>
             void experimental_detectron_topk_rois(const T* input_rois,
                                                   const T* input_probs,
                                                   const Shape& input_rois_shape,

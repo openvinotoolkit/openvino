@@ -2148,8 +2148,8 @@ namespace
                                                                 inputs[1]->get_data_ptr<const T>(),
                                                                 inputs[0]->get_shape(),
                                                                 inputs[1]->get_shape(),
-                                                                outputs[0]->get_data_ptr<T>(),
-                                                                max_rois);
+                                                                max_rois,
+                                                                outputs[0]->get_data_ptr<T>());
         return true;
     }
 
