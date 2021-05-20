@@ -67,6 +67,7 @@ private:
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
     PermuteParams params;
+    bool byDst = true;
 };
 
 }  // namespace MKLDNNPlugin
