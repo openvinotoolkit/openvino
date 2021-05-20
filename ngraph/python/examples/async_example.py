@@ -1,19 +1,19 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 """
-First example.
+Second example.
 
 User wants to use OpenVINO API to infer one picture using
-synchronous Infer Request.
+asynchronous Infer Request.
 """
 
 import numpy as np
-import time
 
 from openvino.inference_engine import IECore
-from openvino.inference_engine import TensorDesc
-from openvino.inference_engine import Blob
 from openvino.inference_engine import StatusCode
 
-from helpers import get_images
+import helpers
 
 
 def get_reference(executable_network, image):
@@ -22,18 +22,17 @@ def get_reference(executable_network, image):
 
 
 # Read images from a folder
-images = get_images()
+img = helpers.generate_random_images(num=1)[0]
 
 # Read and Load of network
 ie = IECore()
 ie_network = ie.read_network(
-    '/home/jiwaszki/testdata/models/test_model/test_model_fp32.xml',
-    '/home/jiwaszki/testdata/models/test_model/test_model_fp32.bin')
+    helpers.get_example_model_path(),
+    helpers.get_example_weights_path())
 executable_network = ie.load_network(network=ie_network,
                                      device_name='CPU',
                                      config={})
 
-img = images[0]
 ref_result = get_reference(executable_network, img)
 
 # Create InferRequest
@@ -43,13 +42,13 @@ request = executable_network.create_infer_request()
 # Create callback function
 def say_hi(request, status, userdata):
     """User-defined callback function."""
-    print("This is your Infer Request named",
+    print('This is your Infer Request named',
           userdata,
-          ", I'm done! Returning",
+          ', I am done! Returning',
           status)
     if status != StatusCode.OK:
-        raise RuntimeError("Infer Request returns with ", status)
-    print("Results in callback:\n", request.get_result('fc_out'), sep="")
+        raise RuntimeError('Infer Request returns with ', status)
+    print('Results in callback:\n', request.get_result('fc_out'), sep='')
 
 
 # Set callback on request
