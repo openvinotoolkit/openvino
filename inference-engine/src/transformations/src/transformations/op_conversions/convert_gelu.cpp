@@ -39,5 +39,5 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, matcher_name);
-    register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    register_matcher(m, callback);
 }

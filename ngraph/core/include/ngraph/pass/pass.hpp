@@ -37,6 +37,7 @@ namespace ngraph
             PassBase();
             virtual ~PassBase() {}
             /// Check if this pass has all the pass properties.
+            NGRAPH_DEPRECATED("Do not use pass property")
             bool get_property(const PassPropertyMask& prop_mask) const;
 
             void set_name(const std::string& name) { m_name = name; }
@@ -81,6 +82,7 @@ namespace ngraph
             virtual const type_info_t& get_type_info() const = 0;
 
         protected:
+            NGRAPH_DEPRECATED("Do not use pass property")
             void set_property(const PassPropertyMask& prop, bool value);
 
         private:
