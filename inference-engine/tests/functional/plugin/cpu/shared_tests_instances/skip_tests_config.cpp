@@ -79,6 +79,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PSROIPoolingAverageLayoutTest.*BF16.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest.*BF16.*)",
         R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
+        // reference doesn't cover I8, U8 cases. Issue: 55842
+        R"(.*Gather7LayerTest.*netPRC=I8.*)",
     };
         // TODO: 54718 Accuracy mismatch
 #ifdef _WIN32

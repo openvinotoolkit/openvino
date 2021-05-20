@@ -51,27 +51,6 @@ private:
 };
 
 namespace  {
-/* Test insertion of the Convert layer if there is no suitable reorder.
-
-    Parameter[FP32]     Constant[BF16]
-          \                 /
-           \               /
-            \       Convert[I32] (Is inserted by the MKLDNNGraph)
-             \           /
-             Gather[FP32]
-                  |
-                  |
-             Output[FP32]
-*/
-
-TEST_F(AddConvertToReorderTest, smoke_TestAddConvert_CPU) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    BuildGraph(ngraph::element::bf16);
-    Run();
-    CheckNodeOfTypeCount(executableNetwork, "Convert", with_cpu_x86_avx512_core() ? 1 : 0);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 0);
-}
 
 /* Test insertion of the Reorder layer if there is one.
 
