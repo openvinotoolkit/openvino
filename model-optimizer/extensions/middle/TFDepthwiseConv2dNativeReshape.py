@@ -19,7 +19,9 @@ class TFDepthwiseConv2dNativeReshape(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op="DepthwiseConv2dNative"):
             node_name = node.soft_get('name', node.id)
-            reshape_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, 0, -1, 1]),
-                                                            op_attrs=dict(name=node_name + '/Reshape',
-                                                                          override_output_shape=True))
-            node.in_port(1).get_connection().insert_node(reshape_node)
+            kernel_shape = node.in_port(1).data.get_shape()
+            if kernel_shape[node.input_feature_channel] == 1:
+                reshape_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, 0, -1, 1]),
+                                                                op_attrs=dict(name=node_name + '/Reshape',
+                                                                              override_output_shape=True))
+                node.in_port(1).get_connection().insert_node(reshape_node)
