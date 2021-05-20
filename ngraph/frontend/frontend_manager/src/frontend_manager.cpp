@@ -6,18 +6,11 @@
 #include <ngraph/except.hpp>
 
 #include "frontend_manager/frontend_manager.hpp"
+#include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-
-#define FRONT_END_NOT_IMPLEMENTED(NAME)                                                            \
-    throw std::runtime_error(#NAME " is not implemented for this FrontEnd class")
-#define FRONT_END_ASSERT(EXPRESSION)                                                               \
-    {                                                                                              \
-        if (!(EXPRESSION))                                                                         \
-            throw "AssertionFailed";                                                               \
-    }
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl
@@ -32,7 +25,7 @@ public:
 
     FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapFlags fec)
     {
-        FRONT_END_ASSERT(m_factories.count(framework))
+        FRONT_END_INITIALIZATION_CHECK(m_factories.count(framework));
         return m_factories[framework](fec);
     }
 
