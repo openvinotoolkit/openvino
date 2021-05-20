@@ -36,11 +36,17 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
     const PartialShape& data_shape = get_input_partial_shape(0);
     const element::Type& data_et = get_input_element_type(0);
     const PartialShape& axes_shape = get_input_partial_shape(1);
+    const element::Type& axes_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_et.is_real() || data_et.is_integral_number(),
                           "Element type of data input must be numeric. Got: ",
                           data_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          axes_et.is_integral_number(),
+                          "Element type of axes input must be integer. Got: ",
+                          axes_et);
 
     const Rank axes_rank = axes_shape.rank();
     NODE_VALIDATION_CHECK(this,

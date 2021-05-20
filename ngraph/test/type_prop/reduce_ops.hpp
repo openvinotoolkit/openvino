@@ -263,6 +263,33 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axes_shape)
     }
 }
 
+TYPED_TEST_P(ReduceTest, reduce_invalid_axes_et)
+{
+    element::Type data_et = element::dynamic;
+    PartialShape data_ps{1, 2, 3};
+
+    element::Type axes_et = element::f32;
+    Shape axes_ps{2};
+    std::vector<int64_t> axes{0, 1};
+
+    bool keep_dims = true;
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    try
+    {
+        auto reduce_op = makeReduceOp<TypeParam>(params);
+        FAIL() << "Invalid element type of axes input not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Element type of axes input must be integer.");
+    }
+    catch (...)
+    {
+        FAIL() << "Axes input element type validation check failed for unexpected reason";
+    }
+}
+
 REGISTER_TYPED_TEST_CASE_P(
     ReduceTest,
     reduce_basic_shape_infer,
@@ -275,7 +302,8 @@ REGISTER_TYPED_TEST_CASE_P(
     reduce_dynamic_shape_reduced_axes_not_static,
     reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
     reduce_invalid_axis_out_of_range,
-    reduce_invalid_axes_shape);
+    reduce_invalid_axes_shape,
+    reduce_invalid_axes_et);
 
 template<class T>
 class ReduceArithmeticTest : public testing::Test
