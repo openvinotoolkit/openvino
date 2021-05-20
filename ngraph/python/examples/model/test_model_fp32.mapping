@@ -1,0 +1,59 @@
+<?xml version="1.0" ?>
+<mapping>
+	<map>
+		<framework name="fc_out" out_port_id="0"/>
+		<IR id="23" name="fc_out" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="23" out_port_id="23"/>
+		<IR id="10" name="23" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="29" out_port_id="29"/>
+		<IR id="22" name="29" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="data" out_port_id="data"/>
+		<IR id="0" name="data" out_port_id="0"/>
+	</map>
+	<map>
+		<framework name="21" out_port_id="21"/>
+		<IR id="5" name="21" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="1" out_port_id="1"/>
+		<IR id="1" name="20/mean/Fused_Mul_614616_const" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="20" out_port_id="20"/>
+		<IR id="4" name="19/Fused_Add_" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="17" out_port_id="17"/>
+		<IR id="19" name="onnx_initializer_node_17/Output_0/Data__const" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="22" out_port_id="22"/>
+		<IR id="6" name="22" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="26" out_port_id="26"/>
+		<IR id="15" name="26" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="25" out_port_id="25"/>
+		<IR id="14" name="24/Fused_Add_" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="28" out_port_id="28"/>
+		<IR id="18" name="28/Reshape" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="8" out_port_id="8"/>
+		<IR id="7" name="onnx_initializer_node_8/Output_0/Data__const" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="10" out_port_id="10"/>
+		<IR id="11" name="25/mean/Fused_Mul_618620_const" out_port_id="1"/>
+	</map>
+</mapping>
