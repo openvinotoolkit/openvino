@@ -133,7 +133,7 @@ public:
         ExecutableNetworkInternal::Export(networkModel);
     }
 
-    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) override {
+    void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) override {
         std::lock_guard<std::mutex> guard(m_pluginMutex);
         ExecutableNetworkInternal::SetPointerToPlugin(plugin);
     }
