@@ -114,6 +114,10 @@ def run_timetest(args: dict, log=None):
 
         # Parse raw data
         flatten_data = {}
+
+        # DEBUG_INFO
+        log.debug("Statistics after yml file: {}".format(raw_data[0]))
+
         parse_stats(raw_data[0], flatten_data)
 
         log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
