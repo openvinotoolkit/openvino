@@ -20,15 +20,25 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
-    // TODO: LPT: not implemented
-//    auto matcher = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
-//        ngraph::pattern::wrap_type<opset1::Multiply>(),
-//        std::make_shared<pattern::op::Or>(OutputVector {
-//            pattern::wrap_type<opset1::Multiply>(),
-//            pattern::wrap_type<opset1::FakeQuantize>()
-//        })
-//    });
-    auto matcher = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
+    auto convQDQ = pattern::wrap_type<opset1::ConvolutionBackpropData>({
+        pattern::wrap_type<opset1::Multiply>(),
+        pattern::wrap_type<opset1::Multiply>() });
+
+    auto convQFQ= pattern::wrap_type<opset1::ConvolutionBackpropData>({
+        pattern::wrap_type<opset1::Multiply>(),
+        pattern::wrap_type<opset1::FakeQuantize>() });
+
+    auto convQDQAndOutShape = pattern::wrap_type<opset1::ConvolutionBackpropData>({
+        pattern::wrap_type<opset1::Multiply>(),
+        pattern::wrap_type<opset1::Multiply>(),
+        pattern::wrap_type<opset1::Constant>()});
+
+    auto convQFQAndOutShape = pattern::wrap_type<opset1::ConvolutionBackpropData>({
+        pattern::wrap_type<opset1::Multiply>(),
+        pattern::wrap_type<opset1::FakeQuantize>(),
+        pattern::wrap_type<opset1::Constant>() });
+
+    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{ convQDQ, convQFQ, convQDQAndOutShape, convQFQAndOutShape });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
