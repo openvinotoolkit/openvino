@@ -137,10 +137,10 @@ class Benchmark:
                     times.append(infer_requests[0].latency)
             else:
                 if self.mode == 'pybind':
-                    queue_status = infer_requests.get_idle_request_status()
-                    if not(queue_status == StatusCode.OK or
-                           queue_status == StatusCode.INFER_NOT_STARTED):
-                        raise Exception("Idle request failed!")
+                    req_info = infer_requests.get_idle_request_info()
+                    if not(req_info['status'] == StatusCode.OK or
+                           req_info['status'] == StatusCode.INFER_NOT_STARTED):
+                        raise Exception('Idle request', req_info['id'], 'failed!')
                     infer_requests.async_infer()
                 else:
                     infer_request_id = exe_network.get_idle_request_id()
