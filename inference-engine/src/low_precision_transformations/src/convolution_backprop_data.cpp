@@ -24,7 +24,7 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
         pattern::wrap_type<opset1::Multiply>(),
         pattern::wrap_type<opset1::Multiply>() });
 
-    auto convQFQ= pattern::wrap_type<opset1::ConvolutionBackpropData>({
+    auto convQFQ = pattern::wrap_type<opset1::ConvolutionBackpropData>({
         pattern::wrap_type<opset1::Multiply>(),
         pattern::wrap_type<opset1::FakeQuantize>() });
 
