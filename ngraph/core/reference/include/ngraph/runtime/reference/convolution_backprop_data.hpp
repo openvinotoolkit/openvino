@@ -30,9 +30,9 @@ namespace ngraph
                                        Shape& output_shape,
                                        std::vector<T>& input_zeros)
                 {
-                    std::array<int, 3> input_3d = {1, 1, 1};
-                    std::array<int, 3> strides_3d = {1, 1, 1};
-                    std::array<int, 3> output_3d = {1, 1, 1};
+                    std::vector<int> input_3d(3, 1);
+                    std::vector<int> strides_3d(3, 1);
+                    std::vector<int> output_3d(3, 1);
 
                     for (size_t i = 0; i < strides.size(); ++i)
                     {
@@ -46,7 +46,10 @@ namespace ngraph
                     const size_t input_size = shape_size(input_3d);
                     if (input_size == 1)
                     {
-                        input_zeros.resize(shape_size(input_shape), 0);
+                        for (size_t i = 0; i < shape_size(input_shape); ++i)
+                        {
+                            input_zeros.push_back(in[i]);
+                        }
                     }
                     else
                     {
