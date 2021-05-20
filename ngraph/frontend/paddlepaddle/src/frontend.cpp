@@ -47,11 +47,10 @@ namespace ngraph
                 const auto& op = op_place->getDesc();
                 std::cout << "Making node: " << op->type() << std::endl;
 
-                /*                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::NGRAPH_NODE_CREATION_FAILED,
-                                           CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
-                                           "No creator found for ",
-                                           op->type(),
-                                           " node.");*/
+                FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
+                                              "No creator found for ",
+                                              op->type(),
+                                              " node.");
                 pdpd::NamedInputs named_inputs;
                 const auto& input_ports = op_place->getInputPorts();
                 for (const auto& name_to_ports : input_ports)
@@ -128,11 +127,10 @@ namespace ngraph
                     for (const auto& name_to_outputs : named_outputs)
                     {
                         const auto& ports = out_ports.at(name_to_outputs.first);
-
-                        /*PDPD_CHECK(FrontEndErrorCode::NGRAPH_NODE_CREATION_FAILED,
-                                   ports.size() == name_to_outputs.second.size(),
-                                   "The number of output tensors must be equal to "
-                                   "the number of outputs of the ngraph node.");*/
+                        FRONT_END_OP_CONVERSION_CHECK(
+                            ports.size() == name_to_outputs.second.size(),
+                            "The number of output tensors must be equal to "
+                            "the number of outputs of the ngraph node.");
                         for (size_t idx = 0; idx < ports.size(); ++idx)
                         {
                             const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();

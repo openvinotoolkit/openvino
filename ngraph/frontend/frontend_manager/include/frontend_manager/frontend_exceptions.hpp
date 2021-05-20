@@ -95,6 +95,15 @@ namespace ngraph
 #define FRONT_END_INITIALIZATION_CHECK(...)                                                        \
     NGRAPH_CHECK_HELPER(::ngraph::frontend::InitializationFailure, "", __VA_ARGS__)
 
+/// \brief Macro to check whether a boolean condition holds.
+/// \param cond Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ngraph::frontend::OpConversionFailure if `cond` is false.
+#define FRONT_END_OP_CONVERSION_CHECK(...)                                                         \
+    NGRAPH_CHECK_HELPER(::ngraph::frontend::OpConversionFailure, "", __VA_ARGS__)
+
 /// \brief Assert macro.
 /// \param NAME Name of the function that is not implemented
 /// \throws ::ngraph::frontend::NotImplementedFailure

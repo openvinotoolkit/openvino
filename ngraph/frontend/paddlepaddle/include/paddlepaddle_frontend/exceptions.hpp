@@ -29,21 +29,6 @@ namespace ngraph
             private:
                 static std::string get_error_msg_prefix_pdpd(const pdpd::NodeContext& node);
             };
-
-            class OpConversionFailurePDPD : public OpConversionFailure
-            {
-            public:
-                OpConversionFailurePDPD(const CheckLocInfo& check_loc_info,
-                                        const ngraph::Node* node,
-                                        const std::string& explanation)
-                    : OpConversionFailure(
-                          check_loc_info, get_error_msg_prefix_pdpd(node), explanation)
-                {
-                }
-
-            private:
-                static std::string get_error_msg_prefix_pdpd(const Node* node);
-            };
         } // namespace pdpd
     }     // namespace frontend
 
@@ -57,16 +42,4 @@ namespace ngraph
 #define PDPD_OP_VALIDATION_CHECK(node_context, ...)                                                \
     NGRAPH_CHECK_HELPER(                                                                           \
         ::ngraph::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
-
-/// \brief Macro to check whether a boolean condition holds.
-/// \param ngraph_node Object of ngraph::Node class
-/// \param cond Condition to check
-/// \param ... Additional error message info to be added to the error message via the `<<`
-///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
-#define PDPD_OP_CONVERSION_CHECK(ngraph_node, ...)                                                 \
-    NGRAPH_CHECK_HELPER(                                                                           \
-        ::ngraph::frontend::pdpd::OpConversionFailurePDPD, (ngraph_node), __VA_ARGS__)
-
 } // namespace ngraph
