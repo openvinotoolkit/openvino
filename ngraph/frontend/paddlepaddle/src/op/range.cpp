@@ -18,20 +18,20 @@ namespace ngraph
                     auto start = node.get_ng_input("Start");
                     auto stop = node.get_ng_input("End");
                     auto step = node.get_ng_input("Step");
+                    auto type = node.get_out_port_types("Out");
+                    PDPD_ASSERT(type[0] == element::i64 || type[0] == element::i32 ||
+                                    type[0] == element::f32,
+                                "Only supports int32, int64, float32");
 
-                    bool keep_dims = false;
                     const auto axis = ngraph::opset6::Constant::create(element::i64, Shape{}, {0});
-                    auto start_scalar =
-                        std::make_shared<ngraph::opset6::ReduceMin>(start, axis, keep_dims);
-                    auto stop_scalar =
-                        std::make_shared<ngraph::opset6::ReduceMin>(stop, axis, keep_dims);
-                    auto step_scalar =
-                        std::make_shared<ngraph::opset6::ReduceMin>(step, axis, keep_dims);
+                    auto start_scalar = std::make_shared<ngraph::opset6::Squeeze>(start, axis);
+                    auto stop_scalar = std::make_shared<ngraph::opset6::Squeeze>(stop, axis);
+                    auto step_scalar = std::make_shared<ngraph::opset6::Squeeze>(step, axis);
 
                     // TODO to support other data types other than FP32 #55267
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Range>(
-                            start_scalar, stop_scalar, step_scalar, element::f32)},
+                            start_scalar, stop_scalar, step_scalar, type[0])},
                         {"Out"});
                 }
 

@@ -92,7 +92,7 @@ namespace ngraph
                                                                            std::vector<int64_t>{0},
                                                                            std::vector<int64_t>{0});
 
-                    auto hw_begin = opset6::Constant::create(element::i64, {1}, {1});
+                    auto hw_begin = opset6::Constant::create(element::i64, Shape{1}, {1});
                     auto hw_end = opset6::Constant::create(element::i64, Shape{1}, {4});
                     auto filter_hw_node =
                         std::make_shared<opset6::StridedSlice>(shape_of_filters,

@@ -97,7 +97,8 @@ namespace ngraph
                     PartialShape input_shape = data.get_partial_shape();
                     PDPD_ASSERT(input_shape.rank().is_static(), "pool2d: X rank must be static!");
                     int32_t input_rank = input_shape.rank().get_length();
-                    PDPD_ASSERT(input_rank >= 2, "kernel rank must be greater than 2");
+                    PDPD_ASSERT(input_rank >= 2, "input tensor rank must be greater than 2");
+
                     uint64_t input_h = input_shape[input_rank - 2].get_length();
                     uint64_t input_w = input_shape[input_rank - 1].get_length();
 
@@ -112,13 +113,10 @@ namespace ngraph
                     {
                         if (pooling_type == "max")
                         {
+                            auto axes = ngraph::opset6::Constant::create(
+                                ngraph::element::i64, {2}, {input_rank - 2, input_rank - 1});
                             return node.default_single_output_mapping(
-                                {std::make_shared<ngraph::opset6::MaxPool>(
-                                    data,
-                                    ngraph::Strides({1, 1}),
-                                    ngraph::Shape{0, 0}, // FIXME pads_begin
-                                    ngraph::Shape{0, 0}, // pads_end
-                                    ngraph::Shape{input_h, input_w})},
+                                {std::make_shared<ngraph::opset6::ReduceMax>(data, axes, true)},
                                 {"Out"});
                         }
                         else
@@ -169,7 +167,7 @@ namespace ngraph
                         }
                         else
                         {
-                            bool exclude_pad = node.get_attribute<bool>("exclusive") ? true : false;
+                            bool exclude_pad = node.get_attribute<bool>("exclusive", false);
                             return node.default_single_output_mapping(
                                 {std::make_shared<ngraph::opset6::AvgPool>(
                                     data,
