@@ -11,9 +11,11 @@ def parse_arguments():
 
     skip_config_help = "Paths to folder with skip_config_files"
     input_folders_help = "Paths to folders with logs"
+    extend_file_help = "Extend exiting file"
 
     parser.add_argument("-s", "--skip_config_folders", help=skip_config_help, nargs='*', required=True)
     parser.add_argument("-i", "--input_logs", help=input_folders_help, nargs='*', required=True)
+    parser.add_argument("-e", "--extend_file", help=extend_file_help, default=False, required=False)
 
     return parser.parse_args()
 
@@ -56,7 +58,7 @@ def get_conformance_hung_test(test_log_dirs: list):
         for log_file in glob.glob(os.path.join(test_log_dir, '*/*')):
             with open(log_file) as log:
                 content = log.read()
-                if is_hung_test(content) or not is_conformance(content):
+                if not (is_hung_test(content) and is_conformance(content)):
                     continue
                 device = get_device_name(content)
                 if 'arm' in content:
@@ -69,7 +71,7 @@ def get_conformance_hung_test(test_log_dirs: list):
     return regexp
 
 
-def save_to_file(skip_folder_paths: list, regexps: dict):
+def save_to_file(skip_folder_paths: list, regexps: dict, extend_file: str):
     for skip_folder_path in skip_folder_paths:
         if not os.path.isdir(skip_folder_path):
             continue
@@ -77,10 +79,15 @@ def save_to_file(skip_folder_paths: list, regexps: dict):
         for skip_files_path in skip_files_paths:
             for device, re_list in regexps.items():
                 if device in skip_files_path:
+                    if extend_file:
+                        with open(skip_files_path, 'r') as file:
+                            content = file.readlines()
                     with open(skip_files_path, 'w') as file:
+                        if extend_file:
+                            file.writelines(content)
                         file.writelines(re_list)
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    save_to_file(args.skip_config_folders, get_conformance_hung_test(args.input_logs))
+    save_to_file(args.skip_config_folders, get_conformance_hung_test(args.input_logs), args.extend_file)

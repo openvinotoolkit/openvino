@@ -4,10 +4,34 @@
 .*Add_2979.*
 .*Add_53543.*
 
-# hung
+# OMZ
+# hang
 .*Concat_535028.*
 .*Concat_377139.*
 .*Concat_379481.*
 .*Concat_539044.*
 .*Concat_539074.*
 .*Concat_534956.*
+
+# DLB:
+# Hang:
+.*Convolution_1301086.*
+.*Convolution_1301186.*
+.*Convolution_1761288.*
+.*GroupConvolution_1761341.*
+.*Interpolate_475913.*
+.*MVN_1761313.*
+.*ROIAlign_1016430.*
+.*ROIAlign_1016460.*
+.*ROIAlign_1016482.*
+.*ROIAlign_1016504.*
+.*ROIAlign_470931.*
+.*ROIAlign_470968.*
+.*ROIAlign_470993.*
+.*ROIAlign_471018.*
+.*Reshape_1302893.*
+.*Reshape_1302942.*
+.*Reshape_1762836.*
+.*Reshape_1763029.*
+.*Reshape_1763071.*
+.*ScatterNDUpdate_3475452.*
