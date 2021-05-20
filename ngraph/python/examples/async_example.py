@@ -39,48 +39,29 @@ ref_result = get_reference(executable_network, img)
 # Create InferRequest
 request = executable_network.create_infer_request()
 
-num_of_runs = 1
-
-times = []
-
 
 # Create callback function
-def say_hi(request, userdata):
+def say_hi(request, status, userdata):
     """User-defined callback function."""
-    print("Hi this is your Infer Request, I'm done!", userdata)
-    print(request.output_blobs['fc_out'].buffer.copy())
-    global times
-    times += [(time.time() - userdata) * 1000]
+    print("This is your Infer Request named",
+          userdata,
+          ", I'm done! Returning",
+          status)
+    if status != StatusCode.OK:
+        raise RuntimeError("Infer Request returns with ", status)
+    print("Results in callback:\n", request.get_result('fc_out'), sep="")
 
 
-# Set callback on our request
-# Async infer
+# Set callback on request
+request.set_completion_callback(say_hi, 'My First Async Infer')
+
 print('Starting async infer...')
+request.async_infer({'data': img})
 
-request.infer()
-
-for i in range(num_of_runs):
-    start_time = time.time()
-    request.set_completion_callback(say_hi, start_time)
-    request.async_infer({'data': img})
-    status = request.wait()
-
-print(times)
-latency_median = np.median(np.array(times))
-print(latency_median)
-
-# print('I can do something here!')
-# # # Do some work
-# # j = 0
-# # for i in range(1000000):
-# #     j = i
-# # print("j =", j)
-# time.sleep(3)
+print('You can do something here!')
 
 # Wait for Infer Request to finish
 status = request.wait()
-
-# print(request.get_perf_counts())
 
 if status == StatusCode.OK:
     print('Finished asynchronous infer!')
@@ -91,6 +72,3 @@ if status == StatusCode.OK:
                            ref_result[key])
 else:
     raise RuntimeError('Infer Request failed to finish!')
-
-# TODO: When callback is present everything works
-# del request
