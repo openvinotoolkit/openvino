@@ -157,6 +157,8 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
         arg_value = getattr(argv, arg)
         if arg_value != cli_parser.get_default(arg):
             if arg in params_with_paths:
+                # If command line argument value is a directory or a path to file it is not sent
+                # as it may contain confidential information. "1" value is used instead.
                 param_str = arg + ":" + str(1)
             else:
                 param_str = arg + ":" + str(arg_value)
