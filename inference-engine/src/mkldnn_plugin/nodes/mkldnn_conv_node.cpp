@@ -519,7 +519,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
     std::vector<mkldnn::algorithm> algorithms;
 
     if (isWinograd())
-        algorithms.push_back(algorithm::convolution_winograd);
+        algorithms.push_back(mkldnn::algorithm::convolution_winograd);
     algorithms.push_back(mkldnn::algorithm::convolution_direct);
 
     for (auto alg : algorithms) {
