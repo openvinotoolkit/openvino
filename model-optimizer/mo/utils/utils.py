@@ -141,6 +141,11 @@ def unique_by(xs: list, predicate: Callable) -> list:
 
 
 def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentParser):
+    """
+    This function sends information about used command line parameters.
+    :param argv: command line parameters.
+    :param cli_parser: command line parameters parser.
+    """
     t = tm.Telemetry()
     params_with_paths = ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
                          'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
@@ -156,12 +161,13 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
             else:
                 param_str = arg + ":" + str(arg_value)
 
-                # temporarily added debug print for collecting string lengths info from ci
-                print("PARAMS_LEN_DEBUG {} {}".format(arg, len(str(arg_value))))
-
             t.send_event('mo', 'cli_parameters', param_str)
 
 
 def send_framework_info(framework: str):
+    """
+    This function sends information about used framework.
+    :param framework: framework name.
+    """
     t = tm.Telemetry()
     t.send_event('mo', 'framework', framework)

@@ -36,7 +36,7 @@ from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
-from mo.utils.utils import refer_to_faq_msg, send_params_info
+from mo.utils.utils import refer_to_faq_msg, send_params_info, send_framework_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
@@ -110,7 +110,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
-    t = tm.Telemetry()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -234,19 +233,19 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
-        t.send_event('mo', 'framework', 'caffe')
+        send_framework_info('caffe')
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
-        t.send_event('mo', 'framework', 'mxnet')
+        send_framework_info('mxnet')
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
-        t.send_event('mo', 'framework', 'kaldi')
+        send_framework_info('kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
-        t.send_event('mo', 'framework', 'onnx')
+        send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     graph = unified_pipeline(argv)

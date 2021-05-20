@@ -315,6 +315,11 @@ def clear_tensor_names_info(nodes: list):
 
 
 def send_op_names_info(framework: str, graph: Graph):
+    """
+    This function sends information about operations in model.
+    :param framework: framework name.
+    :param graph: model graph.
+    """
     op_counter = Counter()
 
     def gather_op_statistics(g: Graph, op_c: Counter = op_counter):
@@ -328,6 +333,11 @@ def send_op_names_info(framework: str, graph: Graph):
 
 
 def send_shapes_info(framework: str, graph: Graph):
+    """
+    This function sends information about model input shapes.
+    :param framework: framework name.
+    :param graph: model graph.
+    """
     shapes = []
     for node in graph.get_op_nodes():
         op_type = node.soft_get('type', None)
