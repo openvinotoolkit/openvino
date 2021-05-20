@@ -8,11 +8,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4 QUIET)
     if (TBBBIND_2_4_FOUND)
         message(STATUS "Static tbbbind_2_4 package was found")
-
-        # WA: need to update TBBBind_2_4 package
-        set_target_properties(TBBbind::tbbbind_2_4 PROPERTIES
-            MAP_IMPORTED_CONFIG_MINSIZEREL Release
-            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
     endif()
 endif()
 
@@ -206,7 +201,6 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_snippets
                                                inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
@@ -309,14 +303,7 @@ configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/Inf
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-
-# WA for CI
-configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
+               @ONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
