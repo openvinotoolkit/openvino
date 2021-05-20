@@ -294,7 +294,7 @@ class Port:
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
                 fw_names += get_tensor_names_list(out_node.attrs())
-        return fw_names
+        return sorted(fw_names)
 
     def disconnect(self):
         if self.type == 'out':
