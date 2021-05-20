@@ -88,7 +88,7 @@ public:
         return std::shared_ptr<Layer>(new Layer(parent, id, common_attributes));
     }
 
-    Port &getPortById(int64_t id) const {
+    Port &getPortById(size_t id) const {
         if (id >= m_ports.size()) {
             IE_THROW() << "Out of range: a port with id " << id << " not found";
         }

@@ -124,7 +124,8 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     std::vector<TensorDescCreatorTypes> supportedTypes;
     if (nDims > 2) {
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] % block == 0 && (mode == Mode::BLOCKS_FIRST ? (srcDims[1] / block) % blockStep == 0 : block % blockStep == 0);
+            return srcDims[1] % block == 0 && (srcDims[1] / block) % blockStep == 0 &&
+                   (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
         };
 
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
@@ -209,7 +210,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
             orderShiftForDims = 3;
 
             size_t newBlockSize = srcBlockedDims.back() / blockStep;
-            size_t newBlocksCount = srcBlockedDims[1] * newBlockSize / srcBlockedDims.back();
+            size_t newBlocksCount = srcBlockedDims[1] / blockStep;
             params.src_block_dims[1] = newBlocksCount;
             params.src_block_dims[2] = srcBlockedDims[1] / newBlocksCount;
             params.src_block_dims[lastIdx - nSpatialDims] = newBlockSize;

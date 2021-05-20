@@ -580,7 +580,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // messages.
     std::stringstream ss;
     bool first = true;
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         if (!first)
         {
@@ -594,24 +594,30 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // Infer output element type.
     element::Type et_result{input_element_type};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               element::Type::merge(et_result, et_result, inp.m_element_type),
                               "Input element types do not match.");
     }
 
+    NODE_VALIDATION_CHECK(node,
+                          et_result.is_dynamic() || et_result.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          et_result);
+
     // Extract channel dimension from input shape.
     Dimension channel_dim{Dimension::dynamic()};
 
-    NODE_VALIDATION_CHECK(node,
-                          input_shape.is_dynamic() || input_shape.rank().get_length() >= 2,
-                          "Input argument must have rank of at least 2 (input argument shape: ",
-                          input_shape,
-                          ").");
-
-    if (input_shape.rank().is_static())
+    Rank input_rank = input_shape.rank();
+    if (input_rank.is_static())
     {
+        NODE_VALIDATION_CHECK(node,
+                              input_rank.get_length() >= 2,
+                              "Input argument must have rank of at least 2 (input argument shape: ",
+                              input_shape,
+                              ").");
+
         channel_dim = input_shape[1];
     }
 
@@ -619,7 +625,7 @@ static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_fo
     // "channel_dim".
     PartialShape channel_shape{PartialShape::dynamic()};
 
-    for (auto& inp : channel_shaped_inputs)
+    for (const auto& inp : channel_shaped_inputs)
     {
         NODE_VALIDATION_CHECK(node,
                               PartialShape::merge_into(channel_shape, inp.m_shape),
@@ -1256,14 +1262,15 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
 
 void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                            const OutputVector& outputs)
+                            const OutputVector& outputs,
+                            const EvaluationContext& evaluation_context)
 {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
-        [&output_tensor_map](Node* node,
-                             const HostTensorVector& input_tensors) -> HostTensorVector {
+        [&output_tensor_map, &evaluation_context](
+            Node* node, const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
-            for (auto v : node->outputs())
+            for (const auto& v : node->outputs())
             {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end())
@@ -1276,7 +1283,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                     output_tensors.push_back(it->second);
                 }
             }
-            if (node->evaluate(output_tensors, input_tensors))
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context))
             {
                 return output_tensors;
             }
@@ -1285,7 +1292,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                 NGRAPH_CHECK(false, "Evaluation failed on ", node);
             }
         });
-    for (auto value : outputs)
+    for (const auto& value : outputs)
     {
         evaluator.evaluate(value);
     }

@@ -67,6 +67,7 @@ set(SRC
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
+    op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
@@ -210,15 +211,20 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/gather.cpp
+    visitors/op/gelu.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
@@ -264,6 +270,7 @@ set(SRC
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unsqueeze.cpp
     uint4.cpp
     util.cpp
 )
@@ -334,6 +341,7 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
+    backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
     backend/divide.in.cpp
@@ -420,6 +428,7 @@ set(MULTI_TEST_SRC
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
+    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
 )
@@ -473,7 +482,7 @@ endforeach()
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
 # --- END OF --DO_NOT_RELEASE--
 
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
@@ -482,6 +491,7 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 # TODO: try to find a way to move it out of common CMakeLists
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
+    find_package(Python3 COMPONENTS Interpreter)
     set(PDPD_PYTHON_OK TRUE)
     if(NOT Python3_FOUND)
         message("Python3 is required to build the PDPD frontend unit tests")
@@ -582,15 +592,13 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
-MESSAGE("HERE2" ${ONNX_IMPORT_INCLUDE_DIR})
-
 ############ FRONTEND ############
-# TODO: try to find a way to move it outside of general CMAKE
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
+add_subdirectory(frontend)
+
+### END FRONTEND ###
 
 #PaddlePaddle
 if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
@@ -611,9 +619,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     endforeach()
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
+    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 
-    target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
-    target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
     target_link_libraries(unit-test PRIVATE libnpy)
 endif()
-### END FRONTEND ###

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <chrono>
@@ -40,7 +28,11 @@
 
 #include <functional>
 
+#include "frontend_manager/frontend_manager.hpp"
+
 using namespace ngraph::opset7;
+using namespace ngraph;
+using namespace ngraph::frontend;
 
 namespace ngraph
 {
@@ -92,7 +84,7 @@ namespace ngraph
             ResultVector result_nodes;
 
             std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
-            for (const auto& _inp_place : model->getInputs())
+            for (const auto& _inp_place : model->get_inputs())
             {
                 const auto& inp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_inp_place);
                 const auto& var = inp_place->getDesc();
@@ -154,7 +146,7 @@ namespace ngraph
                 }
             }
 
-            for (const auto& _outp_place : model->getOutputs())
+            for (const auto& _outp_place : model->get_outputs())
             {
                 const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
                 auto var = outp_place->getDesc();
@@ -167,12 +159,12 @@ namespace ngraph
             return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
         }
 
-        InputModel::Ptr FrontEndPDPD::loadFromFile(const std::string& path) const
+        InputModel::Ptr FrontEndPDPD::load_from_file(const std::string& path) const
         {
-            return loadFromFiles({path});
+            return load_from_files({path});
         }
 
-        InputModel::Ptr FrontEndPDPD::loadFromFiles(const std::vector<std::string>& paths) const
+        InputModel::Ptr FrontEndPDPD::load_from_files(const std::vector<std::string>& paths) const
         {
             if (paths.size() == 1)
             {
@@ -188,18 +180,18 @@ namespace ngraph
                 std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
                 FRONT_END_INITIALIZATION_CHECK(weights_stream && weights_stream.is_open(),
                                                "Cannot open weights file.");
-                return loadFromStreams({&model_stream, &weights_stream});
+                return load_from_streams({&model_stream, &weights_stream});
             }
             FRONT_END_INITIALIZATION_CHECK(false, "Model can be loaded either from 1 or 2 files");
         }
 
-        InputModel::Ptr FrontEndPDPD::loadFromStream(std::istream& model_stream) const
+        InputModel::Ptr FrontEndPDPD::load_from_stream(std::istream& model_stream) const
         {
-            return loadFromStreams({&model_stream});
+            return load_from_streams({&model_stream});
         }
 
         InputModel::Ptr
-            FrontEndPDPD::loadFromStreams(const std::vector<std::istream*>& streams) const
+            FrontEndPDPD::load_from_streams(const std::vector<std::istream*>& streams) const
         {
             return std::make_shared<InputModelPDPD>(streams);
         }
@@ -216,3 +208,16 @@ namespace ngraph
 
     } // namespace frontend
 } // namespace ngraph
+
+extern "C" PDPD_API FrontEndVersion GetAPIVersion()
+{
+    return OV_FRONTEND_API_VERSION;
+}
+
+extern "C" PDPD_API void* GetFrontEndData()
+{
+    FrontEndPluginInfo* res = new FrontEndPluginInfo();
+    res->m_name = "pdpd";
+    res->m_creator = [](FrontEndCapFlags) { return std::make_shared<FrontEndPDPD>(); };
+    return res;
+}

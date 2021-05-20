@@ -19,22 +19,22 @@ def fe_decodeNameWithPort (inputModel, node_name: str):
     :return: decoded place in the graph
     """
     # Check exact match with one of the names in the graph first
-    node = inputModel.getPlaceByTensorName(node_name)
+    node = inputModel.get_place_by_tensor_name(node_name)
     if node:
         return node
     # TODO: not tested for available frontends
     regexpPost = r'(.*)(:(\d+))'
     matchPost = re.search(regexpPost, node_name)
-    nodePost = inputModel.getPlaceByTensorName(matchPost.group(1)) if matchPost else None
+    nodePost = inputModel.get_place_by_tensor_name(matchPost.group(1)) if matchPost else None
     regexpPre = r'((\d+):)(.*)'
     matchPre = re.search(regexpPre, node_name)
-    nodePre = inputModel.getPlaceByTensorName(matchPre.group(3)) if matchPost else None
+    nodePre = inputModel.get_place_by_tensor_name(matchPre.group(3)) if matchPost else None
     if nodePost and nodePre:
         raise Error('Name collision for {}'.format(node_name))
     if nodePost:
-        return node.getOutputPort(int(matchPost.group(3)))
+        return node.get_output_port(int(matchPost.group(3)))
     if nodePre:
-        return node.getInputPort(int(matchPre.group(1)))
+        return node.get_input_port(int(matchPre.group(1)))
     raise Error('There is no node with name {}'.format(node_name))
 
 
@@ -90,7 +90,7 @@ def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, 
             else:
                 _input_shapes.append({'node': node, 'shape': shape})
     elif isinstance(input_user_shapes, np.ndarray):
-        model_inputs = inputModel.getInputs()
+        model_inputs = inputModel.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
     else:

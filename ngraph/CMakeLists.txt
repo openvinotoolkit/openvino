@@ -27,9 +27,10 @@ set(NGRAPH_INCLUDE_PATH
 )
 
 set(FRONTEND_INCLUDE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/frontend/generic/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager/include
 )
 
+# Will be used by frontends to construct frontend-specific source location paths
 set(FRONTEND_BASE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/frontend
 )

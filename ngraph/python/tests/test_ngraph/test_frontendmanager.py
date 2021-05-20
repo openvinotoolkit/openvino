@@ -13,7 +13,7 @@ def test_frontendmanager():
     except Exception:
         assert False
 
-    frontEnds = fem.availableFrontEnds()
+    frontEnds = fem.get_available_front_ends()
     assert frontEnds is not None
 
     assert not("UnknownFramework" in frontEnds)

@@ -10,10 +10,12 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "onnx_editor/edge_mapper.hpp"
 #include "onnx_editor/editor.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
 
 using namespace ngraph;
+using namespace ngraph::onnx_editor;
 
 namespace
 {
@@ -186,6 +188,8 @@ namespace
 struct onnx_editor::ONNXModelEditor::Impl
 {
     ONNX_NAMESPACE::ModelProto m_model_proto;
+    EdgeMapper m_edge_mapper;
+    bool m_is_mapper_updated = false;
 
     Impl() = delete;
 
@@ -285,6 +289,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     editor.extract_subgraph(outputs);
 
     m_pimpl->remove_shape_inference_info();
+    m_pimpl->m_is_mapper_updated = false;
 }
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
@@ -345,71 +350,44 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
-namespace
+void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const
 {
-    const auto is_equal_to =
-        +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
+    if (!m_pimpl->m_is_mapper_updated)
+    {
+        m_pimpl->m_edge_mapper = EdgeMapper(m_pimpl->m_model_proto.graph());
+    }
+    m_pimpl->m_is_mapper_updated = true;
 }
 
-int onnx_editor::ONNXModelEditor::find_producing_node_idx(const std::string& tensorName) const
+InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
+                                                        const EditorInput& input) const
 {
-    const auto& graph = m_pimpl->m_model_proto.graph();
-    for (int i = 0; i < graph.node_size(); ++i)
-    {
-        const auto& outputs = graph.node(i).output();
-        const auto output_found =
-            std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(tensorName));
-
-        if (output_found)
-        {
-            return i;
-        }
-    }
-
-    throw ngraph::ngraph_error{"Source node not found in the graph for tensor name: " + tensorName};
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.find_input_edge(node, input);
 }
 
-std::vector<int>
-    onnx_editor::ONNXModelEditor::find_consumeing_node_idxs(const std::string& tensorName) const
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
+                                                          const EditorOutput& input) const
 {
-    const auto& graph = m_pimpl->m_model_proto.graph();
-    std::vector<int> result;
-    for (int i = 0; i < graph.node_size(); ++i)
-    {
-        const auto& inputs = graph.node(i).input();
-        const auto input_found =
-            std::any_of(std::begin(inputs), std::end(inputs), is_equal_to(tensorName));
-
-        if (input_found)
-        {
-            result.push_back(i);
-        }
-    }
-    return result;
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.find_output_edge(node, input);
 }
 
-bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tensorName) const
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name) const
 {
-    const auto& graph = m_pimpl->m_model_proto.graph();
-    for (int i = 0; i < graph.node_size(); ++i)
-    {
-        const auto& outputs = graph.node(i).output();
-        const auto output_found =
-            std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(tensorName));
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.find_output_edge(output_name);
+}
 
-        if (output_found)
-        {
-            return true;
-        }
+std::vector<InputEdge>
+    onnx_editor::ONNXModelEditor::find_output_consumers(const std::string& output_name) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.find_output_consumers(output_name);
+}
 
-        const auto& inputs = graph.node(i).input();
-        const auto input_found =
-            std::any_of(std::begin(inputs), std::end(inputs), is_equal_to(tensorName));
-
-        if (input_found)
-        {
-            return true;
-        }
-    }
-    return false;
+bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorNode& node) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
 }

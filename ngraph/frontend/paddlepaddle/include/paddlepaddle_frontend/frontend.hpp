@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -24,7 +12,7 @@ namespace ngraph
 {
     namespace frontend
     {
-        class NGRAPH_API FrontEndPDPD : public FrontEnd
+        class PDPD_API FrontEndPDPD : public FrontEnd
         {
             static std::shared_ptr<Function>
                 convert_model(const std::shared_ptr<InputModelPDPD>& model);
@@ -37,14 +25,15 @@ namespace ngraph
              * @param path path to folder which contains __model__ file or path to .pdmodel file
              * @return InputModel::Ptr
              */
-            InputModel::Ptr loadFromFile(const std::string& path) const override;
+            virtual InputModel::Ptr load_from_file(const std::string& path) const override;
 
             /**
              * @brief Reads model and weights from files
              * @param paths vector containing path to .pdmodel and .pdiparams files
              * @return InputModel::Ptr
              */
-            InputModel::Ptr loadFromFiles(const std::vector<std::string>& paths) const override;
+            virtual InputModel::Ptr
+                load_from_files(const std::vector<std::string>& paths) const override;
 
             /**
              * @brief Reads model from stream
@@ -52,7 +41,7 @@ namespace ngraph
              * if model have no weights
              * @return InputModel::Ptr
              */
-            InputModel::Ptr loadFromStream(std::istream& model_stream) const override;
+            virtual InputModel::Ptr load_from_stream(std::istream& model_stream) const override;
 
             /**
              * @brief Reads model from stream
@@ -60,7 +49,8 @@ namespace ngraph
              * used in case of multiple weight files
              * @return InputModel::Ptr
              */
-            InputModel::Ptr loadFromStreams(const std::vector<std::istream*>& paths) const override;
+            virtual InputModel::Ptr
+                load_from_streams(const std::vector<std::istream*>& paths) const override;
 
             std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
         };

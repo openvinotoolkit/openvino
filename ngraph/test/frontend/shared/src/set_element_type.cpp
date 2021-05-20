@@ -16,22 +16,23 @@ std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInf
 }
 
 void FrontEndElementTypeTest::SetUp() {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndElementTypeTest::initParamTest() {
     m_param = GetParam();
     m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
-    std::cout << "Model: " << m_param.m_modelName << std::endl;
 }
 
 void FrontEndElementTypeTest::doLoadFromFile() {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_param.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 
@@ -41,11 +42,11 @@ TEST_P(FrontEndElementTypeTest, testSetElementType)
 {
     ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->getInputs()[0]);
+    ASSERT_NO_THROW(place = m_inputModel->get_inputs()[0]);
     ASSERT_NE(place, nullptr);
-    auto name = place->getNames()[0];
+    auto name = place->get_names()[0];
 
-    ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f16));
+    ASSERT_NO_THROW(m_inputModel->set_element_type(place, element::f16));
 
     std::shared_ptr<ngraph::Function> function;
     function = m_frontEnd->convert(m_inputModel);

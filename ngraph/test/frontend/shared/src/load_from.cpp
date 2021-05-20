@@ -17,6 +17,8 @@ std::string FrontEndLoadFromTest::getTestCaseName(const testing::TestParamInfo<L
 }
 
 void FrontEndLoadFromTest::SetUp() {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     m_param = GetParam();
 }
 
@@ -26,11 +28,11 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFile)
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_param.m_modelsPath + m_param.m_file));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelsPath + m_param.m_file));
     ASSERT_NE(m_inputModel, nullptr);
 
     std::shared_ptr<ngraph::Function> function;
@@ -42,8 +44,8 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFiles)
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
     auto dir_files = m_param.m_files;
@@ -51,7 +53,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFiles)
         file = m_param.m_modelsPath + file;
     }
 
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFiles(dir_files));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_files(dir_files));
     ASSERT_NE(m_inputModel, nullptr);
 
     std::shared_ptr<ngraph::Function> function;
@@ -63,12 +65,12 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream)
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
     std::ifstream is(m_param.m_modelsPath + m_param.m_stream, std::ios::in | std::ifstream::binary);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromStream(is));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_stream(is));
     ASSERT_NE(m_inputModel, nullptr);
 
     std::shared_ptr<ngraph::Function> function;
@@ -80,8 +82,8 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreams)
 {
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
 
     std::vector<std::shared_ptr<std::ifstream>> is_vec;
@@ -90,7 +92,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreams)
         is_vec.push_back(std::make_shared<std::ifstream>(m_param.m_modelsPath + file, std::ios::in | std::ifstream::binary));
         is_ptr_vec.push_back(is_vec.back().get());
     }
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromStreams(is_ptr_vec));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_streams(is_ptr_vec));
     ASSERT_NE(m_inputModel, nullptr);
 
     std::shared_ptr<ngraph::Function> function;

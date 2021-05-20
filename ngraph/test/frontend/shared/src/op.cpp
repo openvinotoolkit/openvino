@@ -4,6 +4,7 @@
 
 #include <regex>
 #include "../include/op.hpp"
+#include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -12,29 +13,26 @@ using TestEngine = test::IE_CPU_Engine;
 
 std::string FrontendOpTest::getTestCaseName(const testing::TestParamInfo<FrontendOpTestParam> &obj) {
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;
-    //res += "I" + joinStrings(obj.param.m_oldInputs) + joinStrings(obj.param.m_newInputs);
-    //res += "O" + joinStrings(obj.param.m_oldOutputs) + joinStrings(obj.param.m_newOutputs);
-    // need to replace special characters to create valid test case name
-    res = std::regex_replace(res, std::regex("[/\\.]"), "_");
-    return res;
+    return FrontEndTestUtils::fileToTestName(res);
 }
 
 void FrontendOpTest::SetUp() {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontendOpTest::initParamTest() {
     m_param = GetParam();
-    m_param.m_modelName = std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_modelName;
-    std::cout << "Model: " << m_param.m_modelName << std::endl;
+    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
 }
 
 void FrontendOpTest::validateOp() {
     // load
-    ASSERT_NO_THROW(m_fem.availableFrontEnds());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.loadByFramework(m_param.m_frontEndName));
+    ASSERT_NO_THROW(m_fem.get_available_front_ends());
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->loadFromFile(m_param.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 
     // convert
