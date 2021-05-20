@@ -16,11 +16,11 @@ using ngraph::test::NodeBuilder;
 TEST(attributes, floor_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::Floor>();
-    auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
+    const auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
 
-    auto floor = make_shared<opset1::Floor>(A);
+    const auto floor = make_shared<opset1::Floor>(A);
     NodeBuilder builder(floor);
-    auto g_floor = as_type_ptr<opset1::Floor>(builder.create());
 
-    EXPECT_EQ(g_floor->get_autob(), floor->get_autob());
+    const auto expected_attr_count = 0;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
