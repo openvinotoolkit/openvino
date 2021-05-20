@@ -34,7 +34,8 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval)
 
     auto input_rois = std::make_shared<op::Parameter>(element::f32, input_rois_shape);
     auto input_probs = std::make_shared<op::Parameter>(element::f32, input_probs_shape);
-    auto f = std::make_shared<ExperimentalTopK>(input_rois, input_probs, num_rois);
+    auto topk_rois = std::make_shared<ExperimentalTopK>(input_rois, input_probs, num_rois);
+    auto f = std::make_shared<Function>(topk_rois, ParameterVector{input_rois, input_probs});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto topk_rois_output = backend->create_tensor(element::f32, output_shape);
