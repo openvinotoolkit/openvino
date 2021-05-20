@@ -89,6 +89,18 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             return broadcast;
     };
 
+    bool someDqInLowPrecision = std::any_of(
+        layerDequantizations.begin(),
+        layerDequantizations.end(),
+        [](const FakeQuantizeDequantization& value) { return value.isLowPrecision(); });
+
+    bool someDqInFpPrecision = std::any_of(
+        layerDequantizations.begin(),
+        layerDequantizations.end(),
+        [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
+
+    bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
+
     OutputVector dataNodes;
     NodeVector convertNodes;
     NodeVector subtractNodes;
@@ -96,7 +108,11 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     for (size_t i = 0; i < layerDequantizations.size(); ++i) {
         const auto& dequantization = layerDequantizations[i];
 
-        dataNodes.push_back(dequantization.data);
+        if (DqWithDifferentPrecision && dequantization.isLowPrecision()) {
+            dataNodes.push_back(dequantization.convert);
+        } else {
+            dataNodes.push_back(dequantization.data);
+        }
 
         if (dequantization.convert != nullptr) {
             convertNodes.push_back(dequantization.convert);
@@ -170,6 +186,17 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
+    }
+
+    // TODO: remove
+    // added to align behavior with previos LPT
+    if (updatePrecisions) {
+        for (size_t i = 0ul; i < concat->get_input_size(); i++) {
+            FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
+            if (dequantization.empty() || !dequantization.isLowPrecision()) {
+                return false;
+            }
+        }
     }
 
     const auto axis = concat->get_axis();
