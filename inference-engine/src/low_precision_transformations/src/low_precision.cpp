@@ -139,6 +139,7 @@ ngraph::pass::low_precision::LowPrecision::TypeRelaxedReplacer::TypeRelaxedRepla
     // TODO: this update is absent in master
     //make_matcher_type_relaxed<opset1::Concat>(this);
     make_matcher_type_relaxed<opset1::Convolution>(this);
+    make_matcher_type_relaxed<opset1::ConvolutionBackpropData>(this);
     make_matcher_type_relaxed<opset1::DepthToSpace>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);

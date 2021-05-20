@@ -20,25 +20,26 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
-    auto convQDQ = pattern::wrap_type<opset1::ConvolutionBackpropData>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::Multiply>() });
-
-    auto convQFQ = pattern::wrap_type<opset1::ConvolutionBackpropData>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::FakeQuantize>() });
-
-    auto convQDQAndOutShape = pattern::wrap_type<opset1::ConvolutionBackpropData>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::Constant>()});
-
-    auto convQFQAndOutShape = pattern::wrap_type<opset1::ConvolutionBackpropData>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::FakeQuantize>(),
-        pattern::wrap_type<opset1::Constant>() });
-
-    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{ convQDQ, convQFQ, convQDQAndOutShape, convQFQAndOutShape });
+    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
+        pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+    });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -229,6 +230,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         auto& rt = onWeights->get_rt_info();
         rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
     }
+
 
     return true;
 }
