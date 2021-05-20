@@ -150,6 +150,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
 
+        using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+
         bool enableInt8;
         {
             ngraph::pass::Manager manager;
@@ -206,8 +208,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
             auto pass_config = manager.get_pass_config();
-
-            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
             // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -397,11 +397,24 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             //   - deconvolutionSpecificChannelsRatio
 
             auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+                OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
                 OperationPrecisionRestriction::create<ngraph::opset1::StridedSlice>({})
             });
 
             auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
                 OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0}),
                 OperationPerTensorQuantizationRestriction::create<ngraph::opset1::GroupConvolution>({0})
             });
 
@@ -409,8 +422,14 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             auto lptPassConfig = lptManager.get_pass_config();
             lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
+            lptPassConfig->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+                return WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            });
 
-            lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+            auto params = LayerTransformation::Params();
+            params.setDeconvolutionSpecificChannelsRatio(true);
+
+            lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lptManager.run_passes(nGraphFunc);
         }
 

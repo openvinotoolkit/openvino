@@ -277,10 +277,10 @@ public:
     virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
 
     // TODO: LPT: not completed: remove whole method
-    DataPrecision getDataPrecision(
+    static DataPrecision getDataPrecision(
             const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const std::vector<element::Type>& precisions) const;
+            const std::vector<element::Type>& precisions);
 
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

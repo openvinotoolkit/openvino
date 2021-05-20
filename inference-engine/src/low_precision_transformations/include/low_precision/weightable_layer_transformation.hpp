@@ -33,8 +33,10 @@ protected:
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
 
-    std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) const;
-    DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const;
+public:
+    static std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
+    static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node);
+    static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node);
 };
 
 } // namespace low_precision
