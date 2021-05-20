@@ -2,27 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_plugin.hpp"
-
-#include <hetero/hetero_plugin_config.hpp>
-#include <ie_algorithm.hpp>
+// clang-format off
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <ie_algorithm.hpp>
+
+#include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
+
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/convert_precision.hpp>
 
 #include "template/template_config.hpp"
+#include "template_itt.hpp"
+#include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
-#include "template_itt.hpp"
-#include "transformations/preprocessing/preprocessing.hpp"
 #include "transformations/template_pattern_transformation.hpp"
+#include "transformations/preprocessing/preprocessing.hpp"
+// clang-format on
 
 using namespace TemplatePlugin;
 
