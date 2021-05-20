@@ -8,7 +8,6 @@ from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool
-from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr
 from libc.stdlib cimport malloc, free
@@ -21,12 +20,12 @@ from fnmatch import fnmatch
 import threading
 import warnings
 from copy import deepcopy
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 
 from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport SizeVector, Precision
 from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, format_map, layout_int_to_str_map,\
-    known_plugins, supported_precisions, ResizeAlgorithm, ColorFormat
+    supported_precisions, ResizeAlgorithm, ColorFormat
 
 import numpy as np
 
@@ -65,6 +64,25 @@ def read_network(path_to_xml : str, path_to_bin : str):
     cdef IENetwork net = IENetwork()
     net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
     return net
+
+##
+cdef class VariableState:
+    def reset(self):
+        self.impl.Reset()
+
+    @property
+    def state(self):
+        blob = Blob()
+        blob._cptr = self.impl.GetState()
+        return blob
+
+    @property.setter
+    def state(self, blob):
+        self.impl.SetState(blob._ptr)
+
+    @property
+    def name(self):
+        return self.impl.GetName()
 
 
 ## This class defines Tensor description

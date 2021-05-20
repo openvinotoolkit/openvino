@@ -6,8 +6,6 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.map cimport map
-from libcpp.set cimport set
-from libcpp.pair cimport pair
 from libcpp.memory cimport unique_ptr, shared_ptr, weak_ptr
 from libc.stdint cimport int64_t, uint8_t
 
@@ -20,6 +18,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
     cdef cppclass CBlob "InferenceEngine::Blob":
         ctypedef shared_ptr[CBlob] Ptr
+        ctypedef shared_ptr[const CBlob] CPtr
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
@@ -85,6 +84,12 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         void setResizeAlgorithm(const ResizeAlgorithm& alg)
         MeanVariant getMeanVariant() const
         void setVariant(const MeanVariant& variant)
+
+    cdef cppclass CVariableState "InferenceEngine::VariableState":
+        void Reset()
+        string GetName() const
+        CBlob.CPtr GetState() const
+        void SetState(CBlob.Ptr state)
 
     ctypedef map[string, InputInfo.CPtr] InputsDataMap
 
