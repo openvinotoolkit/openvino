@@ -1,10 +1,8 @@
 #include <winver.h>
 
 VS_VERSION_INFO         VERSIONINFO
-#if @IE_VS_VER_HAS_VERSION@
   FILEVERSION           @IE_VS_VER_FILEVERSION_QUAD@
   PRODUCTVERSION        @IE_VS_VER_PRODUCTVERSION_QUAD@
-#endif
   FILEFLAGSMASK         VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
   FILEFLAGS             1
@@ -21,9 +19,7 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "@IE_VS_VER_COMPANY_NAME_STR@\0"
       VALUE "FileDescription", "@IE_VS_VER_FILEDESCRIPTION_STR@\0"
-#if @IE_VS_VER_HAS_VERSION@
       VALUE "FileVersion", "@IE_VS_VER_FILEVERSION_STR@\0"
-#endif
       VALUE "InternalName", "@IE_VS_VER_INTERNALNAME_STR@\0"
       VALUE "LegalCopyright", "@IE_VS_VER_COPYRIGHT_STR@\0"
       VALUE "OriginalFilename", "@IE_VS_VER_ORIGINALFILENAME_STR@\0"

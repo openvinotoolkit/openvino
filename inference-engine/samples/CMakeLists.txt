@@ -133,7 +133,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
-find_package(InferenceEngine 2.1.0 EXACT REQUIRED)
+find_package(InferenceEngine REQUIRED)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)

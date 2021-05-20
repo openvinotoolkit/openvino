@@ -148,7 +148,7 @@ configure_file(
 configure_file(
     "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    COPYONLY)
+    @ONLY)
 
 #
 # Coverage
