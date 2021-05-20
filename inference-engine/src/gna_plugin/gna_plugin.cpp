@@ -44,6 +44,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
+#include <transformations/op_conversions/conv2d_decomposition.hpp>
+#include <transformations/op_conversions/convert_padded2valid_conv.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
@@ -54,7 +56,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
-#include <transformations/op_conversions/convert_padded2valid_conv.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
@@ -660,6 +662,11 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+
+    if (!gnaFlags->sw_fp32) {
+        InitGNADevice();
+    }
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -667,6 +674,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
+        if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0)
+            manager.register_pass<ngraph::pass::Conv2dDecomposition>();
         manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<InsertTransposeBeforeMatmul>();
@@ -692,6 +701,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
+        pass_config->disable<ngraph::pass::TransposeOptimization>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
@@ -753,7 +763,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
-
+        passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
@@ -855,15 +865,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty()) {
+    if (!graphCompiler.memory_connection.empty() && gnaFlags->gna_lib_async_threads_num != 1) {
+        // TODO: check if updating the number of threads is needed for sw_fp32
         gnaFlags->gna_lib_async_threads_num = 1;
+        if (!gnaFlags->sw_fp32)
+            InitGNADevice();
     }
 
     if (gnaFlags->sw_fp32) {
         gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
         graphCompiler.setGNAMemoryPtr(gnamem);
-    } else {
-        InitGNADevice();
     }
 
     // keep inputs information and create input primitives
