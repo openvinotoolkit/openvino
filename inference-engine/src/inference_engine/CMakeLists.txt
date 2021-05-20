@@ -303,14 +303,7 @@ configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/Inf
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-
-# WA for CI
-configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
+               @ONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
