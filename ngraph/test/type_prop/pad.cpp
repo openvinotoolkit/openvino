@@ -293,3 +293,15 @@ TEST(type_prop, pad_v1_dynamic_output_with_static_rank)
         make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
     ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
+
+TEST(type_prop, pad_v1_interval_input_with_constant_begin_end)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{{0, 1}, {0, 151}, -1, -1, 0});
+    auto pads_begin = op::Constant::create(element::i32, Shape{5}, {5, 7, 9, 11, 0});
+    auto pads_end = op::Constant::create(element::i64, Shape{5}, {3, 2, 1, 0, 0});
+    auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
+
+    auto pad =
+        make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape({Dimension(8, 9), Dimension(9, 160), Dimension(10, -1), Dimension(11, -1), 0}));
+}
