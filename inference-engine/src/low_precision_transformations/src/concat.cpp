@@ -188,6 +188,17 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    // TODO: remove
+    // added to align behavior with previos LPT
+    if (updatePrecisions) {
+        for (size_t i = 0ul; i < concat->get_input_size(); i++) {
+            FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
+            if (dequantization.empty() || !dequantization.isLowPrecision()) {
+                return false;
+            }
+        }
+    }
+
     const auto axis = concat->get_axis();
     const size_t normalizedAxis = normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
 
