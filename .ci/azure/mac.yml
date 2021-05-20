@@ -136,6 +136,7 @@ jobs:
   - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
+    enabled: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
