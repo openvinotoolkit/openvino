@@ -288,7 +288,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
             createDescriptor({in_candidate}, {out_candidate});
 
-            if (isNspcAvailable()) {
+            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -317,7 +317,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
             createDescriptor({in_candidate}, {out_candidate});
 
-            if (isNspcAvailable()) {
+            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -775,7 +775,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         }
     } else {
         // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than the specific value
-        size_t activationSize = ndims - 2; //two means batch dim plus channels dim
+        size_t spatialRank = ndims - 2; //two means batch dim plus channels dim
 
         bool is1x1 = false;
 
@@ -786,7 +786,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
             auto paddingLreversItr = paddingL.crbegin();
             auto paddingRreversItr = paddingR.crbegin();
 
-            for (size_t i = 0; i < activationSize; ++i) {
+            for (size_t i = 0; i < spatialRank; ++i) {
                 is1x1 = true
                         && *(weightDimsReversItr++) == 1
                         && *(inpDimsReversItr++) == *(outDimsReversItr++)
