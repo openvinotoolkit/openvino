@@ -18,6 +18,7 @@ if (OpenCV_FOUND)
 endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if (OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_IMPORT_ENABLED)

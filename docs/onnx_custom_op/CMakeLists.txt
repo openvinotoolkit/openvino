@@ -12,4 +12,5 @@ find_package(ngraph REQUIRED COMPONENTS onnx_importer)
 add_library(${TARGET_NAME} STATIC onnx_custom_op.cpp)
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} ${ONNX_IMPORTER_LIBRARIES})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # [cmake:onnx_custom_op]
