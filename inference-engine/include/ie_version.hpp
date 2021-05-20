@@ -3,11 +3,26 @@
 //
 
 /**
- * @brief A header file that provides versioning information for the inference engine shared library
+ * @brief A header file that provides versioning information for the Inference Engine library
  *
  * @file ie_version.hpp
  */
 #pragma once
+
+/**
+ * @def IE_VERSION_MAJOR
+ * @brief Defines Inference Engine major version
+ *
+ * @def IE_VERSION_MINOR
+ * @brief Defines Inference Engine minor version
+ *
+ * @def IE_VERSION_PATCH
+ * @brief Defines Inference Engine patch version
+ */
+
+#define IE_VERSION_MAJOR 2021
+#define IE_VERSION_MINOR 4
+#define IE_VERSION_PATCH 0
 
 #include "ie_api.h"
 
