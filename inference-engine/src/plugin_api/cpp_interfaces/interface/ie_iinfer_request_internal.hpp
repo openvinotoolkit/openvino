@@ -174,7 +174,26 @@ public:
      */
     void setPointerToExecutableNetworkInternal(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork);
 
+    /**
+     * @brief   Gets the pointer to userData.
+     * @return  Pointer to user data
+     */
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
+    void* GetUserData() noexcept;
+
+    /**
+     * @brief       Sets the pointer to userData.
+     * @param[in]   Pointer to user data
+     */
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
+    void SetUserData(void* userData) noexcept;
+
 protected:
+    /**
+     * @brief Destroys the object.
+     */
+    ~IInferRequestInternal();
+
     /**
      * @brief Checks and executes input data pre-processing if needed.
      * @param inputs Inputs blobs to perform preprocessing on
@@ -220,10 +239,8 @@ protected:
     std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
     Callback _callback;  //!< A callback
 
-    /**
-     * @brief Destroys the object.
-     */
-    ~IInferRequestInternal();
+private:
+    void*   _userData = nullptr;
 };
 
 /**

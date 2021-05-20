@@ -270,7 +270,7 @@ class Port:
                 tensor_name = attr[1]
                 if tensor_name is not None and len(tensor_name) > 0:
                     tensor_names_list.append(tensor_name.replace(',', '\\,'))
-        return tensor_names_list
+        return sorted(tensor_names_list)
 
     def get_tensor_debug_info(self, port_renumber: bool = False):
         def get_tensor_debug_info_from_attrs(attrs):
@@ -299,6 +299,7 @@ class Port:
                 out_node = self.node.out_node(node_idx)
                 fw_debug_info += get_tensor_debug_info_from_attrs(out_node.attrs())
         return fw_debug_info
+
 
     def disconnect(self):
         if self.type == 'out':
