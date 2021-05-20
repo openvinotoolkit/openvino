@@ -42,6 +42,39 @@
 using namespace testing;
 using namespace InferenceEngine;
 
+TEST(CNNNGraphImplTests, TestReshapeWithSameShape) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, shape, true);
+        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{reshape}, ngraph::ParameterVector{input});
+    }
+
+    auto net = InferenceEngine::CNNNetwork(f);
+    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 4000})}}));
+}
+
+TEST(CNNNGraphImplTests, TestInvalidReshape) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, shape, true);
+        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{reshape}, ngraph::ParameterVector{input});
+    }
+
+    auto net = InferenceEngine::CNNNetwork(f);
+    ASSERT_ANY_THROW(net.reshape({{"input", SizeVector({4})}}));
+
+    auto param = *net.getFunction()->get_parameters().begin();
+    ASSERT_EQ(param->get_output_shape(0), ngraph::Shape({1, 1000, 4}));
+
+    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 1000, 4})}}));
+}
+
 IE_SUPPRESS_DEPRECATED_START
 
 TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
