@@ -53,6 +53,9 @@ void regclass_pyngraph_FrontEnd(py::module m)
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
                 std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert));
+    fem.def("convert_partially", &ngraph::frontend::FrontEnd::convert_partially, py::arg("model"));
+    fem.def("decode", &ngraph::frontend::FrontEnd::decode, py::arg("model"));
+    fem.def("normalize", &ngraph::frontend::FrontEnd::normalize, py::arg("function"));
 }
 
 void regclass_pyngraph_Place(py::module m)
