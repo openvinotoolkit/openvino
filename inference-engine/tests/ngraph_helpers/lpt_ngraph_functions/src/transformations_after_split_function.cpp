@@ -125,7 +125,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "NormalizeL2Transformation") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
-        const auto axesNode = opset1::Constant::create(element::u64, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        const auto axesNode = opset1::Constant::create(element::i64, ngraph::Shape{ 3 }, { 1, 2, 3 });
         return std::make_shared<ngraph::opset1::NormalizeL2>(dequantization, axesNode, 1e-6, ngraph::op::EpsMode::ADD);
     }
     if (transformationName == "PReluTransformation") {
