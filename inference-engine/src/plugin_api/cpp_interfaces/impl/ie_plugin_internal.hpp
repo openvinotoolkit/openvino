@@ -72,6 +72,10 @@ public:
         return impl;
     }
 
+    // NOTE:
+    // In case of overloading this method, make sure that executable network
+    // has correctly setNetworkInputs/setNetworkOutputs/SetPointerToPlugin
+    // Base implementation does this via GetCore()->LoadNetwork(cnnNet)
     IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
                                                 const std::map<std::string, std::string>& config) override {
         auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());

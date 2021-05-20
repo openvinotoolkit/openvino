@@ -30,6 +30,10 @@ public:
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    LoadNetwork(const std::string &modelPath,
+                const std::map<std::string, std::string> &config) override;
+
     std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
     ImportNetworkImpl(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
@@ -46,6 +50,12 @@ public:
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
+
+    void SetCore(InferenceEngine::ICore* core) noexcept override;
+
+    void SetName(const std::string& name) noexcept override;
+
+    std::string GetName() const noexcept override;
 
     std::map<std::string, std::string> config;
 };

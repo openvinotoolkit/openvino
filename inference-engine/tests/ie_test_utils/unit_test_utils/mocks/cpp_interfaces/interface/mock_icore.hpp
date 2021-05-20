@@ -31,6 +31,7 @@ public:
 
     MOCK_QUALIFIED_METHOD2(GetMetric, const, InferenceEngine::Parameter(const std::string&, const std::string&));
     MOCK_QUALIFIED_METHOD0(GetAvailableDevices, const, std::vector<std::string>());
+    MOCK_QUALIFIED_METHOD1(DeviceSupportsImportExport, const, bool(const std::string&)); // NOLINT not a cast to bool
 
     ~MockICore() = default;
 };
