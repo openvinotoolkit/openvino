@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <type_traits>
 
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
@@ -62,7 +63,14 @@ private:
         if (!executableNetwork) {
             IE_THROW() << "Failed to load network by AUTO plugin";
         }
-        return std::make_shared<AutoExecutableNetwork>(executableNetwork);
+        auto impl = std::make_shared<AutoExecutableNetwork>(executableNetwork);
+
+        if (std::is_same<std::string, T>::value) {
+            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),
+                                    executableNetwork->GetOutputsInfo());
+        }
+
+        return impl;
     }
 };
 

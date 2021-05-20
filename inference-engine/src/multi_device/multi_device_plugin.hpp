@@ -44,10 +44,6 @@ private:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config);
-
-    void SetExeNetworkInfo(InferenceEngine::ExecutableNetworkInternal::Ptr exeNetwork,
-                           const InferenceEngine::ConstInputsDataMap& inputs,
-                           const InferenceEngine::ConstOutputsDataMap& outputs);
 };
 
 }  // namespace MultiDevicePlugin
