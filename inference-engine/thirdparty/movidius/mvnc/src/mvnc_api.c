@@ -177,7 +177,9 @@ char* mvnc_strdup(const char* s) {
 #ifdef _MSC_VER
     return _strdup(s);
 #else
-    return strdup(s);
+    char* res = strdup(s);
+    printf("strdup allocate on %p\n", res);
+    return res;
 #endif
 }
 
@@ -1655,7 +1657,9 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
     }
 
     free(d->thermal_stats);
+    printf("strdup deallocate on %p\n", d->dev_addr);
     free(d->dev_addr);
+    printf("strdup deallocate on %p\n", d->dev_addr_booted);
     free(d->dev_addr_booted);
 
     free(d->dev_file);
