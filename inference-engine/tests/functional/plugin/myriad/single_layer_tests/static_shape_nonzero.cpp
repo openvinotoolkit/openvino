@@ -64,9 +64,10 @@ protected:
         return FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 4, -2, 2);
     }
 
-    void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutput, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
-        const auto expectedIndicesPtr = reinterpret_cast<const int32_t*>(expectedOutput[0].data());
-        const auto expectedDimsPtr = reinterpret_cast<const int32_t*>(expectedOutput[1].data());
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutput,
+                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
+        const auto expectedIndicesPtr = reinterpret_cast<const int32_t*>(expectedOutput[0].second.data());
+        const auto expectedDimsPtr = reinterpret_cast<const int32_t*>(expectedOutput[1].second.data());
 
         const auto actualIndices = actualOutputs[0];
         const auto actualDims = actualOutputs[1];

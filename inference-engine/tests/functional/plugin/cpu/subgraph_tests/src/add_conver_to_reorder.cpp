@@ -36,7 +36,7 @@ public:
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "gather");
     }
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
             ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(function);
@@ -51,25 +51,6 @@ private:
 };
 
 namespace  {
-/* Test insertion of the Convert layer if there is no suitable reorder.
-
-    Parameter[FP32]     Constant[BF16]
-          \                 /
-           \               /
-            \       Convert[I32] (Is inserted by the MKLDNNGraph)
-             \           /
-             Gather[FP32]
-                  |
-                  |
-             Output[FP32]
-*/
-
-TEST_F(AddConvertToReorderTest, smoke_TestAddConvert_CPU) {
-    BuildGraph(ngraph::element::bf16);
-    Run();
-    CheckNodeOfTypeCount(executableNetwork, "Convert", 1);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 0);
-}
 
 /* Test insertion of the Reorder layer if there is one.
 
@@ -84,6 +65,8 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddConvert_CPU) {
              Output[FP32]
 */
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     BuildGraph(ngraph::element::i8);
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Convert", 0);

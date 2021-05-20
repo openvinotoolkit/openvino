@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "details/ie_so_loader.h"
 #include "cpp/ie_memory_state.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "exception2status.hpp"
 
 #define VARIABLE_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";                      \
+    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";                       \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -18,11 +19,10 @@
 
 namespace InferenceEngine {
 
-VariableState::VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
-                             const details::SharedObjectLoader::Ptr& so) : _impl(impl), _so(so) {
-    if (impl == nullptr) {
-        IE_THROW(NotAllocated) << "VariableState wrapper was not initialized.";
-    }
+VariableState::VariableState(const details::SharedObjectLoader& so,
+                             const IVariableStateInternal::Ptr& impl)
+    : _so(so), _impl(impl) {
+    IE_ASSERT(_impl != nullptr);
 }
 
 IE_SUPPRESS_DEPRECATED_START

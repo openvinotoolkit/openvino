@@ -101,7 +101,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception)
     {
         EXPECT_PRED_FORMAT2(
             testing::IsSubstring,
-            std::string("not_existed_file.data, offset: 4096, data_lenght: 16, sha1_digest: 0)"),
+            std::string("not_existed_file.data, offset: 4096, data_length: 16, sha1_digest: 0)"),
             error.what());
     }
     catch (...)
@@ -123,7 +123,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path)
     {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("tensor.data, offset: 4096, "
-                                        "data_lenght: 16, sha1_digest: 0)"),
+                                        "data_length: 16, sha1_digest: 0)"),
                             error.what());
     }
     catch (...)
