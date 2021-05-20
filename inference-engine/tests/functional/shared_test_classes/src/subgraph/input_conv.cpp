@@ -54,8 +54,8 @@ InferenceEngine::Blob::Ptr InputConvTest::GenerateInput(const InferenceEngine::I
 void InputConvTest::SetUp() {
     auto generateWeights = [](std::size_t out_channels, std::size_t kernel_size) {
         std::vector<float> res;
-        for (int i = 0; i < out_channels; ++i) {
-            for (int j = 0; j < kernel_size; ++j) {
+        for (std::size_t i = 0; i < out_channels; ++i) {
+            for (std::size_t j = 0; j < kernel_size; ++j) {
                 j == 0 ? res.emplace_back(1.0f) : res.emplace_back(0.0f);
             }
         }

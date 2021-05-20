@@ -27,7 +27,7 @@ generateVector(size_t vec_len,
     std::mt19937 gen(seed);
     if (std::is_floating_point<dataType>()) {
         // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
-        std::uniform_real_distribution<double> dist(startFrom, upTo);
+        std::uniform_real_distribution<double> dist(static_cast<double>(startFrom), static_cast<double>(upTo));
         // explicitly include data range borders to avoid missing the corner values while data generation
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
@@ -37,7 +37,7 @@ generateVector(size_t vec_len,
         return res;
     } else {
         // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
-        std::uniform_int_distribution<long> dist(startFrom, upTo);
+        std::uniform_int_distribution<long> dist(static_cast<long>(startFrom), static_cast<long>(upTo));
         // explicitly include data range borders to avoid missing the corner values while data generation
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
