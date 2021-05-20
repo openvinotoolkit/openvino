@@ -49,13 +49,6 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         pattern::wrap_type<ngraph::opset6::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>(), pattern::wrap_type<ngraph::opset1::Constant>() })
     });
 
-    // TODO: handle MVN6 in matcher
-    //addPattern(
-    //    pass,
-    //    context,
-    //    make_op_pattern<ngraph::opset6::MVN>({ make_op_label<ngraph::opset1::Multiply>(),
-    //                                           make_op_label<ngraph::opset1::Constant>() }));
-
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (!op || transformation_callback(op)) {

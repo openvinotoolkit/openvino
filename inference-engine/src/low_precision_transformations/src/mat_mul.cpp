@@ -9,7 +9,9 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -20,7 +22,10 @@ using namespace ngraph::pass::low_precision;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
 
 MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::MatMul>();
+    auto mul1 = pattern::wrap_type<opset1::Multiply>();
+    auto mul2 = pattern::wrap_type<opset1::Multiply>();
+    auto fq2 = pattern::wrap_type<opset1::FakeQuantize>();
+    auto matcher = pattern::wrap_type<opset1::MatMul>({ mul1, std::make_shared<pattern::op::Or>(OutputVector{ mul2, fq2 })});
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -29,14 +34,6 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         }
         return transform(*context, m);
     };
-
-    //this->register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-    //    make_op_pattern<opset1::MatMul>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Multiply>() }),
-    //    "MatMulTransformation"), callback);
-
-    //this->register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-    //    make_op_pattern<opset1::MatMul>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::FakeQuantize>() }),
-    //    "MatMulTransformation"), callback);
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
     this->register_matcher(m, callback);
@@ -211,6 +208,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
             return false;
         }
+    } else {
+        return false;
     }
 
     const auto dequantization2 = NetworkHelper::getDequantization(layer, 1);
@@ -266,6 +265,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             ((outHighShape.size() == fakeQuantizeShape.size()) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
+    }
+
+    if (!fakeQuantize && dequantization2.empty()) {
+        return false;
     }
 
     if ((!NetworkHelper::isConstantPath(layer->get_input_node_shared_ptr(1))) && (dequantization1.subtract)) {
