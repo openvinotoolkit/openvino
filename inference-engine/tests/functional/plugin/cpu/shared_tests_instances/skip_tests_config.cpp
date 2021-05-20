@@ -69,8 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // incorrect reference implementation. Issues: 55384, 54528, 54529
-        R"(.*DFTLayerTest.*)",
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
