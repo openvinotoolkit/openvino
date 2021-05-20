@@ -54,9 +54,37 @@ void regclass_IECore(py::module m)
     }, py::arg("device_name"));
 
     cls.def("read_network", [](InferenceEngine::Core& self,
+                               py::bytes model,
+                               py::bytes weights) {
+        InferenceEngine::MemoryBlob::Ptr weights_blob;
+        if(weights){
+            std::string weights_bytes = weights;
+            uint8_t* bin = (uint8_t*)weights_bytes.c_str();
+            size_t bin_size = weights_bytes.length();
+            InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
+            weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc);
+            weights_blob->allocate();
+            memcpy(weights_blob->rwmap().as<uint8_t*>(), bin, bin_size);
+        }
+        return self.ReadNetwork(model,weights_blob);
+    }, py::arg("model"), py::arg("weights"));
+
+    cls.def("read_network", [](InferenceEngine::Core& self,
                                const std::string& model,
                                const std::string& weights) {
         return self.ReadNetwork(model, weights);
+    }, py::arg("model"), py::arg("weights")="");
+
+    cls.def("read_network", [](InferenceEngine::Core& self,
+                               const std::string& model,
+                               py::handle blob) {
+        return self.ReadNetwork(model, Common::cast_to_blob(blob));
+    }, py::arg("model"), py::arg("blob"));
+
+    cls.def("read_network", [](InferenceEngine::Core& self,
+                               py::object model,
+                               py::object weights) {
+        return self.ReadNetwork(py::str(model), py::str(weights));
     }, py::arg("model"), py::arg("weights")="");
 
     cls.def("import_network", [](InferenceEngine::Core& self,

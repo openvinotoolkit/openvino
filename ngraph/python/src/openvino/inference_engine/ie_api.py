@@ -109,3 +109,8 @@ class BlobWrapper:
             return TBlobUint8(tensor_desc, arr, arr_size)
         else:
             raise AttributeError(f'Unsupported precision {precision} for Blob')
+
+def blob_from_file(path_to_bin_file : str) -> BlobWrapper:
+    array = np.fromfile(path_to_bin_file,dtype=np.uint8)
+    tensor_desc = TensorDesc("U8", array.shape, "C")
+    return BlobWrapper(tensor_desc,array)
