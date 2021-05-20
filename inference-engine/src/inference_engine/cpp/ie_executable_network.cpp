@@ -11,7 +11,7 @@
 namespace InferenceEngine {
 
 #define EXEC_NET_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                  \
+    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                   \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -20,14 +20,10 @@ namespace InferenceEngine {
         IE_THROW(Unexpected);                                                                      \
     }
 
-ExecutableNetwork::ExecutableNetwork(const IExecutableNetworkInternal::Ptr& impl,
-                                     const std::shared_ptr<details::SharedObjectLoader>& so)
-    : _impl(impl), _so(so) {
+ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader&      so,
+                                     const IExecutableNetworkInternal::Ptr&  impl)
+    : _so(so), _impl(impl) {
     IE_ASSERT(_impl != nullptr);
-}
-
-ExecutableNetwork::~ExecutableNetwork() {
-    _impl = {};
 }
 
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
@@ -47,7 +43,7 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     IE_ASSERT(newBase != nullptr);
     auto newImpl = newBase->GetImpl();
     IE_ASSERT(newImpl != nullptr);
-    this->_impl.swap(newImpl);
+    _impl = newImpl;
 }
 
 ExecutableNetwork::operator IExecutableNetwork::Ptr() {
@@ -58,7 +54,7 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
     EXEC_NET_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState(state, _so));
+            controller.emplace_back(VariableState{ _so, state });
         });
     return controller;
 }
@@ -66,11 +62,11 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
 IE_SUPPRESS_DEPRECATED_END
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
-    EXEC_NET_CALL_STATEMENT(return InferRequest{_impl->CreateInferRequest(), _so});
+    EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
-    EXEC_NET_CALL_STATEMENT(return std::make_shared<InferRequest>(InferRequest{_impl->CreateInferRequest(), _so}));
+    EXEC_NET_CALL_STATEMENT(return std::make_shared<InferRequest>(CreateInferRequest()));
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {
@@ -108,5 +104,4 @@ bool ExecutableNetwork::operator!() const noexcept {
 ExecutableNetwork::operator bool() const noexcept {
     return !!_impl;
 }
-
 }  // namespace InferenceEngine
