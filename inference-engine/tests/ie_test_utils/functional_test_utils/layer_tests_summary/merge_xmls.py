@@ -28,7 +28,11 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
-        xml_root = ET.parse(xml).getroot()
+        try:
+            xml_root = ET.parse(xml).getroot()
+        except ET.ParseError:
+            logger.error(f' {xml} is corrupted and skipped')
+            continue
         xml_timestamp = xml_root.get("timestamp")
         if (timestamp is None) or (xml_timestamp < timestamp):
             timestamp = xml_timestamp
