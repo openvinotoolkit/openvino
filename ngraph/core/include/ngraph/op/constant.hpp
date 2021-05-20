@@ -646,24 +646,26 @@ namespace ngraph
                 }
                 template <
                     ngraph::element::Type_t Type,
+                    typename ValueT,
                     typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
-                static ngraph::fundamental_type_for<Type>
-                    value_in_range(const ngraph::fundamental_type_for<Type>& value)
+                static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value)
                 {
-                    NGRAPH_CHECK(0 <= value && value <= 15,
+                    const auto result = ngraph::fundamental_type_for<Type>(value);
+                    NGRAPH_CHECK(0 <= result && result <= 15,
                                  "assigned value out of range u4 values");
-                    return value;
+                    return result;
                 }
 
                 template <
                     ngraph::element::Type_t Type,
+                    typename ValueT,
                     typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
-                static ngraph::fundamental_type_for<Type>
-                    value_in_range(const ngraph::fundamental_type_for<Type>& value)
+                static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value)
                 {
-                    NGRAPH_CHECK(-8 <= value && value <= 7,
+                    const auto result = ngraph::fundamental_type_for<Type>(value);
+                    NGRAPH_CHECK(-8 <= result && result <= 7,
                                  "assigned value out of range i4 values");
-                    return value;
+                    return result;
                 }
 
                 bool are_all_data_elements_bitwise_identical() const;

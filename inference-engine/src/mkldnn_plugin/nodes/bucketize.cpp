@@ -12,66 +12,83 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset3.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class BucketizeImpl : public ExtLayerBase {
-public:
-    explicit BucketizeImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 2 || layer->outData.size() != 1) {
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+            if (!bucketsize) {
+                errorMessage = "Only opset3 Bucketize operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+    std::string errorPrefix;
+
+public:
+    explicit BucketizeImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
+            const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+
+            if (op->get_input_size() != 2 || op->get_output_size() != 1) {
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
             }
 
             // check one attribute
-            with_right = layer->GetParamAsBool("with_right_bound");
-
-            auto input = layer->insData[INPUT_TENSOR_PORT].lock();
-            if (!input) {
-                IE_THROW() << "Missing input for " << layer->name << " layer";
-            }
-            auto boundaries = layer->insData[INPUT_BINS_PORT].lock();
-            if (!boundaries) {
-                IE_THROW() << "Missing boundaries input for " << layer->name << " layer";
-            }
+            with_right = bucketsize->get_with_right_bound();
 
             // check precisions for input and output tensors
-            input_precision = input->getTensorDesc().getPrecision();
+            input_precision = details::convertPrecision(op->get_input_element_type(INPUT_TENSOR_PORT));
             if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
                 input_precision != Precision::I64) {
                 input_precision = Precision::FP32;
             }
-            boundaries_precision = boundaries->getTensorDesc().getPrecision();
+            boundaries_precision = details::convertPrecision(op->get_input_element_type(INPUT_BINS_PORT));
             if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
                 boundaries_precision != Precision::I64) {
                 boundaries_precision = Precision::FP32;
             }
-            output_precision = layer->outData[OUTPUT_TENSOR_PORT]->getTensorDesc().getPrecision();
+            output_precision = details::convertPrecision(op->get_output_element_type(OUTPUT_TENSOR_PORT));
             if (output_precision != Precision::I32 && output_precision != Precision::I64) {
                 output_precision = Precision::I32;
             }
 
             // check dimensions of input tensors
-            SizeVector input_tensor_dims = input->getTensorDesc().getDims();
+            SizeVector input_tensor_dims = op->get_input_shape(INPUT_TENSOR_PORT);
             if (input_tensor_dims.size() < 1) {
-                IE_THROW() << layer->name << " Incorrect dimensions of the input.";
+                IE_THROW() << errorPrefix << " has incorrect dimensions of the input.";
             }
-            SizeVector input_bin_dims = boundaries->getTensorDesc().getDims();
+            SizeVector input_bin_dims = op->get_input_shape(INPUT_BINS_PORT);
             if (input_bin_dims.size() != 1) {
-                IE_THROW() << layer->name << " Incorrect dimensions of the boundaries tensor.";
+                IE_THROW() << errorPrefix << " has incorrect dimensions of the boundaries tensor.";
             }
             if (input_bin_dims[0] != 0) {
                 with_bins = true;
             }
             num_bin_values = input_bin_dims[0];
 
-            num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), 1, std::multiplies<size_t>());
+            num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 
-            addConfig(layer,
-            { DataConfigurator(ConfLayout::PLN, input_precision), DataConfigurator(ConfLayout::PLN, boundaries_precision) },
-            { DataConfigurator(ConfLayout::PLN, output_precision) });
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, input_precision},
+                           {TensorDescCreatorTypes::ncsp, boundaries_precision}},
+                          {{TensorDescCreatorTypes::ncsp, output_precision}});
         }
         catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
