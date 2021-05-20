@@ -17,6 +17,8 @@ if (OpenCV_FOUND)
     set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
 endif()
 
+set(SRC ${SRC} unpool_kernel.cpp unpool_op.cpp)
+
 add_library(${TARGET_NAME} MODULE ${SRC})
 
 if (OpenCV_FOUND)
@@ -31,6 +33,14 @@ target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
 if (ngraph_onnx_importer_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
+endif()
+
+if (IE_CPACK_RUNTIME_PATH)
+    ie_cpack_add_component(${TARGET_NAME} REQUIRED DEPENDS core)
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${TARGET_NAME}
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${TARGET_NAME}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${TARGET_NAME})
 endif()
 # [cmake:extension]
 

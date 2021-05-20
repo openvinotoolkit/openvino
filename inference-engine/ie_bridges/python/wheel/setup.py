@@ -87,6 +87,12 @@ LIB_INSTALL_CFG = {
         'install_dir': TBB_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
+    'cpu_extensions': {
+        'name': 'template_extension',
+        'prefix': 'libs.plugins',
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
 }
 
 PY_INSTALL_CFG = {
