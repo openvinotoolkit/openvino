@@ -40,7 +40,7 @@ public:
 
     ~InferQueue() { _requests.clear(); }
 
-    InferenceEngine::StatusCode _getIdleRequestStatus()
+    py::dict _getIdleRequestInfo()
     {
         py::gil_scoped_release release;
         std::unique_lock<std::mutex> lock(_mutex);
@@ -57,7 +57,11 @@ public:
                 _requests[request_id]._request.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
         }
 
-        return status;
+        py::dict request_info = py::dict();
+        request_info["id"] = request_id;
+        request_info["status"] = status;
+
+        return request_info;
     }
 
     size_t getIdleRequestId()
@@ -99,8 +103,11 @@ public:
             _requests[handle]._request.SetCompletionCallback([this, handle /* ... */]() {
                 _requests[handle]._endTime = Time::now();
                 _latencies.push_back(_requests[handle].getLatency());
+                // Acquire GIL
                 py::gil_scoped_acquire acquire;
+                // Add idle handle to queue
                 _idle_handles.push(handle);
+                // Notify locks in getIdleRequestId() or waitAll() functions
                 _cv.notify_one();
             });
         }
@@ -111,11 +118,17 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++)
         {
             _requests[handle]._request.SetCompletionCallback([this, f_callback, handle /* ... */]() {
-                // Acquire GIL, execute Python function
                 _requests[handle]._endTime = Time::now();
+                InferenceEngine::StatusCode statusCode =
+                    _requests[handle]._request.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
+                if (statusCode == InferenceEngine::StatusCode::RESULT_NOT_READY)
+                {
+                    statusCode = InferenceEngine::StatusCode::OK;
+                }
                 _latencies.push_back(_requests[handle].getLatency());
+                // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                f_callback(_requests[handle], _user_ids[handle]);
+                f_callback(_requests[handle], statusCode, _user_ids[handle]);
                 // Add idle handle to queue
                 _idle_handles.push(handle);
                 // Notify locks in getIdleRequestId() or waitAll() functions
@@ -182,8 +195,8 @@ void regclass_InferQueue(py::module m)
 
     cls.def("wait_all", [](InferQueue& self) { return self.waitAll(); });
 
-    cls.def("get_idle_request_status",
-            [](InferQueue& self) { return self._getIdleRequestStatus(); });
+    cls.def("get_idle_request_info",
+            [](InferQueue& self) { return self._getIdleRequestInfo(); });
 
     cls.def("set_infer_callback",
             [](InferQueue& self, py::function f_callback) { self.setCustomCallbacks(f_callback); });
@@ -200,4 +213,6 @@ void regclass_InferQueue(py::module m)
     cls.def("__getitem__", [](InferQueue& self, size_t i) { return self._requests[i]; });
 
     cls.def_property_readonly("latencies", [](InferQueue& self) { return self._latencies; });
+
+    cls.def_property_readonly("userdata", [](InferQueue& self) { return self._user_ids; });
 }
