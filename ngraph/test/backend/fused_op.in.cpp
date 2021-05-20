@@ -33,8 +33,8 @@
 #include "gtest/gtest.h"
 #include "ngraph/check.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
@@ -79,23 +79,6 @@ NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu)
-{
-    Shape shape{3, 2};
-    Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0, 0.5, 1};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
 {
     const Shape shape{2, 7};
@@ -129,40 +112,6 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(input);
     test_case.add_expected_output<float>(expected_output);
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{-1, 3, -1, 1, -0.5, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{-0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{1, 3, 1, 1, 0.5, 0});
     test_case.run();
 }
 
@@ -478,7 +427,7 @@ namespace
         test_case.template add_expected_output<T>(static_shape, output);
         return test_case.run();
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_double)
 {
