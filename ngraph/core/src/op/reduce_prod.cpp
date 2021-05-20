@@ -45,7 +45,7 @@ namespace reduce_prod
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::product(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
