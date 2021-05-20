@@ -3,8 +3,9 @@
 #
 """Helper functions."""
 
-import numpy as np
 import os
+import numpy as np
+import sqlalchemy as db
 
 
 def get_examples_path() -> str:
@@ -26,3 +27,21 @@ def generate_random_images(num=1) -> np.array:
     """Generate `num` random images."""
     return [np.array(np.random.rand(1, 3, 32, 32), dtype=np.float32)
             for i in range(0, num)]
+
+
+def sort_queue_results(results) -> list:
+    """Sort list of tuples by first value."""
+    return sorted(results, key=lambda x: x[0])
+
+
+def create_sqlalchemy_database(name: str):
+    """Create database to be used by example script."""
+    engine = db.create_engine('sqlite:///' + name + '.sqlite')
+    connection = engine.connect()
+    metadata = db.MetaData()
+
+    tab = db.Table('tab', metadata,
+                   db.Column('Id', db.Integer()),
+                   db.Column('pred_class', db.Integer()))
+
+    return engine, connection, metadata, tab
