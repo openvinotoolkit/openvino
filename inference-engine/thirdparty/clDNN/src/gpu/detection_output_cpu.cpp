@@ -485,13 +485,12 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                                                                        static_cast<float>(prior_box_data[idx + 3]));
                 idx += num_of_priors * prior_info_size;
             }
-            if (!variance_encoded_in_target) { // prior for loop
-                const dtype* priorVar = static_cast<dtype*>(prior_box_data + num_of_priors * prior_info_size);
+            if (!variance_encoded_in_target) {
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int start_idx = prior * 4;
                     std::array<float, PRIOR_BOX_SIZE> var;
                     for (int j = 0; j < PRIOR_BOX_SIZE; ++j) {
-                        var[j] = (priorVar[start_idx + j]);
+                        var[j] = (prior_box_data[start_idx + j +num_of_priors * prior_info_size]);
                     }
                     prior_variances[i * num_of_priors + prior] = var;
                 }
