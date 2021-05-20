@@ -35,7 +35,7 @@ namespace ngraph
                         arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]);
                 }
 
-                sum(out, temp_sum.data(), shape, axes, true);
+                sum(out, temp_sum.data(), shape, axes);
 
                 for (const Coordinate& coord : transform)
                 {
