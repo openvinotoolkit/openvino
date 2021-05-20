@@ -1354,7 +1354,6 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                     }
                 } else {
                     MKLDNNEdgePtr &remEdge = p_edge;
-                    auto parentEltwise = parentNode;
                     int inNum = 0;
                     int outNum = parentNode->getParentEdges().size();
                     if (remEdge) {
