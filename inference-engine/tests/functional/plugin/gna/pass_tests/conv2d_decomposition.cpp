@@ -17,7 +17,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::opset1;
+using namespace opset1;
 
 namespace LayerTestsDefinitions {
 
@@ -38,14 +38,19 @@ typedef std::tuple<
     std::vector<ptrdiff_t>,         // Pad end
     InferenceEngine::SizeVector,    // Dilation
     size_t,                         // Num out channels
-    op::PadType,                    // Padding type
-    InferenceEngine::SizeVector,    // Bias
-    InferenceEngine::SizeVector,    // Transposed Bias
-    InferenceEngine::SizeVector     // Maxpool
+    op::PadType                     // Padding type
 > convSpecificParams;
 
 typedef std::tuple<
+    InferenceEngine::SizeVector,    // Bias
+    InferenceEngine::SizeVector,    // Transposed Bias
+    InferenceEngine::SizeVector,    // Maxpool pool
+    InferenceEngine::SizeVector     // Maxpool strides
+> miscSpecificParams;
+
+typedef std::tuple<
     convSpecificParams,                 // Convolution parameters
+    miscSpecificParams,                 // Bias & Maxpool parameters
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
@@ -58,17 +63,19 @@ class Conv2DDecomposeTest : public testing::WithParamInterface<conv2DDecomposePa
 public:
     static std::string getTestCaseName(testing::TestParamInfo<conv2DDecomposeParams> obj) {
         convSpecificParams convParams;
+        miscSpecificParams miscParams;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         InferenceEngine::SizeVector inputShape;
         modelType model;
-        std::tie(convParams, netPrecision, targetDevice, configuration, inputShape, model) = obj.param;
+        std::tie(convParams, miscParams, netPrecision, targetDevice, configuration, inputShape, model) = obj.param;
         op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpool;
+        InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpool_pool, maxpool_stride;
         std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convInput;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convInput, padType, bias, transpBias, maxpool) = convParams;
+        size_t numOutChannels;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, numOutChannels, padType) = convParams;
+        std::tie(bias, transpBias, maxpool_pool, maxpool_stride) = miscParams;
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
@@ -78,11 +85,12 @@ public:
         result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
         result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
         result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
-        result << "O=" << convInput << "_";
+        result << "O=" << numOutChannels << "_";
         result << "AP=" << padType << "_";
         result << "B=" << CommonTestUtils::vec2str(bias) << "_";
         result << "B=" << CommonTestUtils::vec2str(transpBias) << "_";
-        result << "MP=" << CommonTestUtils::vec2str(maxpool) << "_";
+        result << "MPP=" << CommonTestUtils::vec2str(maxpool_pool) << "_";
+        result << "MPS=" << CommonTestUtils::vec2str(maxpool_stride) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {
@@ -95,20 +103,23 @@ protected:
     void SetUp() override {
         threshold = 0.015;
         convSpecificParams convParams;
+        miscSpecificParams miscParams;
         InferenceEngine::Precision netPrecision;
         std::vector<size_t> inputShape;
         modelType model;
-        std::tie(convParams, netPrecision, targetDevice, configuration, inputShape, model) = this->GetParam();
+        std::tie(convParams, miscParams, netPrecision, targetDevice, configuration, inputShape, model) = this->GetParam();
         op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpool;
+        InferenceEngine::SizeVector kernel, stride, dilation, bias, transpBias, maxpool_pool, maxpool_stride;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t numOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, numOutChannels, padType, bias, transpBias, maxpool) = convParams;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, numOutChannels, padType) = convParams;
+        std::tie(bias, transpBias, maxpool_pool, maxpool_stride) = miscParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         Shape bias_shape{ bias };
         Shape transp_bias_shape{ transpBias };
-        Shape maxpool_shape{ maxpool };
+        Shape maxpool_shape{ maxpool_pool };
+        Strides maxpool_strides{ maxpool_stride };
 
         auto input = builder::makeParams(ngPrc, { inputShape });
         auto transpose_in_order = op::Constant::create(element::i64, Shape{ 4 }, { 0, 3, 1, 2 });
@@ -119,9 +130,9 @@ protected:
             padEnd, dilation, padType, numOutChannels, false, filter_weights);
         auto transpose_out_order = op::Constant::create(element::i64, Shape{ 4 }, { 0, 2, 3, 1 });
         auto bias_weights = CommonTestUtils::generate_float_numbers(shape_size(bias_shape), -1.5f, 1.5f);
-        std::shared_ptr<Node> bias_const = std::make_shared<opset1::Constant>(ngPrc, bias_shape, bias_weights);
-        std::shared_ptr<Node> transp_bias_const = std::make_shared<opset1::Constant>(ngPrc, transp_bias_shape, bias_weights);
-        std::shared_ptr<Node> last_op = std::make_shared<Transpose>(conv, transpose_out_order);;
+        Output<Node> bias_const = std::make_shared<Constant>(ngPrc, bias_shape, bias_weights);
+        Output<Node> transp_bias_const = std::make_shared<Constant>(ngPrc, transp_bias_shape, bias_weights);
+        Output<Node> last_op = std::make_shared<Transpose>(conv, transpose_out_order);;
 
         switch (model) {
         case modelType::TranspConvBcastAddTransp:
@@ -134,7 +145,8 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolTransp:
         {
             auto bcast_add = std::make_shared<Add>(conv, bias_const);
-            auto maxpool = std::make_shared<MaxPool>(bcast_add, Strides{ 1, 1 }, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape);
+            auto maxpool = std::make_shared<MaxPool>(bcast_add, maxpool_strides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
+                op::RoundingType::FLOOR, op::PadType::VALID);
             last_op = std::make_shared<Transpose>(maxpool, transpose_out_order);
         }
         break;
@@ -150,7 +162,8 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolActTransp:
         {
             auto bcast_add = std::make_shared<Add>(conv, bias_const);
-            auto max_pool = std::make_shared<MaxPool>(bcast_add, Strides{ 1, 1 }, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape);
+            auto max_pool = std::make_shared<MaxPool>(bcast_add, Strides{ 1, 1 }, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
+                op::RoundingType::FLOOR, op::PadType::VALID);
             auto activation = std::make_shared<Relu>(max_pool);
             last_op = std::make_shared<Transpose>(activation, transpose_out_order);
         }
@@ -174,7 +187,8 @@ protected:
             break;
         }
 
-        function = std::make_shared<Function>(NodeVector{ last_op }, ParameterVector{ input });
+        auto result = std::make_shared<Result>(last_op);
+        function = std::make_shared<Function>(ResultVector{ result }, ParameterVector{ input });
     }
 };
 
@@ -184,7 +198,7 @@ TEST_P(Conv2DDecomposeTest, CompareWithRefs) {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
-    // TODO: tests with this setting are failing
+    //TODO: FP16 is currently not supported by the transform
     //InferenceEngine::Precision::FP16
 };
 
@@ -207,10 +221,9 @@ const std::vector<modelType> models = {
     modelType::TranspConvTransp,
     modelType::TranspConvBcastAddTransp,
     modelType::TranspConvBcastAddActTransp,
-    //TODO: below two models are failing tests
-    //modelType::TranspConvTranspBcastAdd,
-    //modelType::TranspConvTranspBcastAddAct
-    //TODO: maxpool 2d is not supported yet by this transform
+    modelType::TranspConvTranspBcastAdd,
+    modelType::TranspConvTranspBcastAddAct,
+    //TODO: below scenarios are currently not supported
     //modelType::TranspConvBcastAddMaxPoolTransp,
     //modelType::TranspConvBcastAddMaxPoolActTransp,
 };
@@ -220,11 +233,14 @@ const std::vector<std::vector<size_t >> kernels2D = { {3, 2} };
 const std::vector<std::vector<size_t >> strides2D = { {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {3, 1} };
+//TODO: dilation is currently not supported by this transform
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1} };
 const std::vector<size_t> numOutChannels2D = { 4 };
 const std::vector<std::vector<size_t >> biases2D = { {1, 4, 1, 1} };
 const std::vector<std::vector<size_t >> transp_biases2D = { {1, 1, 1, 4} };
-const std::vector<std::vector<size_t >> maxpools2D = { {2, 2} };
+//TODO: maxpool 2d is currently not supported by this transform
+const std::vector<std::vector<size_t >> maxpool1D_pools = { {1, 2} };
+const std::vector<std::vector<size_t >> maxpool1D_strides = { {1, 1} };
 
 const auto conv2DParams = ::testing::Combine(
     ::testing::ValuesIn(kernels2D),
@@ -233,15 +249,20 @@ const auto conv2DParams = ::testing::Combine(
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
     ::testing::ValuesIn(numOutChannels2D),
-    ::testing::ValuesIn(padTypes),
+    ::testing::ValuesIn(padTypes)
+);
+
+const auto miscParams = ::testing::Combine(
     ::testing::ValuesIn(biases2D),
     ::testing::ValuesIn(transp_biases2D),
-    ::testing::ValuesIn(maxpools2D)
+    ::testing::ValuesIn(maxpool1D_pools),
+    ::testing::ValuesIn(maxpool1D_strides)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_2DConvDecompose, Conv2DDecomposeTest,
     ::testing::Combine(
         conv2DParams,
+        miscParams,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs),
