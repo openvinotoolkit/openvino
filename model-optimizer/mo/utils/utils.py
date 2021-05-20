@@ -155,6 +155,10 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
                 param_str = arg + ":" + str(1)
             else:
                 param_str = arg + ":" + str(arg_value)
+
+                # temporarily added debug print for collecting string lengths info from ci
+                print("PARAMS_LEN_DEBUG {} {}".format(arg, len(str(arg_value))))
+
             t.send_event('mo', 'cli_parameters', param_str)
 
 
