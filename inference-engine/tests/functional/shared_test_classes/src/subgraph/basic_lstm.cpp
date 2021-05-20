@@ -114,7 +114,7 @@ void Basic_LSTM_S::Run() {
     Compare(referenceOutputs, actualOutputs);
 }
 
-std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> Basic_LSTM_S::CalculateRefs() {
     //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
     auto reference_model = ngraph::clone_function(*function);
     ngraph::pass::Manager manager;
@@ -146,12 +146,13 @@ std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
         refOutputs.push_back(refInferRequest.GetBlob(name));
     }
 
-    auto referenceOutputs = std::vector<std::vector<std::uint8_t>>(refOutputs.size());
+    auto referenceOutputs = std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>(refOutputs.size());
     for (std::size_t i = 0; i < refOutputs.size(); ++i) {
         const auto& reference = refOutputs[i];
         const auto refSize = reference->byteSize();
 
-        auto& expectedOutput = referenceOutputs[i];
+        referenceOutputs[i].first = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(reference->getTensorDesc().getPrecision());
+        auto& expectedOutput = referenceOutputs[i].second;
         expectedOutput.resize(refSize);
 
         auto refMemory = InferenceEngine::as<InferenceEngine::MemoryBlob>(reference);

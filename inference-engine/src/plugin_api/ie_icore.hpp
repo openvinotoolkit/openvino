@@ -15,7 +15,7 @@
 
 #include <ie_parameter.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp/ie_executable_network.hpp>
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
 #include "threading/ie_itask_executor.hpp"
 
@@ -63,8 +63,23 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
-                                          const std::map<std::string, std::string>& config = {}) = 0;
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Creates an executable network from a model file.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param modelPath Path to model
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -74,8 +89,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
-                                            const std::map<std::string, std::string>& config = {}) = 0;
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+                                                      const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

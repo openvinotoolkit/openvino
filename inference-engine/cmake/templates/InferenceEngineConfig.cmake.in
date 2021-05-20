@@ -16,32 +16,67 @@
 #   IE::inference_engine            - The Inference Engine library
 #   IE::inference_engine_c_api      - The Inference Engine C API library
 #
+# Inference Engine version variables:
+#
+#   InferenceEngine_VERSION_MAJOR - major version component
+#   InferenceEngine_VERSION_MINOR - minor version component
+#   InferenceEngine_VERSION_PATCH - patch version component
+#
 
 @PACKAGE_INIT@
 
-include(CMakeFindDependencyMacro)
+macro(_ie_find_dependency dep)
+    set(cmake_fd_quiet_arg)
+    if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+        set(cmake_fd_quiet_arg QUIET)
+    endif()
+    set(cmake_fd_required_arg)
+    if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+        set(cmake_fd_required_arg REQUIRED)
+    endif()
+
+    get_property(cmake_fd_alreadyTransitive GLOBAL PROPERTY
+        _CMAKE_${dep}_TRANSITIVE_DEPENDENCY)
+
+    find_package(${dep} ${ARGN}
+        ${cmake_fd_quiet_arg}
+        ${cmake_fd_required_arg})
+
+    if(NOT DEFINED cmake_fd_alreadyTransitive OR cmake_fd_alreadyTransitive)
+        set_property(GLOBAL PROPERTY _CMAKE_${dep}_TRANSITIVE_DEPENDENCY TRUE)
+    endif()
+
+    if(NOT ${dep}_FOUND)
+        set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE "${CMAKE_FIND_PACKAGE_NAME} could not be found because dependency ${dep} could not be found.")
+        set(${CMAKE_FIND_PACKAGE_NAME}_FOUND False)
+        return()
+    endif()
+
+    set(cmake_fd_required_arg)
+    set(cmake_fd_quiet_arg)
+endmacro()
 
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by ngraph one
 set(IE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
     set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
-    find_dependency(TBB
-                    COMPONENTS tbb tbbmalloc
-                    CONFIG
-                    PATHS ${TBBROOT}/cmake
-                          ${_tbb_dir}
-                    NO_CMAKE_FIND_ROOT_PATH
-                    NO_DEFAULT_PATH)
+    _ie_find_dependency(TBB
+                        COMPONENTS tbb tbbmalloc
+                        CONFIG
+                        PATHS ${TBBROOT}/cmake
+                              ${_tbb_dir}
+                        NO_CMAKE_FIND_ROOT_PATH
+                        NO_DEFAULT_PATH)
 endif()
 
 set_and_check(_ngraph_dir "@PACKAGE_IE_NGRAPH_DIR@")
-find_dependency(ngraph
-                CONFIG
-                PATHS ${_ngraph_dir}
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
+_ie_find_dependency(ngraph
+                    CONFIG
+                    PATHS ${_ngraph_dir}
+                    NO_CMAKE_FIND_ROOT_PATH
+                    NO_DEFAULT_PATH)
 
 function(_ie_target_no_deprecation_error)
     if(NOT MSVC)

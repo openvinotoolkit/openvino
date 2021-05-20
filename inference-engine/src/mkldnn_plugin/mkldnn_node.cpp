@@ -40,6 +40,7 @@
 #include <nodes/mkldnn_depth_to_space_node.h>
 #include <nodes/mkldnn_space_to_depth_node.h>
 #include <nodes/mkldnn_strided_slice_node.h>
+#include <nodes/mkldnn_shuffle_channels_node.h>
 #include <nodes/mkldnn_reference_node.h>
 #include <nodes/mkldnn_fake_quantize_node.h>
 #include <mkldnn_types.h>
@@ -174,7 +175,33 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "GatherND", GatherND},
         { "OneHot", OneHot},
         { "RegionYolo", RegionYolo},
-        { "Select", Select}
+        { "Select", Select},
+        { "ShuffleChannels", ShuffleChannels},
+        { "DFT", DFT},
+        { "IDFT", DFT},
+        { "Abs", Math},
+        { "Acos", Math},
+        { "Acosh", Math},
+        { "Asin", Math},
+        { "Asinh", Math},
+        { "Atan", Math},
+        { "Atanh", Math},
+        { "Ceil", Math},
+        { "Ceiling", Math},
+        { "Cos", Math},
+        { "Cosh", Math},
+        { "Floor", Math},
+        { "HardSigmoid", Math},
+        { "Log", Math},
+        { "Neg", Math},
+        { "Reciprocal", Math},
+        { "Selu", Math},
+        { "Sign", Math},
+        { "Sin", Math},
+        { "Sinh", Math},
+        { "SoftPlus", Math},
+        { "Softsign", Math},
+        { "Tan", Math},
 };
 
 Type TypeFromName(const std::string type) {

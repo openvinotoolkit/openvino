@@ -25,9 +25,9 @@ function(set_ie_threading_interface_for TARGET_NAME)
         else()
             find_dependency(TBB COMPONENTS tbb tbbmalloc)
         endif()
-        set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-        set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-        set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+        set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+        set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+        set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
         if (NOT TBB_FOUND)
             ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
                                 SEQ method will be used.")
@@ -46,8 +46,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
-        # TODO: inference_engine only
-        # Why TBB propogates its headers to inference_engine?
+        # Affected libraries: inference_engine only
+        # TODO: why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
     else()
         ext_message(WARNING "Unknown target type")

@@ -180,6 +180,11 @@ enum ReductionType {
     L2
 };
 
+enum class DFTOpType {
+    FORWARD,
+    INVERSE
+};
+
 enum class InputLayerType {
     CONSTANT,
     PARAMETER,
@@ -242,10 +247,10 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
     return nodes;
 }
 
-std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
-                                                           const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           const std::vector<ngraph::element::Type> &inputTypes = {},
-                                                           const std::vector<ngraph::element::Type_t> convertType = {});
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
+        interpreterFunction(const std::shared_ptr<Function> &function,
+                            const std::vector<std::vector<std::uint8_t>> &inputs,
+                            const std::vector<ngraph::element::Type> &inputTypes = {});
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output
@@ -260,8 +265,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                                        const std::vector<std::vector<std::uint8_t>> &inputs,
                                        const std::vector<ngraph::element::Type> &inputTypes = {});
 
-std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function,
-                                                    std::vector<ngraph::element::Type_t> convertType = {});
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(const std::shared_ptr<Function> &function);
 
 std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_info,
                                                const ngraph::OutputVector &outputVector);

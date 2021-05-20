@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
-#include <ie_ngraph_utils.hpp>
+#include <ngraph/runtime/reference/convert.hpp>
 
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
 #include "template_itt.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "blob_factory.hpp"
 
 using namespace TemplatePlugin;
 using namespace InferenceEngine;
@@ -80,8 +82,8 @@ static void AllocateImplSingle(
     auto networkPrecision = GetNetworkPrecision(userData.first);
     Blob::Ptr deviceBlob;
     if (InferenceEngine::details::convertPrecision(userPrecision) == networkPrecision) {
-        deviceBlob = userBlob;
-    } else {
+                    deviceBlob = userBlob;
+                } else {
         if (isInputBlob) {
             // preprocessing converts user input blob to desired device input blob automatically
             deviceBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPrecision), dims, userLayout});
@@ -133,9 +135,10 @@ void TemplateInferRequest::InferImpl() {
 
 template<typename SrcT, typename DstT>
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
-    std::copy_n(InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
-                src->size(),
-                InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>());
+    ngraph::runtime::reference::convert<SrcT, DstT>(
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>(),
+            src->size());
 }
 
 #if 0
@@ -162,6 +165,66 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                 default : {
                     IE_THROW(NotImplemented) << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I64 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I64 : break;
+                case Precision::I32 : {
+                    blobCopy<int64_t , int32_t>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I16 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I16 : break;
+                case Precision::FP32 : {
+                    blobCopy<int16_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::I8 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::I8 : break;
+                case Precision::FP32 : {
+                    blobCopy<int8_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::BOOL : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::BOOL : break;
+                case Precision::FP32 : {
+                    blobCopy<bool , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
+            }
+        } break;
+        case Precision::U16 : {
+            switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::U16 : break;
+                case Precision::FP32 : {
+                    blobCopy<uint16_t , float>(src, dst);
+                } break;
+                default : {
+                    IE_THROW(NotImplemented) << "Unsupported precision conversion from "
+                                             << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
@@ -235,7 +298,7 @@ void TemplateInferRequest::inferPostprocess() {
         //}
         // TODO: Copy to source blob only if necessary (like commented out statements above but also consider shapes)
         if (outputBlob->getTensorDesc().getPrecision() != networkOutputBlob->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << "Disabled any precision conversion for output blobs due to dynamic shape limited implementation";
+            IE_THROW() << "Disabled any precision conversion for output blobs due to dynamic shape limited implementation";
         }
         auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(networkOutput.first)];
         tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(), tensor->get_size_in_bytes());
@@ -284,7 +347,7 @@ Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
         } else {
-            THROW_IE_EXCEPTION << "Output blob dimensions are not all known for output name " <<
+            IE_THROW() << "Output blob dimensions are not all known for output name " <<
                 name << " with partial shape: " << foundOutput->getTensorDesc().getPartialShape();
         }
 
