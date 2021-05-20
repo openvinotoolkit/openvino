@@ -62,8 +62,7 @@ namespace ngraph
                 /// there are more than one input
                 Output<Node> get_ng_input(const std::string& name) const
                 {
-                    PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-                               name_map.at(name).size() == 1);
+                    FRONT_END_GENERAL_CHECK(name_map.at(name).size() == 1);
                     return name_map.at(name).at(0);
                 }
 
@@ -85,7 +84,7 @@ namespace ngraph
                         get_attribute<T>(name);
                         return true;
                     }
-                    catch (const CheckFailurePDPD&)
+                    catch (const GeneralFailure&)
                     {
                         return false;
                     }
@@ -161,12 +160,9 @@ namespace ngraph
                 NodeContext::get_out_port_type(const std::string& port_name) const
             {
                 auto types = get_out_port_types(port_name);
-                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-                           types.size() > 0,
-                           "Port has no tensors connected.");
-                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-                           std::equal(types.begin() + 1, types.end(), types.begin()),
-                           "Port has tensors with different types connected.");
+                FRONT_END_GENERAL_CHECK(types.size() > 0, "Port has no tensors connected.");
+                FRONT_END_GENERAL_CHECK(std::equal(types.begin() + 1, types.end(), types.begin()),
+                                        "Port has tensors with different types connected.");
                 return types[0];
             }
 
@@ -177,9 +173,8 @@ namespace ngraph
                 NamedOutputs named_outputs;
                 const auto& ngraph_outputs = ngraph_node->outputs();
                 const auto& pdpd_op_output_names = this->get_output_names();
-                PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-                           ngraph_outputs.size() == 1,
-                           "nGraph node must have exactly one output");
+                FRONT_END_GENERAL_CHECK(ngraph_outputs.size() == 1,
+                                        "nGraph node must have exactly one output");
                 for (const auto& pdpd_name : pdpd_op_output_names)
                 {
                     if (std::find(required_pdpd_out_names.begin(),

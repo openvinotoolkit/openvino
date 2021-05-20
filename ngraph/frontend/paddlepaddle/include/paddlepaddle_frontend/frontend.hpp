@@ -44,8 +44,7 @@ namespace ngraph
              * @param paths vector containing path to .pdmodel and .pdiparams files
              * @return InputModel::Ptr
              */
-            InputModel::Ptr
-                loadFromFiles(const std::vector<std::string>& paths) const override;
+            InputModel::Ptr loadFromFiles(const std::vector<std::string>& paths) const override;
 
             /**
              * @brief Reads model from stream
@@ -61,8 +60,7 @@ namespace ngraph
              * used in case of multiple weight files
              * @return InputModel::Ptr
              */
-            InputModel::Ptr
-                loadFromStreams(const std::vector<std::istream*>& paths) const override;
+            InputModel::Ptr loadFromStreams(const std::vector<std::istream*>& paths) const override;
 
             std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
         };

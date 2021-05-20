@@ -477,7 +477,7 @@ namespace ngraph
             }
             ~Impl() = default;
             FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec) {
-                FRONT_END_CHECK(FrontEndErrorCode::INITIALIZATION_ERROR, m_factories.count(framework));
+                FRONT_END_INITIALIZATION_CHECK( m_factories.count(framework));
                 return m_factories[framework](fec);
             }
 

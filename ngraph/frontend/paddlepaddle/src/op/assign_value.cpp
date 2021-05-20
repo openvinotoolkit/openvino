@@ -51,9 +51,8 @@ namespace ngraph
                     }
                     default:
                     {
-                        PDPD_CHECK(FrontEndErrorCode::OP_VALIDATION_FAILED,
-                                   false,
-                                   "assign_value only supports int32, int64, float32, bool");
+                        PDPD_OP_VALIDATION_CHECK(
+                            node, false, "assign_value only supports int32, int64, float32, bool");
                         break;
                     }
                     }

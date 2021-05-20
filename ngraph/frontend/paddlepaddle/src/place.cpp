@@ -83,7 +83,7 @@ std::vector<Place::Ptr> TensorPlacePDPD::getConsumingPorts() const
         }
         else
         {
-            PDPD_THROW("Consuming Port has expired.");
+            FRONT_END_THROW("Consuming Port has expired.");
         }
     }
     return consuming_ports;
@@ -91,14 +91,12 @@ std::vector<Place::Ptr> TensorPlacePDPD::getConsumingPorts() const
 
 Place::Ptr TensorPlacePDPD::getProducingPort() const
 {
-    PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-               m_producing_ports.size() > 1,
-               "Only one producing port is supported.");
+    FRONT_END_GENERAL_CHECK(m_producing_ports.size() > 1, "Only one producing port is supported.");
     if (const auto& producing_port = m_producing_ports[0].lock())
     {
         return producing_port;
     }
-    PDPD_THROW("Producing Port has expired.");
+    FRONT_END_THROW("Producing Port has expired.");
 }
 
 std::shared_ptr<TensorPlacePDPD> InPortPlacePDPD::getSourceTensorPDPD() const
@@ -107,7 +105,7 @@ std::shared_ptr<TensorPlacePDPD> InPortPlacePDPD::getSourceTensorPDPD() const
     {
         return tensor;
     }
-    PDPD_THROW("Source Tensor has expired.");
+    FRONT_END_THROW("Source Tensor has expired.");
 }
 
 std::shared_ptr<OpPlacePDPD> InPortPlacePDPD::getOp()
@@ -116,7 +114,7 @@ std::shared_ptr<OpPlacePDPD> InPortPlacePDPD::getOp()
     {
         return op;
     }
-    PDPD_THROW("Operation has expired.");
+    FRONT_END_THROW("Operation has expired.");
 }
 
 std::shared_ptr<TensorPlacePDPD> OutPortPlacePDPD::getTargetTensorPDPD() const
@@ -125,5 +123,5 @@ std::shared_ptr<TensorPlacePDPD> OutPortPlacePDPD::getTargetTensorPDPD() const
     {
         return target_tensor;
     }
-    PDPD_THROW("Target Tensor has expired.");
+    FRONT_END_THROW("Target Tensor has expired.");
 }

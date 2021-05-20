@@ -145,15 +145,14 @@ namespace ngraph
                 if (attr.name() == name)
                     attrs.push_back(attr);
             }
-            PDPD_CHECK(ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,
-                       attrs.size() <= 1,
-                       "An error occurred while parsing the ",
-                       name,
-                       " attribute of ",
-                       op_place->getDesc()->type(),
-                       "node. Unsupported number of attributes. Current number: ",
-                       attrs.size(),
-                       " Expected number: 0 or 1");
+            FRONT_END_GENERAL_CHECK(attrs.size() <= 1,
+                                    "An error occurred while parsing the ",
+                                    name,
+                                    " attribute of ",
+                                    op_place->getDesc()->type(),
+                                    "node. Unsupported number of attributes. Current number: ",
+                                    attrs.size(),
+                                    " Expected number: 0 or 1");
             return attrs;
         }
 

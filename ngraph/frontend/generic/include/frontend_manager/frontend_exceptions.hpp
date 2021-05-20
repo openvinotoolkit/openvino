@@ -11,69 +11,61 @@
 namespace ngraph {
 namespace frontend {
 
-enum class FrontEndErrorCode {
-    GENERAL_ERROR,
-    NOT_IMPLEMENTED,
-    OP_VALIDATION_FAILED,
-    NGRAPH_NODE_CREATION_FAILED,
-    INITIALIZATION_ERROR,
-};
-
-/// \brief Base class for check failure exceptions.
-class CheckFailureFrontEnd : public CheckFailure {
+class GeneralFailure : public CheckFailure {
 public:
-
-    CheckFailureFrontEnd(FrontEndErrorCode error_code,
-                         const CheckLocInfo &check_loc_info,
-                         const std::string &context,
-                         const std::string &explanation)
-            : CheckFailure(check_loc_info, "FrontEnd API failed" + context, explanation),
-              m_error_code(error_code) {
+    GeneralFailure(const CheckLocInfo &check_loc_info,
+                 const std::string &context,
+                 const std::string &explanation)
+    : CheckFailure(check_loc_info, "FrontEnd API failed with GeneralFailure" + context, explanation) {
     }
-
-    FrontEndErrorCode getErrorCode() const { return m_error_code; }
-private:
-    FrontEndErrorCode m_error_code;
 };
 
-#define FRONT_END_CHECK_HELPER2(error_code, exc_class, ctx, check, ...)                            \
-    do                                                                                             \
-    {                                                                                              \
-        if (!(check))                                                                              \
-        {                                                                                          \
-            ::std::stringstream ss___;                                                             \
-            ::ngraph::write_all_to_stream(ss___, __VA_ARGS__);                                     \
-            throw exc_class((error_code),                                                          \
-                (::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str());         \
-        }                                                                                          \
-    } while (0)
+class InitializationFailure : public CheckFailure {
+public:
+    InitializationFailure(const CheckLocInfo &check_loc_info,
+                 const std::string &context,
+                 const std::string &explanation)
+            : CheckFailure(check_loc_info, "FrontEnd API failed with InitializationFailure" + context, explanation) {
+    }
+};
 
-#define FRONT_END_CHECK_HELPER1(error_code, exc_class, ctx, check)                                 \
-    do                                                                                             \
-    {                                                                                              \
-        if (!(check))                                                                              \
-        {                                                                                          \
-            throw exc_class((error_code),                                                          \
-                (::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), "");                  \
-        }                                                                                          \
-    } while (0)
+class OpValidationFailure : public CheckFailure {
+public:
+    OpValidationFailure(const CheckLocInfo &check_loc_info,
+                      const std::string &context,
+                      const std::string &explanation)
+            : CheckFailure(check_loc_info, "FrontEnd API failed with OpValidationFailure" + context, explanation) {
+    }
+};
 
-#define FRONT_END_CALL_OVERLOAD(name, error_code, exc_class, ctx, ...)                             \
-    GLUE(OVERLOAD_MACRO(name, COUNT_ARGS_MAXN(__VA_ARGS__)),                                       \
-        (error_code, exc_class, ctx, __VA_ARGS__))
+class OpConversionFailure : public CheckFailure {
+public:
+    OpConversionFailure(const CheckLocInfo &check_loc_info,
+                      const std::string &context,
+                      const std::string &explanation)
+            : CheckFailure(check_loc_info, "FrontEnd API failed with OpConversionFailure" + context, explanation) {
+    }
+};
 
-#define FRONT_END_CHECK_HELPER(error_code, exc_class, ctx, ...)                                    \
-    FRONT_END_CALL_OVERLOAD(FRONT_END_CHECK_HELPER, error_code, exc_class, ctx, __VA_ARGS__)
+class NotImplementedFailure : public CheckFailure {
+public:
+    NotImplementedFailure(const CheckLocInfo &check_loc_info,
+                        const std::string &context,
+                        const std::string &explanation)
+            : CheckFailure(check_loc_info, "FrontEnd API failed with NotImplementedFailure" + context, explanation) {
+    }
+};
 
 /// \brief Macro to check whether a boolean condition holds.
-/// \param error_code Additional indicator of the type of error.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
-#define FRONT_END_CHECK(error_code, ...) FRONT_END_CHECK_HELPER(error_code, ::ngraph::frontend::CheckFailureFrontEnd, "", __VA_ARGS__)
-#define FRONT_END_NOT_IMPLEMENTED(NAME) FRONT_END_CHECK(FrontEndErrorCode::NOT_IMPLEMENTED, false, #NAME" is not implemented for this FrontEnd class")
+#define FRONT_END_GENERAL_CHECK(...) NGRAPH_CHECK_HELPER(::ngraph::frontend::GeneralFailure, "", __VA_ARGS__)
+#define FRONT_END_INITIALIZATION_CHECK(...) NGRAPH_CHECK_HELPER(::ngraph::frontend::InitializationFailure, "", __VA_ARGS__)
+#define FRONT_END_NOT_IMPLEMENTED(NAME) NGRAPH_CHECK_HELPER(::ngraph::frontend::NotImplementedFailure, "", false, #NAME" is not implemented for this FrontEnd class")
+#define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
 
 } // frontend
 } // ngraph

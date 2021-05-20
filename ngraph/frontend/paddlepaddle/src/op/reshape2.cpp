@@ -16,7 +16,6 @@
 
 #include "reshape2.hpp"
 
-
 namespace ngraph
 {
     namespace frontend
@@ -39,7 +38,7 @@ namespace ngraph
                     }
                     else
                     {
-                        PDPD_NOT_IMPLEMENTED("reshape2 with shape as input");
+                        FRONT_END_NOT_IMPLEMENTED("reshape2 with shape as input");
                     }
                 }
 

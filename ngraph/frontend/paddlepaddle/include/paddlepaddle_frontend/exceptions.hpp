@@ -5,6 +5,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_exceptions.hpp>
+#include <ngraph/node.hpp>
 
 namespace ngraph
 {
@@ -14,35 +15,34 @@ namespace ngraph
         {
             class NodeContext;
 
-            class CheckFailurePDPD : public CheckFailureFrontEnd
+            class OpValidationFailurePDPD : public OpValidationFailure
             {
             public:
-                CheckFailurePDPD(const FrontEndErrorCode error_code,
-                                 const CheckLocInfo& check_loc_info,
-                                 const std::string& context,
-                                 const std::string& explanation)
-                    : CheckFailureFrontEnd(error_code,
-                                           check_loc_info,
-                                           " \nPaddlePaddle FrontEnd failed" + context,
-                                           explanation)
-                {
-                }
-            };
-
-            class NodeValidationFailurePDPD : public CheckFailurePDPD
-            {
-            public:
-                NodeValidationFailurePDPD(const FrontEndErrorCode error_code,
-                                          const CheckLocInfo& check_loc_info,
-                                          const pdpd::NodeContext& node,
-                                          const std::string& explanation)
-                    : CheckFailurePDPD(
-                          error_code, check_loc_info, get_error_msg_prefix_pdpd(node), explanation)
+                OpValidationFailurePDPD(const CheckLocInfo& check_loc_info,
+                                        const pdpd::NodeContext& node,
+                                        const std::string& explanation)
+                    : OpValidationFailure(
+                          check_loc_info, get_error_msg_prefix_pdpd(node), explanation)
                 {
                 }
 
             private:
                 static std::string get_error_msg_prefix_pdpd(const pdpd::NodeContext& node);
+            };
+
+            class OpConversionFailurePDPD : public OpConversionFailure
+            {
+            public:
+                OpConversionFailurePDPD(const CheckLocInfo& check_loc_info,
+                                        const ngraph::Node* node,
+                                        const std::string& explanation)
+                    : OpConversionFailure(
+                          check_loc_info, get_error_msg_prefix_pdpd(node), explanation)
+                {
+                }
+
+            private:
+                static std::string get_error_msg_prefix_pdpd(const Node* node);
             };
         } // namespace pdpd
     }     // namespace frontend
@@ -55,29 +55,20 @@ namespace ngraph
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
-#define PDPD_NODE_VALIDATION_CHECK(error_code, node_context, ...)                                  \
-    FRONT_END_CHECK_HELPER(error_code,                                                             \
-                           ::ngraph::frontend::pdpd::NodeValidationFailurePDPD,                    \
-                           (node_context),                                                         \
-                           __VA_ARGS__)
+#define PDPD_OP_VALIDATION_CHECK(node_context, ...)                                                \
+    NGRAPH_CHECK_HELPER(                                                                           \
+        ::ngraph::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param error_code Additional indicator of the type of error.
+/// \param ngraph_node Object of NodeContext class
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
-#define PDPD_CHECK(error_code, ...)                                                                \
-    FRONT_END_CHECK_HELPER(error_code, ::ngraph::frontend::pdpd::CheckFailurePDPD, "", __VA_ARGS__)
+#define PDPD_OP_CONVERSION_CHECK(ngraph_node, ...)                                                 \
+    NGRAPH_CHECK_HELPER(                                                                           \
+        ::ngraph::frontend::pdpd::OpConversionFailurePDPD, (ngraph_node), __VA_ARGS__)
 
-#define PDPD_NOT_IMPLEMENTED(msg)                                                                  \
-    PDPD_CHECK(::ngraph::frontend::FrontEndErrorCode::NOT_IMPLEMENTED,                             \
-               false,                                                                              \
-               std::string(msg) + " is not implemented")
-
-#define PDPD_THROW(msg)                                                                            \
-    PDPD_CHECK(::ngraph::frontend::FrontEndErrorCode::GENERAL_ERROR,                               \
-               false,                                                                              \
-               msg)
 } // namespace ngraph

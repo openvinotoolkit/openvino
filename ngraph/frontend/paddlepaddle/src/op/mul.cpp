@@ -29,16 +29,14 @@ namespace ngraph
                 {
                     auto x = node.get_ng_input("X");
                     auto y = node.get_ng_input("Y");
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
-                                               node,
-                                               x.get_partial_shape().rank().is_static(),
-                                               "matmul: X rank must be static!");
+                    PDPD_OP_VALIDATION_CHECK(node,
+                                             x.get_partial_shape().rank().is_static(),
+                                             "matmul: X rank must be static!");
                     int64_t x_rank = x.get_partial_shape().rank().get_length();
-                    PDPD_NODE_VALIDATION_CHECK(ngraph::frontend::FrontEndErrorCode::OP_VALIDATION_FAILED,
-                                               node,
-                                               y.get_partial_shape().rank().is_static() &&
-                                                   y.get_partial_shape().rank().get_length() == 2,
-                                               "matmul: Y rank must be static, and 2!");
+                    PDPD_OP_VALIDATION_CHECK(node,
+                                             y.get_partial_shape().rank().is_static() &&
+                                                 y.get_partial_shape().rank().get_length() == 2,
+                                             "matmul: Y rank must be static, and 2!");
                     if (x_rank > 2)
                     {
                         auto shape = std::make_shared<ngraph::opset6::ShapeOf>(x);
