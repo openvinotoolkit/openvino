@@ -10,7 +10,7 @@ pip3 install -r requirements.txt
 
 ## Run tests
 
-```
+```bash
 pytest test_cc.py
 ```
 **`test_cc.py` parameters:**
@@ -25,7 +25,7 @@ pytest test_cc.py
     instrumented package at `<artifacts>/ref_pkg` folder with OpenVINO repository specified in `--openvino_root_dir` option.
     > If OpenVINO instrumented package has been successfuly installed, in the future you can set `--openvino_ref` parameter as `<artifacts>/ref_pkg` for better performance.
 
-**Sample usage**:
-```{css, echo=FALSE}
+**Sample usage:**
+```bash
 pytest test_cc.py --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --collector_dir=./bin/intel64/Release --artifacts=../artifacts --openvino_root_dir=.
 ```
