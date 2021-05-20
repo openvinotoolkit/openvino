@@ -484,7 +484,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        if (ImportExportSupported(deviceName)) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
         } else {
             // read XML content
@@ -612,7 +612,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        if (ImportExportSupported(subnetwork._device)) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(subnetwork._device)) {
             subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;
@@ -800,14 +800,4 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
-}
-
-bool HeteroExecutableNetwork::ImportExportSupported(const std::string& deviceName) const {
-    std::vector<std::string> supportedMetricKeys = _heteroPlugin->GetCore()->GetMetric(
-            deviceName, METRIC_KEY(SUPPORTED_METRICS));
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    bool supported = (it != supportedMetricKeys.end()) &&
-                     _heteroPlugin->GetCore()->GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    return supported;
 }
