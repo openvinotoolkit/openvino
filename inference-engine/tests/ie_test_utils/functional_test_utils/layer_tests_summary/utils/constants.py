@@ -69,6 +69,7 @@ VERIFIED_OP_REFERENCES = [
     'RegionYOLO-1',
     'Relu-1',
     'ReorgYOLO-2',
+    'Result-1'
     'Round-5',
     'ScatterNDUpdate-4',
     'ShapeOf-1',
