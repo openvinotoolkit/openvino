@@ -52,7 +52,6 @@ def batch_norm2(name : str, x, scale, bias, mean, var, data_layout):
                                     moving_variance_name="bn_variance2",
                                     use_global_stats=True,
                                     data_layout=data_layout)
-    out = pdpd.transpose(out, perm=[0, 3, 1, 2])
 
     cpu = pdpd.static.cpu_places(1)
     exe = pdpd.static.Executor(cpu[0])

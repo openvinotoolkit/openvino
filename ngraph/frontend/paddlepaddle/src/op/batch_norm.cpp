@@ -40,17 +40,17 @@ namespace ngraph
                     {
                         auto input_order = ngraph::opset6::Constant::create(
                             ngraph::element::i64, {4}, {0, 3, 1, 2});
-                        auto data_nhwc =
+                        auto data_nchw =
                             std::make_shared<ngraph::opset6::Transpose>(data, input_order);
                         auto node_batch_norm = std::make_shared<ngraph::opset6::BatchNormInference>(
-                            data_nhwc,
+                            data_nchw,
                             gamma,
                             beta,
                             mean,
                             variance,
                             node.get_attribute<float>("epsilon"));
                         auto output_order = ngraph::opset6::Constant::create(
-                            ngraph::element::i64, {4}, {0, 1, 2, 3});
+                            ngraph::element::i64, {4}, {0, 2, 3, 1});
                         return node.default_single_output_mapping(
                             {std::make_shared<ngraph::opset6::Transpose>(node_batch_norm,
                                                                          output_order)},
