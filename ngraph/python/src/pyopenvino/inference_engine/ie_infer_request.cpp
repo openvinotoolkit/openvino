@@ -109,12 +109,17 @@ void regclass_InferRequest(py::module m)
 
     cls.def("set_completion_callback",
             [](InferRequestWrapper& self, py::function f_callback, py::object userdata) {
-                // self._request.user_callback_defined = true;
-                // self._request.user_callback = callback;
                 self._request.SetCompletionCallback([&self, f_callback, userdata]() {
                     self._endTime = Time::now();
+                    InferenceEngine::StatusCode statusCode =
+                        self._request.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
+                    if (statusCode == InferenceEngine::StatusCode::RESULT_NOT_READY)
+                    {
+                        statusCode = InferenceEngine::StatusCode::OK;
+                    }
+                    // Acquire GIL, execute Python function
                     py::gil_scoped_acquire acquire;
-                    f_callback(self, userdata);
+                    f_callback(self, statusCode, userdata);
                 });
             }, py::arg("f_callback"), py::arg("userdata"));
 
