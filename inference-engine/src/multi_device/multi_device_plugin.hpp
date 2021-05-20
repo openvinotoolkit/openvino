@@ -23,6 +23,9 @@ public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+                                                                 const std::map<std::string, std::string>& config) override;
+
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&        network,
@@ -36,6 +39,15 @@ public:
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
+
+private:
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
+                                                                       InferenceEngine::CNNNetwork network,
+                                                                       const std::map<std::string, std::string>& config);
+
+    void SetExeNetworkInfo(InferenceEngine::ExecutableNetworkInternal::Ptr exeNetwork,
+                           const InferenceEngine::ConstInputsDataMap& inputs,
+                           const InferenceEngine::ConstOutputsDataMap& outputs);
 };
 
 }  // namespace MultiDevicePlugin
