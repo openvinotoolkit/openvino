@@ -17,48 +17,8 @@ namespace ngraph
             {
                 NamedOutputs conv2d_transpose(const NodeContext& node)
                 {
-                    auto data = node.get_ng_input("Input");
-                    auto filters = node.get_ng_input("Filter");
-
-                    const auto strides = node.get_attribute<std::vector<int32_t>>("strides");
-                    const auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-                    const auto auto_pad_type = get_auto_pad(node);
-                    const auto paddings = get_pads(node);
-                    const auto pads_begin = paddings.first;
-                    const auto pads_end = paddings.second;
-                    const auto groups = node.get_attribute<int32_t>("groups");
-                    const auto data_format = node.get_attribute<std::string>("data_format");
-                    // TODO Support Other data layout #55423
-                    PDPD_ASSERT(data_format == "NCHW", "conv2d only supports NCHW now");
-
-                    if (groups > 1)
-                    {
-                        const auto reshaped_filters = get_reshaped_filter(filters, groups);
-
-                        return node.default_single_output_mapping(
-                            {std::make_shared<opset6::GroupConvolutionBackpropData>(
-                                data,
-                                reshaped_filters,
-                                ngraph::Strides(strides.begin(), strides.end()),
-                                pads_begin,
-                                pads_end,
-                                ngraph::Strides(dilations.begin(), dilations.end()),
-                                auto_pad_type)},
-                            {"Output"});
-                    }
-                    else
-                    {
-                        return node.default_single_output_mapping(
-                            {std::make_shared<opset6::ConvolutionBackpropData>(
-                                data,
-                                filters,
-                                ngraph::Strides(strides.begin(), strides.end()),
-                                pads_begin,
-                                pads_end,
-                                ngraph::Strides(dilations.begin(), dilations.end()),
-                                auto_pad_type)},
-                            {"Output"});
-                    }
+                    return conv2d_base<opset6::GroupConvolutionBackpropData,
+                                       opset6::ConvolutionBackpropData>(node);
                 }
 
             } // namespace op

@@ -97,9 +97,9 @@ namespace ngraph
                     PartialShape input_shape = data.get_partial_shape();
                     PDPD_ASSERT(input_shape.rank().is_static(), "pool2d: X rank must be static!");
                     int32_t input_rank = input_shape.rank().get_length();
+                    PDPD_ASSERT(input_rank >= 2, "kernel rank must be greater than 2");
                     uint64_t input_h = input_shape[input_rank - 2].get_length();
                     uint64_t input_w = input_shape[input_rank - 1].get_length();
-                    std::cout << input_rank << "," << input_h << "," << input_w << std::endl;
 
                     auto auto_pad = ngraph::op::PadType::EXPLICIT;
                     ngraph::Shape pad_begin, pad_end;
@@ -136,7 +136,8 @@ namespace ngraph
 
                         if (kernel_shape.size() == 1)
                         {
-                            // note: not tested on real models
+                            // Not tested: implemented according to spec, but can't generate real
+                            // model to test
                             pool_size_Height = pool_size_Width = kernel_shape[0];
                         }
                         else
@@ -150,10 +151,8 @@ namespace ngraph
                         uint64_t kernel_h = input_h - (pool_size_Height - 1) * stride_h;
                         uint64_t kernel_w = input_w - (pool_size_Width - 1) * stride_w;
 
-                        if (stride_h < 1 || stride_w < 1)
-                        { // upsampling?
-                            throw std::runtime_error("Unsupported pooling adaptive type!");
-                        }
+                        PDPD_ASSERT(stride_h >= 1 && stride_w >= 1,
+                                    "Pool2d stride must be greater than 1");
 
                         if (pooling_type == "max")
                         {
@@ -192,7 +191,8 @@ namespace ngraph
                         uint64_t kernel_h, kernel_w;
                         if (kernel_shape.size() == 1)
                         {
-                            // note: not tested on real models
+                            // Not tested: implemented according to spec, but can't generate real
+                            // model to test
                             kernel_h = kernel_w = kernel_shape[0];
                         }
                         else
@@ -228,7 +228,7 @@ namespace ngraph
                         }
                         else
                         {
-                            bool exclude_pad = node.get_attribute<bool>("exclusive") ? true : false;
+                            bool exclude_pad = node.get_attribute<bool>("exclusive", false);
                             return node.default_single_output_mapping(
                                 {std::make_shared<ngraph::opset6::AvgPool>(
                                     data,
