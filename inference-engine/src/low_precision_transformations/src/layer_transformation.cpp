@@ -253,7 +253,7 @@ bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcep
 DataPrecision LayerTransformation::getDataPrecision(
         const std::shared_ptr<Node>& layer,
         const QuantizationDetails& quantizationDetails,
-        const std::vector<element::Type>& precisions) const {
+        const std::vector<element::Type>& precisions) {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif

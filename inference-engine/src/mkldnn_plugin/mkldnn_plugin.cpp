@@ -340,6 +340,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
         auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0}),
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::GroupConvolution>({0})
         });
 

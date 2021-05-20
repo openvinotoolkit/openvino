@@ -327,7 +327,7 @@ bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& lay
     return (group == inputChannelsCount) && (inputChannelsCount == outputChannelsCount);
 }
 
-std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) const {
+std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) {
     auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
     // TODO: temporary workaround
     if (fq == nullptr) {
@@ -337,7 +337,7 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
     return fq;
 }
 
-DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const {
+DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
 
@@ -347,6 +347,28 @@ DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std
         precisionsAttribute->get()->sharedValue->precisions;
 
     return getDataPrecision(fq, quantizationDetails, precisions);
+}
+
+bool WeightableLayerTransformation::isAsymmetricOnWeights(const std::shared_ptr<const Node>& node) {
+    const auto n = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+
+    const auto reshapeFromWeights = ngraph::as_type_ptr<ngraph::opset1::Reshape>(n->get_input_node_shared_ptr(1));
+    const auto dequantization = reshapeFromWeights == nullptr ?
+        NetworkHelper::getDequantization(n, 1ul) :
+        NetworkHelper::getDequantization(reshapeFromWeights);
+
+    if (dequantization.empty()) {
+        const auto dataPrecision = WeightableLayerTransformation::getDataPrecisionOnWeights(n);
+        if (dataPrecision.hasZeroPoint) {
+            return true;
+        }
+    } else {
+        if (dequantization.subtract != nullptr) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace low_precision
