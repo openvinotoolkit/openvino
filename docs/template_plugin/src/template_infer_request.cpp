@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 
+#include <ngraph/runtime/reference/convert.hpp>
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
@@ -114,9 +115,10 @@ void TemplateInferRequest::InferImpl() {
 
 template<typename SrcT, typename DstT>
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
-    std::copy_n(InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
-                src->size(),
-                InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>());
+    ngraph::runtime::reference::convert<SrcT, DstT>(
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>(),
+            src->size());
 }
 
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {

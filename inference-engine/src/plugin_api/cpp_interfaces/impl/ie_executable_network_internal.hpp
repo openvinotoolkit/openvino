@@ -86,7 +86,7 @@ public:
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
      */
-    virtual void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
+    void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) {
         _plugin = plugin;
     }
 
