@@ -30,6 +30,10 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void Cancel() override;
+    //async impl
+    void StartAsync() override;
+    InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
+    void SetCallback(Callback callback) override;
 
 private:
     InferenceEngine::SoIInferRequestInternal _inferRequest;

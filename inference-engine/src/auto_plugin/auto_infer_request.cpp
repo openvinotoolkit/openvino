@@ -36,4 +36,16 @@ void AutoInferRequest::Cancel() {
     _inferRequest->Cancel();
 }
 
+void AutoInferRequest::StartAsync() {
+    _inferRequest->StartAsync();
+}
+
+InferenceEngine::StatusCode AutoInferRequest::Wait(int64_t millis_timeout) {
+    return _inferRequest->Wait(millis_timeout);
+}
+
+void AutoInferRequest::SetCallback(Callback callback) {
+    _inferRequest->SetCallback(callback);
+}
+
 }  // namespace AutoPlugin
