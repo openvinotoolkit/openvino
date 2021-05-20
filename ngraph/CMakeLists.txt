@@ -179,16 +179,6 @@ set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}"
 set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
 set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
 
-if (LINUX)
-    if (DEFINED NGRAPH_RPATH)
-        set(CMAKE_BUILD_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-    else()
-        set(CMAKE_BUILD_RPATH "$ORIGIN")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN")
-    endif()
-endif()
-
 #-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
