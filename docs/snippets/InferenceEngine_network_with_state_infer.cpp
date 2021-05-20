@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include <inference_engine.hpp>
+#include <iostream>
 
 using namespace InferenceEngine;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     try {
         // --------------------------- 1. Load inference engine -------------------------------------
         std::cout << "Loading Inference Engine" << std::endl;
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
         }
         InputsDataMap inputInfo;
         inputInfo = network.getInputsInfo();
-        for (auto &item : inputInfo) {
+        for (auto& item : inputInfo) {
             Precision inputPrecision = Precision::FP32;
             item.second->setPrecision(inputPrecision);
         }
@@ -43,63 +43,57 @@ int main(int argc, char *argv[]) {
         for (const auto& output : cOutputInfo) {
             ptrOutputBlobs.push_back(inferRequest.GetBlob(output.first));
         }
-        
+
         // 7. Initialize memory state before starting
-        for (auto &&state : inferRequest.QueryState()) {
+        for (auto&& state : inferRequest.QueryState()) {
             state.Reset();
         }
 
         //! [part1]
         // input data
-        std::vector<float> data = { 1,2,3,4,5,6};
+        std::vector<float> data = {1, 2, 3, 4, 5, 6};
         // infer the first utterance
-        for (size_t next_input = 0; next_input < data.size()/2; next_input++) {
+        for (size_t next_input = 0; next_input < data.size() / 2; next_input++) {
             MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[0]);
             auto minputHolder = minput->wmap();
 
-            std::memcpy(minputHolder.as<void *>(),
-                &data[next_input],
-                sizeof(float));
+            std::memcpy(minputHolder.as<void*>(), &data[next_input], sizeof(float));
 
             inferRequest.Infer();
             // check states
             auto states = inferRequest.QueryState();
             auto mstate = as<MemoryBlob>(states[0].GetState());
             auto state_buf = mstate->rmap();
-            float * state =state_buf.as<float*>(); 
+            float* state = state_buf.as<float*>();
             std::cout << state[0] << "\n";
         }
 
         // resetting state between utterances
-        std::cout<<"Reset state\n";
-        for (auto &&state : inferRequest.QueryState()) {
+        std::cout << "Reset state\n";
+        for (auto&& state : inferRequest.QueryState()) {
             state.Reset();
         }
 
         // infer the second utterance
-        for (size_t next_input = data.size()/2; next_input < data.size(); next_input++) {
+        for (size_t next_input = data.size() / 2; next_input < data.size(); next_input++) {
             MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[0]);
             auto minputHolder = minput->wmap();
 
-            std::memcpy(minputHolder.as<void *>(),
-                &data[next_input],
-                sizeof(float));
+            std::memcpy(minputHolder.as<void*>(), &data[next_input], sizeof(float));
 
             inferRequest.Infer();
             // check states
             auto states = inferRequest.QueryState();
             auto mstate = as<MemoryBlob>(states[0].GetState());
             auto state_buf = mstate->rmap();
-            float * state =state_buf.as<float*>(); 
+            float* state = state_buf.as<float*>();
             std::cout << state[0] << "\n";
-      }
+        }
         //! [part1]
-    }
-    catch (const std::exception &error) {
+    } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;
         return 1;
-    }
-    catch (...) {
+    } catch (...) {
         std::cerr << "Unknown/internal exception happened" << std::endl;
         return 1;
     }

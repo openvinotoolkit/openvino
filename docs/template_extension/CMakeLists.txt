@@ -11,6 +11,7 @@ find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
 find_package(OpenCV QUIET COMPONENTS core)
 
+file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
 if (OpenCV_FOUND)
@@ -18,7 +19,6 @@ if (OpenCV_FOUND)
 endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if (OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_IMPORT_ENABLED)
@@ -33,4 +33,5 @@ if (ngraph_onnx_importer_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
 endif()
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${template_extension_src})
 # [cmake:extension]
