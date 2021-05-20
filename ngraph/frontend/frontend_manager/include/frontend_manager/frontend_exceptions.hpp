@@ -82,16 +82,31 @@ namespace ngraph
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
+/// \throws ::ngraph::frontend::GeneralFailure if `cond` is false.
 #define FRONT_END_GENERAL_CHECK(...)                                                               \
     NGRAPH_CHECK_HELPER(::ngraph::frontend::GeneralFailure, "", __VA_ARGS__)
+
+/// \brief Macro to check whether a boolean condition holds.
+/// \param cond Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ngraph::frontend::InitializationFailure if `cond` is false.
 #define FRONT_END_INITIALIZATION_CHECK(...)                                                        \
     NGRAPH_CHECK_HELPER(::ngraph::frontend::InitializationFailure, "", __VA_ARGS__)
+
+/// \brief Assert macro.
+/// \param NAME Name of the function that is not implemented
+/// \throws ::ngraph::frontend::NotImplementedFailure
 #define FRONT_END_NOT_IMPLEMENTED(NAME)                                                            \
     NGRAPH_CHECK_HELPER(::ngraph::frontend::NotImplementedFailure,                                 \
                         "",                                                                        \
                         false,                                                                     \
                         #NAME " is not implemented for this FrontEnd class")
+
+/// \brief Assert macro.
+/// \param MSG Error message
+/// \throws ::ngraph::frontend::GeneralFailure
 #define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
 
     } // namespace frontend

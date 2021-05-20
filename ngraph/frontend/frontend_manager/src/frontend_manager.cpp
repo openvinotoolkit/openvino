@@ -5,8 +5,8 @@
 #include <ngraph/env_util.hpp>
 #include <ngraph/except.hpp>
 
-#include "frontend_manager/frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "frontend_manager/frontend_manager.hpp"
 #include "plugin_loader.hpp"
 
 using namespace ngraph;

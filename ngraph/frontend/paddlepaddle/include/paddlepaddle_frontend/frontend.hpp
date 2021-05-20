@@ -32,8 +32,7 @@ namespace ngraph
              * @param paths vector containing path to .pdmodel and .pdiparams files
              * @return InputModel::Ptr
              */
-            InputModel::Ptr
-                load_from_files(const std::vector<std::string>& paths) const override;
+            InputModel::Ptr load_from_files(const std::vector<std::string>& paths) const override;
 
             /**
              * @brief Reads model from stream

@@ -48,20 +48,18 @@ namespace ngraph
     }     // namespace frontend
 
 /// \brief Macro to check whether a boolean condition holds.
-/// \param error_code Additional indicator of the type of error.
 /// \param node_context Object of NodeContext class
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::CheckFailurePDPD if `cond` is false.
+/// \throws ::ngraph::OpValidationFailurePDPD if `cond` is false.
 #define PDPD_OP_VALIDATION_CHECK(node_context, ...)                                                \
     NGRAPH_CHECK_HELPER(                                                                           \
         ::ngraph::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
-/// \param error_code Additional indicator of the type of error.
-/// \param ngraph_node Object of NodeContext class
+/// \param ngraph_node Object of ngraph::Node class
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
