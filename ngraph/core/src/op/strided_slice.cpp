@@ -142,7 +142,8 @@ void op::v1::StridedSlice::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
 
-    const auto& data_rank = get_input_partial_shape(0).rank();
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& data_rank = data_pshape.rank();
     const auto& begin_shape = get_input_partial_shape(1);
     if (begin_shape.rank().is_static())
     {
@@ -174,27 +175,90 @@ void op::v1::StridedSlice::validate_and_infer_types()
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
+    if (data_rank.is_dynamic())
+    {
+        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        return;
+    }
+
     auto begin_const = get_constant_from_source(input_value(1));
     auto end_const = get_constant_from_source(input_value(2));
     auto strides = get_constant_from_source(input_value(3));
 
     if (begin_const && end_const && strides)
     {
-        set_output_type(0,
-                        get_input_element_type(0),
-                        infer_slice_shape(this,
-                                          get_input_partial_shape(0),
-                                          begin_const->cast_vector<int64_t>(),
-                                          end_const->cast_vector<int64_t>(),
-                                          strides->cast_vector<int64_t>(),
-                                          convert_mask_to_axis_set(get_begin_mask()),
-                                          convert_mask_to_axis_set(get_end_mask()),
-                                          convert_mask_to_axis_set(get_new_axis_mask()),
-                                          convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                          convert_mask_to_axis_set(get_ellipsis_mask())));
+        const auto& input_pshape = get_input_partial_shape(0);
+
+        const auto& begin_vector = begin_const->cast_vector<int64_t>();
+        const auto& end_vector = end_const->cast_vector<int64_t>();
+        const auto& strides_vector = strides->cast_vector<int64_t>();
+
+        const auto& begin_axis_set = convert_mask_to_axis_set(get_begin_mask());
+        const auto& end_axis_set = convert_mask_to_axis_set(get_end_mask());
+        const auto& new_axis_axis_set = convert_mask_to_axis_set(get_new_axis_mask());
+        const auto& shrink_axis_axis_set = convert_mask_to_axis_set(get_shrink_axis_mask());
+        const auto& ellipsis_axis_set = convert_mask_to_axis_set(get_ellipsis_mask());
+
+        PartialShape output_pshape;
+        if (input_pshape.is_static())
+            output_pshape = infer_slice_shape(this,
+                                              input_pshape,
+                                              begin_vector,
+                                              end_vector,
+                                              strides_vector,
+                                              begin_axis_set,
+                                              end_axis_set,
+                                              new_axis_axis_set,
+                                              shrink_axis_axis_set,
+                                              ellipsis_axis_set);
+        else
+        {
+            PartialShape lower_output_pshape, upper_output_pshape;
+            auto lower_input_pshape = PartialShape::dynamic(input_pshape.rank()),
+                 upper_input_pshape = PartialShape::dynamic(input_pshape.rank());
+            for (auto i = 0; i < data_rank.get_length(); ++i)
+            {
+                lower_input_pshape[i] = input_pshape[i].get_min_length();
+                upper_input_pshape[i] = input_pshape[i].get_max_length();
+            }
+
+            lower_output_pshape = infer_slice_shape(this,
+                                                    lower_input_pshape,
+                                                    begin_vector,
+                                                    end_vector,
+                                                    strides_vector,
+                                                    begin_axis_set,
+                                                    end_axis_set,
+                                                    new_axis_axis_set,
+                                                    shrink_axis_axis_set,
+                                                    ellipsis_axis_set);
+
+            upper_output_pshape = infer_slice_shape(this,
+                                                    upper_input_pshape,
+                                                    begin_vector,
+                                                    end_vector,
+                                                    strides_vector,
+                                                    begin_axis_set,
+                                                    end_axis_set,
+                                                    new_axis_axis_set,
+                                                    shrink_axis_axis_set,
+                                                    ellipsis_axis_set);
+
+            output_pshape = PartialShape::dynamic(lower_input_pshape.rank());
+            for (auto i = 0; i < lower_input_pshape.rank().get_length(); ++i)
+            {
+                Dimension::value_type minimum =
+                    lower_output_pshape[i].is_static() ? lower_output_pshape[i].get_length() : -1;
+                Dimension::value_type maximum =
+                    upper_output_pshape[i].is_static() ? upper_output_pshape[i].get_length() : -1;
+                output_pshape[i] = {minimum, maximum};
+            }
+        }
+        set_output_type(0, get_input_element_type(0), output_pshape);
     }
     else
     {
+        // TODO: this isn't right -- because shrink/new_axis masks
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
     }
 }
