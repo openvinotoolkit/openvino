@@ -795,6 +795,15 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
             }
         }
 
+        // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after the convolution performs slow
+        if (mayiuse(impl::cpu::x64::avx512_common) && is1x1) {
+            auto end = inpDims.rbegin();
+            std::advance(end, spatialRank);
+            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return 1 == x; })) {
+                return false;
+            }
+        }
+
         unsigned thresholdNumChannels = 128u; // for avx and below
         if (mayiuse(impl::cpu::x64::avx512_common) || is1x1) {
             thresholdNumChannels = 2048u;
