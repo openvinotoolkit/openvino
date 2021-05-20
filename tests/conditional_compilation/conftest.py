@@ -5,25 +5,24 @@
 
 # pylint: disable=line-too-long
 
-""" Pytest configuration for compilation tests.
+"""Pytest configuration for compilation tests."""
 
-Sample usage:
-python3 -m pytest --test_conf=<path to test config> \
-    --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
-    --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
-    --openvino_ref=<Path to root directory with installed OpenVINO>
-"""
-
+import logging
 import sys
-import pytest
-import yaml
 from inspect import getsourcefile
 from pathlib import Path
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
 
+import yaml
+import pytest
+
 from path_utils import expand_env_vars  # pylint: disable=import-error
+from test_utils import make_build, write_session_info, SESSION_INFO_FILE  # pylint: disable=import-error
+
+
+log = logging.getLogger()
 
 
 def pytest_addoption(parser):
@@ -32,13 +31,9 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         default=Path(__file__).parent / "test_config.yml",
-        help="Path to models root directory"
+        help="Path to models root directory",
     )
-    parser.addoption(
-        "--sea_runtool",
-        type=Path,
-        help="Path to sea_runtool.py"
-    )
+    parser.addoption("--sea_runtool", type=Path, help="Path to sea_runtool.py")
     parser.addoption(
         "--collector_dir",
         type=Path,
@@ -56,6 +51,11 @@ def pytest_addoption(parser):
         type=Path,
         help="Path to root directory with installed OpenVINO",
     )
+    parser.addoption(
+        "--openvino_root_dir",
+        type=Path,
+        help="Path to OpenVINO repository root directory",
+    )
 
 
 def pytest_generate_tests(metafunc):
@@ -63,7 +63,7 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    with open(metafunc.config.getoption('test_conf'), "r") as file:
+    with open(metafunc.config.getoption("test_conf"), "r") as file:
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
@@ -72,7 +72,7 @@ def pytest_generate_tests(metafunc):
         if "marks" in test:
             extra_args["marks"] = test["marks"]
 
-        test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
+        test_id = model_path.replace("$", "").replace("{", "").replace("}", "")
         params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
         ids = ids + [test_id]
     metafunc.parametrize("test_id, model", params, ids=ids)
@@ -99,4 +99,50 @@ def artifacts(request):
 @pytest.fixture(scope="session")
 def openvino_root_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("openvino_ref")
+    return request.config.getoption("openvino_root_dir")
+
+
+@pytest.fixture(scope="session")
+def openvino_ref(request, openvino_root_dir, artifacts):
+    """Fixture function for command-line option.
+    Return path to root directory with installed OpenVINO.
+    If --openvino_ref command-line option is not specified firstly build and install
+    instrumented package with OpenVINO repository specified in --openvino_root_dir option.
+    """
+    openvino_ref_path = request.config.getoption("openvino_ref")
+    if openvino_ref_path:
+        return openvino_ref_path
+
+    build_dir = openvino_root_dir / "build_instrumented"
+    openvino_ref_path = artifacts / "ref_pkg"
+
+    log.info("--openvino_ref is not specified. " "Building instrumented build at %s", build_dir)
+
+    return_code, output = make_build(
+        openvino_root_dir,
+        build_dir,
+        openvino_ref_path,
+        cmake_additional_args=["-DSELECTIVE_BUILD=COLLECT"],
+        log=log
+    )
+    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+
+    return openvino_ref_path
+
+@pytest.fixture(scope="function")
+def test_info(request, pytestconfig):
+    """Fixture function for getting the additional attributes of the current test."""
+    setattr(request.node._request, "test_info", {})
+    if not hasattr(pytestconfig, "session_info"):
+        setattr(pytestconfig, "session_info", [])
+
+    yield request.node._request.test_info
+
+    pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="session")
+def save_session_info(pytestconfig, artifacts):
+    """Fixture function for saving additional attributes to configuration file."""
+    yield
+    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
