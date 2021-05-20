@@ -44,7 +44,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
-            R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",

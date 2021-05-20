@@ -54,7 +54,7 @@ StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
         waitStatus = AsyncInferRequestThreadSafeDefault::Wait(millis_timeout);
     } catch(...) {
         for (auto&& requestDesc : _heteroInferRequest->_inferRequests) {
-            requestDesc._request->Wait(-1);
+            requestDesc._request->Wait(InferRequest::RESULT_READY);
         }
         throw;
     }
