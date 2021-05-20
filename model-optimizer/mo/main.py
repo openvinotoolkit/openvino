@@ -289,7 +289,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 return_code = status.returncode
         except Exception as e:
             return_code = "failed"
-            log.error(e, extra={'is_warning': True})
+            log.error(e)
 
         message = str(dict({
             "platform": platform.system(),
@@ -301,39 +301,20 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
 
-        # if IR wasn't produced by offline_transformations step we need to fallback to IR
-        # produced by prepare_ir. This IR needs to be renamed from XXX_tmp.xml to XXX.xml
-        suffixes = [".xml", ".bin", ".mapping"]
         if return_code != 0:
-            if len(argv.transform) != 0:
-                # Remove temporary IR before throwing exception
-                for suf in suffixes:
-                    path_to_file = orig_model_name + "_tmp" + suf
-                    if os.path.exists(path_to_file):
-                        os.remove(path_to_file)
-                raise Error("Failed to apply transformations: {}".format(argv.transform))
+            raise Error("offline transformations step has failed.")
 
-            log.error("Using fallback to produce IR.", extra={'is_warning': True})
-            for suf in suffixes:
-                # remove existing files
-                path_to_file = orig_model_name + suf
-                if os.path.exists(path_to_file):
-                    os.remove(path_to_file)
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
 
-                # rename tmp IR to original name
-                os.rename(orig_model_name + "_tmp" + suf, orig_model_name + suf)
-        else:
-            for suf in suffixes:
-                # remove existing files
-                path_to_file = orig_model_name + "_tmp" + suf
-                if os.path.exists(path_to_file):
-                    os.remove(path_to_file)
-
-            # add meta information to IR
-            append_ir_info(file=orig_model_name,
-                           meta_info=get_meta_info(argv),
-                           mean_data=mean_data,
-                           input_names=input_names)
+        # add meta information to IR
+        append_ir_info(file=orig_model_name,
+                       meta_info=get_meta_info(argv),
+                       mean_data=mean_data,
+                       input_names=input_names)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
