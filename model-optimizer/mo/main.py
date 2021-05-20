@@ -144,20 +144,18 @@ def prepare_ir(argv: argparse.Namespace):
 
     # This try-except is additional reinsurance that the IE
     # dependency search does not break the MO pipeline
-    try:
-        argv.ie_is_available = find_ie_version(silent=argv.silent)
-
-        if not argv.ie_is_available and not argv.silent:
-            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
-            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+    def raise_ie_not_found():
+        raise Error("Could not find the Inference Engine or nGraph Python API.\n"
+                    "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
-            # If the IE was not found, it will not print the MO version, so we have to print it manually
-            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    try:
+        if not find_ie_version(silent=argv.silent):
+            raise_ie_not_found()
     except Exception as e:
-        argv.ie_is_available = False
+        raise_ie_not_found()
 
     # This is just to check that transform key is valid and transformations are available
-    check_available_transforms(parse_transform(argv.transform), argv.ie_is_available)
+    check_available_transforms(parse_transform(argv.transform))
 
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
@@ -261,10 +259,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
-    # Remove temporary ie_is_available key from argv no to have it in IR
-    ie_is_available = argv.ie_is_available
-    del argv.ie_is_available
-
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
@@ -285,7 +279,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if not argv.legacy_ir_generation and ie_is_available:
+            if not argv.legacy_ir_generation:
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations,

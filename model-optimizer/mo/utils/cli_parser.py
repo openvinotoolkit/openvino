@@ -1217,17 +1217,13 @@ def parse_transform(transform: str) -> list:
     return transforms
 
 
-def check_available_transforms(transforms: list, ie_is_available: bool):
+def check_available_transforms(transforms: list):
     """
     This function check that transformations specified by user are available.
     :param transforms: list of user specified transformations
     :param ie_is_available: True if IE Python API is available and False if it is not
-    :return: raises an Error if IE or transformation is not available
+    :return: raises an Error if transformation is not available
     """
-    if not ie_is_available and len(transforms) != 0:
-        raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
-            ','.join([name for name, _ in transforms])))
-
     from mo.back.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
