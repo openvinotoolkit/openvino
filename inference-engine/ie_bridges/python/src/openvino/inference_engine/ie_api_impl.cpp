@@ -3,10 +3,10 @@
 //
 
 #include "ie_api_impl.hpp"
-#include "ie_plugin_config.hpp"
 
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
+#include "ie_plugin_config.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {
@@ -314,15 +314,15 @@ void InferenceEnginePython::IENetwork::reshape(const std::map<std::string, std::
     actual->reshape(input_shapes);
 }
 
-void InferenceEnginePython::IENetwork::reshapePartial(const std::map <std::string, std::vector<std::vector<int64_t>>> &input_shapes) {
+void InferenceEnginePython::IENetwork::reshapePartial(const std::map<std::string, std::vector<std::vector<int64_t>>>& input_shapes) {
     InferenceEngine::ICNNNetwork::InputPartialShapes new_input_shapes;
-    for(auto const& input: input_shapes){
+    for (auto const& input : input_shapes) {
         using ngraph::Dimension;
         std::vector<Dimension> dims;
-        for(auto d : input.second) {
-            if(d.size() == 1)
+        for (auto d : input.second) {
+            if (d.size() == 1)
                 dims.push_back(Dimension(d[0]));
-            else if(d.size() == 2)
+            else if (d.size() == 2)
                 dims.push_back(Dimension(d[0], d[1]));
         }
         new_input_shapes[input.first] = ngraph::PartialShape(dims);
@@ -410,7 +410,7 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
     IE_CHECK_CALL(request_ptr->SetBatch(size, &response));
 }
 
-void InferenceEnginePython::InferRequestWrap::setShape(const std::string &blob_name, const std::vector<size_t>& dims) {
+void InferenceEnginePython::InferRequestWrap::setShape(const std::string& blob_name, const std::vector<size_t>& dims) {
     InferenceEngine::ResponseDesc response;
     IE_CHECK_CALL(request_ptr->SetShape(blob_name.c_str(), dims, &response));
 }

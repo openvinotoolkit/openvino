@@ -258,7 +258,6 @@ static std::string pretty_partial_shape(const PartialShape& shape)
     return ss.str();
 }
 
-
 void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                                              unordered_map<Node*, HeightMap>& height_maps,
                                              size_t& fake_node_ctr)
@@ -280,9 +279,10 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                 "style=\"dashed\"",
                 color,
                 string("label=\"") + get_node_name(arg) + string("\n") +
-				(is_type<ngraph::op::Constant>(arg)
-                    ? get_constant_value(arg, const_max_elements)
-					: pretty_partial_shape(arg->get_output_partial_shape(0))) + string("\"")};
+                    (is_type<ngraph::op::Constant>(arg)
+                         ? get_constant_value(arg, const_max_elements)
+                         : pretty_partial_shape(arg->get_output_partial_shape(0))) +
+                    string("\"")};
 
             if (m_node_modifiers && !arg->output(0).get_rt_info().empty())
             {
@@ -360,8 +360,8 @@ string get_output_attributes(shared_ptr<Node> node)
                     label << "{" << input.get_element_type().get_type_name() << "}";
                 if (nvtos)
                     label << pretty_partial_shape(input.get_partial_shape());
-                label << ": " << node->get_input_node_ptr(input.get_index())->get_name()
-                      << ": out" << input.get_source_output().get_index();
+                label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
+                      << input.get_source_output().get_index();
             }
         }
         for (const auto& output : node->outputs())

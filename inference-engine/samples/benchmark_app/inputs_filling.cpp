@@ -195,8 +195,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
         if (item.second.partialShape.is_static() && item.second.isImage()) {
             input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
-        slog::info << "Network input '" << item.first << "' precision " << item.second.precision
-                                                      << ", dimensions (" << item.second.layout << "): ";
+        slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions (" << item.second.layout << "): ";
         for (const auto& i : item.second.blobShape) {
             slog::info << i << " ";
         }

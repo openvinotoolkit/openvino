@@ -629,9 +629,8 @@ int main(int argc, char* argv[]) {
         for (auto request : inferRequestsQueue.requests) {
             for (auto output : outputs) {
                 auto outBlob = request->getBlob(output.first);
-                std::cout << "Acquired output blob " << output.first << " with shape: "
-                    << outBlob->getTensorDesc().getPartialShape()
-                    << " [ dynamic: " << output.second->getTensorDesc().getPartialShape() << " ]" << '\n';
+                std::cout << "Acquired output blob " << output.first << " with shape: " << outBlob->getTensorDesc().getPartialShape()
+                          << " [ dynamic: " << output.second->getTensorDesc().getPartialShape() << " ]" << '\n';
             }
         }
 

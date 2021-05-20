@@ -7,13 +7,14 @@
 #include <map>
 #include <string>
 #include <vector>
+
 #include "../../../ngraph/core/include/ngraph/partial_shape.hpp"
 
 namespace benchmark_app {
 struct InputInfo {
     InferenceEngine::Precision precision;
-        ngraph::PartialShape partialShape;
-        InferenceEngine::SizeVector blobShape;
+    ngraph::PartialShape partialShape;
+    InferenceEngine::SizeVector blobShape;
     std::string layout;
     bool isImage() const;
     bool isImageInfo() const;
@@ -99,9 +100,7 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string, const s
                     if (range_index != std::string::npos) {
                         std::string min = dim.substr(0, range_index);
                         std::string max = dim.substr(range_index + range_divider.length());
-                        parsed_shape.push_back(ngraph::Dimension(
-                                min.empty() ? 0 : std::stoi(min),
-                                max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
+                        parsed_shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min), max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
                     } else {
                         parsed_shape.push_back(std::stoi(dim));
                     }
