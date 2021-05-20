@@ -61,7 +61,7 @@ def run_cmd(args: list, log=None, verbose=True):
 def parse_stats(stats: dict, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
     for element in stats:
-        if isinstance(element, int):
+        if isinstance(element, (int, float)):
             for k, v in res.items():
                 if v is None:
                     res.update({k: element})
@@ -114,10 +114,6 @@ def run_timetest(args: dict, log=None):
 
         # Parse raw data
         flatten_data = {}
-
-        # DEBUG_INFO
-        log.debug("Statistics after yml file: {}".format(raw_data[0]))
-
         parse_stats(raw_data[0], flatten_data)
 
         log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
