@@ -23,10 +23,6 @@ AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                          OutputsDataMap networkOutputs) {
-    IE_THROW(NotImplemented);
-}
-
-InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequest() {
     SoIInferRequestInternal inferRequest = {_network, _network->CreateInferRequest()};
     return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest);
 }
