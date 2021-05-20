@@ -2141,23 +2141,15 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-//        auto info = experimental_prior_grid::get_info_for_ed_prior_grid_eval(op, inputs);
-//
-//        std::vector<float> output_rois(shape_size(info.output_shape));
-//
-//        runtime::reference::experimental_detectron_prior_grid_generator(info.priors_data.data(),
-//                                                                        info.priors_shape,
-//                                                                        info.feature_map_shape,
-//                                                                        info.im_data_shape,
-//                                                                        output_rois.data(),
-//                                                                        info.grid_h,
-//                                                                        info.grid_w,
-//                                                                        info.stride_h,
-//                                                                        info.stride_w);
-//
-//        runtime::reference::experimental_detectron_prior_grid_generator_postprocessing(
-//            outputs, info.output_type, output_rois, info.output_shape);
-
+        using T = typename element_type_traits<ET>::value_type;
+        size_t max_rois = op->get_max_rois();
+        outputs[0]->set_shape(Shape{max_rois, 4});
+        runtime::reference::experimental_detectron_topk_rois<T>(inputs[0]->get_data_ptr<const T>(),
+                                                                inputs[1]->get_data_ptr<const T>(),
+                                                                inputs[0]->get_shape(),
+                                                                inputs[1]->get_shape(),
+                                                                outputs[0]->get_data_ptr<T>(),
+                                                                max_rois);
         return true;
     }
 
