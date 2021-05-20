@@ -1,7 +1,6 @@
 #include <inference_engine.hpp>
-#include <ngraph/function.hpp>
 #include <ngraph/ngraph.hpp>
-
+#include <ngraph/function.hpp>
 #include "hetero/hetero_plugin_config.hpp"
 
 int main() {
@@ -17,16 +16,16 @@ auto function = network.getFunction();
 const std::string device = "HETERO:FPGA,CPU";
 
 // QueryNetworkResult object contains map layer -> device
-InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, {});
+InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { });
 
 // update default affinities
 res.supportedLayersMap["layerName"] = "CPU";
 
 // set affinities to network
 for (auto&& node : function->get_ops()) {
-auto& affinity = res.supportedLayersMap[node->get_friendly_name()];
-// Store affinity mapping using node runtime information
-node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+    auto& affinity = res.supportedLayersMap[node->get_friendly_name()];
+    // Store affinity mapping using node runtime information
+    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
 }
 
 // load network with affinities set before

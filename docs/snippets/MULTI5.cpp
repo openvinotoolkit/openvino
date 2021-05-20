@@ -1,11 +1,12 @@
 #include <inference_engine.hpp>
 #include <multi-device/multi_device_config.hpp>
 
+
 int main() {
 std::string device_name = "MULTI:HDDL,GPU";
-const std::map<std::string, std::string> full_config = {};
+const std::map< std::string, std::string > full_config = {};
 //! [part5]
-InferenceEngine::Core ie;
+InferenceEngine::Core ie; 
 InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork("sample.xml");
 // 'device_name' can be "MULTI:HDDL,GPU" to configure the multi-device to use HDDL and GPU
 InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device_name, full_config);

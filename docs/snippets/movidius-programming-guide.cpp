@@ -8,8 +8,8 @@ auto network = core.ReadNetwork("sample.xml");
 auto executable_network = core.LoadNetwork(network, "CPU");
 //! [part0]
 struct Request {
-InferenceEngine::InferRequest inferRequest;
-int frameidx;
+    InferenceEngine::InferRequest inferRequest;
+    int frameidx;
 };
 //! [part0]
 
@@ -29,7 +29,7 @@ request[i].inferRequest.StartAsync();
 //! [part3]
 
 //! [part4]
-request[i].inferRequest.SetCompletionCallback([]() {});
+request[i].inferRequest.SetCompletionCallback([] () {});
 //! [part4]
 
 return 0;

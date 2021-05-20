@@ -26,18 +26,18 @@ InferenceEngine::OutputsDataMap output_info = network.getOutputsInfo();
 
 //! [part4]
 /** Iterate over all input info**/
-for (auto& item : input_info) {
-auto input_data = item.second;
-input_data->setPrecision(InferenceEngine::Precision::U8);
-input_data->setLayout(InferenceEngine::Layout::NCHW);
-input_data->getPreProcess().setResizeAlgorithm(InferenceEngine::RESIZE_BILINEAR);
-input_data->getPreProcess().setColorFormat(InferenceEngine::ColorFormat::RGB);
+for (auto &item : input_info) {
+    auto input_data = item.second;
+    input_data->setPrecision(InferenceEngine::Precision::U8);
+    input_data->setLayout(InferenceEngine::Layout::NCHW);
+    input_data->getPreProcess().setResizeAlgorithm(InferenceEngine::RESIZE_BILINEAR);
+    input_data->getPreProcess().setColorFormat(InferenceEngine::ColorFormat::RGB);
 }
 /** Iterate over all output info**/
-for (auto& item : output_info) {
-auto output_data = item.second;
-output_data->setPrecision(InferenceEngine::Precision::FP32);
-output_data->setLayout(InferenceEngine::Layout::NC);
+for (auto &item : output_info) {
+    auto output_data = item.second;
+    output_data->setPrecision(InferenceEngine::Precision::FP32);
+    output_data->setLayout(InferenceEngine::Layout::NC);
 }
 //! [part4]
 
@@ -47,7 +47,7 @@ executable_network = core.LoadNetwork(network, "CPU");
 
 //! [part6]
 /** Optional config. E.g. this enables profiling of performance counters. **/
-std::map<std::string, std::string> config = {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}};
+std::map<std::string, std::string> config = {{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }};
 executable_network = core.LoadNetwork(network, "CPU", config);
 //! [part6]
 
@@ -60,11 +60,11 @@ auto infer_request2 = executable_network.CreateInferRequest();
 
 //! [part8]
 /** Iterate over all input blobs **/
-for (auto& item : input_info) {
-auto input_name = item.first;
-/** Get input blob **/
-auto input = infer_request.GetBlob(input_name);
-/** Fill input tensor with planes. First b channel, then g and r channels **/
+for (auto & item : input_info) {
+    auto input_name = item.first;
+    /** Get input blob **/
+    auto input = infer_request.GetBlob(input_name);
+    /** Fill input tensor with planes. First b channel, then g and r channels **/
 //     ...
 }
 //! [part8]
@@ -89,17 +89,18 @@ infer_request2.SetBlob(input_name, roiBlob);
 
 //! [part11]
 /** Iterate over all input blobs **/
-for (auto& item : input_info) {
-auto input_data = item.second;
-/** Create input blob **/
-InferenceEngine::TBlob<unsigned char>::Ptr input;
-// assuming input precision was asked to be U8 in prev step
-input = InferenceEngine::make_shared_blob<unsigned char>(
-    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, input_data->getTensorDesc().getDims(), input_data->getTensorDesc().getLayout()));
-input->allocate();
-infer_request.SetBlob(item.first, input);
+for (auto & item : input_info) {
+    auto input_data = item.second;
+    /** Create input blob **/
+    InferenceEngine::TBlob<unsigned char>::Ptr input;
+    // assuming input precision was asked to be U8 in prev step
+    input = InferenceEngine::make_shared_blob<unsigned char>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, input_data->getTensorDesc().getDims(),
+        input_data->getTensorDesc().getLayout()));
+    input->allocate();
+    infer_request.SetBlob(item.first, input);
 
-/** Fill input tensor with planes. First b channel, then g and r channels **/
+    /** Fill input tensor with planes. First b channel, then g and r channels **/
 //     ...
 }
 //! [part11]
@@ -116,16 +117,16 @@ sync_infer_request.Infer();
 //! [part13]
 
 //! [part14]
-for (auto& item : output_info) {
-auto output_name = item.first;
-auto output = infer_request.GetBlob(output_name);
-{
-auto const memLocker = output->cbuffer();  // use const memory locker
-// output_buffer is valid as long as the lifetime of memLocker
-const float* output_buffer = memLocker.as<const float*>();
-/** output_buffer[] - accessing output blob data **/
-}
-}
+    for (auto &item : output_info) {
+        auto output_name = item.first;
+        auto output = infer_request.GetBlob(output_name);
+        {
+            auto const memLocker = output->cbuffer(); // use const memory locker
+            // output_buffer is valid as long as the lifetime of memLocker
+            const float *output_buffer = memLocker.as<const float *>();
+            /** output_buffer[] - accessing output blob data **/
+        }
+    }
 //! [part14]
 
 return 0;

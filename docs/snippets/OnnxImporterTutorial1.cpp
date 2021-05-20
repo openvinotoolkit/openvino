@@ -1,6 +1,5 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-
 #include "onnx_import/onnx.hpp"
 
 int main() {
