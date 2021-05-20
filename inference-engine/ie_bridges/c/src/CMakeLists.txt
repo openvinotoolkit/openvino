@@ -29,10 +29,6 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 export(TARGETS ${TARGET_NAME} NAMESPACE IE::
        APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
-# WA for CI issue
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
-
 # install
 
 ie_cpack_add_component(core_c DEPENDS core)
