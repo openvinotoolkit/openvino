@@ -36,7 +36,12 @@ def main():
     'training' : False,
     'mode' : "downscale_in_infer"
     }
+    pdpd_attrs2 = {
+        'training' : False,
+        'mode' : "upscale_in_train"
+    }
     pdpd_dropout("dropout", data, p, pdpd_attrs)
+    pdpd_dropout("dropout_upscale_in_train", data, p, pdpd_attrs2)
 
 if __name__ == "__main__":
     main()     
