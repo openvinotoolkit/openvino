@@ -6,8 +6,7 @@ import logging as log
 import os
 import sys
 
-# ElementTree is included to build it from Element which is already parsed XML, it is not used to parse anything. To
-# eliminate a risk of it to be used to parse XML in future development defusedxml.defuse_stdlib() is called
+# ElementTree is included to build it from Element which is already parsed XML, it is not used for parsing.
 from xml.etree.ElementTree import ElementTree  # nosec
 from defusedxml import defuse_stdlib
 from defusedxml.ElementTree import parse
@@ -20,6 +19,8 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
+# To reduce a risk of xml.etree.ElementTree objects to be used to parse XML in future development
+# defusedxml.defuse_stdlib() is called to patch xml library with safe methods.
 defuse_stdlib()
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
@@ -57,8 +58,7 @@ class IREngine(object):
         self.graph = Graph()
         self.graph.graph['hashes'] = {}
 
-        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get(
-            'version') is not None else None
+        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
         self.graph.graph['layout'] = 'NCHW'
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
@@ -213,11 +213,8 @@ class IREngine(object):
                 new_attrs = self.__normalize_attrs(attr.attrib)
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
-                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(),
-                                                                                         ['offset', 'size'])
-                    new_attrs.update(
-                        self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'],
-                                                 layer[1][0].attrib['precision']))
+                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
+                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)

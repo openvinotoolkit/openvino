@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-# xml.etree.ElementTree is imported to modify XML, it is not used to parse. To eliminate a risk of it to be used to
-# parse XML in future development defusedxml.defuse_stdlib() is called
+# Objects from xml.etree.ElementTree are imported to modify XML and aren't used to parse.
 from xml.etree.ElementTree import Element, SubElement, tostring  # nosec
 
 from defusedxml import defuse_stdlib
@@ -16,6 +15,8 @@ from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
+# To reduce a risk of xml.etree.ElementTree objects to be used to parse XML in future development
+# defusedxml.defuse_stdlib() is called to patch xml library with safe methods.
 defuse_stdlib()
 
 

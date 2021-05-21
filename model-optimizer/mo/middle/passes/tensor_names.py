@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# xml.etree.ElementTree is imported to modify XML, it is not used to parse. To eliminate a risk of it to be used to
-# parse XML in future development defusedxml.defuse_stdlib() is called
+# Objects from xml.etree.ElementTree are imported to modify XML and aren't used to parse.
 from xml.etree.ElementTree import Element, SubElement, tostring  # nosec
 
 from defusedxml import defuse_stdlib
@@ -10,6 +9,8 @@ from defusedxml.minidom import parseString
 
 from mo.graph.graph import Node, Graph
 
+# To eliminate a risk of xml.etree.ElementTree objects to be used to parse XML in future development
+# defusedxml.defuse_stdlib() is called to patch xml library with safe methods.
 defuse_stdlib()
 
 
