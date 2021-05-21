@@ -85,8 +85,40 @@ static void register_mock_model_stat(py::module m)
                                   &MdlCallStat::get_getPlaceByOperationNameAndInputPortCount);
     mdlStat.def_property_readonly("getPlaceByOperationNameAndOutputPortCount",
                                   &MdlCallStat::get_getPlaceByOperationNameAndOutputPortCount);
-    mdlStat.def_property_readonly("lastPlaceName", &MdlCallStat::get_lastPlaceName);
-    mdlStat.def_property_readonly("lastPlacePortIndex", &MdlCallStat::get_lastPlacePortIndex);
+
+    mdlStat.def_property_readonly("setNameForTensorCount", &MdlCallStat::get_setNameForTensorCount);
+    mdlStat.def_property_readonly("addNameForTensorCount", &MdlCallStat::get_addNameForTensorCount);
+    mdlStat.def_property_readonly("setNameForOperationCount",
+                                  &MdlCallStat::get_setNameForOperationCount);
+    mdlStat.def_property_readonly("freeNameForTensorCount",
+                                  &MdlCallStat::get_freeNameForTensorCount);
+    mdlStat.def_property_readonly("freeNameForOperationCount",
+                                  &MdlCallStat::get_freeNameForOperationCount);
+    mdlStat.def_property_readonly("setNameForDimensionCount",
+                                  &MdlCallStat::get_setNameForDimensionCount);
+    mdlStat.def_property_readonly("cutAndAddNewInputCount",
+                                  &MdlCallStat::get_cutAndAddNewInputCount);
+    mdlStat.def_property_readonly("cutAndAddNewOutputCount",
+                                  &MdlCallStat::get_cutAndAddNewOutputCount);
+    mdlStat.def_property_readonly("addOutputCount", &MdlCallStat::get_addOutputCount);
+    mdlStat.def_property_readonly("removeOutputCount", &MdlCallStat::get_removeOutputCount);
+    mdlStat.def_property_readonly("setPartialShapeCount", &MdlCallStat::get_setPartialShapeCount);
+    mdlStat.def_property_readonly("getPartialShapeCount", &MdlCallStat::get_getPartialShapeCount);
+    mdlStat.def_property_readonly("setElementTypeCount", &MdlCallStat::get_setElementTypeCount);
+    mdlStat.def_property_readonly("extractSubgraphCount", &MdlCallStat::get_extractSubgraphCount);
+    mdlStat.def_property_readonly("overrideAllInputsCount",
+                                  &MdlCallStat::get_overrideAllInputsCount);
+    mdlStat.def_property_readonly("overrideAllOutputsCount",
+                                  &MdlCallStat::get_overrideAllOutputsCount);
+
+    // Arguments tracking
+    mdlStat.def_property_readonly("lastArgString", &MdlCallStat::get_lastArgString);
+    mdlStat.def_property_readonly("lastArgInt", &MdlCallStat::get_lastArgInt);
+    mdlStat.def_property_readonly("lastArgPlace", &MdlCallStat::get_lastArgPlace);
+    mdlStat.def_property_readonly("lastArgInputPlaces", &MdlCallStat::get_lastArgInputPlaces);
+    mdlStat.def_property_readonly("lastArgOutputPlaces", &MdlCallStat::get_lastArgOutputPlaces);
+    mdlStat.def_property_readonly("lastArgElementType", &MdlCallStat::get_lastArgElementType);
+    mdlStat.def_property_readonly("lastArgPartialShape", &MdlCallStat::get_lastArgPartialShape);
 }
 
 PYBIND11_MODULE(pybind_mock_frontend, m)

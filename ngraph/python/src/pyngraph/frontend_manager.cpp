@@ -83,6 +83,19 @@ void regclass_pyngraph_InputModel(py::module m)
            &ngraph::frontend::InputModel::get_place_by_operation_and_input_port);
     im.def("get_place_by_operation_and_output_port",
            &ngraph::frontend::InputModel::get_place_by_operation_and_output_port);
+
+    im.def("set_name_for_tensor", &ngraph::frontend::InputModel::set_name_for_tensor);
+    im.def("add_name_for_tensor", &ngraph::frontend::InputModel::add_name_for_tensor);
+    im.def("set_name_for_operation", &ngraph::frontend::InputModel::set_name_for_operation);
+    im.def("free_name_for_tensor", &ngraph::frontend::InputModel::free_name_for_tensor);
+    im.def("free_name_for_operation", &ngraph::frontend::InputModel::free_name_for_operation);
+    im.def("set_name_for_dimension", &ngraph::frontend::InputModel::set_name_for_dimension);
+    im.def("cut_and_add_new_input", &ngraph::frontend::InputModel::cut_and_add_new_input);
+    im.def("cut_and_add_new_output", &ngraph::frontend::InputModel::cut_and_add_new_output);
+    im.def("add_output", &ngraph::frontend::InputModel::add_output);
+    im.def("remove_output", &ngraph::frontend::InputModel::remove_output);
+
+    // Setting tensor properties
     im.def("set_partial_shape", &ngraph::frontend::InputModel::set_partial_shape);
     im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape);
     im.def("get_inputs", &ngraph::frontend::InputModel::get_inputs);
