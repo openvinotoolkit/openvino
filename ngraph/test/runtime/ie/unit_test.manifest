@@ -1160,40 +1160,21 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
-# DFT is not implemented yet in plugins
-IE_CPU.dft1d_eval
-IE_CPU.dft2d_eval
-IE_CPU.dft3d_eval
-IE_CPU.dft1d_eval_i32
-IE_CPU.dft2d_eval_i32
-IE_CPU.dft3d_eval_i32
-IE_CPU.dft1d_signal_size_eval
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.dft1d_eval_bfloat16
 IE_CPU.dft2d_eval_bfloat16
 IE_CPU.dft3d_eval_bfloat16
 IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
-IE_CPU.dft1d_eval_1
-IE_CPU.dft2d_eval_1
-IE_CPU.dft3d_eval_1
 
-# IDFT is not implemented yet in plugins
-IE_CPU.idft1d_eval
-IE_CPU.idft2d_eval
-IE_CPU.idft3d_eval
-IE_CPU.idft1d_eval_i32
-IE_CPU.idft2d_eval_i32
-IE_CPU.idft3d_eval_i32
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.idft1d_eval_bfloat16
 IE_CPU.idft2d_eval_bfloat16
 IE_CPU.idft3d_eval_bfloat16
 IE_CPU.idft1d_eval_float16
 IE_CPU.idft2d_eval_float16
 IE_CPU.idft3d_eval_float16
-IE_CPU.idft1d_eval_1
-IE_CPU.idft2d_eval_1
-IE_CPU.idft3d_eval_1
 
 #-------------------------------------------------------------------------------
 #

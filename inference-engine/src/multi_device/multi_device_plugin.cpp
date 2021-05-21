@@ -142,33 +142,10 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
-void MultiDeviceInferencePlugin::SetExeNetworkInfo(InferenceEngine::ExecutableNetworkInternal::Ptr exeNetwork,
-                                                   const InferenceEngine::ConstInputsDataMap& devInputs,
-                                                   const InferenceEngine::ConstOutputsDataMap& devOutputs) {
-    // Set inputs/outputs and pointer to plugin manually here
-    InputsDataMap _inputs, clonedInputs;
-    OutputsDataMap _outputs, clonedOutputs;
-    for (auto& it : devInputs) {
-        InputInfo::CPtr devData = it.second;
-        InputInfo::Ptr data = std::make_shared<InputInfo>(*devData);
-        _inputs[it.first] = data;
-    }
-    for (auto& it : devOutputs) {
-        CDataPtr devData = it.second;
-        DataPtr data = std::make_shared<Data>(*devData);
-        _outputs[it.first] = data;
-    }
-    copyInputOutputInfo(_inputs, _outputs, clonedInputs, clonedOutputs);
-    exeNetwork->setNetworkInputs(clonedInputs);
-    exeNetwork->setNetworkOutputs(clonedOutputs);
-    exeNetwork->SetPointerToPlugin(shared_from_this());
-}
-
 // Is called only when caching is enabled
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                         const std::map<std::string, std::string>& config) {
-    CNNNetwork network;
-    return LoadExeNetworkImpl(modelPath, network, config);
+    return LoadExeNetworkImpl(modelPath, {}, config);
 }
 
 ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
