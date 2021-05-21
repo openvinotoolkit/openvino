@@ -42,7 +42,7 @@ macro(ie_parse_ci_build_number)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
 
-    if(DEFINED InferenceEngineDeveloperPackage_DIR)
+    if(DEFINED IEDevScripts_DIR AND DEFINED IE_MAIN_SOURCE_DIR AND NOT DEFINED custom_build)
         set(ie_version_hpp "${IE_MAIN_SOURCE_DIR}/include/ie_version.hpp")
         if(NOT EXISTS ${ie_version_hpp})
             message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
