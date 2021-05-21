@@ -52,6 +52,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 42538. Unexpected application crush
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
 
         // incorrect reference implementation
         R"(.*NormalizeL2LayerTest.*axes=\(\).*)",

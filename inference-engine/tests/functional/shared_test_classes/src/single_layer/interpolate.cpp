@@ -18,7 +18,8 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
+    std::map<std::string, std::string> additional_config;
+    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetShapes, targetDevice, additional_config) = obj.param;
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;
@@ -55,8 +56,8 @@ void InterpolateLayerTest::SetUp() {
     InterpolateSpecificParams interpolateParams;
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
+    std::map<std::string, std::string> additional_config;
+    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice, additional_config) = this->GetParam();
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;
@@ -65,6 +66,8 @@ void InterpolateLayerTest::SetUp() {
     ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
     ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
     ngraph::op::v4::Interpolate::NearestMode nearestMode;
+
+    configuration.insert(additional_config.begin(), additional_config.end());
 
     double cubeCoef;
     std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
