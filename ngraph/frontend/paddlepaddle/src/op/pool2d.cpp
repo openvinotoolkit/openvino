@@ -95,12 +95,9 @@ namespace ngraph
                                 "pool2d: ksize must be 1 or 2!");
 
                     PartialShape input_shape = data.get_partial_shape();
-                    PDPD_ASSERT(input_shape.rank().is_static(), "pool2d: X rank must be static!");
+
                     int32_t input_rank = input_shape.rank().get_length();
                     PDPD_ASSERT(input_rank >= 2, "input tensor rank must be greater than 2");
-
-                    uint64_t input_h = input_shape[input_rank - 2].get_length();
-                    uint64_t input_w = input_shape[input_rank - 1].get_length();
 
                     auto auto_pad = ngraph::op::PadType::EXPLICIT;
                     ngraph::Shape pad_begin, pad_end;
@@ -130,7 +127,11 @@ namespace ngraph
                     }
                     else if (adaptive)
                     {
+                        PDPD_ASSERT(input_shape[2].is_static() && input_shape[3].is_static(),
+                                    "pool2d: spatial dim must be static when using adaptive pool");
                         uint64_t pool_size_Height, pool_size_Width;
+                        uint64_t input_h = input_shape[input_rank - 2].get_length();
+                        uint64_t input_w = input_shape[input_rank - 1].get_length();
 
                         if (kernel_shape.size() == 1)
                         {
@@ -202,13 +203,20 @@ namespace ngraph
                         PDPD_ASSERT(kernel_h > 0 && kernel_w > 0,
                                     "pool2d kernel shape must be greater than 0");
 
-                        if ((input_h > 0) && (input_h + pad_begin[0] + pad_end[0] < kernel_h))
+                        // Note: this shape check is only valid when the spatial dim of input_shape
+                        // is static.
+                        if (input_shape[2].is_static() && input_shape[3].is_static())
                         {
-                            kernel_h = input_h + pad_begin[0] + pad_end[0];
-                        }
-                        if ((input_w > 0) && (input_w + pad_begin[1] + pad_end[1] < kernel_w))
-                        {
-                            kernel_w = input_w + pad_begin[1] + pad_end[1];
+                            uint64_t input_h = input_shape[input_rank - 2].get_length();
+                            uint64_t input_w = input_shape[input_rank - 1].get_length();
+                            if ((input_h > 0) && (input_h + pad_begin[0] + pad_end[0] < kernel_h))
+                            {
+                                kernel_h = input_h + pad_begin[0] + pad_end[0];
+                            }
+                            if ((input_w > 0) && (input_w + pad_begin[1] + pad_end[1] < kernel_w))
+                            {
+                                kernel_w = input_w + pad_begin[1] + pad_end[1];
+                            }
                         }
 
                         if (pooling_type == "max")
