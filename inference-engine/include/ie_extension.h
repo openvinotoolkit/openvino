@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
 #include "ie_iextension.h"
 #include "details/ie_so_pointer.hpp"
 
