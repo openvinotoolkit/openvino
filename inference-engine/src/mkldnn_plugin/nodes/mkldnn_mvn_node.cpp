@@ -691,37 +691,6 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         epsMode_ = INSIDE_SQRT;
         acrossChannels_ = mvnOp->get_across_channels();
     }
-
-    transformTo5DCase(inDataShape);
-}
-
-void MKLDNNMVNNode::transformTo5DCase(const ngraph::Shape& shape) {
-    switch (shape.size()) {
-        // for 1 and 2 rank, if acrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
-        // otherwise there are not enough data in spatial dimension to process in one kernel.
-        case 1 :  // C
-            if (acrossChannels_) {
-                shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
-                acrossChannels_ = false;
-                break;
-            } else {
-                shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
-                break;
-            }
-        case 2 :  // NC
-            if (acrossChannels_) {
-                shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
-                acrossChannels_ = false;
-                break;
-            } else {
-                shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
-                break;
-            }
-        case 3 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
-        case 4 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
-        case 5 : { shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
-        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
-    }
 }
 
 void MKLDNNMVNNode::getSupportedDescriptors() {
@@ -840,6 +809,8 @@ void MKLDNNMVNNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
+    const SizeVector in_dims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    transformTo5DCase(in_dims);
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
@@ -849,7 +820,6 @@ void MKLDNNMVNNode::createPrimitive() {
     jcp.planar_layout = MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selectedPD->getConfig().inConfs[0].desc.getLayout();
     jcp.normalize_variance = normalizeVariance_;
     jcp.across_channels = acrossChannels_;
-    SizeVector in_dims = getParentEdgeAt(0)->getDims().ToSizeVector();
     int N = 0;
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = shape5D;
 
@@ -890,6 +860,35 @@ void MKLDNNMVNNode::createPrimitive() {
 
     if (mvn_variance_kernel)
         mvn_variance_kernel->create_ker();
+}
+
+void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
+    switch (shape.size()) {
+        // for 1 and 2 rank, if acrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
+        // otherwise there are not enough data in spatial dimension to process in one kernel.
+        case 1 :  // C
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
+                acrossChannels_ = false;
+                break;
+            } else {
+                shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
+                break;
+            }
+        case 2 :  // NC
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
+                acrossChannels_ = false;
+                break;
+            } else {
+                shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
+                break;
+            }
+        case 3 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
+        case 4 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
+        case 5 : { shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
+        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
+    }
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
