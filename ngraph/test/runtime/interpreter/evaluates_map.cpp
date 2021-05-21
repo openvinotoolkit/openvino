@@ -2065,7 +2065,7 @@ namespace
             using TF = typename element_type_traits<T1>::value_type;
             using TI = typename element_type_traits<T2>::value_type;
             using TIND1 = typename element_type_traits<TOUT>::value_type;
-            TI blank_index_val = *inputs[0]->get_shape().end() - 1;
+            TI blank_index_val = inputs[0]->get_shape().back() - 1;
             const TI *blank_index = &blank_index_val;
             if (inputs.size() == 3) {
                 blank_index = inputs[2]->get_data_ptr<const TI>();
