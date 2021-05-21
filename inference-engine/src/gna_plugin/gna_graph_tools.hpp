@@ -805,9 +805,6 @@ inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimNam
     std::vector<uint32_t> backOffsets;
     switch (data->getLayout()) {
         case Layout::C:
-            // 1 will be returned for offsets > 1
-            backOffsets = std::vector<uint32_t>{1, 2, 3, 4};
-            break;
         case Layout::NC:
             // 1 will be returned for offsets > 2
             backOffsets = std::vector<uint32_t>{2, 1, 3, 4};
