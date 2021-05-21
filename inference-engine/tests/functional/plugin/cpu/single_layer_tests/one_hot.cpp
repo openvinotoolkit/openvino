@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,11 +61,12 @@ protected:
 
         std::tie(inputShape, axis, depth, onValue, offValue, netPrecision, inPrc, outPrc, targetDevice, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = std::string("ref_any_") + inPrc.name();
 
+        auto ngOutPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         auto depthConst = ngraph::builder::makeConstant<size_t>(ngraph::element::i32, {}, {depth});
-        auto onConst = ngraph::builder::makeConstant<float>(ngraph::element::f32, {}, {onValue});
-        auto offConst = ngraph::builder::makeConstant<float>(ngraph::element::f32, {}, {offValue});
+        auto onConst = ngraph::builder::makeConstant<float>(ngOutPrc, {}, {onValue});
+        auto offConst = ngraph::builder::makeConstant<float>(ngOutPrc, {}, {offValue});
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto inputParams = ngraph::builder::makeParams(ngPrc, { inputShape });

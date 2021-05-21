@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
 # Defines the CMake commands/policies
 cmake_minimum_required (VERSION 3.13)
@@ -81,8 +82,20 @@ install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_VERSION})
 
+install(FILES requirements.txt
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
+        COMPONENT ${PYTHON_VERSION})
+
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_VERSION})
 
-ie_cpack(${PYTHON_VERSION})
+# install Python samples
+
+ie_cpack_add_component(python_samples)
+
+install(DIRECTORY sample/
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+        COMPONENT python_samples)
+
+ie_cpack(${PYTHON_VERSION} python_samples)

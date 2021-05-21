@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,18 @@ struct ConvertDepthTestGAPI: public TestParams<std::tuple<
                             cv::Size,
                             double>>   // tolerance
 {};
+struct DivCTestGAPI: public TestParams<std::tuple<
+                            int,  // input matrix depth
+                            int,  // input matrix channels number
+                            cv::Size,
+                            cv::Scalar, // second operarnd
+                            double>>    // tolerance
+{};
+
+struct SubCTestGAPI : public DivCTestGAPI
+{};
+
+struct MeanValueGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 //------------------------------------------------------------------------------
 
 struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};

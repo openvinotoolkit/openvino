@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
-#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)

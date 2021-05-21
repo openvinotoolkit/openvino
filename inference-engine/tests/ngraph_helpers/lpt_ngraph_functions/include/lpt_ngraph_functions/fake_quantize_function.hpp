@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,11 @@ public:
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
+
+    static std::shared_ptr<ngraph::Function> getOriginalWithMaxPool(
+            const ngraph::element::Type precision,
+            const ngraph::Shape& inputShape,
+            const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,

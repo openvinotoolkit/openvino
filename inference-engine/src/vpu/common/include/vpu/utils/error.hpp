@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 namespace vpu {
 
 // TODO: replace with VPU_THROW_FORMAT/VPU_THROW_UNLESS/VPU_INTERNAL_CHECK and remove
-#define VPU_THROW_EXCEPTION THROW_IE_EXCEPTION
+#define VPU_THROW_EXCEPTION IE_THROW()
 
 namespace details {
 

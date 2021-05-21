@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -35,8 +35,6 @@ endif()
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
             PRIVATE
-            -MMD
-            -MP
             -Wformat
             -Wformat-security
             -Wall)

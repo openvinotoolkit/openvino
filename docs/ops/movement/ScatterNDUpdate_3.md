@@ -48,7 +48,7 @@ output  = [[[5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
 
 *   **2**: `indices` tensor with indices of arbitrary rank `q` >= 1 and of type *T_IND*. All index values `i_j` in index entry `(i_0, i_1, ...,i_k)` (where `k = indices.shape[-1]`) must be within bounds `[0, s_j - 1]` where `s_j = data.shape[j]`. `k` must be at most `r`. Required.
 
-*   **3**: `updates` tensor of rank `r - indices.shape[-1] + q - 1` of type *T*. Required.
+*   **3**: `updates` tensor of rank `r - indices.shape[-1] + q - 1` of type *T*. If expected `updates` rank is 0D it can be a tensor with single element. Required.
 
 **Outputs**:
 

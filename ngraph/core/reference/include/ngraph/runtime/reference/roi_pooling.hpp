@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -47,7 +35,7 @@ namespace ngraph
                 // ROIs shape: {NUM_ROIS, 5}
                 const int num_rois = rois_shape[0];
 
-                for (unsigned int roi_num = 0; roi_num < num_rois; roi_num++)
+                for (int roi_num = 0; roi_num < num_rois; roi_num++)
                 {
                     // ROI tuple: [roi_batch_id, roi_w_start, roi_h_start, roi_w_end, roi_h_end]
                     // ROI index
@@ -79,11 +67,11 @@ namespace ngraph
                         const T* batch_data =
                             feature_maps + roi_batch_id * channels * height * width;
 
-                        for (unsigned int c = 0; c < channels; c++)
+                        for (int c = 0; c < channels; c++)
                         {
-                            for (unsigned int ph = 0; ph < pooled_h; ph++)
+                            for (int ph = 0; ph < pooled_h; ph++)
                             {
-                                for (unsigned int pw = 0; pw < pooled_w; pw++)
+                                for (int pw = 0; pw < pooled_w; pw++)
                                 {
                                     // Compute pooling region for this output unit:
                                     //  start (included) = floor(ph * roi_height / pooled_h)
@@ -113,9 +101,9 @@ namespace ngraph
                                                              ? static_cast<T>(0)
                                                              : std::numeric_limits<T>::lowest();
 
-                                    for (unsigned int h = h_start; h < h_end; h++)
+                                    for (int h = h_start; h < h_end; h++)
                                     {
-                                        for (unsigned int w = w_start; w < w_end; w++)
+                                        for (int w = w_start; w < w_end; w++)
                                         {
                                             const size_t index = h * width + w;
                                             output[pool_index] =
@@ -144,11 +132,11 @@ namespace ngraph
                         T roi_width_scale =
                             (pooled_w > 1) ? roi_width / (pooled_w - 1) : static_cast<T>(0);
 
-                        for (unsigned int c = 0; c < channels; c++)
+                        for (int c = 0; c < channels; c++)
                         {
-                            for (unsigned int ph = 0; ph < pooled_h; ph++)
+                            for (int ph = 0; ph < pooled_h; ph++)
                             {
-                                for (unsigned int pw = 0; pw < pooled_w; pw++)
+                                for (int pw = 0; pw < pooled_w; pw++)
                                 {
                                     T in_y =
                                         (pooled_h > 1)
@@ -163,8 +151,8 @@ namespace ngraph
                                         roi_num * channels * pooled_h * pooled_w +
                                         c * pooled_h * pooled_w + ph * pooled_w + pw;
                                     // Define invalid pooling region to be zero
-                                    if (in_y < 0 || in_y > height - 1 || in_x < 0 ||
-                                        in_x > width - 1)
+                                    if (in_y < 0 || in_y > static_cast<T>(height - 1) || in_x < 0 ||
+                                        in_x > static_cast<T>(width - 1))
                                     {
                                         output[pool_index] = 0;
                                     }

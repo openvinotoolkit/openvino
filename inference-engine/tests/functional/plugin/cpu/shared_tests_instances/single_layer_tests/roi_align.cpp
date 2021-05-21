@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,12 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
+
+
+const std::vector<InferenceEngine::Precision> netPRCs = {
+    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::FP32
+};
 
 const auto ROIAlignCases_average = ::testing::Combine(
         ::testing::ValuesIn(
@@ -21,7 +27,7 @@ const auto ROIAlignCases_average = ::testing::Combine(
         ::testing::ValuesIn(std::vector<float> { 1, 0.625 }),
         ::testing::Values(2),
         ::testing::Values("avg"),
-        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(netPRCs),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -39,7 +45,7 @@ const auto ROIAlignCases_max = ::testing::Combine(
         ::testing::ValuesIn(std::vector<float> { 1, 0.625 }),
         ::testing::Values(2),
         ::testing::Values("max"),
-        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(netPRCs),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

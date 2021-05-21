@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -20,6 +8,7 @@
 #include <map>
 #include <memory>
 
+#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -98,14 +87,11 @@ namespace ngraph
             void set_input_values(
                 const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
-            /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
-            ///        modified by the editor's API calls
-            ///
-            /// \return A reference to ONNX ModelProto object containing the in-memory model
-            ONNX_NAMESPACE::ModelProto& model() const;
-
             /// \brief Returns a serialized ONNX model, possibly modified by the editor.
             std::string model_string() const;
+
+            /// \brief     Converts an edited ONNX model to an nGraph Function representation.
+            std::shared_ptr<Function> get_function() const;
 
             /// \brief Returns a list of all inputs of the in-memory model, including initializers.
             ///        The returned value might depend on the previous operations executed on an
@@ -122,7 +108,69 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
+            /// \brief Returns the InputEdge based on a node (node name or output name)
+            ///        and an input (input name or input index).
+            ///
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim tries to match the given node name
+            ///        with the input name (providing an input index is not enough).
+            ///        If a unique edge is found, it will be returned.
+            ///        If InputEdge cannot be determined based on parameter values an ngraph_error
+            ///        exception will be thrown.
+            ///
+            /// \param node A node helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            /// \param input An input helper structure created based on a input name
+            ///              or a input index.
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
+
+            /// \brief Returns an OutputEdge based on a node (node name or output name)
+            ///        and an output (output name or output index).
+            ///
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim will try to match the given node name
+            ///        with the output name (providing an output index is not enough).
+            ///        If after such operation a found edge is unique, it is returned.
+            ///        If OutputEdge cannot be determined based on given params the ngraph_error
+            ///        exception is thrown.
+            ///
+            /// \param node A node helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            /// \param output A output helper structure created based on a output name
+            ///               or a output index.
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
+
+            /// \brief Returns an OutputEdge based on a output name.
+            ///
+            /// \note  The output name guarantees the uniqueness of the edge.
+            ///
+            /// \param output_name A node output name.
+            ///
+            OutputEdge find_output_edge(const std::string& output_name) const;
+
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
+
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
         private:
+            void update_mapper_if_needed() const;
+
             const std::string m_model_path;
 
             struct Impl;

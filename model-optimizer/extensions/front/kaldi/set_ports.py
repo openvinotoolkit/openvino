@@ -1,20 +1,9 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
+from mo.utils.error import Error
 
 
 class SetPortsPattern(FrontReplacementSubgraph):
@@ -40,6 +29,11 @@ class SetPortsPattern(FrontReplacementSubgraph):
 
             in_ports_count = node.in_ports_count if node.has_valid('in_ports_count') else len(inputs)
             out_ports_count = node.out_ports_count if node.has_valid('out_ports_count') else len(outputs)
+
+            if len(outputs) > out_ports_count > 1:
+                raise Error("Node {} has more children than it should: " +
+                            "should be {} but there is {}".format(node_id, out_ports_count, len(outputs)))
+
             node['_in_ports'] = {}
             node['_out_ports'] = {}
             if in_ports_count is not None:

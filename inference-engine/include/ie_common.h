@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -281,6 +281,16 @@ struct QueryNetworkResult {
     ResponseDesc resp;
 };
 
+/**
+ * @brief A collection that contains string as key, and const Data smart pointer as value
+ */
+using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
+
+/**
+ * @brief A collection that contains string as key, and Data smart pointer as value
+ */
+using OutputsDataMap = std::map<std::string, DataPtr>;
+
 namespace details {
 struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception")
 INFERENCE_ENGINE_API_CLASS(InferenceEngineException) : public std::runtime_error {
@@ -359,6 +369,7 @@ INFERENCE_ENGINE_DECLARE_EXCEPTION(InferCancelled, INFER_CANCELLED)
  */
 #undef INFERENCE_ENGINE_DECLARE_EXCEPTION
 
+// TODO: Move this section out of public API
 namespace details {
 /**
  * @brief Tag struct used to throw exception
@@ -378,27 +389,34 @@ struct ThrowNow final {
 #else
 #define IE_LOCATION ""
 #endif  // NDEBUG
+
+
+// WARNING: DO NOT USE THIS MACRO! Use openvino/pp.hpp macro library
+#define IE_PP_EXPAND(X) X
+#define IE_PP_NARG(...) IE_PP_EXPAND(IE_PP_NARG_(__VA_ARGS__, IE_PP_RSEQ_N()))
+#define IE_PP_NARG_(...) IE_PP_EXPAND(IE_PP_ARG_N(__VA_ARGS__))
+#define IE_PP_ARG_N(_0, _1, N, ...) N
+#define IE_PP_RSEQ_N() 0, 1, 0
+#define IE_PP_NO_ARGS(NAME) ,
+#define IE_PP_CAT3_(x, y, z) x ## y ## z
+#define IE_PP_CAT3(x, y, z) IE_PP_CAT3_(x, y, z)
+#define IE_PP_OVERLOAD(NAME, ...) IE_PP_EXPAND(IE_PP_CAT3(NAME, _, IE_PP_EXPAND(IE_PP_NARG(IE_PP_NO_ARGS __VA_ARGS__ (NAME))))(__VA_ARGS__))
+// ENDWARNING
+
+#define IE_THROW_0()                                                                                \
+    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError> {} <<= std::stringstream {}   \
+    << IE_LOCATION
+
+#define IE_THROW_1(ExceptionType)                                                                                           \
+    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType> {} <<= std::stringstream {}                          \
+    << IE_LOCATION << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
 /// @endcond
 
 /**
  * @def IE_THROW
- * @brief A macro used to throw specefied exception with a description
+ * @brief A macro used to throw specified exception with a description
  */
-#define IE_THROW(ExceptionType)     \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<= std::stringstream{} << IE_LOCATION
-
-/**
- * @def THROW_IE_EXCEPTION
- * @brief A macro used to throw general exception with a description
- */
-#define THROW_IE_EXCEPTION IE_THROW(GeneralError)
-
-/**
- * @def THROW_IE_EXCEPTION_WITH_STATUS
- * @brief A macro used to throw general exception with a description and status
- */
-#define THROW_IE_EXCEPTION_WITH_STATUS(ExceptionType)                              \
-    IE_THROW(ExceptionType) << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
+#define IE_THROW(...) IE_PP_OVERLOAD(IE_THROW, __VA_ARGS__)
 
 /**
  * @def IE_ASSERT
@@ -423,6 +441,10 @@ struct NullStream {
 #endif  // NDEBUG
 
 /// @cond
+#define THROW_IE_EXCEPTION \
+    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException> {} <<= std::stringstream {}   \
+    << IE_LOCATION
+
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...)                         \
     case InferenceEngine::STATUS_CODE : {                                                       \
         using InferenceEngine::EXCEPTION_TYPE; using TYPE_ALIAS = EXCEPTION_TYPE;  __VA_ARGS__; \
@@ -451,39 +473,6 @@ struct NullStream {
         default: IE_ASSERT(!"Unreachable");                                                     \
     }
 
-/**
- * @private
- */
-#define CALL_STATUS_FNC(function, ...)                                                          \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used was not initialized.";                     \
-    ResponseDesc resp;                                                                          \
-    auto res = actual->function(__VA_ARGS__, &resp);                                            \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
-                <<= std::stringstream{} << IE_LOCATION << resp.msg)
-
-/**
- * @private
- */
-#define CALL_STATUS_FNC_NO_ARGS(function)                                                                   \
-    if (!actual)  THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
-    ResponseDesc resp;                                                                                      \
-    auto res = actual->function(&resp);                                                                     \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                                  \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                             \
-                <<= std::stringstream{} << IE_LOCATION)
-
-/**
- * @private
- */
-#define CALL_FNC_NO_ARGS(function)         \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_FNC_NO_ARGS was not initialized."; \
-    ResponseDesc resp;                     \
-    auto result = actual->function(&resp); \
-    if (resp.msg[0] != '\0') {             \
-         THROW_IE_EXCEPTION << resp.msg    \
-    }                                      \
-    return result;
 }  // namespace details
 }  // namespace InferenceEngine
 #if defined(_WIN32)

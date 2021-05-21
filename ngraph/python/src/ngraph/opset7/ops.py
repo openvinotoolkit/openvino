@@ -1,25 +1,11 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
@@ -55,7 +41,26 @@ from ngraph.utils.types import (
 
 _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 
+
 # -------------------------------------------- ops ------------------------------------------------
+
+
+@nameable_op
+def einsum(
+        inputs: List[Node],
+        equation: str
+) -> Node:
+    """Return a node which performs Einsum operation.
+
+    @param inputs: The list of input nodes
+    @param equation: Einsum equation
+    @return: The new node performing Einsum operation on the inputs
+    """
+    attributes = {
+        "equation": equation
+    }
+
+    return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
 
 
 @nameable_op
@@ -78,3 +83,84 @@ def gelu(
     }
 
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
+
+
+@nameable_op
+def roll(
+        data: NodeInput,
+        shift: NodeInput,
+        axes: NodeInput,
+) -> Node:
+    """Return a node which performs Roll operation.
+
+    @param data: The node with data tensor.
+    @param shift: The node with the tensor with numbers of places by which elements are shifted.
+    @param axes: The node with the tensor with axes along which elements are shifted.
+    @return The new node performing a Roll operation on the input tensor.
+    """
+    inputs = as_nodes(data, shift, axes)
+
+    return _get_node_factory_opset7().create("Roll", inputs)
+
+
+@nameable_op
+def gather(
+        data: NodeInput,
+        indices: NodeInput,
+        axis: NodeInput,
+        batch_dims: Optional[int] = 0,
+) -> Node:
+    """Return a node which performs Gather.
+
+    @param data:         N-D tensor with data for gathering
+    @param indices:      N-D tensor with indices by which data is gathered
+    @param axis:         axis along which elements are gathered
+    @param batch_dims:   number of batch dimensions
+    @return:             The new node which performs Gather
+    """
+    inputs = as_nodes(data, indices, axis)
+    attributes = {
+        "batch_dims": batch_dims
+    }
+    return _get_node_factory_opset7().create("Gather", inputs, attributes)
+
+
+def dft(
+        data: NodeInput,
+        axes: NodeInput,
+        signal_size: Optional[NodeInput] = None,
+) -> Node:
+    """Return a node which performs DFT operation.
+
+    @param data: Tensor with transformed data.
+    @param axes: Tensor with axes to transform.
+    @param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    @return: The new node which performs DFT operation on the input data tensor.
+    """
+    if signal_size is None:
+        inputs = as_nodes(data, axes)
+    else:
+        inputs = as_nodes(data, axes, signal_size)
+
+    return _get_node_factory_opset7().create("DFT", inputs)
+
+
+@nameable_op
+def idft(
+        data: NodeInput,
+        axes: NodeInput,
+        signal_size: Optional[NodeInput] = None,
+) -> Node:
+    """Return a node which performs IDFT operation.
+
+    @param data: Tensor with transformed data.
+    @param axes: Tensor with axes to transform.
+    @param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    @return: The new node which performs IDFT operation on the input data tensor.
+    """
+    if signal_size is None:
+        inputs = as_nodes(data, axes)
+    else:
+        inputs = as_nodes(data, axes, signal_size)
+
+    return _get_node_factory_opset7().create("IDFT", inputs)

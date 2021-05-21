@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,7 @@ protected:
     }
 
     void TearDown() override {
+        PluginCache::get().reset();
     }
 
     std::string ConvNet(const int batch, TBlob<uint8_t>::Ptr &weights) {

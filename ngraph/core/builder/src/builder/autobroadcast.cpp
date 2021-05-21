@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/builder/autobroadcast.hpp"
 
@@ -26,8 +14,6 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 
@@ -443,9 +429,10 @@ namespace ngraph
             {
                 NGRAPH_CHECK((input_shape.rank().is_static() && output_shape.rank().is_static()),
                              "Tensor's rank has to be static.");
-                NGRAPH_CHECK((input_shape.rank().get_length() + start_match_axis <=
-                              output_shape.rank().get_length()),
-                             "Unable to figure out axes mapping.");
+                NGRAPH_CHECK(
+                    (input_shape.rank().get_length() + static_cast<int64_t>(start_match_axis) <=
+                     output_shape.rank().get_length()),
+                    "Unable to figure out axes mapping.");
 
                 vector<int64_t> mapping(input_shape.rank().get_length());
                 iota(begin(mapping), end(mapping), start_match_axis);

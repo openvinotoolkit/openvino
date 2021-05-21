@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,13 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
+    foreach(var CI_BUILD_NUMBER IE_VERSION
+                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+        if(NOT DEFINED ${var})
+            message(FATAL_ERROR "${var} version component is not defined")
+        endif()
+        set(${var} "${${var}}" PARENT_SCOPE)
+    endforeach()
 endfunction()
 
 set_ci_build_number()

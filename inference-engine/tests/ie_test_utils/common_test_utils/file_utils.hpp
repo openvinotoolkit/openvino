@@ -1,6 +1,7 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <regex>
@@ -60,7 +61,7 @@ inline void createFile(const std::string& filename, const std::string& content) 
 
 inline void removeFile(const std::string& path) {
     if (!path.empty()) {
-        remove(path.c_str());
+        std::remove(path.c_str());
     }
 }
 
@@ -210,7 +211,8 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
     std::vector<std::string> result;
     for (auto &&folderPath : folderPaths) {
         if (!CommonTestUtils::directoryExists(folderPath)) {
-            continue;
+            std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
+            throw std::runtime_error(msg);
         }
         auto fileListByPattern = getFileListByPattern(folderPath);
         result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());

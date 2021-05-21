@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,21 +39,6 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
-
-TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-    std::stringstream strm;
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
-    }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
-}
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

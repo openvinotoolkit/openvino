@@ -8,7 +8,6 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;
@@ -26,27 +25,37 @@ Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::str
     if (_target) {
         return _target->GetMetric(name, options);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
-ExecutableNetwork
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork &network,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
         return _target->LoadNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
-ExecutableNetwork
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                         RemoteContext::Ptr context) {
     if (_target) {
         return _target->LoadNetwork(network, config, context);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
+    }
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::LoadNetwork(const std::string &modelPath,
+                        const std::map<std::string, std::string> &config) {
+    if (_target) {
+        return _target->LoadNetwork(modelPath, config);
+    } else {
+        return InferenceEngine::InferencePluginInternal::LoadNetwork(modelPath, config);
     }
 }
 
@@ -56,24 +65,24 @@ MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
     return {};
 }
 
-InferenceEngine::ExecutableNetwork
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return _target->ImportNetwork(networkModel, config);
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, config));
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
-InferenceEngine::ExecutableNetwork
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
                               const InferenceEngine::RemoteContext::Ptr& context,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return _target->ImportNetwork(networkModel, context, config);
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, context, config));
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -81,7 +90,7 @@ InferenceEngine::RemoteContext::Ptr MockPlugin::GetDefaultContext(const Inferenc
     if (_target) {
         return _target->GetDefaultContext(params);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -91,8 +100,29 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     if (_target) {
         return _target->QueryNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
+}
+
+void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+    if (_target) {
+        _target->SetCore(core);
+    }
+    InferenceEngine::InferencePluginInternal::SetCore(core);
+}
+
+void MockPlugin::SetName(const std::string& name) noexcept {
+    if (_target) {
+        _target->SetName(name);
+    }
+    InferenceEngine::InferencePluginInternal::SetName(name);
+}
+
+std::string MockPlugin::GetName() const noexcept {
+    if (_target) {
+        return _target->GetName();
+    }
+    return InferenceEngine::InferencePluginInternal::GetName();
 }
 
 

@@ -1,5 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,6 +14,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             clDNNPlugin
+            AutoPlugin
         LINK_LIBRARIES
             funcSharedTests
             ${CLDNN__OCL_ICD_LIBPATH}
@@ -22,6 +22,22 @@ addIeTargetTest(
         LABELS
             GPU
 )
+
+# CVS-55376
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/layer_transformation.cpp"
+    PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
+# try to find VA libraries
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(LIBVA QUIET libva)
+endif()
+
+# TODO: pkg_search_module finds libva not in sysroot
+if(ANDROID)
+    set(LIBVA_FOUND OFF CACHE BOOL "" FORCE)
+endif()
 
 if(LIBVA_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)

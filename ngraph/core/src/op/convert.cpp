@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
@@ -38,6 +26,23 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 void op::Convert::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types);
+    const element::Type data_et = get_input_element_type(0);
+    const element::Type destination_et = m_destination_type;
+
+    NODE_VALIDATION_CHECK(this,
+                          data_et != element::u1 && data_et != element::u4 &&
+                              data_et != element::i4,
+                          "Input element type '",
+                          data_et,
+                          "' is not supported.");
+
+    NODE_VALIDATION_CHECK(this,
+                          destination_et != element::u1 && destination_et != element::u4 &&
+                              destination_et != element::i4,
+                          "Destination element type '",
+                          destination_et,
+                          "' is not supported.");
+
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
 }
 
@@ -96,6 +101,7 @@ namespace convert
             TYPE_OUT_CASE(f16, arg, out);
             TYPE_OUT_CASE(f32, arg, out);
             TYPE_OUT_CASE(f64, arg, out);
+            TYPE_OUT_CASE(boolean, arg, out);
         default: rc = false; break;
         }
         return rc;
@@ -115,6 +121,7 @@ namespace convert
             NGRAPH_TYPE_CASE(evaluate_convert, u64, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
+            NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
         default: rc = false; break;
         }
         return rc;
@@ -155,13 +162,13 @@ namespace convert
         else
             return false;
     }
-}
+} // namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_Convert_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 

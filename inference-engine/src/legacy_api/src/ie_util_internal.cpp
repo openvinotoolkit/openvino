@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +148,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 }
 
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IELegacy_LT, "cloneNetwork");
 
     if (network.getFunction()) {
         return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));

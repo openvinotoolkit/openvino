@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,11 +92,11 @@ inline PreProcessDataPtr CreatePreprocDataHelper() {
     FileUtils::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
     if (!FileUtils::fileExist(preprocLibraryPath)) {
-        THROW_IE_EXCEPTION << "Please, make sure that pre-processing library "
+        IE_THROW() << "Please, make sure that pre-processing library "
             << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }
-    return PreProcessDataPtr(preprocLibraryPath);
+    return {preprocLibraryPath};
 }
 
 }  // namespace InferenceEngine

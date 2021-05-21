@@ -7,7 +7,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <iostream>
 #include <cmath>
 #include <tuple>
 #include <cctype>
@@ -22,6 +21,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <ie_algorithm.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -32,6 +32,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -69,6 +70,7 @@
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
+#include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
@@ -77,9 +79,15 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
+#include "cldnn/cldnn_config.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
+#endif
+
+// Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
+#ifdef DEVICE_TYPE
+#undef DEVICE_TYPE
 #endif
 
 using namespace InferenceEngine;
@@ -113,7 +121,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
-            THROW_IE_EXCEPTION << "Invalid device ID: " << val;
+            IE_THROW() << "Invalid device ID: " << val;
         }
         device_info = device_map.at(val).get_info();
     }
@@ -148,7 +156,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
             }
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -174,17 +182,17 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
             manager.register_pass<ngraph::pass::ConvertGather0D>();
 
-            std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            static const precisions_array convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},
                     {ngraph::element::u64, ngraph::element::i32},
                     {ngraph::element::u16, ngraph::element::i32},
                     {ngraph::element::u32, ngraph::element::i32},
                     {ngraph::element::boolean, ngraph::element::u8},
+                    {ngraph::element::i4, ngraph::element::i8},
+                    {ngraph::element::u4, ngraph::element::u8},
             };
 
-            for (auto& precision : convert_precision_list) {
-                manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-            }
+            manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
             auto pass_config = manager.get_pass_config();
 
@@ -321,6 +329,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return false;
                 });
 
+            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                });
+
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
             pass_config->disable<ngraph::pass::ConvertMod>();
@@ -358,7 +371,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
             // With this key users can work-around such issues
             if (!config.enable_fp16_for_quantized_models) {
-                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+                manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             }
             auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
             const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
@@ -375,6 +388,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
                     .setSupportAsymmetricQuantization(false)
                     .setSupport3DTensorOnActivations(false))
+                .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
+                    .setSupportAsymmetricQuantization(false)
+                    .setDeconvolutionSpecificChannelsRatio(true))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
@@ -441,7 +457,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
+            IE_THROW(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -486,7 +502,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id;
+               context_config.device_id == current_config.device_id &&
+               context_config.n_threads == current_config.n_threads;
     };
 
     {
@@ -514,7 +531,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     auto casted = std::dynamic_pointer_cast<ClContext>(context);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid context";
+        IE_THROW() << "Invalid context";
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
@@ -539,7 +556,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
 #endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
-        THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
+        IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
 }
 
@@ -569,7 +586,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
     if (function == nullptr) {
-        THROW_IE_EXCEPTION << "CNNetworkImpl representation is not supported anymore";
+        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
     }
 
     std::unordered_set<std::string> originalOpNames;
@@ -781,7 +798,7 @@ Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::st
     if (option != _impl->m_config.key_config_map.end()) {
         result = option->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
     return result;
 }
@@ -803,6 +820,42 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
+static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
+    auto freqGHz = info.core_frequency / 1000.f;
+    auto numEUs = info.cores_count;
+    auto opsPerComputeBlock = 0;
+    auto computeBlockIPC = 1.0f;
+    switch (dt) {
+    case cldnn::data_types::u8:
+    case cldnn::data_types::i8: {
+        if (info.supports_imad) {
+            // fma * simd size
+            opsPerComputeBlock = 2 * 32;
+        } else {
+            // separate mul + add instructions for int8 data type
+            opsPerComputeBlock = 2 * 16;
+            // mul/add instructions can't be executed in parallel, so we need 2 clocks to execute compute block
+            computeBlockIPC = 0.5f;
+        }
+        break;
+    }
+    case cldnn::data_types::f16: {
+        // fma * simd size
+        opsPerComputeBlock = 2 * 16;
+        break;
+    }
+    case cldnn::data_types::f32: {
+        // fma * simd size
+        opsPerComputeBlock = 2 * 8;
+        break;
+    }
+
+    default: throw std::runtime_error("GetGOPS: Unsupported precision");
+    }
+
+    return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
+}
+
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
     auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
@@ -823,12 +876,42 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
+        metrics.push_back(METRIC_KEY(DEVICE_TYPE));
+        metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+        metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
+        metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
             availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
+    } else if (name == GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)) {
+        IE_SET_METRIC_RETURN(GPU_DEVICE_TOTAL_MEM_SIZE, device_info.max_global_mem_size);
+    } else if (name == METRIC_KEY(DEVICE_TYPE)) {
+        auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? Metrics::DeviceType::discrete : Metrics::DeviceType::integrated;
+        IE_SET_METRIC_RETURN(DEVICE_TYPE, dev_type);
+    } else if (name == METRIC_KEY(DEVICE_GOPS)) {
+        std::map<InferenceEngine::Precision, float> gops;
+        gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
+        gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
+        gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
+        gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
+        IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
+    } else if (name == GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)) {
+        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.cores_count);
+    } else if (name == GPU_METRIC_KEY(UARCH_VERSION)) {
+        std::stringstream s;
+        if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {
+            s << "unknown";
+        } else {
+            s << static_cast<int>(device_info.gfx_ver.major) << "."
+              << static_cast<int>(device_info.gfx_ver.minor) << "."
+              << static_cast<int>(device_info.gfx_ver.revision);
+        }
+        IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
@@ -843,10 +926,13 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
         if (device_info.supports_fp16)
             capabilities.push_back(METRIC_VALUE(FP16));
         if (device_info.supports_imad || device_info.supports_immad)
             capabilities.push_back(METRIC_VALUE(INT8));
+        if (device_info.supports_immad)
+            capabilities.push_back(METRIC_VALUE(GPU_HW_MATMUL));
 
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
@@ -856,7 +942,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key " << name;
     }
 }
 

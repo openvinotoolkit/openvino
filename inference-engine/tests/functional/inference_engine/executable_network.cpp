@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,6 @@ using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-
-TEST(ExecutableNetworkTests, throwsOnInitWithNull) {
-    std::shared_ptr<IExecutableNetwork> nlptr = nullptr;
-    ASSERT_THROW(ExecutableNetwork exec(nlptr), InferenceEngine::Exception);
-}
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;
@@ -33,11 +28,6 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedExport) {
 TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.Export(std::cout), InferenceEngine::Exception);
-}
-
-TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
-    ExecutableNetwork exec;
-    ASSERT_NO_THROW((void)static_cast<IExecutableNetwork::Ptr &>(exec));
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {

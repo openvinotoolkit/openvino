@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -139,6 +138,8 @@ using IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClassBaseTestP;
 using IEClassGetMetricTest_AVAILABLE_DEVICES = IEClassBaseTestP;
 using IEClassGetMetricTest_FULL_DEVICE_NAME = IEClassBaseTestP;
 using IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES = IEClassBaseTestP;
+using IEClassGetMetricTest_DEVICE_GOPS = IEClassBaseTestP;
+using IEClassGetMetricTest_DEVICE_TYPE = IEClassBaseTestP;
 using IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS = IEClassBaseTestP;
 using IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS = IEClassBaseTestP;
 using IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = IEClassBaseTestP;
@@ -485,7 +486,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     if (!strm.str().empty()) {
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }
@@ -498,7 +499,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }
@@ -519,7 +520,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
         }
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+    if (executableNetwork) {
         ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
     }
 }
@@ -771,6 +772,35 @@ TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
     }
 
     ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+}
+
+TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_GOPS)));
+    std::map<InferenceEngine::Precision, float> t = p;
+
+    std::cout << "Device GOPS: " << std::endl;
+    for (auto &&kv : t) {
+        std::cout << kv.first << ": " << kv.second << std::endl;
+    }
+
+    ASSERT_METRIC_SUPPORTED(METRIC_KEY(DEVICE_GOPS));
+}
+
+TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_TYPE)));
+    InferenceEngine::Metrics::DeviceType t = p;
+
+    std::cout << "Device Type: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED(METRIC_KEY(DEVICE_TYPE));
 }
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
@@ -1484,4 +1514,3 @@ TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
                     });
 };
 } // namespace BehaviorTestsDefinitions
-

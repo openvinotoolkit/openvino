@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,6 +142,17 @@ StridedSliceTransformationTestValues::LayerParams channelSlice = {
 StridedSliceTransformationTestValues::LayerParams specialDimensionSlice = {
     { 0, 0, 0, 0 },
     { 1, 3, 20, 24 },
+    { 1, 1, 1, 1 },
+    { 1, 1, 0, 1 },
+    { 1, 1, 0, 1 },
+    {},
+    {},
+    {}
+};
+
+StridedSliceTransformationTestValues::LayerParams specialDimensionEndSlice = {
+    { 0, 0, 20, 0 },
+    { 1, 3, 24, 24 },
     { 1, 1, 1, 1 },
     { 1, 1, 0, 1 },
     { 1, 1, 0, 1 },
@@ -309,6 +320,38 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             {},
             ngraph::element::i8,
             {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        }
+    },
+    // I8: special dimension end slice, per-channel quantization with different values
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsI8I8(),
+        specialDimensionEndSlice,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        }
+    },
+    // I8: special dimension end slice, per-tensor quantization with different values
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsI8I8(),
+        specialDimensionEndSlice,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
         }
     },
     // I8: channel slice, quantization by special dimension

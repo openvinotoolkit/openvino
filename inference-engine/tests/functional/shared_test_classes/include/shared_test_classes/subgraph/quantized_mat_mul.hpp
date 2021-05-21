@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,17 @@
 
 namespace SubgraphTestsDefinitions {
 
+typedef std::pair<float, float> QuantRange;
+
 typedef std::tuple<
         size_t,
+        QuantRange,
+        QuantRange,
         ngraph::helpers::QuantizationGranularity,
         InferenceEngine::Precision> QuantParams;
 
 typedef std::tuple<
+        QuantParams,
         QuantParams,
         InferenceEngine::Precision,
         InferenceEngine::SizeVector,

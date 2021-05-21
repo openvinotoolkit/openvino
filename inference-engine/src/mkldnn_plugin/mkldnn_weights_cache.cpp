@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const st
     if (found == sharedWeights.end()
         || !(ptr = found->second)
         || ptr->sharedMemory.expired())
-        THROW_IE_EXCEPTION << "Unknown shared memory with key " << key;
+        IE_THROW() << "Unknown shared memory with key " << key;
 
     return std::make_shared<MKLDNNSharedMemory>(ptr->valid
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
@@ -79,14 +79,14 @@ NumaNodesWeights::NumaNodesWeights() {
 MKLDNNWeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) {
     auto found = _cache_map.find(numa_id);
     if (found == _cache_map.end())
-        THROW_IE_EXCEPTION << "Unknown numa node id " << numa_id;
+        IE_THROW() << "Unknown numa node id " << numa_id;
     return found->second;
 }
 
 const MKLDNNWeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) const {
     auto found = _cache_map.find(numa_id);
     if (found == _cache_map.end())
-        THROW_IE_EXCEPTION << "Unknown numa node id " << numa_id;
+        IE_THROW() << "Unknown numa node id " << numa_id;
     return found->second;
 }
 

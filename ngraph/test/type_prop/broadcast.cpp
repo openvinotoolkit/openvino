@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -163,7 +151,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 3});
     auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
 
@@ -174,7 +162,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 1. Got 3");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 2. Got 3");
     }
     catch (...)
     {

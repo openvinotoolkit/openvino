@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ngraph/opsets/opset.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 namespace ExecGraphInfoSerialization {
 //
@@ -57,42 +56,38 @@ namespace details {
 IE_SUPPRESS_DEPRECATED_START
 
 StatusCode InferenceEngineException::getStatus() const {
-    return ExceptionToStatus(dynamic_cast<const Exception&>(*this));
-}
-}  // namespace details
-IE_SUPPRESS_DEPRECATED_END
-
-INFERENCE_ENGINE_API_CPP(StatusCode) ExceptionToStatus(const Exception& exception) {
-    if (dynamic_cast<const GeneralError*>(&exception) != nullptr) {
+    if (dynamic_cast<const GeneralError*>(this) != nullptr) {
         return GENERAL_ERROR;
-    } else if (dynamic_cast<const NotImplemented*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const NotImplemented*>(this) != nullptr) {
         return NOT_IMPLEMENTED;
-    } else if (dynamic_cast<const NetworkNotLoaded*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const NetworkNotLoaded*>(this) != nullptr) {
         return NETWORK_NOT_LOADED;
-    } else if (dynamic_cast<const ParameterMismatch*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const ParameterMismatch*>(this) != nullptr) {
         return PARAMETER_MISMATCH;
-    } else if (dynamic_cast<const NotFound*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const NotFound*>(this) != nullptr) {
         return NOT_FOUND;
-    } else if (dynamic_cast<const OutOfBounds*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const OutOfBounds*>(this) != nullptr) {
         return OUT_OF_BOUNDS;
-    } else if (dynamic_cast<const Unexpected*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const Unexpected*>(this) != nullptr) {
         return UNEXPECTED;
-    } else if (dynamic_cast<const RequestBusy*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const RequestBusy*>(this) != nullptr) {
         return REQUEST_BUSY;
-    } else if (dynamic_cast<const ResultNotReady*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const ResultNotReady*>(this) != nullptr) {
         return RESULT_NOT_READY;
-    } else if (dynamic_cast<const NotAllocated*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const NotAllocated*>(this) != nullptr) {
         return NOT_ALLOCATED;
-    } else if (dynamic_cast<const InferNotStarted*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const InferNotStarted*>(this) != nullptr) {
         return INFER_NOT_STARTED;
-    } else if (dynamic_cast<const NetworkNotRead*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const NetworkNotRead*>(this) != nullptr) {
         return NETWORK_NOT_READ;
-    } else if (dynamic_cast<const InferCancelled*>(&exception) != nullptr) {
+    } else if (dynamic_cast<const InferCancelled*>(this) != nullptr) {
         return INFER_CANCELLED;
     } else {
         assert(!"Unreachable"); return OK;
     }
 }
+}  // namespace details
+IE_SUPPRESS_DEPRECATED_END
 
 //
 // ie_parameter.hpp
@@ -102,7 +97,7 @@ Parameter::~Parameter() {
     clear();
 }
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#ifdef __ANDROID__
 Parameter::Any::~Any() {}
 
 template struct Parameter::RealData<int>;
@@ -118,6 +113,7 @@ template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 template struct Parameter::RealData<Blob::Ptr>;
+#endif
 
 //
 // ie_blob.h
@@ -128,18 +124,19 @@ TBlob<T, U>::~TBlob() {
     free();
 }
 
-template class TBlob<float>;
-template class TBlob<double>;
-template class TBlob<int8_t>;
-template class TBlob<uint8_t>;
-template class TBlob<int16_t>;
-template class TBlob<uint16_t>;
-template class TBlob<int32_t>;
-template class TBlob<uint32_t>;
-template class TBlob<long>;
-template class TBlob<long long>;
-template class TBlob<unsigned long>;
-template class TBlob<unsigned long long>;
-#endif  // defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
 
 }  // namespace InferenceEngine

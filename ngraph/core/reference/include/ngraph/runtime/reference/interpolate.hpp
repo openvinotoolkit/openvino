@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -51,8 +39,7 @@ namespace ngraph
                 ///
                 /// \param mode the mode of the calculation of the nearest pixel
                 GetNearestPixel(Nearest_mode mode)
-                    : m_mode{mode}
-                    , m_func{get_func(mode)}
+                    : m_func{get_func(mode)}
                 {
                 }
 
@@ -72,7 +59,6 @@ namespace ngraph
             private:
                 using Func = std::function<int64_t(float, bool)>;
 
-                Nearest_mode m_mode;
                 Func m_func;
 
                 /// \brief Gets the function to calculate the nearest pixel.
@@ -133,8 +119,7 @@ namespace ngraph
                 ///
                 /// \param mode the mode of the calculation of the source coordinate.
                 GetOriginalCoordinate(Transform_mode mode)
-                    : m_mode{mode}
-                    , m_func{get_func(mode)}
+                    : m_func{get_func(mode)}
                 {
                 }
 
@@ -163,7 +148,6 @@ namespace ngraph
             private:
                 using Func = std::function<float(float, float, float, float)>;
 
-                Transform_mode m_mode;
                 Func m_func;
 
                 /// \brief Gets the function to calculate the source coordinate.
@@ -221,9 +205,7 @@ namespace ngraph
                                       const std::vector<float>& scales)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
-                    , m_interp_mode{attrs.mode}
                     , m_antialias{attrs.antialias}
-                    , m_cube_coeff{attrs.cube_coeff}
                     , m_input_data_shape{input_data_shape}
                     , m_axes{axes}
                     , m_out_shape{out_shape}
@@ -296,9 +278,7 @@ namespace ngraph
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
-                InterpolateMode m_interp_mode;
                 bool m_antialias;
-                double m_cube_coeff;
 
                 Shape m_input_data_shape;
                 std::vector<int64_t> m_axes;
@@ -477,7 +457,8 @@ namespace ngraph
                                     (m_axes == axes_without_batch_and_channels));
                 }
 
-                assert(correct_axes);
+                if (!correct_axes)
+                    throw ngraph_error("Axes are not correct!");
 
                 const auto info = helper.get_info_for_generic_linear_onnx();
 
@@ -678,6 +659,6 @@ namespace ngraph
                 InterpolateEval<T> evaluator{attrs};
                 evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,10 @@ namespace ConformanceTests {
 using namespace LayerTestsDefinitions;
 
 const char* targetDevice = "";
+const char* targetPluginName = "";
+
 std::vector<std::string> IRFolderPaths = {};
+std::vector<std::string> disabledTests = {};
 
 namespace {
 INSTANTIATE_TEST_CASE_P(conformance,

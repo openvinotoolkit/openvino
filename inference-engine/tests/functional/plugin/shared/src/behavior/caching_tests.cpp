@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,7 +180,7 @@ void LoadNetworkCacheTestBase::Run() {
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
         Infer();
-    } catch (InferenceEngineException &ex) {
+    } catch (const Exception &ex) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
         SKIP();

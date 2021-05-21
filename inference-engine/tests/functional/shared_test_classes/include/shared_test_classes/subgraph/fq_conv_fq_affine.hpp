@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ typedef std::tuple<
 typedef std::tuple<
         FqSpecificParams,
         ConvParams,
+        bool,                              // Permute after convolution
         InferenceEngine::Precision,        // Net precision
         InferenceEngine::SizeVector,       // Input shapes
         LayerTestsUtils::TargetDevice,     // Device name
