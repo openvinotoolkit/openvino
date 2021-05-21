@@ -293,7 +293,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape, InferenceEngine::Layout::NCHW});
     blob->allocate();
-
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
