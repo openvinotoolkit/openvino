@@ -8,11 +8,17 @@ graph {
     op_type: "Relu"
   }
   node {
-    input: "relu1"
+    input: "add1/placeholder_port_0"
     input: "in2"
     output: "add1"
     name: "add_ambiguous_name"
     op_type: "Add"
+  }
+  node {
+    input: "in3"
+    input: "in4"
+    output: "conv1"
+    op_type: "Conv"
   }
   node {
     input: "add2/placeholder_port_0"
@@ -20,6 +26,13 @@ graph {
     output: "add2"
     name: "add_ambiguous_name"
     op_type: "Add"
+  }
+  node {
+    input: "add1"
+    input: "conv1"
+    output: "mul2"
+    name: ""
+    op_type: "Mul"
   }
   node {
     input: "add2"
@@ -34,12 +47,21 @@ graph {
     }
   }
   node {
-    input: "mul1/placeholder_port_0"
+    input: "relu1"
     input: "split1"
     output: "mul1"
     op_type: "Mul"
   }
   name: "subgraph_extraction_testing"
+  initializer {
+    dims: 1
+    dims: 1
+    dims: 1
+    dims: 1
+    data_type: 1
+    float_data: 1
+    name: "in4"
+  }
   input {
     name: "in1"
     type {
@@ -67,7 +89,51 @@ graph {
     }
   }
   input {
-    name: "add2/placeholder_port_0"
+    name: "in3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "in4"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "add1/placeholder_port_0"
     type {
       tensor_type {
         elem_type: 1
@@ -83,7 +149,7 @@ graph {
     }
   }
   input {
-    name: "mul1/placeholder_port_0"
+    name: "add2/placeholder_port_0"
     type {
       tensor_type {
         elem_type: 1
@@ -125,6 +191,28 @@ graph {
           }
           dim {
             dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "mul2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
           }
         }
       }

@@ -99,8 +99,9 @@ namespace ngraph
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;
-            std::string get_node_input_name(int node_index, int input_index) const;
-            std::string get_node_output_name(int node_index, int output_index) const;
+
+            int get_node_input_idx(int node_index, const std::string& input_name) const;
+            int get_node_output_idx(int node_index, const std::string& output_name) const;
 
             std::vector<std::vector<std::string>> m_node_inputs;
             std::vector<std::vector<std::string>> m_node_outputs;
