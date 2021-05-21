@@ -4,10 +4,20 @@
 
 set(TARGET_FE_NAME "mock_py_ngraph_frontend")
 
-set(SRC mock_py_frontend.cpp)
-add_library(${TARGET_FE_NAME} SHARED ${SRC})
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-target_compile_definitions(${TARGET_FE_NAME} PRIVATE)
+set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+source_group("src" FILES ${LIBRARY_SRC})
+source_group("include" FILES ${LIBRARY_HEADERS})
+
+# Create shared library
+add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+
+# add_library(${TARGET_FE_NAME} SHARED ${SRC})
+
+# target_compile_definitions(${TARGET_FE_NAME} PRIVATE)
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ".")
 

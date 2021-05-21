@@ -9,14 +9,20 @@ from pybind_mock_frontend import get_stat, reset_stat, FeStat
 # This is required as destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-def test_frontendmanager():
+def test_load_by_framework_caps():
     frontEnds = fem.get_available_front_ends()
     assert frontEnds is not None
     print("FrontEnds: {}".format(frontEnds))
     assert 'mock_py' in frontEnds
-    fe = fem.load_by_framework(framework="mock_py", capabilities=FrontEndCapabilities.WILDCARDS)
-    stat = get_stat(fe)
-    assert FrontEndCapabilities.WILDCARDS == stat.load_flags
+    caps = [FrontEndCapabilities.DEFAULT,
+            FrontEndCapabilities.CUT,
+            FrontEndCapabilities.NAMES,
+            FrontEndCapabilities.WILDCARDS,
+            FrontEndCapabilities.CUT | FrontEndCapabilities.NAMES | FrontEndCapabilities.WILDCARDS]
+    for cap in caps:
+        fe = fem.load_by_framework(framework="mock_py", capabilities=cap)
+        stat = get_stat(fe)
+        assert cap == stat.load_flags
 
 
 def test_load_from_file():

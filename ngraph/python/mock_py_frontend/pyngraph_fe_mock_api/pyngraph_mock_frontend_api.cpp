@@ -14,21 +14,29 @@ using namespace ngraph::frontend;
 PYBIND11_MODULE(pybind_mock_frontend, m)
 {
     m.doc() = "Mock frontend for testing Pyngraph frontend bindings";
-    m.def("get_stat", [](const std::shared_ptr<FrontEnd>& fe) {
-        std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
-        if (ptr) {
-            auto stat = ptr->get_stat();
-            return stat;
-        }
-        return FeCallStat();
-    }, py::arg("frontend"));
+    m.def(
+        "get_stat",
+        [](const std::shared_ptr<FrontEnd>& fe) {
+            std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
+            if (ptr)
+            {
+                auto stat = ptr->get_stat();
+                return stat;
+            }
+            return FeCallStat();
+        },
+        py::arg("frontend"));
 
-    m.def("reset_stat", [](const std::shared_ptr<FrontEnd>& fe) {
-        std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
-        if (ptr) {
-            ptr->reset_stat();
-        }
-    }, py::arg("frontend"));
+    m.def(
+        "reset_stat",
+        [](const std::shared_ptr<FrontEnd>& fe) {
+            std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
+            if (ptr)
+            {
+                ptr->reset_stat();
+            }
+        },
+        py::arg("frontend"));
 
     py::class_<FeCallStat> feStat(m, "FeStat", py::dynamic_attr());
     feStat.def_property_readonly("load_flags", &FeCallStat::get_loadFlags);
