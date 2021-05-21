@@ -523,3 +523,21 @@ def test_resize_algorithm_work(device):
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+def test_query_state(device):
+    import ngraph as ng
+    from ngraph.impl import Function
+    input_data = ng.parameter([5, 7], name="input_data", dtype=np.float32)
+    rv = ng.read_value(input_data, "var_id_667")
+    node = ng.assign(rv, "var_id_667")
+    # res = ng.result(node, "var_id_667")
+    func = Function(node, [input_data], 'test')
+    caps = Function.to_capsule(func)
+
+    net = ie.IENetwork(caps)
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    print("olol")

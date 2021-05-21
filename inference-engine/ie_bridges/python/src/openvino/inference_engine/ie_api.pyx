@@ -25,7 +25,7 @@ from collections import namedtuple
 from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport SizeVector, Precision
 from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, format_map, layout_int_to_str_map,\
-    supported_precisions, ResizeAlgorithm, ColorFormat
+    known_plugins, supported_precisions, ResizeAlgorithm, ColorFormat
 
 import numpy as np
 
@@ -65,6 +65,7 @@ def read_network(path_to_xml : str, path_to_bin : str):
     net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
     return net
 
+
 ##
 cdef class VariableState:
     def reset(self):
@@ -76,8 +77,8 @@ cdef class VariableState:
         blob._cptr = self.impl.GetState()
         return blob
 
-    @property.setter
-    def state(self, blob):
+    @state.setter
+    def state(self, blob : Blob):
         self.impl.SetState(blob._ptr)
 
     @property
@@ -557,6 +558,7 @@ cdef class PreProcessChannel:
 cdef class PreProcessInfo:
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
+        self._cptr = self._ptr
         self._user_data = True
 
     def __dealloc__(self):
@@ -564,27 +566,33 @@ cdef class PreProcessInfo:
             del self._ptr
 
     def __getitem__(self, size_t index):
-        cdef CPreProcessChannel.Ptr c_channel = deref(self._ptr)[index]
+        cdef CPreProcessChannel.Ptr c_channel = deref(self._cptr)[index]
         channel = PreProcessChannel()
         channel._ptr = c_channel
         return channel
 
     ## Returns a number of channels to preprocess
     def get_number_of_channels(self):
-        return deref(self._ptr).getNumberOfChannels()
+        return deref(self._cptr).getNumberOfChannels()
 
     ## Initializes with given number of channels
     def init(self, const size_t number_of_channels):
+        if not self._ptr:
+            raise TypeError("Cannot initialized when created from constant")
         deref(self._ptr).init(number_of_channels)
 
     ## Sets mean image values if operation is applicable.
     #  Also sets the mean type to MEAN_IMAGE for all channels
     def set_mean_image(self, Blob mean_image):
+        if not self._ptr:
+            raise TypeError("Cannot set mean image when called from constant")
         deref(self._ptr).setMeanImage(mean_image._ptr)
 
     ## Sets mean image values if operation is applicable.
     #  Also sets the mean type to MEAN_IMAGE for a particular channel
     def set_mean_image_for_channel(self, Blob mean_image, size_t channel):
+        if not self._ptr:
+            raise TypeError("Cannot set mean image for channel when called from constant")
         deref(self._ptr).setMeanImageForChannel(mean_image._ptr, channel)
 
     ## Mean Variant to be applied for input before inference if needed.
@@ -596,10 +604,12 @@ cdef class PreProcessInfo:
     #  ```
     @property
     def mean_variant(self):
-        return MeanVariant(deref(self._ptr).getMeanVariant())
+        return MeanVariant(deref(self._cptr).getMeanVariant())
 
     @mean_variant.setter
     def mean_variant(self, variant : MeanVariant):
+        if not self._ptr:
+            raise TypeError(f"Cannot set mean image when called from constant")
         deref(self._ptr).setVariant(variant.value)
 
     ## Resize Algorithm to be applied for input before inference if needed.
@@ -619,10 +629,12 @@ cdef class PreProcessInfo:
     #  ```
     @property
     def resize_algorithm(self):
-        return ResizeAlgorithm(deref(self._ptr).getResizeAlgorithm())
+        return ResizeAlgorithm(deref(self._cptr).getResizeAlgorithm())
 
     @resize_algorithm.setter
     def resize_algorithm(self, alg : ResizeAlgorithm):
+        if not self._ptr:
+            raise TypeError(f"Cannot set resize algorithm when called from constant")
         deref(self._ptr).setResizeAlgorithm(alg.value)
 
     ## Color format to be used in on-demand color conversions applied to input before inference
@@ -634,10 +646,12 @@ cdef class PreProcessInfo:
     #  ```
     @property
     def color_format(self):
-        return ColorFormat(deref(self._ptr).getColorFormat())
+        return ColorFormat(deref(self._cptr).getColorFormat())
 
     @color_format.setter
     def color_format(self, fmt : ColorFormat):
+        if not self._ptr:
+            raise TypeError(f"Cannot set color format when called from constant")
         deref(self._ptr).setColorFormat(fmt.value)
 
 
@@ -685,6 +699,7 @@ cdef class InputInfoPtr:
         del preprocess_info._ptr
         preprocess_info._user_data = False
         preprocess_info._ptr = c_preprocess_info
+        preprocess_info._cptr = c_preprocess_info
         return preprocess_info
 
     @property
@@ -1057,7 +1072,7 @@ cdef class InferRequest:
     cpdef BlobBuffer _get_blob_buffer(self, const string & blob_name):
         cdef BlobBuffer buffer = BlobBuffer()
         cdef CBlob.Ptr blob_ptr
-        deref(self.impl).getBlobPtr(blob_name, blob_ptr)
+        blob_ptr = deref(self.impl).getBlobPtr(blob_name)
         buffer.reset(blob_ptr)
         return buffer
 
@@ -1071,7 +1086,7 @@ cdef class InferRequest:
                 input_blobs[input] = self._user_blobs[input]
             else:
                 blob = Blob()
-                deref(self.impl).getBlobPtr(input.encode(), blob._ptr)
+                blob._ptr = deref(self.impl).getBlobPtr(input.encode())
                 input_blobs[input] = blob
         return input_blobs
 
@@ -1081,7 +1096,7 @@ cdef class InferRequest:
         output_blobs = {}
         for output in self._outputs_list:
             blob = Blob()
-            deref(self.impl).getBlobPtr(output.encode(), blob._ptr)
+            blob._ptr = deref(self.impl).getBlobPtr(output.encode())
             output_blobs[output] = deepcopy(blob)
         return output_blobs
 
@@ -1089,15 +1104,26 @@ cdef class InferRequest:
     @property
     def preprocess_info(self):
         preprocess_info = {}
-        cdef const CPreProcessInfo** c_preprocess_info
         for input_blob in self.input_blobs.keys():
             preprocess = PreProcessInfo()
             del preprocess._ptr
             preprocess._user_data = False
-            c_preprocess_info = <const CPreProcessInfo**>(&preprocess._ptr)
-            deref(self.impl).getPreProcess(input_blob.encode(), c_preprocess_info)
+            preprocess._ptr = NULL
+            preprocess._cptr = &deref(self.impl).getPreProcess(input_blob.encode())
             preprocess_info[input_blob] = preprocess
         return preprocess_info
+
+    ## Gets state control interface for given infer request
+    # State control essential for recurrent networks
+    # @return A vector of Memory State objects
+    def query_state(self):
+        cdef vector[CVariableState] c_mem_state_vec = deref(self.impl).queryState()
+        mem_state_vec = []
+        for ms in c_mem_state_vec:
+            state = VariableState()
+            state.impl = ms
+            mem_state_vec.append(state)
+        return mem_state_vec
 
     ## Sets user defined Blob for the infer request
     #  @param blob_name: A name of input blob
