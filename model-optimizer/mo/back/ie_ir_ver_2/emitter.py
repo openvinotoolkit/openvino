@@ -227,7 +227,7 @@ def serialize_element(
         if value is not None:
             element.set(key, str(value))
     serialize_node_attributes(graph, node, subelements, element, edges, unsupported)
-    if len(element.attrib) == 0 and len(element.getchildren()) == 0:
+    if len(element.attrib) == 0 and len(list(element)) == 0:
         parent_element.remove(element)
 
 
