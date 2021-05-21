@@ -8,7 +8,6 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;
@@ -47,6 +46,16 @@ MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, s
         return _target->LoadNetwork(network, config, context);
     } else {
         IE_THROW(NotImplemented);
+    }
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::LoadNetwork(const std::string &modelPath,
+                        const std::map<std::string, std::string> &config) {
+    if (_target) {
+        return _target->LoadNetwork(modelPath, config);
+    } else {
+        return InferenceEngine::InferencePluginInternal::LoadNetwork(modelPath, config);
     }
 }
 
@@ -93,6 +102,27 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     } else {
         IE_THROW(NotImplemented);
     }
+}
+
+void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+    if (_target) {
+        _target->SetCore(core);
+    }
+    InferenceEngine::InferencePluginInternal::SetCore(core);
+}
+
+void MockPlugin::SetName(const std::string& name) noexcept {
+    if (_target) {
+        _target->SetName(name);
+    }
+    InferenceEngine::InferencePluginInternal::SetName(name);
+}
+
+std::string MockPlugin::GetName() const noexcept {
+    if (_target) {
+        return _target->GetName();
+    }
+    return InferenceEngine::InferencePluginInternal::GetName();
 }
 
 

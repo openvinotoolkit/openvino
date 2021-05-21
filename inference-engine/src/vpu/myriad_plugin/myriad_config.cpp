@@ -9,8 +9,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <cpp_interfaces/exception2status.hpp>
-
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/myriad_config.hpp>
 

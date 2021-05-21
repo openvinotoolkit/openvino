@@ -11,7 +11,6 @@
 
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
 #include <ie_remote_context.hpp>
@@ -33,7 +32,7 @@ class IExecutableNetworkInternal;
  * @param[in]  from  PreProcessInfo to copy from
  * @param      to    PreProcessInfo to copy to
  */
-static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
+inline void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
     to = from;
     if (from.getMeanVariant() == MEAN_IMAGE) {
         for (size_t i = 0; i < from.getNumberOfChannels(); i++) {
@@ -55,7 +54,9 @@ static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
  * @param      _networkInputs   The network inputs to copy to
  * @param      _networkOutputs  The network outputs to copy to
  */
-inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
+template <typename Tinput, typename Toutput>
+inline void copyInputOutputInfo(const std::map<std::string, std::shared_ptr<Tinput> > & networkInputs,
+                                const std::map<std::string, std::shared_ptr<Toutput> > & networkOutputs,
                                 InputsDataMap & _networkInputs, OutputsDataMap & _networkOutputs) {
     _networkInputs.clear();
     _networkOutputs.clear();
@@ -167,6 +168,16 @@ public:
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                     const std::map<std::string, std::string>& config,
                                                                     RemoteContext::Ptr context) = 0;
+
+    /**
+     * @brief Creates an executable network from model file path
+     * @param modelPath A path to model
+     * @param config A string-string map of config parameters relevant only for this load operation
+     * @return Created Executable Network object
+     */
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) = 0;
+
     /**
      * @brief Registers extension within plugin
      * @param extension - pointer to already loaded extension
@@ -265,6 +276,14 @@ public:
 protected:
     ~IInferencePlugin() = default;
 };
+
+namespace details {
+template <>
+class SOCreatorTrait<IInferencePlugin> {
+public:
+    static constexpr auto name = "CreatePluginEngine";
+};
+}  // namespace details
 
 }  // namespace InferenceEngine
 

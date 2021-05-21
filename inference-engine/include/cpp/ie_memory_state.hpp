@@ -11,34 +11,38 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
+#include "ie_api.h"
 #include "ie_blob.h"
 #include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 
-IE_SUPPRESS_DEPRECATED_START
-class IVariableState;
-IE_SUPPRESS_DEPRECATED_END
+class IVariableStateInternal;
 
 /**
  * @brief C++ exception based error reporting wrapper of API class IVariableState
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    IE_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<IVariableState> actual = nullptr;
-    IE_SUPPRESS_DEPRECATED_END
-    details::SharedObjectLoader::Ptr plugin = nullptr;
+    details::SharedObjectLoader              _so;
+    std::shared_ptr<IVariableStateInternal>  _impl;
+
+    /**
+     * @brief Constructs VariableState from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
+     * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
+     */
+    VariableState(const details::SharedObjectLoader&             so,
+                  const std::shared_ptr<IVariableStateInternal>& impl);
+    friend class InferRequest;
+    friend class ExecutableNetwork;
 
 public:
-    IE_SUPPRESS_DEPRECATED_START
     /**
-     * @brief constructs VariableState from the initialized std::shared_ptr
-     * @param pState Initialized shared pointer
-     * @param plg Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
+     * @brief Default constructor
      */
-    explicit VariableState(std::shared_ptr<IVariableState> pState, details::SharedObjectLoader::Ptr plg = {});
-    IE_SUPPRESS_DEPRECATED_END
+    VariableState() = default;
 
     /**
      * @copybrief IVariableState::Reset
@@ -59,7 +63,7 @@ public:
      * @copybrief IVariableState::GetState
      *
      * Wraps IVariableState::GetState
-     * @return A blob representing a state 
+     * @return A blob representing a state
      */
     Blob::CPtr GetState() const;
 

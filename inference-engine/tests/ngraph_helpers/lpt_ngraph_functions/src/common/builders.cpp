@@ -73,11 +73,18 @@ std::shared_ptr<Node> makeDequantization(
 
         if (((dequantizationOperations.subtract.outPrecision == element::undefined) ||
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) &&
-            ((dequantizationOperations.subtract.constantPrecision == element::undefined) ||
-            (dequantizationOperations.subtract.constantPrecision == parent.get_element_type()))) {
-            subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
-                std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst) :
-                std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+            (((dequantizationOperations.subtract.constantPrecision == element::undefined) ||
+            (dequantizationOperations.subtract.constantPrecision == parent.get_element_type())) ||
+            dequantizationOperations.subtract.addConvert)) {
+            if (dequantizationOperations.subtract.constantIndex == 1ul) {
+                subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
+                    std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst) :
+                    std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+            } else {
+                subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
+                    std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(subtractConst, parent) :
+                    std::make_shared<ngraph::opset1::Subtract>(subtractConst, parent);
+            }
         } else {
             // TODO: use templates
             if (dequantizationOperations.subtract.addDequantizationAttribute) {

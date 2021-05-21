@@ -269,8 +269,8 @@ class Port:
                 if attrs['fw_tensor_debug_info'] is None:
                     return tensor_names_list
                 for attr in attrs['fw_tensor_debug_info']:
-                    if attr is not None and len(attr) >= 3:
-                        tensor_name = attr[2]
+                    if attr is not None and len(attr) >= 2:
+                        tensor_name = attr[1]
                         if tensor_name is not None and len(tensor_name) > 0:
                             tensor_names_list.append(tensor_name.replace(',', '\\,'))
             return tensor_names_list
@@ -294,7 +294,7 @@ class Port:
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
                 fw_names += get_tensor_names_list(out_node.attrs())
-        return fw_names
+        return sorted(fw_names)
 
     def disconnect(self):
         if self.type == 'out':

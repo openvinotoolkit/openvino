@@ -6,10 +6,11 @@
 #include <memory>
 #include <string>
 
-#include "cpp/ie_infer_request.hpp"
-#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
 #include "ie_remote_context.hpp"
+
+#include "cpp/ie_infer_request.hpp"
+#include "ie_infer_async_request_base.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 namespace InferenceEngine {
 
@@ -30,8 +31,8 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(NetworkNotRead)      \
         CATCH_IE_EXCEPTION(InferCancelled)
 
-#define INFER_REQ_CALL_STATEMENT(...)                                                                        \
-    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";                     \
+#define INFER_REQ_CALL_STATEMENT(...)                                                              \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                     \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
@@ -40,15 +41,10 @@ namespace InferenceEngine {
         IE_THROW(Unexpected);                                                                      \
     }
 
-InferRequest::InferRequest(const std::shared_ptr<IInferRequestInternal>&        impl,
-                           const std::shared_ptr<details::SharedObjectLoader>&  so) :
-    _impl{impl},
-    _so{so} {
-    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";
-}
-
-InferRequest::~InferRequest() {
-    _impl = {};
+InferRequest::InferRequest(const details::SharedObjectLoader& so,
+                           const IInferRequestInternal::Ptr&  impl)
+    : _so(so), _impl(impl) {
+    IE_ASSERT(_impl != nullptr);
 }
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
@@ -143,7 +139,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callback) {
     INFER_REQ_CALL_STATEMENT(
-        auto weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -166,7 +162,7 @@ IE_SUPPRESS_DEPRECATED_START
 
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
-        IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        IInferRequest::Ptr weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -197,7 +193,7 @@ std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
+            controller.emplace_back(VariableState{_so, state});
         }
     )
     return controller;
@@ -209,5 +205,13 @@ bool InferRequest::operator!() const noexcept {
 
 InferRequest::operator bool() const noexcept {
     return !!_impl;
+}
+
+bool InferRequest::operator!=(const InferRequest& r) const noexcept {
+    return !(r == *this);
+}
+
+bool InferRequest::operator==(const InferRequest& r) const noexcept {
+    return r._impl == _impl;
 }
 }  // namespace InferenceEngine

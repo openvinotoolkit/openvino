@@ -60,8 +60,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
     auto shape_a = op->get_input_shape(0);
     auto shape_b = op->get_input_shape(1);
 
-    bool is_fc = ngraph::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1)) ||
-                 ngraph::is_type<ngraph::op::v0::FakeQuantize>(op->get_input_node_shared_ptr(1));
+    bool is_fc = IsNodeOnConstPath(op->get_input_node_shared_ptr(1));
     is_fc &= std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) { return x != 1; }) <= 2;
 
     if (is_fc) {

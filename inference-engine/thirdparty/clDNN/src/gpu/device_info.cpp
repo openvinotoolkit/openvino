@@ -109,6 +109,14 @@ static device_type get_device_type(const cl::Device& device) {
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
 
+gfx_version parse_version(cl_uint ver) {
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
+
+    return {major, minor, revision};
+}
+
 static bool get_imad_support(const cl::Device& device) {
     std::string dev_name = device.getInfo<CL_DEVICE_NAME>();
 
@@ -222,6 +230,27 @@ device_info_internal::device_info_internal(const cl::Device& device) {
     supports_optimization_hints = false;
     supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
                               is_local_block_io_supported(device);
+
+    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+
+    if (device_attr_supported) {
+        gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
+        device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
+        num_slices = device.getInfo<CL_DEVICE_NUM_SLICES_INTEL>();
+        num_sub_slices_per_slice = device.getInfo<CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL>();
+        num_eus_per_sub_slice = device.getInfo<CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL>();
+        num_threads_per_eu = device.getInfo<CL_DEVICE_NUM_THREADS_PER_EU_INTEL>();
+        auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
+
+        supports_imad = supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
+    } else {
+        gfx_ver = {0, 0, 0};
+        device_id = driver_dev_id();
+        num_slices = 0;
+        num_sub_slices_per_slice = 0;
+        num_eus_per_sub_slice = 0;
+        num_threads_per_eu = 0;
+    }
 }
 }  // namespace gpu
 }  // namespace cldnn

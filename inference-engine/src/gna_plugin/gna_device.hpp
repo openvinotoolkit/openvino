@@ -51,8 +51,10 @@ class GNADeviceHelper {
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
     uint32_t nGnaDeviceIndex = 0;
-    Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation;
+    bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
+    std::string executionTarget;
+    std::string compileTarget;
     bool isGnaLibVersion2_1 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
@@ -75,11 +77,15 @@ public:
                             bool isPerformanceMeasuring = false) :
                                     isPerformanceMeasuring(isPerformanceMeasuring) {
 #else
-    explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
+    explicit GNADeviceHelper(std::string executionTargetIn = "",
+         std::string compileTargetIn = "",
+         bool swExactModeIn = false,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
          bool isPerformanceMeasuring = false) :
-         gna2HwConsistency(gna2HwConsistency),
+         swExactMode(swExactModeIn),
+         executionTarget(executionTargetIn),
+         compileTarget(compileTargetIn),
          isPerformanceMeasuring(isPerformanceMeasuring),
          nGnaDeviceIndex{selectGnaDevice()} {
 #endif
@@ -129,15 +135,16 @@ public:
     uint32_t createRequestConfig(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
+    static bool isGnaHw(const Gna2DeviceVersion dev) {
+        return Gna2DeviceVersionSoftwareEmulation != dev;
+    }
     bool hasGnaHw() const {
-        return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;
+        return isGnaHw(detectedGnaDevVersion);
     }
-    bool isUpTo20GnaDevice() const {
-        return detectedGnaDevVersion <= Gna2DeviceVersion2_0;
+    static bool isUpTo20HwGnaDevice(const Gna2DeviceVersion dev) {
+        return dev <= Gna2DeviceVersion2_0 && isGnaHw(dev);
     }
-    bool isUpTo20GnaHwDevice() const {
-        return isUpTo20GnaDevice() && detectedGnaDevVersion != Gna2DeviceVersionSoftwareEmulation;
-    }
+    bool enforceLegacyCnnNeeded() const;
     static void checkGna2Status(Gna2Status status, const std::string& from);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
@@ -189,6 +196,9 @@ public:
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
+    Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
+    Gna2DeviceVersion getDefaultTarget() const;
+    Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 #endif
     void setOMPThreads(uint8_t const n_threads);
 
