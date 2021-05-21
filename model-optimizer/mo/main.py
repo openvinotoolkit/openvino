@@ -95,7 +95,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     fem = argv.feManager
     new_front_ends = []
-    if not argv.use_legacy_frontend and fem is not None:
+    if 'use_legacy_frontend' in argv and not argv.use_legacy_frontend and fem is not None:
         new_front_ends = fem.get_available_front_ends()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -454,4 +454,6 @@ def main(cli_parser: argparse.ArgumentParser, fem, framework: str):
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(*get_all_cli_parser(), None))
+    from mo.front_ng.frontendmanager_wrapper import create_fem
+    fem = create_fem()
+    sys.exit(main(get_all_cli_parser(fem), fem, None))

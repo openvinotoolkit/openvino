@@ -7,4 +7,6 @@ from mo.utils.cli_parser import get_all_cli_parser
 
 if __name__ == "__main__":
     from mo.main import main
-    sys.exit(main(*get_all_cli_parser(), 'pdpd'))
+    from mo.front_ng.frontendmanager_wrapper import create_fem
+    fem = create_fem()
+    sys.exit(main(get_all_cli_parser(fem), fem, 'pdpd'))

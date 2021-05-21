@@ -17,7 +17,6 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-from mo.front_ng.frontendmanager_wrapper import create_fem
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -623,20 +622,18 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     return parser
 
 
-def get_all_cli_parser():
+def get_all_cli_parser(frontEndManager=None):
     """
     Specifies cli arguments for Model Optimizer
 
     Returns
     -------
-        Tuple
-            ArgumentParser instance
-            FrontEndManager instance
+        ArgumentParser instance
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
-    fem = create_fem()
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (fem.get_available_front_ends() if fem else [])))
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
+                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -651,7 +648,7 @@ def get_all_cli_parser():
     get_kaldi_cli_parser(parser=parser)
     get_onnx_cli_parser(parser=parser)
 
-    return parser, fem
+    return parser
 
 
 def remove_data_type_from_input_value(input_value: str):
