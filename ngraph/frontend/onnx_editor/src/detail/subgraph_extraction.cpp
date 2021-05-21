@@ -96,8 +96,8 @@ namespace
         }
         else
         {
-            // If tensor descriptor couldn't be find value info have to be set as:
-            // - Fully dynamic shape: ?
+            // If tensor descriptor couldn't be found value info has to be specified as fully dynamic:
+            // - Fully dynamic shape
             // - Unknown data type
             auto dynamic_value_info = ONNX_NAMESPACE::ValueInfoProto();
             dynamic_value_info.set_name(tensor_name);
