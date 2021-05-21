@@ -9,7 +9,21 @@ from mo.ops.reshape import Reshape
 
 
 class TFDepthwiseConv2dNativeReshape(MiddleReplacementPattern):
+    """
+    According to the specification of TF* DepthwiseConv2dNative kernel has shape
+    [filter_height, filter_width, in_channels, channel_multiplier], and output_channels = in_channels * channel_multiplier.
+    In general, we convert this operation to a GroupConvolution, by setting group = in_channels. So in IR kernel shape will be
+    [in_channels, channel_multiplier, 1, filter_height, filter_width] <-> [G, O, I, H, W] (extensions/back/ConvolutionNormalizer.py)
 
+    But there is a case when in_channels = 1 and it is converted to a Convolution, so we can not calculate the number of
+    output_channels correctly. We will transpose weights from [filter_height, filter_width, in_channels, channel_multiplier]
+    to [in_channels, channel_multiplier, filter_height, filter_width]. This is incorrect, because for Convolution op
+    kernel shape should be [in_channels * channel_multiplier, 1, filter_height, filter_width] according to OpenVINO
+    specification <-> [O, I, H, W].
+
+    So we have to reshape kernel shape to [filter_height, filter_width, in_channels * channel_multiplier, 1] to transpose
+    it correctly later
+    """
     def run_before(self):
         return [ConvertLayoutDependentOperations]
 
