@@ -54,8 +54,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             sp_dim_2 = 3
             frame_height = node.patch_stride
         else:
-            channel_dim = 3
-            sp_dim_2 = 2
+            channel_dim = 2
+            sp_dim_2 = 3
             frame_height = node.height_in
 
         i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
