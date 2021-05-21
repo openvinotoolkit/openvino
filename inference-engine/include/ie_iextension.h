@@ -19,6 +19,7 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
+#include <ngraph/ngraph.hpp>
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
@@ -29,13 +30,6 @@
 #else
 #define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
 #endif
-
-namespace ngraph {
-
-class OpSet;
-class Node;
-
-}  // namespace ngraph
 
 namespace InferenceEngine {
 
