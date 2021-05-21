@@ -153,6 +153,10 @@ public:
 
     void SortTopologically();
 
+    bool isQuantized() const {
+        return isQuantizedFlag;
+    }
+
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
@@ -185,6 +189,8 @@ protected:
     std::map<std::string, MeanImage> _meanImages;
     std::string _name;
 
+    bool isQuantizedFlag = false;
+
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
@@ -206,6 +212,7 @@ protected:
 private:
     void EnforceBF16();
     void printGraphInfo() const;
+    void checkFuncQuantized(std::shared_ptr<const ngraph::Function> func);
 };
 
 }  // namespace MKLDNNPlugin

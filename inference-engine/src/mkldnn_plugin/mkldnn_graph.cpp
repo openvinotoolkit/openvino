@@ -45,6 +45,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
+#include <low_precision/transformer.hpp>
 
 /*****************************************************
  * Debug capability
@@ -89,6 +90,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
+    checkFuncQuantized(subgraph);
+
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
 
@@ -109,6 +112,10 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
     for (const auto op : subgraph->get_ordered_ops()) {
         const MKLDNNNodePtr node {MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache)};
+        if (isQuantized()) {
+            node->setQuantizedGraphFlag(true);
+        }
+
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
@@ -180,6 +187,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
+    checkFuncQuantized(func);
+
     auto orderedOps = func->get_ordered_ops();
 
     // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
@@ -202,6 +211,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
         const MKLDNNNodePtr node(MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache));
+        if (isQuantized()) {
+            node->setQuantizedGraphFlag(true);
+        }
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
@@ -1162,6 +1174,10 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     afterNode->getParent()->childEdges.push_back(afterNode);
     child->parentEdges.push_back(afterNode);
 
+    if (isQuantized()) {
+        node->setQuantizedGraphFlag(true);
+    }
+
     if (initNode) {
         node->getSupportedDescriptors();
         node->initSupportedPrimitiveDescriptors();
@@ -1178,15 +1194,9 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 
 // Set all non const data paths precision to BF16
 void MKLDNNGraph::EnforceBF16() {
-    bool isQuantizedModel = false;
-    for (auto& node : graphNodes) {
-        if (node->getType() == FakeQuantize)
-            isQuantizedModel = true;
-    }
-
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (implication(isQuantizedModel, config.manualEnforceBF16)) {
+    if (implication(isQuantized(), config.manualEnforceBF16)) {
         for (auto &node : graphNodes) {
             if (node->getType() != Input && node->getType() != Output) {
                 for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
@@ -1226,4 +1236,9 @@ void MKLDNNGraph::printGraphInfo() const {
         }
         std::cout << " ]"  << std::endl;
     }
+}
+
+void MKLDNNGraph::checkFuncQuantized(std::shared_ptr<const ngraph::Function> func) {
+    isQuantizedFlag = (config.lpTransformsMode == Config::LPTransformsMode::On) &&
+            ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
 }
