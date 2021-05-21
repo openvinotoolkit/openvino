@@ -37,10 +37,12 @@ void regclass_pyngraph_FrontEnd(py::module m)
     fem.def("load_from_file", &ngraph::frontend::FrontEnd::load_from_file, py::arg("path"));
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
-                ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert));
+                ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert),
+            py::arg("model"));
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
-                std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert));
+                std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert),
+            py::arg("function"));
     fem.def("convert_partially", &ngraph::frontend::FrontEnd::convert_partially, py::arg("model"));
     fem.def("decode", &ngraph::frontend::FrontEnd::decode, py::arg("model"));
     fem.def("normalize", &ngraph::frontend::FrontEnd::normalize, py::arg("function"));
@@ -96,34 +98,77 @@ void regclass_pyngraph_InputModel(py::module m)
     py::class_<ngraph::frontend::InputModel, std::shared_ptr<ngraph::frontend::InputModel>> im(
         m, "InputModel", py::dynamic_attr());
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
-    im.def("extract_subgraph", &ngraph::frontend::InputModel::extract_subgraph);
-    im.def("get_place_by_tensor_name", &ngraph::frontend::InputModel::get_place_by_tensor_name);
+    im.def("get_place_by_tensor_name",
+           &ngraph::frontend::InputModel::get_place_by_tensor_name,
+           py::arg("tensorName"));
     im.def("get_place_by_operation_name",
-           &ngraph::frontend::InputModel::get_place_by_operation_name);
+           &ngraph::frontend::InputModel::get_place_by_operation_name,
+           py::arg("operationName"));
     im.def("get_place_by_operation_and_input_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_and_input_port);
+           &ngraph::frontend::InputModel::get_place_by_operation_and_input_port,
+           py::arg("operationName"),
+           py::arg("inputPortIndex"));
     im.def("get_place_by_operation_and_output_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_and_output_port);
+           &ngraph::frontend::InputModel::get_place_by_operation_and_output_port,
+           py::arg("operationName"),
+           py::arg("outputPortIndex"));
 
-    im.def("set_name_for_tensor", &ngraph::frontend::InputModel::set_name_for_tensor);
-    im.def("add_name_for_tensor", &ngraph::frontend::InputModel::add_name_for_tensor);
-    im.def("set_name_for_operation", &ngraph::frontend::InputModel::set_name_for_operation);
-    im.def("free_name_for_tensor", &ngraph::frontend::InputModel::free_name_for_tensor);
-    im.def("free_name_for_operation", &ngraph::frontend::InputModel::free_name_for_operation);
-    im.def("set_name_for_dimension", &ngraph::frontend::InputModel::set_name_for_dimension);
-    im.def("cut_and_add_new_input", &ngraph::frontend::InputModel::cut_and_add_new_input);
-    im.def("cut_and_add_new_output", &ngraph::frontend::InputModel::cut_and_add_new_output);
-    im.def("add_output", &ngraph::frontend::InputModel::add_output);
-    im.def("remove_output", &ngraph::frontend::InputModel::remove_output);
+    im.def("set_name_for_tensor",
+           &ngraph::frontend::InputModel::set_name_for_tensor,
+           py::arg("tensor"),
+           py::arg("newName"));
+    im.def("add_name_for_tensor",
+           &ngraph::frontend::InputModel::add_name_for_tensor,
+           py::arg("tensor"),
+           py::arg("newName"));
+    im.def("set_name_for_operation",
+           &ngraph::frontend::InputModel::set_name_for_operation,
+           py::arg("operation"),
+           py::arg("newName"));
+    im.def("free_name_for_tensor",
+           &ngraph::frontend::InputModel::free_name_for_tensor,
+           py::arg("name"));
+    im.def("free_name_for_operation",
+           &ngraph::frontend::InputModel::free_name_for_operation,
+           py::arg("name"));
+    im.def("set_name_for_dimension",
+           &ngraph::frontend::InputModel::set_name_for_dimension,
+           py::arg("place"),
+           py::arg("dimIndex"),
+           py::arg("dimName"));
+    im.def("cut_and_add_new_input",
+           &ngraph::frontend::InputModel::cut_and_add_new_input,
+           py::arg("place"),
+           py::arg("newName") = std::string());
+    im.def("cut_and_add_new_output",
+           &ngraph::frontend::InputModel::cut_and_add_new_output,
+           py::arg("place"),
+           py::arg("newName") = std::string());
+    im.def("add_output", &ngraph::frontend::InputModel::add_output, py::arg("place"));
+    im.def("remove_output", &ngraph::frontend::InputModel::remove_output, py::arg("place"));
 
-    // Setting tensor properties
-    im.def("set_partial_shape", &ngraph::frontend::InputModel::set_partial_shape);
-    im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape);
+    im.def("set_partial_shape",
+           &ngraph::frontend::InputModel::set_partial_shape,
+           py::arg("place"),
+           py::arg("shape"));
+    im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape, py::arg("place"));
     im.def("get_inputs", &ngraph::frontend::InputModel::get_inputs);
     im.def("get_outputs", &ngraph::frontend::InputModel::get_outputs);
-    im.def("override_all_inputs", &ngraph::frontend::InputModel::override_all_inputs);
-    im.def("override_all_outputs", &ngraph::frontend::InputModel::override_all_outputs);
-    im.def("set_element_type", &ngraph::frontend::InputModel::set_element_type);
+
+    im.def("extract_subgraph",
+           &ngraph::frontend::InputModel::extract_subgraph,
+           py::arg("inputs"),
+           py::arg("outputs"));
+    im.def("override_all_inputs",
+           &ngraph::frontend::InputModel::override_all_inputs,
+           py::arg("inputs"));
+    im.def("override_all_outputs",
+           &ngraph::frontend::InputModel::override_all_outputs,
+           py::arg("outputs"));
+    im.def("set_element_type",
+           &ngraph::frontend::InputModel::set_element_type,
+           py::arg("place"),
+           py::arg("type"));
 }
 
 void regclass_pyngraph_FEC(py::module m)
