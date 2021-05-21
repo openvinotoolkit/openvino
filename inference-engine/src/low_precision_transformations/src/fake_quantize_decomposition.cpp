@@ -217,6 +217,12 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         const float updatedOutputLowValue = (quantizationDetails.outputLowValues[0] - quantizationSub) * quantizationMul;
         const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
 
+        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
+        //TODO: pass min levels as a parameter?
+        if (levels < 2ul) {
+            return false;
+        }
+
         // 2. update FakeQuantize - one time action
         std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
             layer,
@@ -224,8 +230,6 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             roundf(updatedOutputLowValue),
             roundf(updatedOutputHighValue),
             false);
-
-        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
         newFakeQuantizeLayer->set_levels(levels);
 
         auto dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
