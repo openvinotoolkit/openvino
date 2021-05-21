@@ -81,9 +81,9 @@ void oooq_memory_dependencies::run(program_impl& p) {
 
     // maps program nodes to bimap vector ids
     auto user_map = std::map<program_node*, unsigned int>();
-    unsigned int i = 0;
+    unsigned int processing_order_idx = 0;
     for (auto node : processing_order) {
-        user_map[node] = i++;
+        user_map[node] = processing_order_idx++;
     }
 
     unsigned int num_nodes = static_cast<unsigned int>(user_map.size());
@@ -92,15 +92,26 @@ void oooq_memory_dependencies::run(program_impl& p) {
     // every node has a bit array assigned to it
     // users or the node are marked with 1 bit in this array
     std::vector<bits_64> user_bitmap(num_nodes, bits_64(num_nodes));
+    bits_64 suspect_nodes(num_nodes);
 
     // init bitmaps from direct node users
     for (const auto& node : user_map) {
         for (const auto& user : node.first->get_users()) {
             user_bitmap[node.second].set(user_map.at(user));
         }
+
+        size_t num_dep_nodes = 0;
+        for (const auto& dep : node.first->get_dependencies()) {
+            if (!dep->is_constant()) {
+                ++num_dep_nodes;
+            }
+        }
+        if (num_dep_nodes > 1) {
+            suspect_nodes.set(user_map.at(node.first));
+        }
     }
 
-    // Iteratively extend the users set by adding closure over existing users untill no change occurs.
+    // Iteratively extend the users set by adding closure over existing users until no change occurs.
     bool changed = true;
     while (changed) {
         changed = false;
@@ -126,6 +137,28 @@ void oooq_memory_dependencies::run(program_impl& p) {
     auto itr_A = processing_order.begin();
 
     while (itr_A != processing_order.end()) {
+        if (suspect_nodes.is_set(A)) {
+            std::vector<std::pair<program_node*, unsigned int>> deps;
+            for (const auto& dep : (*itr_A)->get_dependencies()) {
+                deps.emplace_back(dep, user_map.at(dep));
+            }
+
+            std::sort(deps.begin(), deps.end(),
+                    [](const std::pair<cldnn::program_node*, unsigned int>& a, const std::pair<cldnn::program_node*, unsigned int>& b) {
+                        return a.second < b.second;
+                    });
+
+            for (size_t i = 0; i < deps.size(); ++i) {
+                for (size_t j = i + 1; j < deps.size(); ++j) {
+                    if (are_connected(deps[i].second, deps[j].second)) {
+                        for (const auto& user : deps[j].first->get_users()) {
+                            add_memory_dependency(deps[i].first, user);
+                            add_memory_dependency(user, deps[i].first);
+                        }
+                    }
+                }
+            }
+        }
         unsigned int B = ++A;
         auto itr_B = ++itr_A;
         while (itr_B != processing_order.end()) {
