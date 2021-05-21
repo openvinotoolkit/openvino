@@ -22,7 +22,7 @@ class TestNamesUniquenessCheck(unittest.TestCase):
             ]
         )
 
-        ref_names = ['node_0', 'node_1', 'node_2']
+        ref_names = ['node_0', 'node_1', 'node']
 
         NamesUniquenessCheck().find_and_replace_pattern(graph)
 
