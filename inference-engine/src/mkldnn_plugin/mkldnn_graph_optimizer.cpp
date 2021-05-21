@@ -1537,7 +1537,7 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
     };
 
     auto isSutableScaleShiftNode = [getConstPort](MKLDNNNodePtr node) {
-        if (one_of(node->getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseMulAdd)) {
+        if (one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd)) {
             MKLDNNNode *parent = nullptr;
             if (node->getAlgorithm() != EltwiseMulAdd) {
                 const auto constPort = getConstPort(node);
