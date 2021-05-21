@@ -56,7 +56,8 @@ public:
                 resultAttribute->merge(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
-                    for (const auto attributeWeakPtr : parentRestrictions[index]->get()->sharedValue->attributes) {
+                    const auto attributes = parentRestrictions[index]->get()->sharedValue->attributes;
+                    for (const auto attributeWeakPtr : attributes) {
                         auto attribute = attributeWeakPtr.lock();
                         if (attribute == nullptr) {
                             continue;
