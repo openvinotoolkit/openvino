@@ -29,16 +29,18 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
 
     const auto interpolateMode = _layer->GetParamAsString(g_mode, g_nearest);
 
-    const auto input = inputs[0];
+    const auto input  = inputs[0];
     const auto output = outputs[0];
 
     // try to use existing resize layers
 
-    const auto ic = input->desc().dim(Dim::C);
-    const auto in = (input->desc().numDims() == 3) ? 1 : input->desc().dim(Dim::N);
-
     const auto oc = output->desc().dim(Dim::C);
-    const auto on = (output->desc().numDims() == 3) ? 1 : output->desc().dim(Dim::N);
+    const auto on = output->desc().dim(Dim::N, 1);
+
+    const auto ic = input->desc().dim(Dim::C);
+    const auto in = input->desc().dim(Dim::N, 1);
+
+    VPU_THROW_UNLESS(in == on, "incompatible: input batch=%d, output batch=%d", in, on);
 
     auto padsBegin = _layer->GetParamAsInts(g_pads_begin, {});
     auto padsEnd   = _layer->GetParamAsInts(g_pads_end, {});
@@ -48,7 +50,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
     };
 
     const auto orderIsSupported = input->desc().dimsOrder() == DimsOrder::NCHW || input->desc().dimsOrder() == DimsOrder::NHWC
-                               || input->desc().dimsOrder() == DimsOrder::CHW ||  input->desc().dimsOrder() == DimsOrder::HWC;
+                               || input->desc().dimsOrder() == DimsOrder::CHW  || input->desc().dimsOrder() == DimsOrder::HWC;
     VPU_THROW_UNLESS(orderIsSupported, "Current Interpolate supports (N)HWC, (N)CHW data orders only, actual {}", input->desc().dimsOrder());
 
     const auto interpolateModeIt = interpModeMap.find(interpolateMode);
@@ -59,8 +61,10 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                  interpolateModeIt->second == InterpolateMode::LinearOnnx;
     VPU_THROW_UNLESS(modeIsSupported, "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
 
-    const auto paramIsSupported = ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd);
-    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings, batches, and resize by channels");
+    auto paramIsSupported = ic == oc;
+    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support resize by channels");
+    paramIsSupported = isPadZeros(padsBegin) && isPadZeros(padsEnd);
+    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings");
 
     if (interpolateModeIt->second == InterpolateMode::Nearest) {
         // current "Resample" supports the following "Interpolate" modes only:

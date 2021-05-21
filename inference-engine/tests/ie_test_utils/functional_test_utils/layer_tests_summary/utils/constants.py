@@ -16,6 +16,7 @@ VERIFIED_OP_REFERENCES = [
     'CTCGreedyDecoder-1',
     'CTCGreedyDecoderSeqLen-6',
     'Concat-1',
+    'Convert-1',
     'ConvertLike-1',
     'Convolution-1',
     'Constant-1',
@@ -28,6 +29,7 @@ VERIFIED_OP_REFERENCES = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'Floor-1'
     'FloorMod-1'
     'GRUSequence-5',
     'Gather-1',
