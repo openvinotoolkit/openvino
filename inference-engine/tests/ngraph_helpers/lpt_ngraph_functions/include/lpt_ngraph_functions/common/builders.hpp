@@ -75,12 +75,12 @@ std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& resha
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& input,
+    const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const std::shared_ptr<ngraph::Node>& input,
+    const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
