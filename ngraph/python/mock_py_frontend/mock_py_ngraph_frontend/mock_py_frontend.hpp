@@ -20,39 +20,188 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
+////////////////////////////////
+
+struct MOCK_API PlaceStat
+{
+    int m_get_names = 0;
+    int m_get_consuming_operations = 0;
+    int m_get_target_tensor = 0;
+    int m_get_producing_operation = 0;
+    int m_get_producing_port = 0;
+    int m_get_input_port = 0;
+    int m_get_output_port = 0;
+    int m_get_consuming_ports = 0;
+    int m_is_input = 0;
+    int m_is_output = 0;
+    int m_is_equal = 0;
+    int m_is_equal_data = 0;
+    int m_get_source_tensor = 0;
+
+    // Arguments tracking
+    std::string m_lastArgString;
+    int m_lastArgInt;
+    Place::Ptr m_lastArgPlace = nullptr;
+
+    // Getters
+    int get_names() const { return m_get_names; }
+    int get_consuming_operations() const { return m_get_consuming_operations; }
+    int get_target_tensor() const { return m_get_target_tensor; }
+    int get_producing_operation() const { return m_get_producing_operation; }
+    int get_producing_port() const { return m_get_producing_port; }
+    int get_input_port() const { return m_get_input_port; }
+    int get_output_port() const { return m_get_output_port; }
+    int get_consuming_ports() const { return m_get_consuming_ports; }
+    int is_input() const { return m_is_input; }
+    int is_output() const { return m_is_output; }
+    int is_equal() const { return m_is_equal; }
+    int is_equal_data() const { return m_is_equal_data; }
+    int get_source_tensor() const { return m_get_source_tensor; }
+
+    // Arguments getters
+    std::string get_lastArgString() const { return m_lastArgString; }
+    int get_lastArgInt() const { return m_lastArgInt; }
+    Place::Ptr get_lastArgPlace() const { return m_lastArgPlace; }
+};
+
 class MOCK_API PlaceMockPy : public Place
 {
+    mutable PlaceStat m_stat;
+
+public:
+    std::vector<std::string> get_names() const override
+    {
+        m_stat.m_get_names++;
+        return {};
+    }
+
+    std::vector<Place::Ptr> get_consuming_operations(int outputPortIndex) const override
+    {
+        m_stat.m_get_consuming_operations++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_target_tensor(int outputPortIndex) const override
+    {
+        m_stat.m_get_target_tensor++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_producing_operation(int inputPortIndex) const override
+    {
+        m_stat.m_get_producing_operation++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_producing_port() const override
+    {
+        m_stat.m_get_producing_port++;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_input_port(int inputPortIndex) const override
+    {
+        m_stat.m_get_input_port++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_input_port(const std::string& inputName, int inputPortIndex) const override
+    {
+        m_stat.m_get_input_port++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        m_stat.m_lastArgString = inputName;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_output_port(int outputPortIndex) const override
+    {
+        m_stat.m_get_output_port++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_output_port(const std::string& outputName, int outputPortIndex) const override
+    {
+        m_stat.m_get_output_port++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = outputName;
+        return std::make_shared<PlaceMockPy>();
+    }
+
+    std::vector<Place::Ptr> get_consuming_ports() const override
+    {
+        m_stat.m_get_consuming_ports++;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    bool is_input() const override
+    {
+        m_stat.m_is_input++;
+        return false;
+    }
+
+    bool is_output() const override
+    {
+        m_stat.m_is_output++;
+        return false;
+    }
+
+    bool is_equal(Ptr another) const override
+    {
+        m_stat.m_is_equal++;
+        m_stat.m_lastArgPlace = another;
+        return false;
+    }
+
+    bool is_equal_data(Ptr another) const override
+    {
+        m_stat.m_is_equal_data++;
+        m_stat.m_lastArgPlace = another;
+        return false;
+    }
+
+    Place::Ptr get_source_tensor(int inputPortIndex) const override
+    {
+        m_stat.m_get_source_tensor++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    //---------------Stat--------------------
+    PlaceStat get_stat() const { return m_stat; }
 };
 
 ////////////////////////////////
 
-struct MOCK_API MdlCallStat
+struct MOCK_API ModelStat
 {
-    FrontEndCapFlags m_loadFlags;
-    std::vector<std::string> m_loadPaths;
-    int m_getInputsCount = 0;
-    int m_getOutputsCount = 0;
-    int m_getPlaceByTensorNameCount = 0;
-    int m_getPlaceByOperationNameCount = 0;
-    int m_getPlaceByOperationNameAndInputPortCount = 0;
-    int m_getPlaceByOperationNameAndOutputPortCount = 0;
-    int m_setNameForTensorCount = 0;
-    int m_addNameForTensorCount = 0;
-    int m_setNameForOperationCount = 0;
-    int m_freeNameForTensorCount = 0;
-    int m_freeNameForOperationCount = 0;
-    int m_setNameForDimensionCount = 0;
-    int m_cutAndAddNewInputCount = 0;
-    int m_cutAndAddNewOutputCount = 0;
-    int m_addOutputCount = 0;
-    int m_removeOutputCount = 0;
-    int m_setPartialShapeCount = 0;
-    int m_getPartialShapeCount = 0;
-    int m_setElementTypeCount = 0;
+    int m_get_inputs = 0;
+    int m_get_outputs = 0;
+    int m_get_place_by_tensor_name = 0;
+    int m_get_place_by_operation_name = 0;
+    int m_get_place_by_operation_and_input_port = 0;
+    int m_get_place_by_operation_and_output_port = 0;
+    int m_set_name_for_tensor = 0;
+    int m_add_name_for_tensor = 0;
+    int m_set_name_for_operation = 0;
+    int m_free_name_for_tensor = 0;
+    int m_free_name_for_operation = 0;
+    int m_set_name_for_dimension = 0;
+    int m_cut_and_add_new_input = 0;
+    int m_cut_and_add_new_output = 0;
+    int m_add_output = 0;
+    int m_remove_output = 0;
+    int m_set_partial_shape = 0;
+    int m_get_partial_shape = 0;
+    int m_set_element_type = 0;
 
-    int m_extractSubgraphCount = 0;
-    int m_overrideAllInputsCount = 0;
-    int m_overrideAllOutputsCount = 0;
+    int m_extract_subgraph = 0;
+    int m_override_all_inputs = 0;
+    int m_override_all_outputs = 0;
 
     // Arguments tracking
     std::string m_lastArgString;
@@ -64,34 +213,34 @@ struct MOCK_API MdlCallStat
     ngraph::PartialShape m_lastArgPartialShape;
 
     // Getters
-    int get_getInputsCount() const { return m_getInputsCount; }
-    int get_getOutputsCount() const { return m_getOutputsCount; }
-    int get_extractSubgraphCount() const { return m_extractSubgraphCount; }
-    int get_overrideAllInputsCount() const { return m_overrideAllInputsCount; }
-    int get_overrideAllOutputsCount() const { return m_overrideAllOutputsCount; }
-    int get_getPlaceByTensorNameCount() const { return m_getPlaceByTensorNameCount; }
-    int get_getPlaceByOperationNameCount() const { return m_getPlaceByOperationNameCount; }
-    int get_getPlaceByOperationNameAndInputPortCount() const
+    int get_inputs() const { return m_get_inputs; }
+    int get_outputs() const { return m_get_outputs; }
+    int extract_subgraph() const { return m_extract_subgraph; }
+    int override_all_inputs() const { return m_override_all_inputs; }
+    int override_all_outputs() const { return m_override_all_outputs; }
+    int get_place_by_tensor_name() const { return m_get_place_by_tensor_name; }
+    int get_place_by_operation_name() const { return m_get_place_by_operation_name; }
+    int get_place_by_operation_and_input_port() const
     {
-        return m_getPlaceByOperationNameAndInputPortCount;
+        return m_get_place_by_operation_and_input_port;
     }
-    int get_getPlaceByOperationNameAndOutputPortCount() const
+    int get_place_by_operation_and_output_port() const
     {
-        return m_getPlaceByOperationNameAndOutputPortCount;
+        return m_get_place_by_operation_and_output_port;
     }
-    int get_setNameForTensorCount() const { return m_setNameForTensorCount; }
-    int get_addNameForTensorCount() const { return m_addNameForTensorCount; }
-    int get_setNameForOperationCount() const { return m_setNameForOperationCount; }
-    int get_freeNameForTensorCount() const { return m_freeNameForTensorCount; }
-    int get_freeNameForOperationCount() const { return m_freeNameForOperationCount; }
-    int get_setNameForDimensionCount() const { return m_setNameForDimensionCount; }
-    int get_cutAndAddNewInputCount() const { return m_cutAndAddNewInputCount; }
-    int get_cutAndAddNewOutputCount() const { return m_cutAndAddNewOutputCount; }
-    int get_addOutputCount() const { return m_addOutputCount; }
-    int get_removeOutputCount() const { return m_removeOutputCount; }
-    int get_setPartialShapeCount() const { return m_setPartialShapeCount; }
-    int get_getPartialShapeCount() const { return m_getPartialShapeCount; }
-    int get_setElementTypeCount() const { return m_setElementTypeCount; }
+    int set_name_for_tensor() const { return m_set_name_for_tensor; }
+    int add_name_for_tensor() const { return m_add_name_for_tensor; }
+    int set_name_for_operation() const { return m_set_name_for_operation; }
+    int free_name_for_tensor() const { return m_free_name_for_tensor; }
+    int free_name_for_operation() const { return m_free_name_for_operation; }
+    int set_name_for_dimension() const { return m_set_name_for_dimension; }
+    int cut_and_add_new_input() const { return m_cut_and_add_new_input; }
+    int cut_and_add_new_output() const { return m_cut_and_add_new_output; }
+    int add_output() const { return m_add_output; }
+    int remove_output() const { return m_remove_output; }
+    int set_partial_shape() const { return m_set_partial_shape; }
+    int get_partial_shape() const { return m_get_partial_shape; }
+    int set_element_type() const { return m_set_element_type; }
 
     // Arguments getters
     std::string get_lastArgString() const { return m_lastArgString; }
@@ -105,31 +254,31 @@ struct MOCK_API MdlCallStat
 
 class MOCK_API InputModelMockPy : public InputModel
 {
-    mutable MdlCallStat m_stat;
+    mutable ModelStat m_stat;
 
 public:
     std::vector<Place::Ptr> get_inputs() const override
     {
-        m_stat.m_getInputsCount++;
+        m_stat.m_get_inputs++;
         return {std::make_shared<PlaceMockPy>()};
     }
 
     std::vector<Place::Ptr> get_outputs() const override
     {
-        m_stat.m_getOutputsCount++;
+        m_stat.m_get_outputs++;
         return {std::make_shared<PlaceMockPy>()};
     }
 
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override
     {
-        m_stat.m_getPlaceByTensorNameCount++;
+        m_stat.m_get_place_by_tensor_name++;
         m_stat.m_lastArgString = tensorName;
         return std::make_shared<PlaceMockPy>();
     }
 
     Place::Ptr get_place_by_operation_name(const std::string& operationName) override
     {
-        m_stat.m_getPlaceByOperationNameCount++;
+        m_stat.m_get_place_by_operation_name++;
         m_stat.m_lastArgString = operationName;
         return std::make_shared<PlaceMockPy>();
     }
@@ -137,7 +286,7 @@ public:
     Place::Ptr get_place_by_operation_and_input_port(const std::string& operationName,
                                                      int inputPortIndex) override
     {
-        m_stat.m_getPlaceByOperationNameAndInputPortCount++;
+        m_stat.m_get_place_by_operation_and_input_port++;
         m_stat.m_lastArgInt = inputPortIndex;
         m_stat.m_lastArgString = operationName;
         return std::make_shared<PlaceMockPy>();
@@ -146,7 +295,7 @@ public:
     Place::Ptr get_place_by_operation_and_output_port(const std::string& operationName,
                                                       int outputPortIndex) override
     {
-        m_stat.m_getPlaceByOperationNameAndOutputPortCount++;
+        m_stat.m_get_place_by_operation_and_output_port++;
         m_stat.m_lastArgInt = outputPortIndex;
         m_stat.m_lastArgString = operationName;
         return std::make_shared<PlaceMockPy>();
@@ -154,34 +303,34 @@ public:
 
     void set_name_for_tensor(Place::Ptr tensor, const std::string& newName) override
     {
-        m_stat.m_setNameForTensorCount++;
+        m_stat.m_set_name_for_tensor++;
         m_stat.m_lastArgPlace = tensor;
         m_stat.m_lastArgString = newName;
     }
 
     void add_name_for_tensor(Place::Ptr tensor, const std::string& newName) override
     {
-        m_stat.m_addNameForTensorCount++;
+        m_stat.m_add_name_for_tensor++;
         m_stat.m_lastArgPlace = tensor;
         m_stat.m_lastArgString = newName;
     }
 
     void set_name_for_operation(Place::Ptr operation, const std::string& newName) override
     {
-        m_stat.m_setNameForOperationCount++;
+        m_stat.m_set_name_for_operation++;
         m_stat.m_lastArgPlace = operation;
         m_stat.m_lastArgString = newName;
     }
 
     void free_name_for_tensor(const std::string& name) override
     {
-        m_stat.m_freeNameForTensorCount++;
+        m_stat.m_free_name_for_tensor++;
         m_stat.m_lastArgString = name;
     }
 
     void free_name_for_operation(const std::string& name) override
     {
-        m_stat.m_freeNameForOperationCount++;
+        m_stat.m_free_name_for_operation++;
         m_stat.m_lastArgString = name;
     }
 
@@ -189,7 +338,7 @@ public:
                                 size_t shapeDimIndex,
                                 const std::string& dimName) override
     {
-        m_stat.m_setNameForDimensionCount++;
+        m_stat.m_set_name_for_dimension++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgInt = static_cast<int>(shapeDimIndex);
         m_stat.m_lastArgString = dimName;
@@ -197,47 +346,47 @@ public:
 
     void cut_and_add_new_input(Place::Ptr place, const std::string& newNameOptional) override
     {
-        m_stat.m_cutAndAddNewInputCount++;
+        m_stat.m_cut_and_add_new_input++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgString = newNameOptional;
     }
 
     void cut_and_add_new_output(Place::Ptr place, const std::string& newNameOptional) override
     {
-        m_stat.m_cutAndAddNewOutputCount++;
+        m_stat.m_cut_and_add_new_output++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgString = newNameOptional;
     }
 
     Place::Ptr add_output(Place::Ptr place) override
     {
-        m_stat.m_addOutputCount++;
+        m_stat.m_add_output++;
         m_stat.m_lastArgPlace = place;
         return std::make_shared<PlaceMockPy>();
     }
 
     void remove_output(Place::Ptr place) override
     {
-        m_stat.m_removeOutputCount++;
+        m_stat.m_remove_output++;
         m_stat.m_lastArgPlace = place;
     }
 
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override
     {
-        m_stat.m_overrideAllOutputsCount++;
+        m_stat.m_override_all_outputs++;
         m_stat.m_lastArgOutputPlaces = outputs;
     }
 
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override
     {
-        m_stat.m_overrideAllInputsCount++;
+        m_stat.m_override_all_inputs++;
         m_stat.m_lastArgInputPlaces = inputs;
     }
 
     void extract_subgraph(const std::vector<Place::Ptr>& inputs,
                           const std::vector<Place::Ptr>& outputs) override
     {
-        m_stat.m_extractSubgraphCount++;
+        m_stat.m_extract_subgraph++;
         m_stat.m_lastArgInputPlaces = inputs;
         m_stat.m_lastArgOutputPlaces = outputs;
     }
@@ -245,95 +394,91 @@ public:
     // Setting tensor properties
     void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override
     {
-        m_stat.m_setPartialShapeCount++;
+        m_stat.m_set_partial_shape++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgPartialShape = shape;
     }
 
     ngraph::PartialShape get_partial_shape(Place::Ptr place) const override
     {
-        m_stat.m_getPartialShapeCount++;
+        m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
         return {};
     }
 
     void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override
     {
-        m_stat.m_setElementTypeCount++;
+        m_stat.m_set_element_type++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgElementType = type;
     }
 
     //---------------Stat--------------------
-    MdlCallStat get_stat() const { return m_stat; }
-
-    void reset_stat() { m_stat = {}; }
+    ModelStat get_stat() const { return m_stat; }
 };
 
 /////////////////////////////////////////////////////////
 
-struct MOCK_API FeCallStat
+struct MOCK_API FeStat
 {
-    FrontEndCapFlags m_loadFlags;
-    std::vector<std::string> m_loadPaths;
-    int m_convertModelCount = 0;
-    int m_convertFuncCount = 0;
-    int m_convertPartCount = 0;
-    int m_decodeCount = 0;
-    int m_normalizeCount = 0;
+    FrontEndCapFlags m_load_flags;
+    std::vector<std::string> m_load_paths;
+    int m_convert_model = 0;
+    int m_convert = 0;
+    int m_convert_partially = 0;
+    int m_decode = 0;
+    int m_normalize = 0;
     // Getters
-    FrontEndCapFlags get_loadFlags() const { return m_loadFlags; }
-    std::vector<std::string> get_loadPaths() const { return m_loadPaths; }
-    int get_convertModelCount() const { return m_convertModelCount; }
-    int get_convertFuncCount() const { return m_convertFuncCount; }
-    int get_convertPartCount() const { return m_convertPartCount; }
-    int get_decodeCount() const { return m_decodeCount; }
-    int get_normalizeCount() const { return m_normalizeCount; }
+    FrontEndCapFlags load_flags() const { return m_load_flags; }
+    std::vector<std::string> load_paths() const { return m_load_paths; }
+    int convert_model() const { return m_convert_model; }
+    int convert() const { return m_convert; }
+    int convert_partially() const { return m_convert_partially; }
+    int decode() const { return m_decode; }
+    int normalize() const { return m_normalize; }
 };
 
 class MOCK_API FrontEndMockPy : public FrontEnd
 {
-    mutable FeCallStat m_stat;
+    mutable FeStat m_stat;
 
 public:
-    FrontEndMockPy(FrontEndCapFlags flags) { m_stat.m_loadFlags = flags; }
+    FrontEndMockPy(FrontEndCapFlags flags) { m_stat.m_load_flags = flags; }
 
     InputModel::Ptr load_from_file(const std::string& path) const override
     {
-        m_stat.m_loadPaths.push_back(path);
+        m_stat.m_load_paths.push_back(path);
         return std::make_shared<InputModelMockPy>();
     }
 
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
     {
-        m_stat.m_convertModelCount++;
+        m_stat.m_convert_model++;
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
     std::shared_ptr<ngraph::Function> convert(std::shared_ptr<ngraph::Function> func) const override
     {
-        m_stat.m_convertFuncCount++;
+        m_stat.m_convert++;
         return func;
     }
 
     std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override
     {
-        m_stat.m_convertPartCount++;
+        m_stat.m_convert_partially++;
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
     std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override
     {
-        m_stat.m_decodeCount++;
+        m_stat.m_decode++;
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
     void normalize(std::shared_ptr<ngraph::Function> function) const override
     {
-        m_stat.m_normalizeCount++;
+        m_stat.m_normalize++;
     }
 
-    FeCallStat get_stat() const { return m_stat; }
-
-    void reset_stat() { m_stat = {}; }
+    FeStat get_stat() const { return m_stat; }
 };

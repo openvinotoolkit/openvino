@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -67,7 +55,40 @@ void regclass_pyngraph_Place(py::module m)
     place.def("is_input", &ngraph::frontend::Place::is_input);
     place.def("is_output", &ngraph::frontend::Place::is_output);
     place.def("get_names", &ngraph::frontend::Place::get_names);
-    place.def("is_equal", &ngraph::frontend::Place::is_equal);
+    place.def("is_equal", &ngraph::frontend::Place::is_equal, py::arg("other"));
+    place.def("is_equal_data", &ngraph::frontend::Place::is_equal_data, py::arg("other"));
+    place.def("get_consuming_operations",
+              &ngraph::frontend::Place::get_consuming_operations,
+              py::arg_v("outputPortIndex", -1, "-1"));
+    place.def("get_target_tensor",
+              &ngraph::frontend::Place::get_target_tensor,
+              py::arg_v("outputPortIndex", -1, "-1"));
+    place.def("get_producing_operation",
+              &ngraph::frontend::Place::get_producing_operation,
+              py::arg_v("inputPortIndex", -1, "-1"));
+    place.def("get_producing_port", &ngraph::frontend::Place::get_producing_port);
+    place.def("get_input_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
+                  &ngraph::frontend::Place::get_input_port),
+              py::arg_v("inputPortIndex", -1, "-1"));
+    place.def("get_input_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
+                  const std::string&, int) const>(&ngraph::frontend::Place::get_input_port),
+              py::arg("inputName"),
+              py::arg_v("inputPortIndex", -1, "-1"));
+    place.def("get_output_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
+                  &ngraph::frontend::Place::get_output_port),
+              py::arg_v("outputPortIndex", -1, "-1"));
+    place.def("get_output_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
+                  const std::string&, int) const>(&ngraph::frontend::Place::get_output_port),
+              py::arg("outputName"),
+              py::arg_v("outputPortIndex", -1, "-1"));
+    place.def("get_consuming_ports", &ngraph::frontend::Place::get_consuming_ports);
+    place.def("get_source_tensor",
+              &ngraph::frontend::Place::get_source_tensor,
+              py::arg_v("inputPortIndex", -1, "-1"));
 }
 
 void regclass_pyngraph_InputModel(py::module m)

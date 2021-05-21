@@ -110,7 +110,7 @@ if(NGRAPH_UNIT_TEST_ENABLE)
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     add_subdirectory(mock_py_frontend/pyngraph_fe_mock_api)
-    add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
 
 endif()
 
