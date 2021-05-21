@@ -263,6 +263,10 @@ class Port:
         return consumer_ports
 
     def get_tensor_names(self, port_renumber: bool = False):
+        """
+        Gets sorted tensor names list.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
         tensor_debug_info = self.get_tensor_debug_info(port_renumber)
         tensor_names_list = []
         for attr in tensor_debug_info:
@@ -273,6 +277,10 @@ class Port:
         return sorted(tensor_names_list)
 
     def get_tensor_debug_info(self, port_renumber: bool = False):
+        """
+        Gets tensor debug info attribute.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
         def get_tensor_debug_info_from_attrs(attrs):
             if 'fw_tensor_debug_info' in attrs:
                 if attrs['fw_tensor_debug_info'] is not None:
