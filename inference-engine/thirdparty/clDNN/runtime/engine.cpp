@@ -8,7 +8,7 @@
 #include "cldnn/runtime/stream.hpp"
 #include "cldnn/runtime/device_query.hpp"
 
-#include "ocl/ocl_engine.hpp"
+#include "ocl/ocl_engine_factory.hpp"
 
 #include <string>
 #include <vector>
@@ -143,7 +143,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const device::ptr device,
                                               const engine_configuration& configuration) {
     switch (engine_type) {
-        case engine_types::ocl: return ocl::ocl_engine::create(device, runtime_type, configuration);
+        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration);
         default: throw std::runtime_error("Invalid engine type");
     }
 }

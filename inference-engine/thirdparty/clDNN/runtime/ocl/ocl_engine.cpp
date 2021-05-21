@@ -196,5 +196,9 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
     return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration);
 }
 
+std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
+    return ocl_engine::create(device, runtime_type, configuration);
+}
+
 }  // namespace ocl
 }  // namespace cldnn
