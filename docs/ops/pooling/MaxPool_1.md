@@ -81,6 +81,15 @@
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is not equal to explicit.
 
+* *index_element_type*
+
+    * **Description**: the type of output tensor with indices
+    * **Range of values**: "i64" or "i32"
+    * **Type**: string
+    * **Default value**: "i32"
+    * **Required**: *No*
+
+
 **Inputs**:
 
 *   **1**: 3D, 4D or 5D input tensor of type T. Required.
@@ -90,6 +99,7 @@
 
   * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
     Shape of this output matches the first output.
+    The type of this output can be specified using the `index_element_type` attribute.
     Values are computed as indices in a tensor flattened to 1-D, not considering padding,
     so the values are in the range `[0, N * C * H * W * D)`.
 
