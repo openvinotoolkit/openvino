@@ -7,7 +7,6 @@
 import os
 import json
 import multiprocessing
-import shutil
 import sys
 from inspect import getsourcefile
 from pathlib import Path
@@ -19,6 +18,20 @@ from proc_utils import cmd_exec  # pylint: disable=import-error
 
 SESSION_INFO_FILE = "cc_tests.json"
 infer_tool = str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve())
+
+
+def validate_path_arg(path: Path, name, is_dir=False):
+    """"Check if path argument is correct."""
+    if path is None:
+        raise ValueError(f"--{name} is not specified.")
+
+    if not path.exists():
+        raise ValueError(f"{path} does not exist.")
+
+    if is_dir and not path.is_dir():
+        raise ValueError(f"{path} is not a directory.")
+
+    return path
 
 
 def get_lib_sizes(path, libraries):
@@ -54,24 +67,23 @@ def run_infer(model, out_file, install_dir):
     """
     sys_executable = os.path.join(sys.prefix, 'python.exe') if sys.platform == "win32" \
         else os.path.join(sys.prefix, 'bin', 'python')
-    returncode, output = cmd_exec(
+    return_code, output = cmd_exec(
         [sys_executable,
          infer_tool,
          "-d=CPU", f"-m={model}", f"-r={out_file}"
          ],
         env=get_openvino_environment(install_dir),
     )
-    return returncode, output
+    return return_code, output
 
 
 def make_build(openvino_root_dir, build_dir, install_dir, cmake_additional_args=None, log=None):
     """Parametrized build and install OpenVINO package."""
-    python_executable = shutil.which("python3")
     additional_args_line = " ".join(cmake_additional_args) + " " if cmake_additional_args else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
         f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "
-        f"-DPYTHON_EXECUTABLE={python_executable} {additional_args_line}"
+        f"-DPYTHON_EXECUTABLE={sys.executable} {additional_args_line}"
         f"-S {openvino_root_dir} -B {build_dir} &&"
         f"cmake --build {build_dir} -j{nproc} && "
         f"cmake --install {build_dir} --prefix {install_dir}"

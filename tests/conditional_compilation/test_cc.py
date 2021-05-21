@@ -63,8 +63,12 @@ def test_cc_collect(test_id, model, openvino_ref, test_info,
 @pytest.mark.dependency(depends=["cc_collect"])
 def test_minimized_pkg(test_id, model, openvino_root_dir, artifacts):  # pylint: disable=unused-argument
     """Build and install OpenVINO package with collected conditional compilation statistics."""
-    install_prefix = artifacts / test_id / "install_pkg"
+    out = artifacts / test_id
+    install_prefix = out / "install_pkg"
     build_dir = openvino_root_dir / "build_minimized"
+
+    out_csv = glob.glob(f"{out}.pid*.csv")
+    assert len(out_csv) == 1, f'Multiple or none "{out}.pid*.csv" files'
 
     log.info("Building minimized build at %s", build_dir)
 
@@ -72,7 +76,7 @@ def test_minimized_pkg(test_id, model, openvino_root_dir, artifacts):  # pylint:
         openvino_root_dir,
         build_dir,
         install_prefix,
-        cmake_additional_args=[f"-DSELECTIVE_BUILD_STAT={artifacts / test_id}/*.csv"],
+        cmake_additional_args=[f"-DSELECTIVE_BUILD_STAT={out_csv[0]}"],
         log=log,
     )
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"

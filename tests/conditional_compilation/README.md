@@ -13,7 +13,7 @@ pip3 install -r requirements.txt
 ```bash
 pytest test_cc.py
 ```
-**`test_cc.py` parameters:**
+**Test parameters:**
 - `sea_runtool` - path to `sea_runtool.py` file.
 - `collector_dir` - path to collector file parent folder.
 - `artifacts` - Path to directory where test write output or read input.
