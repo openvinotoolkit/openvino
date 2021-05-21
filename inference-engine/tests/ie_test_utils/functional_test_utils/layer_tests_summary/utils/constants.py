@@ -16,6 +16,7 @@ VERIFIED_OP_REFERENCES = [
     'CTCGreedyDecoder-1',
     'CTCGreedyDecoderSeqLen-6',
     'Concat-1',
+    'Convert-1',
     'ConvertLike-1',
     'Convolution-1',
     'Constant-1',
