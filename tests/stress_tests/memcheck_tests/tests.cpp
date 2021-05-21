@@ -125,7 +125,7 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
 
         Core ie;
         ie.GetVersions(device);
-        ie.SetConfig(config, device);
+//        ie.SetConfig(config, device);
 
         InferRequest inferRequest;
 
