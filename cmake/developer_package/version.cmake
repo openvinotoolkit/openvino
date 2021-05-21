@@ -42,7 +42,7 @@ macro(ie_parse_ci_build_number)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
 
-    if(DEFINED InferenceEngineDeveloperPackage_DIR)
+    if(DEFINED IEDevScripts_DIR AND DEFINED IE_MAIN_SOURCE_DIR AND NOT DEFINED custom_build)
         set(ie_version_hpp "${IE_MAIN_SOURCE_DIR}/include/ie_version.hpp")
         if(NOT EXISTS ${ie_version_hpp})
             message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
@@ -74,6 +74,11 @@ macro(ie_parse_ci_build_number)
 
     set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
 endmacro()
+
+# WA for DL Benchmark
+if(DEFINED ENV{CI_BUILD_NUMBER} AND "$ENV{CI_BUILD_NUMBER}" STREQUAL "1")
+    unset(ENV{CI_BUILD_NUMBER})
+endif()
 
 if (DEFINED ENV{CI_BUILD_NUMBER})
     set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
