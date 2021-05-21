@@ -15,14 +15,14 @@ graph {
     op_type: "Add"
   }
   node {
-    input: "add2/placeholder_port_0"
     input: "add1"
-    output: "add2"
-    name: "add_ambiguous_name"
-    op_type: "Add"
+    input: "new_name_1"
+    output: "mul2"
+    name: ""
+    op_type: "Mul"
   }
   node {
-    input: "add2"
+    input: "new_name_2"
     output: "split1"
     output: "split2"
     name: "split_name"
@@ -34,7 +34,7 @@ graph {
     }
   }
   node {
-    input: "mul1/placeholder_port_0"
+    input: "relu1"
     input: "split1"
     output: "mul1"
     op_type: "Mul"
@@ -67,11 +67,17 @@ graph {
     }
   }
   input {
-    name: "add2/placeholder_port_0"
+    name: "new_name_1"
     type {
       tensor_type {
         elem_type: 1
         shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
           dim {
             dim_value: 2
           }
@@ -83,7 +89,7 @@ graph {
     }
   }
   input {
-    name: "mul1/placeholder_port_0"
+    name: "new_name_2"
     type {
       tensor_type {
         elem_type: 1
@@ -125,6 +131,28 @@ graph {
           }
           dim {
             dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "mul2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
           }
         }
       }
