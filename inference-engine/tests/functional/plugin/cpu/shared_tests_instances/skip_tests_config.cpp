@@ -69,16 +69,9 @@ std::vector<std::string> disabledTestPatterns() {
 
         // AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // incorrect reference implementation. Issues: 55384, 54528, 54529
-        R"(.*DFTLayerTest.*)",
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
-        // TODO: iefode: fix BF16 tests (PR5624)
-        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
-        R"(.*smoke_PSROIPoolingAverageLayoutTest.*BF16.*)",
-        R"(.*smoke_PSROIPoolingBilinearLayoutTest.*BF16.*)",
-        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
     };
