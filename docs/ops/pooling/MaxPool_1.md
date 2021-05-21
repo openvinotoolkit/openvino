@@ -26,6 +26,14 @@
     * **Default value**: [1,1,...]
     * **Required**: *no*
 
+* *pads_value*
+
+    * **Description**: *pads_value* will be used to fill pixels added during padding. If not specified, the new pixels will be filled in with 0.
+    * **Range of values**: floating point values
+    * **Type**: float
+    * **Default value**: 0
+    * **Required**: *no*
+
 * *pads_begin*
 
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
