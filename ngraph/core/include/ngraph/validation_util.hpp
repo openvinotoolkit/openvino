@@ -231,19 +231,6 @@ namespace ngraph
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max);
 
-    /// \brief      Infers reduction operations output shape.
-    ///
-    /// \param[in] node              Node with convolution operation.
-    /// \param[in] data_ps           Partial shape of data input.
-    /// \param[in] axes_ps           Partial shape of axes input.
-    /// \param[in] keep_dims         Reduction operation keeps dimensions.
-    ///
-    /// \return Partial shape of the output.
-    PartialShape infer_reduction_output_shape(const Node* node,
-                                              const PartialShape& data_ps,
-                                              const PartialShape& axes_ps,
-                                              const bool keep_dims);
-
     /// \brief Try to compute the maximum value of value
     /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
     /// if not.

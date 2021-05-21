@@ -31,6 +31,13 @@ namespace ngraph
                 /// \param reduction_axes The axis positions (0-based) to be eliminated.
                 LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
+                /// \brief      Infers reduction operations output shape.
+                ///
+                /// \param[in] keep_dims    Reduction operation keeps dimensions.
+                ///
+                /// \return Partial shape of the output.
+                PartialShape infer_reduction_output_shape(const bool keep_dims);
+
             public:
                 NGRAPH_RTTI_DECLARATION;
                 void validate_and_infer_types() override;
