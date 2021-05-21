@@ -31,3 +31,26 @@ class TestNamesUniquenessCheck(unittest.TestCase):
             names.append(node.name)
 
         self.assertEqual(names, ref_names)
+
+    def test_2(self):
+        graph = build_graph(
+            nodes_attrs={
+                'input': {'kind': 'op', 'op': 'Parameter', 'name': 'node'},
+                'cast': {'kind': 'op', 'op': 'Cast', 'name': 'node_0'},
+                'result': {'kind': 'op', 'op': 'Result', 'name': 'node'}
+            },
+            edges=[
+                ('input', 'cast'),
+                ('cast', 'result')
+            ]
+        )
+
+        ref_names = ['node_0_0', 'node_0', 'node']
+
+        NamesUniquenessCheck().find_and_replace_pattern(graph)
+
+        names = []
+        for node in graph.get_op_nodes():
+            names.append(node.name)
+
+        self.assertEqual(names, ref_names)

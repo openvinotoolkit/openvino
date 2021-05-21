@@ -29,5 +29,9 @@ class NamesUniquenessCheck(BackReplacementPattern):
         if not_unique_names:
             for name in not_unique_names:
                 for idx, node in enumerate(names_dict[name]):
+                    new_node_name = name + '_{}'.format(idx)
+                    # preparing a new unique name for the node
+                    while new_node_name in names_dict.keys():
+                        new_node_name += '_{}'.format(idx)
                     if node.op is not "Result":
-                        rename_node(node, name + '_{}'.format(idx))
+                        rename_node(node, new_node_name)
