@@ -3,10 +3,10 @@
 //
 
 #include "ie_api_impl.hpp"
-#include "ie_plugin_config.hpp"
 
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
+#include "ie_plugin_config.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {

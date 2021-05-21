@@ -276,7 +276,8 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
 
     offsetPadding = 0;
     auto checkDims = [](size_t r_size, size_t e_size) {
-        if (r_size != e_size) IE_THROW() << "Dims and format are inconsistent.";
+        if (r_size != e_size)
+            IE_THROW() << "Dims and format are inconsistent.";
     };
     SizeVector l_order;
     SizeVector l_dims;
