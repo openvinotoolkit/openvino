@@ -14,7 +14,7 @@ nodes = {
 }
 
 
-class TestPadOps(unittest.TestCase):
+class TestOp(unittest.TestCase):
     def test_create_node(self):
         graph = build_graph(nodes, [('Op1', 'Op3', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('Op1', 'Op1')]}),
                                     ('Op2', 'Op3', {'in': 1, 'out': 0, 'fw_tensor_debug_info': [('Op2', 'Op2')]})])
