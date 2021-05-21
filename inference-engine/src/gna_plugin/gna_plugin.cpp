@@ -1001,8 +1001,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
 
 #if GNA_LIB_VER == 2
-        for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
-            auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
+        for (int j = 0; j != std::get<0>(gnaModels.front())->obj.gnaModel.NumberOfOperations; j++) {
+            auto & gnaOperation = std::get<0>(gnaModels[i])->obj.gnaModel.Operations[j];
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
 #else
@@ -1085,7 +1085,7 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
     }
     for (auto& model : gnaModels) {
         auto& gnaNnet = std::get<0>(model).get()->obj;
-        const auto modelId = gnadevice->createModel(gnaNnet);
+        const auto modelId = gnadevice->createModel(gnaNnet.gnaModel);
         const auto requestConfigId = gnadevice->createRequestConfig(modelId);
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
     }
@@ -1131,7 +1131,7 @@ void GNAPlugin::DumpXNNToFile() const {
     dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(intel_gna_model_header));
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
 #else
-    auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
+    auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj.gnaModel);
     if (versionInt == Gna2DeviceVersionEmbedded1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRWBytes();
@@ -1498,7 +1498,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 #endif
     GNAModelSerial::MemoryType  mt;
 #if GNA_LIB_VER == 2
-    auto serial = GNAModelSerial(&std::get<0>(gnaModels.back())->obj, mt);
+    auto serial = GNAModelSerial(&std::get<0>(gnaModels.back())->obj.gnaModel, mt);
 #else
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
@@ -1562,7 +1562,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
 #if GNA_LIB_VER == 2
-    trivialTopology = (std::get<0>(gnaModels.back())->obj.NumberOfOperations == 0);
+    trivialTopology = (std::get<0>(gnaModels.back())->obj.gnaModel.NumberOfOperations == 0);
     createRequestConfigsForGnaModels();
 #else
     trivialTopology = (std::get<0>(nnets.back())->obj.nLayers == 0);
@@ -1595,7 +1595,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
 #endif
     }
 #if GNA_LIB_VER == 2
-    Gna2Model* modelToSerial = &std::get<0>(gnaModels.front())->obj;
+    Gna2Model* modelToSerial = &std::get<0>(gnaModels.front())->obj.gnaModel;
 #else
     intel_nnet_type_t* modelToSerial = &std::get<0>(nnets.front())->obj;
 #endif
@@ -1618,8 +1618,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {
     if (gnaFlags->performance_counting) {
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        gnadevice->getGnaPerfCounters(perfMap);
+        auto perfMap = gnadevice->getGnaPerfCounters();
         return perfMap;
     } else {
         return {};

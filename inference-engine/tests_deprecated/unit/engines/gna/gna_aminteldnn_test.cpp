@@ -8,6 +8,7 @@
 #include <backend/am_intel_dnn.hpp>
 
 #include "gna_matcher.hpp"
+#include "gna_api_wrapper.hpp"
 
 using namespace testing;
 
@@ -15,7 +16,7 @@ class GNA_AmIntelDnn_test : public GNATest<> {
 protected:
     GNAPluginNS::backend::AMIntelDNN amIntelDnn;
 #if GNA_LIB_VER == 2
-    Gna2Model desc = {};
+    GNAPluginNS::Gna2ModelWithMeta desc = {};
 #else
     intel_nnet_type_t  desc = {};
 #endif
@@ -23,7 +24,7 @@ protected:
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
 #if GNA_LIB_VER == 2
-    desc.Operations = nullptr;
+    desc.gnaModel.Operations = nullptr;
 #else
     desc.pLayers = nullptr;
 #endif
@@ -46,7 +47,7 @@ TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_t_pLayersIsNotNullptr) {
 
 TEST_F(GNA_AmIntelDnn_test, ComponentIsEmpty) {
 #if GNA_LIB_VER == 2
-    desc.Operations = nullptr;
+    desc.gnaModel.Operations = nullptr;
 #else
     desc.pLayers = nullptr;
 #endif

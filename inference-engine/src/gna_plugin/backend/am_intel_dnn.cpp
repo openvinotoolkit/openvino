@@ -1395,10 +1395,11 @@ uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint3
 } // namespace
 
 #if GNA_LIB_VER == 2
-void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel) {
+void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2ModelWithMeta *gnaModelWithMeta) {
     Gna2Operation * gnaOperation;
-    if (gnaModel == nullptr)
+    if (gnaModelWithMeta == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
+    auto gnaModel = &gnaModelWithMeta->gnaModel;
     if (gnaModel->Operations != nullptr)
         THROW_GNA_EXCEPTION << "InitGNAStruct can't work on preallocated layers array";
 #else
@@ -1420,6 +1421,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
         THROW_GNA_EXCEPTION << "out of memory in GNAPluginNS::backend::AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
+    auto& gnaOperationMeta = gnaModelWithMeta->gnaModelMeta;
+    gnaOperationMeta.clear();
+    gnaOperationMeta.resize(gnaModel->NumberOfOperations);
 #else
     ptr_nnet->nLayers = CountLayers();
     ptr_nnet->nGroup = num_group_in();
@@ -1431,8 +1435,12 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
 #endif
     for (int i = 0; i < component.size(); i++) {
         // std::cout << "Component + " << i <<"=GNA_" << std::distance(ptr_nnet->pLayers, pLayer) << "\n";
+
 #if  GNA_LIB_VER == 2
         auto& comp = component[i];
+        const auto idx = std::distance(gnaModel->Operations, gnaOperation);
+        const auto compName = comp.original_layer_name != nullptr ? std::string{ comp.original_layer_name } : "UnnamedComp_" + std::to_string(i);
+        gnaOperationMeta[idx] += "[" + compName + "] ";
 #endif
         switch (component[i].operation) {
             case kDnnAffineOp:
@@ -1930,7 +1938,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
 #endif
 }
 #if  GNA_LIB_VER == 2
-void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
+void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2ModelWithMeta *gnaModelWithMeta) {
+    if (gnaModelWithMeta == nullptr) return;
+    auto gnaModel = &gnaModelWithMeta->gnaModel;
     if (gnaModel->Operations != nullptr) {
         for (int i = 0; i < gnaModel->NumberOfOperations; i++) {
             switch (gnaModel->Operations[i].Type) {

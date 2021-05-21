@@ -146,10 +146,10 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     }
 }
 
-std::vector<uint32_t> GNADeviceHelper::createModels(Gna2Model& gnaModel) const {
+std::vector<std::pair<uint32_t, std::string> > GNADeviceHelper::createModels(Gna2ModelWithMeta& gnaModelWithMeta) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     if (enforceLegacyCnnNeeded()) {
-        enforceLegacyCnns(gnaModel);
+        enforceLegacyCnns(gnaModelWithMeta.);
     }
 #if GNA_LIB_VER == 2 && defined MODEL_DUMP
     std::string path =
@@ -160,26 +160,26 @@ std::vector<uint32_t> GNADeviceHelper::createModels(Gna2Model& gnaModel) const {
 #endif
     DumpGna2Model(gnaModel, path, false);
 #endif
-    if (layerSplitMode) {
-        std::vector<uint32_t> modelsId(gnaModel.NumberOfOperations);
+    if (perLayerPerformanceMeasuring) {
+        std::vector<std::pair<uint32_t, std::string> > modelsId(gnaModelWithMeta..NumberOfOperations);
         for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
             Gna2Model singleLayerModel = { 1, gnaModel.Operations + i };
-            const auto status = Gna2ModelCreate(nGnaDeviceIndex, &singleLayerModel, &modelsId[i]);
+            const auto status = Gna2ModelCreate(nGnaDeviceIndex, &singleLayerModel, &modelsId[i].first);
             checkGna2Status(status, singleLayerModel, i);
+            modelsId[i].second = gnaModel[i].
         }
         return modelsId;
     }
-    std::vector<uint32_t> modelsId(1);
-    const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelsId[0]);
+    std::vector<std::pair<uint32_t, std::string> > modelsId(1);
+    const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelsId[0].first);
     checkGna2Status(status, gnaModel, 0);
     return modelsId;
 }
 
-
-uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) {
-    auto modelsIds = createModels(gnaModel);
+uint32_t GNADeviceHelper::createModel(Gna2ModelWithMeta& gnaModelWithMeta) {
+    auto modelsIds = createModels(gnaModelWithMeta);
     allGnaModelsIdsMap[modelsIds.front()] = modelsIds;
-    return modelsIds.front();
+    return modelsIds.front().first;
 }
 
 void GNADeviceHelper::releaseModel(const uint32_t modelIdIn) {
@@ -234,15 +234,16 @@ Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const 
     return parseDeclaredTarget(declared, execTarget);
 }
 #include <iostream>
-std::vector<uint32_t> GNADeviceHelper::createRequestConfigs(const std::vector<uint32_t>& modelsId) {
+std::vector<uint32_t> GNADeviceHelper::createRequestConfigs(const std::vector<std::pair<uint32_t, std::string>>& modelsIdAndName) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    std::vector<uint32_t> reqConfIds( modelsId.size() );
-    perLayerPerfCounters.resize(modelsId.size());
+    const auto numberOfParts = modelsIdAndName.size();
+    std::vector<uint32_t> reqConfIds(numberOfParts);
+    partialPerformanceResults.resize(numberOfParts);
 
     const auto consistentDevice = getTargetDevice(true);
 
-    for (size_t i = 0; i < modelsId.size(); i++) {
-        const auto& modelId = modelsId[i];
+    for (size_t i = 0; i < numberOfParts; i++) {
+        const auto& modelId = modelsIdAndName[i].first;
         auto status = Gna2RequestConfigCreate(modelId, &reqConfIds[i]);
         checkGna2Status(status, "Gna2RequestConfigCreate");
 
@@ -254,7 +255,8 @@ std::vector<uint32_t> GNADeviceHelper::createRequestConfigs(const std::vector<ui
             checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
         }
         std::cout << "Gna2RequestConfigEnableHardwareConsistency " << reqConfIds[i] << std::endl;
-        initAndAssignGnaPerfCounters("GNA_LN_" + std::to_string(modelId), reqConfIds[i], perLayerPerfCounters[i]);
+        const auto partName = "GNA model part " + std::to_string(i + 1) + "/" + std::to_string(numberOfParts);
+        initAndAssignGnaPerfCounters(partName, reqConfIds[i], partialPerformanceResults[i]);
     }
     return reqConfIds;
 }
@@ -266,8 +268,8 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelId) {
     return requestsConfigs.front();
 }
 
-void GNADeviceHelper::initAndAssignGnaPerfCounters(const std::string& layerName, const uint32_t requestConfigId, SingleGnaPerf & pc) {
-    pc.layerName = layerName;
+void GNADeviceHelper::initAndAssignGnaPerfCounters(const std::string& partName, const uint32_t requestConfigId, SingleGnaPerf & pc) {
+    pc.graphPartName = partName;
     auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
         gna2InstrumentationPoints,
         pc.perfData.data(),
@@ -626,7 +628,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
 }
 #endif
 
-void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNADeviceHelper::getGnaPerfCounters() {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounters;
     InferenceEngine::InferenceEngineProfileInfo info;
     info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
     info.cpu_uSec = 0;
@@ -635,22 +638,16 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     // Hardware
 #if GNA_LIB_VER == 1
     info.realTime_uSec = nGNAPerfResultsTotal.hw.total;
-    retPerfCounters["1.1 Total scoring time in HW"] = info;
+    perfCounters["1.1 Total scoring time in HW"] = info;
     info.realTime_uSec = nGNAPerfResultsTotal.hw.stall;
-    retPerfCounters["1.2 Stall scoring time in HW"] = info;
+    perfCounters["1.2 Stall scoring time in HW"] = info;
 #else
-    if (layerSplitMode) {
-        for (const auto& x : perLayerPerfCounters) {
-            info.realTime_uSec = x.perfData[0];
-            retPerfCounters["1.1 Total scoring time in HW " + x.layerName] = info;
-            info.realTime_uSec = x.perfData[1];
-            retPerfCounters["1.2 Stall scoring time in HW " + x.layerName] = info;
-        }
-    } else {
-        info.realTime_uSec = perLayerPerfCounters.front().perfData[0];
-        retPerfCounters["1.1 Total scoring time in HW"] = info;
-        info.realTime_uSec = perLayerPerfCounters.front().perfData[1];
-        retPerfCounters["1.2 Stall scoring time in HW"] = info;
+    for (const auto& partPerformance : partialPerformanceResults) {
+        info.realTime_uSec = partPerformance.perfData[0];
+        perfCounters["1.1 Total scoring time in HW (" + partPerformance.graphPartName + ")"] = info;
+        info.realTime_uSec = partPerformance.perfData[1];
+        perfCounters["1.2 Stall scoring time in HW (" + partPerformance.graphPartName + ")"] = info;
     }
 #endif
+    return perfCounters;
 }

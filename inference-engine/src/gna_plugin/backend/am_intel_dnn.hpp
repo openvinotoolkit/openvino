@@ -12,6 +12,7 @@
 #include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
+#include "gna_api_wrapper.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -303,8 +304,8 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
-    void DestroyGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2ModelWithMeta *gnaModel);
+    void DestroyGNAStruct(Gna2ModelWithMeta*gnaModel);
 #else
 
     void InitGNAStruct(intel_nnet_type_t *ptr_nnet);

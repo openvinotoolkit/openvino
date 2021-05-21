@@ -28,14 +28,19 @@ class CPPWrapper {
 };
 
 #if GNA_LIB_VER == 2
+struct Gna2ModelWithMeta {
+    Gna2Model gnaModel;
+    std::vector<std::string> gnaModelMeta;
+};
+
 template <>
 class CPPWrapper<Gna2Model> {
  public:
-     Gna2Model obj;
+     Gna2ModelWithMeta obj;
 
     CPPWrapper() {
-        obj.NumberOfOperations = 0;
-        obj.Operations = nullptr;
+        obj.gnaModel.NumberOfOperations = 0;
+        obj.gnaModel.Operations = nullptr;
     }
 
     /**
@@ -46,36 +51,36 @@ class CPPWrapper<Gna2Model> {
         if (n == 0) {
             THROW_GNA_EXCEPTION << "Can't allocate array of intel_nnet_layer_t objects of zero length";
         }
-        obj.Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(n * sizeof(Gna2Operation)));
-        if (obj.Operations == nullptr) {
+        obj.gnaModel.Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(n * sizeof(Gna2Operation)));
+        if (obj.gnaModel.Operations == nullptr) {
             THROW_GNA_EXCEPTION << "out of memory in while allocating "<< n << " GNA layers";
         }
-        obj.NumberOfOperations = n;
-        for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {
-            obj.Operations[i].Type = Gna2OperationTypeNone;
-            obj.Operations[i].Operands = nullptr;
-            obj.Operations[i].NumberOfOperands = 0;
-            obj.Operations[i].Parameters = nullptr;
-            obj.Operations[i].NumberOfParameters = 0;
+        obj.gnaModel.NumberOfOperations = n;
+        for (uint32_t i = 0; i < obj.gnaModel.NumberOfOperations; i++) {
+            obj.gnaModel.Operations[i].Type = Gna2OperationTypeNone;
+            obj.gnaModel.Operations[i].Operands = nullptr;
+            obj.gnaModel.Operations[i].NumberOfOperands = 0;
+            obj.gnaModel.Operations[i].Parameters = nullptr;
+            obj.gnaModel.Operations[i].NumberOfParameters = 0;
         }
     }
     ~CPPWrapper() {
-        if (obj.Operations != nullptr) {
-            for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {
-                freeGna2Operation(obj.Operations[i]);
+        if (obj.gnaModel.Operations != nullptr) {
+            for (uint32_t i = 0; i < obj.gnaModel.NumberOfOperations; i++) {
+                freeGna2Operation(obj.gnaModel.Operations[i]);
             }
-            gnaUserFree(obj.Operations);
-            obj.Operations = nullptr;
+            gnaUserFree(obj.gnaModel.Operations);
+            obj.gnaModel.Operations = nullptr;
         }
-        obj.NumberOfOperations = 0;
+        obj.gnaModel.NumberOfOperations = 0;
     }
-    Gna2Model * operator ->() {
+    Gna2ModelWithMeta* operator ->() {
         return &obj;
     }
-    Gna2Model * operator *() {
+    Gna2ModelWithMeta* operator *() {
         return &obj;
     }
-    operator Gna2Model &() {
+    operator Gna2ModelWithMeta&() {
         return *this;
     }
 };
