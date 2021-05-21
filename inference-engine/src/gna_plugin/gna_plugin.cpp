@@ -1349,18 +1349,17 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto & outputDesc = outputsDesc[output_idx];
         if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
             outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
-            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW && outputBlob->getTensorDesc().getLayout() != Layout::SCALAR) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
 
         auto dims = outputBlob->getTensorDesc().getDims();
         auto is1D = outputBlob->getTensorDesc().getLayout() == Layout::C;
+        auto isScalar = outputBlob->getTensorDesc().getLayout() == Layout::SCALAR;
         auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
-        auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
-        auto batchSize = (is1D || is3D) ? 1 : exportOutputDims[0];
-        auto elementsPerBatch = is1D ? exportOutputDims.front() :
-            details::product(++std::begin(exportOutputDims), std::end(exportOutputDims));
+        auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
+        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
         if (transpose_output_info != std::end(transpose_outputs_info) && FoundPartToTranspose(transpose_output_info->second)) {
@@ -1400,11 +1399,15 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             }
             num_infers++;
             if (f) {
-                for (int i = 0; i < batchSize; i++) {
-                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                        fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                if (isScalar) {
+                    fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[0]);
+                } else {
+                    for (int i = 0; i < batchSize; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
                     }
-                    fprintf(f, "\n");
                 }
                 fprintf(f, "\n\n");
             }
@@ -1416,12 +1419,16 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 outputDesc.scale_factor);
 #ifdef PLOT
             if (f) {
-                auto dims = outputBlob->getTensorDesc().getDims();
-                for (int i = 0; i < batchSize; i++) {
-                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                        fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                if (isScalar) {
+                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[0]);
+                } else {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < batchSize; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
                     }
-                    fprintf(f, "\n");
                 }
                 fclose(f);
             }
@@ -1457,6 +1464,7 @@ bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::Bl
 
 static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {
     switch (dims.size()) {
+    case 0: return SCALAR;
     case 1: return C;
     case 2: return NC;
     case 3: return CHW;

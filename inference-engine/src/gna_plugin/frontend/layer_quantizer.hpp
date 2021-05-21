@@ -336,12 +336,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
-    if (wl->outData[0]->getDims().size() < 2) {
-        IE_THROW() << "Unsupported output dims size for " << wl->name <<", should be > 1, but " << wl->outData[0]->getDims().size();
-    }
-    if (wl->insData[0].lock().get()->getDims().size() < 2) {
-        IE_THROW() << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
-    }
+
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
     uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
 

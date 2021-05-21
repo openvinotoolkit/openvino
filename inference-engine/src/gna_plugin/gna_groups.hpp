@@ -33,11 +33,12 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
     }
 
     size_t newDimsSize = (dims.size() > 1) ? dims.size() : 2;
+    InferenceEngine::Layout new_layout = (dims.size() > 1) ? input->getLayout() : InferenceEngine::Layout::NC;
     InferenceEngine::SizeVector newDims(newDimsSize, 1);
     newDims[0] = numColumnsIn;
     newDims[1] = numRowsIn;
     return std::make_shared<InferenceEngine::Data>(input->getName(),
-        InferenceEngine::TensorDesc(input->getPrecision(), newDims, input->getLayout()));
+        InferenceEngine::TensorDesc(input->getPrecision(), newDims, new_layout));
 }
 
 /**

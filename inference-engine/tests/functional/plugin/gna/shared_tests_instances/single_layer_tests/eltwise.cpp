@@ -10,13 +10,13 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
+        {{2}},
+        {{8}},
         {{1, 200}},
-        // TODO: Issue 32544
-        // {{2}},
         {{1, 1, 1, 3}},
-        // {{1, 2, 4}},
-        // {{1, 4, 4}},
-        // {{1, 4, 4, 1}}
+        {{1, 2, 4}},
+        {{1, 4, 4}},
+        {{1, 4, 4, 1}}
 };
 
 

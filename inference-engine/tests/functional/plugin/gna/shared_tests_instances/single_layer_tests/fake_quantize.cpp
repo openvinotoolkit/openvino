@@ -47,6 +47,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
             {1, 8, 8, 256},
             {1, 2, 2, 2},
             {1, 3, 4, 5},
+            {8}
             };
 const std::vector<std::vector<size_t>> constShapes = {{1}};
 const std::vector<size_t> levels = {16, 255, 256};
