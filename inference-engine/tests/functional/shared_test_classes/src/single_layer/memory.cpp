@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"
