@@ -20,12 +20,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_extension.h"
-
-namespace ngraph {
-
-class Function;
-
-}  // namespace ngraph
+#include <ngraph/ngraph.hpp>
 
 namespace InferenceEngine {
 

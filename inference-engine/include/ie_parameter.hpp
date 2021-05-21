@@ -20,12 +20,7 @@
 #include <vector>
 
 #include "ie_blob.h"
-
-namespace ngraph {
-
-class Variant;
-
-}  // namespace ngraph
+#include <ngraph/ngraph.hpp>
 
 namespace InferenceEngine {
 
