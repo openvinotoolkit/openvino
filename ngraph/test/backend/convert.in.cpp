@@ -351,10 +351,31 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_f32)
     ConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-// destination: f64
-// not supported by IE, hence no tests
-
 // destination: i4
+NGRAPH_TEST(${BACKEND_NAME}, convert_u1_to_i4)
+{
+    const std::vector<uint8_t> input{0xA0};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u1;
+
+    const std::vector<uint8_t> expected_output{0x10, 0x10};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u4_to_i4)
+{
+    const std::vector<uint8_t> input{0x12, 0x03};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u4;
+
+    const std::vector<uint8_t> expected_output{0x12, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i4)
 {
     const std::vector<uint8_t> input{1, 2, 0, 3};
@@ -364,19 +385,127 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_i4)
     const std::vector<uint8_t> expected_output{0x12, 0x03};
     const element::Type expected_output_type = ngraph::element::i4;
 
-    {
-        const auto f = CreateFunction(input_shape, input_type, expected_output_type);
-        auto backend = runtime::Backend::create("${BACKEND_NAME}");
-        auto input_tesnor = backend->create_tensor(input_type, input_shape);
-        copy_data(input_tesnor, input);
-        auto output = backend->create_tensor(expected_output_type, input_shape);
-        auto handle = backend->compile(f);
-        handle->call_with_validate({output}, {input_tesnor});
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
 
-        std::vector<uint8_t> result(expected_output.size());
-        output->read(result.data(), result.size() * sizeof(uint8_t));
-        EXPECT_TRUE(test::all_close(expected_output, result));
-    }
+NGRAPH_TEST(${BACKEND_NAME}, convert_u16_to_i4)
+{
+    const std::vector<uint16_t> input{1, 2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u16;
+
+    const std::vector<uint8_t> expected_output{0x12, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u32_to_i4)
+{
+    const std::vector<uint32_t> input{1, 2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u32;
+
+    const std::vector<uint8_t> expected_output{0x12, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u64_to_i4)
+{
+    const std::vector<uint64_t> input{1, 2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u64;
+
+    const std::vector<uint8_t> expected_output{0x12, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i8_to_i4)
+{
+    const std::vector<int8_t> input{-1, -2, 2, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i8;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x23};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i16_to_i4)
+{
+    const std::vector<int16_t> input{-1, -2, 2, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i16;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x23};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i32_to_i4)
+{
+    const std::vector<int32_t> input{-1, -2, 2, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i32;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x23};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i64_to_i4)
+{
+    const std::vector<int64_t> input{-1, -2, 2, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i64;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x23};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f16_to_i4)
+{
+    const std::vector<float16> input{-1, -2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::f16;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_to_i4)
+{
+    const std::vector<bfloat16> input{-1, -2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::bf16;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_i4)
+{
+    const std::vector<float> input{-1, -2, 0, 3};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::f32;
+
+    const std::vector<uint8_t> expected_output{0xFE, 0x03};
+    const element::Type expected_output_type = ngraph::element::i4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
 // destination: i8
@@ -468,6 +597,42 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u1)
     LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, convert_u16_to_u1)
+{
+    const std::vector<uint16_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::u16;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u32_to_u1)
+{
+    const std::vector<uint32_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::u32;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u64_to_u1)
+{
+    const std::vector<uint64_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::u64;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_u1)
 {
     const std::vector<uint8_t> input{0x10, 0x01, 0x00, 0x00};
@@ -475,6 +640,90 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_u1)
     const element::Type input_type = ngraph::element::u4;
 
     const std::vector<uint8_t> expected_output{0x90};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i8_to_u1)
+{
+    const std::vector<int8_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::i8;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i16_to_u1)
+{
+    const std::vector<int16_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::i16;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i32_to_u1)
+{
+    const std::vector<int32_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::i32;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i64_to_u1)
+{
+    const std::vector<int64_t> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::i64;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f16_to_u1)
+{
+    const std::vector<float16> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::f16;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_to_u1)
+{
+    const std::vector<bfloat16> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::bf16;
+
+    const std::vector<uint8_t> expected_output{0xA1};
+    const element::Type expected_output_type = ngraph::element::u1;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_u1)
+{
+    const std::vector<float> input{1, 0, 1, 0, 0, 0, 0, 1};
+    const Shape input_shape{8};
+    const element::Type input_type = ngraph::element::f32;
+
+    const std::vector<uint8_t> expected_output{0xA1};
     const element::Type expected_output_type = ngraph::element::u1;
 
     LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
@@ -505,12 +754,47 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_u4_to_u4)
     LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, convert_u8_to_u4)
 {
     const std::vector<uint8_t> input{7, 0, 1, 15};
     const Shape input_shape{4};
     const element::Type input_type = ngraph::element::u8;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u16_to_u4)
+{
+    const std::vector<uint16_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u16;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u32_to_u4)
+{
+    const std::vector<uint32_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u32;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_u64_to_u4)
+{
+    const std::vector<uint64_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::u64;
 
     const std::vector<uint8_t> expected_output{0x70, 0x1F};
     const element::Type expected_output_type = ngraph::element::u4;
@@ -525,6 +809,90 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_i4_to_u4)
     const element::Type input_type = ngraph::element::i4;
 
     const std::vector<uint8_t> expected_output{0x22, 0x33};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i8_to_u4)
+{
+    const std::vector<int8_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i8;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i16_to_u4)
+{
+    const std::vector<int16_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i16;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i32_to_u4)
+{
+    const std::vector<int32_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i32;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_i64_to_u4)
+{
+    const std::vector<int64_t> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::i64;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f16_to_u4)
+{
+    const std::vector<float16> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::f16;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_bf16_to_u4)
+{
+    const std::vector<bfloat16> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::bf16;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
+    const element::Type expected_output_type = ngraph::element::u4;
+
+    LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_f32_to_u4)
+{
+    const std::vector<float> input{7, 0, 1, 15};
+    const Shape input_shape{4};
+    const element::Type input_type = ngraph::element::f32;
+
+    const std::vector<uint8_t> expected_output{0x70, 0x1F};
     const element::Type expected_output_type = ngraph::element::u4;
 
     LPConvertTest(input, input_shape, input_type, expected_output, expected_output_type);
