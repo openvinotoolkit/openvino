@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-# Objects from xml.etree.ElementTree are imported to modify XML and aren't used to parse.
-from xml.etree.ElementTree import Element, SubElement, tostring  # nosec
 
 from defusedxml import defuse_stdlib
-from defusedxml.ElementTree import parse
+import defusedxml.ElementTree as ET
 from defusedxml.minidom import parseString
 
 from mo.graph.graph import *
@@ -15,9 +13,7 @@ from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
-# To reduce a risk of xml.etree.ElementTree objects to be used to parse XML in future development
-# defusedxml.defuse_stdlib() is called to patch xml library with safe methods.
-defuse_stdlib()
+ET_defused = defuse_stdlib()[ET]
 
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
@@ -110,9 +106,9 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
         return mean_offset, mean_size
 
 
-def xml_shape(shape: np.ndarray, element: Element):
+def xml_shape(shape: np.ndarray, element: ET_defused.Element):
     for d in shape:
-        dim = SubElement(element, 'dim')
+        dim = ET_defused.SubElement(element, 'dim')
         if d < 0:
             raise Error('The value "{}" for shape is less 0. May be the input shape of the topology is '
                         'wrong.'.format(d))
@@ -124,14 +120,14 @@ def xml_shape(shape: np.ndarray, element: Element):
         dim.text = str(d)
 
 
-def xml_ports(node: Node, element: Element, edges: Element):
+def xml_ports(node: Node, element: ET_defused.Element, edges: ET_defused.Element):
     # input ports
     inputs = None  # will create input section only if at least one input is available
     for u, d in node.get_sorted_inputs():
         if 'bin' not in d and ('xml_skip' not in d or not d['xml_skip']):
             if inputs is None:
-                inputs = SubElement(element, 'input')
-            port = SubElement(inputs, 'port')
+                inputs = ET_defused.SubElement(element, 'input')
+            port = ET_defused.SubElement(inputs, 'port')
             port.set('id', str(d['in']))
             assert node.graph.node[u]['shape'] is not None, 'Input shape is not calculated properly for node {}'.format(
                 node.id)
@@ -142,7 +138,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
             assert (len(in_nodes) <= 1)
             if len(in_nodes) == 1:
                 src, _, out_attrs = in_nodes[0]
-                edge = SubElement(edges, 'edge')
+                edge = ET_defused.SubElement(edges, 'edge')
                 edge.set('from-layer', str(src))
                 edge.set('from-port', str(out_attrs['out']))
                 edge.set('to-layer', str(node.node))
@@ -154,8 +150,8 @@ def xml_ports(node: Node, element: Element, edges: Element):
     for v, d in node.get_sorted_outputs():
         if 'xml_skip' not in d or not d['xml_skip']:
             if outputs is None:
-                outputs = SubElement(element, 'output')
-            port = SubElement(outputs, 'port')
+                outputs = ET_defused.SubElement(element, 'output')
+            port = ET_defused.SubElement(outputs, 'port')
             port.set('id', str(d['out']))
             # we need to check operation type, if it is const op, we don't renumber out ports
             # because they are already counted from zero
@@ -173,13 +169,13 @@ def xml_ports(node: Node, element: Element, edges: Element):
             xml_shape(node.graph.node[v]['shape'], port)
 
 
-def xml_consts(graph: Graph, node: Node, element: Element):
+def xml_consts(graph: Graph, node: Node, element: ET_defused.Element):
     blobs = None  # sub-element that will be created on-demand
     for u, d in node.get_sorted_inputs():
         if 'bin' in d and (node.type != 'Const'):
             if not blobs:
-                blobs = SubElement(element, 'blobs')
-            const = SubElement(blobs, d['bin'])
+                blobs = ET_defused.SubElement(element, 'blobs')
+            const = ET_defused.SubElement(blobs, d['bin'])
             try:
                 const.set('offset', str(graph.node[u]['offset']))
                 const.set('size', str(graph.node[u]['size']))
@@ -198,11 +194,11 @@ def serialize_element(
         graph: Graph,
         node,
         schema: list,
-        parent_element: Element,
-        edges: Element,
+        parent_element: ET_defused.Element,
+        edges: ET_defused.Element,
         unsupported):
     name, attrs, subelements = schema
-    element = SubElement(parent_element, name)
+    element = ET_defused.SubElement(parent_element, name)
     for attr in attrs:
         if isinstance(attr, tuple):
             key = attr[0]
@@ -249,8 +245,8 @@ def serialize_node_attributes(
         graph: Graph,  # the current network graph
         node,  # dictionary-like object that should be serialized
         schema: list,
-        parent_element: Element,
-        edges: Element,
+        parent_element: ET_defused.Element,
+        edges: ET_defused.Element,
         unsupported):
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
     # model-optimizer/extensions/back/TopKNormalizer.py
@@ -287,16 +283,16 @@ def serialize_node_attributes(
         ) from e
 
 
-def create_pre_process_block_for_image(net: Element, ref_layer_names: list, mean_offset: tuple,
+def create_pre_process_block_for_image(net: ET_defused.Element, ref_layer_names: list, mean_offset: tuple,
                                        mean_size: tuple):
-    pre_process = SubElement(net, 'pre-process')
+    pre_process = ET_defused.SubElement(net, 'pre-process')
     pre_process.set('mean-precision', 'FP32')  # TODO: to think about need to output FP16 mean values
     # TODO: extend it for several inputs
     pre_process.set('reference-layer-name', ref_layer_names[0])
     for idx in range(len(mean_size)):
-        channel_xml = SubElement(pre_process, 'channel')
+        channel_xml = ET_defused.SubElement(pre_process, 'channel')
         channel_xml.set('id', str(idx))
-        mean_xml = SubElement(channel_xml, 'mean')
+        mean_xml = ET_defused.SubElement(channel_xml, 'mean')
         mean_xml.set('offset', str(mean_offset[idx]))
         mean_xml.set('size', str(mean_size[idx]))
 
@@ -313,18 +309,18 @@ def create_pre_process_block(net, ref_layer_name, means, scales=None):
     Returns:
         pre-process XML element
     """
-    pre_process = SubElement(net, 'pre-process')
+    pre_process = ET_defused.SubElement(net, 'pre-process')
     pre_process.set('reference-layer-name', ref_layer_name)
 
     for idx in range(len(means)):
-        channel_xml = SubElement(pre_process, 'channel')
+        channel_xml = ET_defused.SubElement(pre_process, 'channel')
         channel_xml.set('id', str(idx))
 
-        mean_xml = SubElement(channel_xml, 'mean')
+        mean_xml = ET_defused.SubElement(channel_xml, 'mean')
         mean_xml.set('value', str(means[idx]))
 
         if scales:
-            scale_xml = SubElement(channel_xml, 'scale')
+            scale_xml = ET_defused.SubElement(channel_xml, 'scale')
             scale_xml.set('value', str(scales[idx]))
 
     return pre_process
@@ -332,45 +328,45 @@ def create_pre_process_block(net, ref_layer_name, means, scales=None):
 
 def add_quantization_statistics(graph, net_element):
     if 'statistics' in graph.graph:
-        stats = SubElement(net_element, 'statistics')
+        stats = ET_defused.SubElement(net_element, 'statistics')
         for tensor, interval in graph.graph['statistics'].items():
-            layer = SubElement(stats, 'layer')
-            name = SubElement(layer, 'name')
+            layer = ET_defused.SubElement(stats, 'layer')
+            name = ET_defused.SubElement(layer, 'name')
             name.text = tensor
-            min = SubElement(layer, 'min')
+            min = ET_defused.SubElement(layer, 'min')
             min.text = interval['min']
-            max = SubElement(layer, 'max')
+            max = ET_defused.SubElement(layer, 'max')
             max.text = interval['max']
         log.info('Statistics were inserted to IR')
 
 
-def add_quantization_info_section(net: Element, meta_info: dict):
+def add_quantization_info_section(net: ET_defused.Element, meta_info: dict):
     if 'quantization_parameters' in meta_info:
         parameters = meta_info['quantization_parameters']
-        quant_params = SubElement(net, 'quantization_parameters')
+        quant_params = ET_defused.SubElement(net, 'quantization_parameters')
 
-        config = SubElement(quant_params, 'config')
+        config = ET_defused.SubElement(quant_params, 'config')
         config.text = parameters['config']
 
-        version = SubElement(quant_params, 'version')
+        version = ET_defused.SubElement(quant_params, 'version')
         version.set('value', parameters['version'])
 
-        cli_params = SubElement(quant_params, 'cli_params')
+        cli_params = ET_defused.SubElement(quant_params, 'cli_params')
         cli_params.set('value', parameters['cli_params'])
 
 
-def add_meta_data(net: Element, meta_info: dict):
-    meta = SubElement(net, 'meta_data')
-    SubElement(meta, 'MO_version').set('value', get_version())
-    parameters = SubElement(meta, 'cli_parameters')
-    [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
+def add_meta_data(net: ET_defused.Element, meta_info: dict):
+    meta = ET_defused.SubElement(net, 'meta_data')
+    ET_defused.SubElement(meta, 'MO_version').set('value', get_version())
+    parameters = ET_defused.SubElement(meta, 'cli_parameters')
+    [ET_defused.SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
      key not in ('unset', 'quantization_parameters')]
-    SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
+    ET_defused.SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
 def serialize_network(graph, net_element, unsupported):
-    layers = SubElement(net_element, 'layers')
-    edges = SubElement(net_element, 'edges')
+    layers = ET_defused.SubElement(net_element, 'layers')
+    edges = ET_defused.SubElement(net_element, 'edges')
     if graph is None:
         return
     nodes = sorted(graph.nodes())
@@ -405,7 +401,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
         mean_offset: offset in binary file, where mean file values start
         mean_size: size of the mean file
     """
-    net = Element('net')
+    net = ET_defused.Element('net')
     net.set('name', graph.name)
     net.set('version', str((graph.graph['ir_version'])))
 
@@ -422,7 +418,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     add_quantization_statistics(graph, net)
     add_meta_data(net, meta_info)
     add_quantization_info_section(net, meta_info)
-    xml_string = tostring(net)
+    xml_string = ET_defused.tostring(net)
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
@@ -451,7 +447,7 @@ def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] 
     path_to_xml = file + ".xml"
     path_to_bin = file + ".bin"
 
-    et = parse(path_to_xml)
+    et = ET.parse(path_to_xml)
     net = et.getroot()
 
     if mean_data:
@@ -466,6 +462,6 @@ def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] 
         if elem.tail:
             elem.tail = elem.tail.strip()
 
-    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
+    pretty_xml_as_string = parseString(ET_defused.tostring(net)).toprettyxml()
     with open(path_to_xml, 'wb') as file:
         file.write(bytes(pretty_xml_as_string, "UTF-8"))
