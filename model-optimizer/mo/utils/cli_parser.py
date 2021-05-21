@@ -1234,12 +1234,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1252,7 +1255,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)
