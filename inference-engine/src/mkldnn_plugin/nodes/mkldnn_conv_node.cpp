@@ -17,6 +17,7 @@
 #include <utils/general_utils.h>
 #include <ngraph/ops.hpp>
 #include <cpu/x64/jit_generator.hpp>
+#include "common/cpu_convert.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -47,21 +48,6 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
-    }
-
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        if (!withBiases)
-            return MKLDNNMemoryDesc();
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
-    });
-
-    if (!implPriorities.empty()) {
-        isPrimitivesPriorityDefined = true;
-        isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end();
-        isWino &= mkldnn::impl::cpu::x64::mayiuse(mkldnn::impl::cpu::x64::avx512_common);
     }
 
     auto convolutionOp = ngraph::as_type_ptr<ngraph::op::v1::Convolution>(op);
@@ -145,11 +131,27 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    // winograd support only constant weights and bias
-    isWino &= getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Input &&
-              (getOriginalInputsNumber() > 2 ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Input) : true);
-
     withBiases = getOriginalInputsNumber() == 3;
+
+    if (!implPriorities.empty()) {
+        isPrimitivesPriorityDefined = true;
+        // winograd support only constant weights and bias
+        isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end() &&
+                 mkldnn::impl::cpu::x64::mayiuse(mkldnn::impl::cpu::x64::avx512_common) && !canBeExecutedInInt8() &&
+                 getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Input &&
+                 (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Input) : true);
+    }
+
+    if (isWinograd()) {
+        internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
+            return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
+        });
+        internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
+            if (!withBiases)
+                return MKLDNNMemoryDesc();
+            return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
+        });
+    }
 
     withSum = false;
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -167,6 +169,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
     }
 
+    // we can't convert winograd memory descriptor to TensorDesc, so we removed weight and bias edges and put data into internalBlobs
     if (isWinograd()) {
         std::vector<MKLDNNEdgePtr> edgesToRemove;
         internalBlobs.push_back(createInternalBlob(weightDims, 1, isGrouped));
@@ -862,6 +865,30 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
     }
 
     return true;
+}
+
+InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped) {
+    const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(edgeNum)->getParent());
+    if (!constNode) {
+        IE_THROW() << "Cannot cast " << edgeNum << " input to Input node for " << getName() << ".";
+    }
+    InferenceEngine::Blob::CPtr blb = constNode->getConstBlob();
+    if (blb == nullptr)
+        IE_THROW() << "Cannot get const blob for node " << getName() << ".";
+
+    InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, dims, getWeightsLayoutByDims(dims, isGrouped));
+
+    Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
+    internalBlob->allocate();
+
+    if (internalBlob->size() != blb->size()) {
+        IE_THROW() << "Created internal blob and const blob has different size for node: " << getName() << ".";
+    }
+
+    cpu_convert(blb->cbuffer(), internalBlob->buffer(), blb->getTensorDesc().getPrecision(), internalBlob->getTensorDesc().getPrecision(),
+                internalBlob->size());
+
+    return internalBlob;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);

@@ -756,54 +756,6 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     selectedPD->getConfig() = rightConfig;
 }
 
-InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped) {
-    auto checkSize = [](size_t dst_size, size_t src_size) {
-        if (dst_size < src_size) {
-            IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
-        }
-    };
-
-    const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(edgeNum)->getParent());
-    if (!constNode) {
-        IE_THROW() << "Cannot cast " << edgeNum << " input to Input node for " << getName() << ".";
-    }
-    InferenceEngine::Blob::CPtr blb = constNode->getConstBlob();
-
-    if (blb == nullptr)
-        IE_THROW() << "Cannot get internal blob layer for node " << getName() << ".";
-
-    auto intLayout = getWeightsLayoutByDims(dims, isGrouped);
-
-    InferenceEngine::TensorDesc desc(blb->getTensorDesc().getPrecision(), dims, intLayout);
-
-    auto fillInternalBlob = [&](char *data, size_t intBuffSize) {
-        size_t offset = blb->byteSize();
-        checkSize(intBuffSize, offset);
-        cpu_memcpy_s(data, intBuffSize, blb->cbuffer(), blb->byteSize());
-        data += blb->byteSize();
-    };
-
-    Blob::Ptr internalBlob;
-    if (blb->getTensorDesc().getPrecision() == Precision::BIN) {
-        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
-    } else if (blb->getTensorDesc().getPrecision() == Precision::I8) {
-        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
-    } else if (blb->getTensorDesc().getPrecision() == Precision::I32) {
-        internalBlob = InferenceEngine::make_shared_blob<int32_t>(desc);
-    } else if (blb->getTensorDesc().getPrecision() == Precision::BF16) {
-        internalBlob = InferenceEngine::make_shared_blob<int16_t>(desc);
-    } else {
-        internalBlob = InferenceEngine::make_shared_blob<float>(desc);
-    }
-    internalBlob->allocate();
-    char *data = internalBlob->buffer();
-    size_t intBuffSize = internalBlob->byteSize();
-
-    fillInternalBlob(data, intBuffSize);
-
-    return internalBlob;
-}
-
 void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
