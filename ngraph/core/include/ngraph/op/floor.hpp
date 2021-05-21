@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API Floor : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Floor", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a floor operation.
                 Floor() = default;
                 /// \brief Constructs a floor operation.

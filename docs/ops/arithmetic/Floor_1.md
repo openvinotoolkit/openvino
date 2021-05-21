@@ -2,31 +2,31 @@
 
 **Versioned name**: *Floor-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Floor* performs element-wise floor operation with given tensor.
 
-**Attributes**:
+**Detailed description**: For each element from the input tensor calculates corresponding
+element in the output tensor with the following formula:
 
-    No attributes available.
+\f[
+a_{i} = floor(a_{i})
+\f]
+
+**Attributes**: *Floor* operation has no attributes.
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise floor operation. A tensor of type T.
+* **1**: The result of element-wise floor operation. A tensor of type *T*.
 
 **Types**
 
 * *T*: any numeric type.
 
-*Floor* does the following with the input tensor *a*:
-
-\f[
-a_{i} = floor(a_{i})
-\f]
 
 **Examples**
 
