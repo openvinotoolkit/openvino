@@ -37,19 +37,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
-
-    auto avgPool = std::make_shared<opset1::AvgPool>(
-        fqOnData.empty() ? input : fakeQuantizeOnActivations,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
-    avgPool->set_friendly_name("avgPool");
-
     auto maxPool = std::make_shared<opset1::MaxPool>(
-        avgPool,
+        fqOnData.empty() ? input : fakeQuantizeOnActivations,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
