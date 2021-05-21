@@ -1125,6 +1125,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         runtime::reference::fft(info.input_data.data(),
@@ -1146,6 +1147,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         runtime::reference::fft(info.input_data.data(),
@@ -1620,7 +1622,6 @@ namespace
             break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
 
@@ -2419,13 +2420,13 @@ namespace
         NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
                         "2D tensor must be provided as second input. ");
         outputs[0]->set_shape({inputs[1]->get_shape()[0],
-                               static_cast<size_t>(op->get_output_dim()), 
-                               static_cast<size_t>(op->get_group_size()), 
+                               static_cast<size_t>(op->get_output_dim()),
+                               static_cast<size_t>(op->get_group_size()),
                                static_cast<size_t>(op->get_group_size())});
 
         const bool has_offset_intput = inputs.size() == 3;
         if (has_offset_intput)
-        {   
+        {
             runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
@@ -2442,7 +2443,7 @@ namespace
                                                 op->get_part_size());
         }
         else
-        {   
+        {
            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
