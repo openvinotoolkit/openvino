@@ -21,7 +21,7 @@ class TestOp(unittest.TestCase):
         graph.stage = 'front'
         input1 = Node(graph, 'Op1')
         input2 = Node(graph, 'Op2')
-        inputs = [(input1, 0), (input2, 1)]
+        inputs = [(input1, 0), (input2, 0)]
 
         lstm_op = LSTMCell(graph, dict(name='LSTMCell'))
         _ = lstm_op.create_node(inputs)
