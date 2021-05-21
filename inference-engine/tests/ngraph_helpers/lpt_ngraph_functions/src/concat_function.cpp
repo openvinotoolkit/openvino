@@ -35,7 +35,7 @@ std::shared_ptr<Node> createConvolution(const std::shared_ptr<Node>& parent, con
         weights = std::make_shared<opset1::Constant>(element::i8, shape, std::vector<int>(ngraph::shape_size(shape), 100));
     } else {
         weights = ngraph::builder::makeFakeQuantize(
-            std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
+            std::make_shared<opset1::Constant>(precision, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
             precision,
             255,
             {outputChannels, 1, 1, 1},
