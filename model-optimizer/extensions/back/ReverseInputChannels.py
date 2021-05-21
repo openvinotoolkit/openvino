@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 
 import numpy as np
@@ -79,7 +67,8 @@ class InsertReverseChannels(BackReplacementPattern):
 
         for name, parameter, _ in suitable_params:
             reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels'}).create_node()
-            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0),
+                                                              attributes_save_mode='source')
             parameter.out_port(0).connect(reverse_channels.in_port(0))
 
 
@@ -109,7 +98,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through_conv(node, reverse_channels):
-        """
+        r"""
         For non grouped convolution:
         BEFORE                          AFTER
 
@@ -179,7 +168,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through_eltwise(node, reverse_channels):
-        """
+        r"""
         BEFORE                              AFTER
 
           previous_op                                       previous_op'
@@ -280,7 +269,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):
-        """
+        r"""
         BEFORE                      AFTER
 
                                     previous_op              previous_op'
@@ -321,7 +310,13 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
 
             src = port.get_connection().get_source()
-            port.get_connection().set_source(reverse_channels_copy.out_port(0))
+            if src.node.soft_get('type') == 'Parameter':
+                # For Parameter nodes tensor debug attributes should not move to the last node
+                # of subgraph. It is needed for the proper mapping of input framework name.
+                # For this reason "source" mode is used to keep tensor debug attributes at Parameter node.
+                port.get_connection().set_source(reverse_channels_copy.out_port(0), attributes_save_mode="source")
+            else:
+                port.get_connection().set_source(reverse_channels_copy.out_port(0))
             src.connect(reverse_channels_copy.in_port(0))
 
             copies.append(reverse_channels_copy)

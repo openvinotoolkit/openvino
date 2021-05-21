@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,8 @@ protected:
 };
 
 TEST_P(MemoryConv, CheckTypeConversion) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     if (!InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
 

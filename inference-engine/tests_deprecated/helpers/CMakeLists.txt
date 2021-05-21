@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,7 +29,7 @@ function(add_helpers target_name)
 
     # TODO: eliminate dependency on samples
     target_include_directories(${target_name} PUBLIC
-        "${IE_MAIN_SOURCE_DIR}/samples/common/os/windows")
+        "${IE_MAIN_SOURCE_DIR}/samples/common/utils/include/samples/os/windows")
 
     set_property(TARGET ${target_name} PROPERTY COMPILE_PDB_NAME ${target_name})
 
@@ -48,3 +48,8 @@ if (ENABLE_DATA)
     add_dependencies(${TARGET_NAME} data)
     add_dependencies(${TARGET_NAME}_s data)
 endif()
+
+# developer package
+
+openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                  TARGETS ieTestHelpers ieTestHelpers_s)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ private:
     std::vector<size_t> batch_sizes;
     std::vector<std::vector<InferenceEngine::Blob::Ptr>> reference_inputs;
     std::vector<std::vector<InferenceEngine::Blob::Ptr>> scaled_inputs;
-    std::vector<std::vector<std::vector<uint8_t>>> reference_outputs;
+    std::vector<std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>> reference_outputs;
     std::vector<std::vector<InferenceEngine::Blob::Ptr>> actual_outputs;
     std::vector<InferenceEngine::InferRequest> infer_requests;
 protected:

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include <algorithm>
@@ -136,7 +124,7 @@ namespace ngraph
                     int64_t class_index = 0;
                     float score = 0.0f;
                 };
-            }
+            } // namespace
             void non_max_suppression(const float* boxes_data,
                                      const Shape& boxes_data_shape,
                                      const float* scores_data,
@@ -191,7 +179,7 @@ namespace ngraph
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
 
-                        for (size_t box_idx = 0; box_idx < num_boxes; box_idx++)
+                        for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++)
                         {
                             if (scoresPtr[box_idx] > score_threshold)
                             {
@@ -393,6 +381,6 @@ namespace ngraph
                     *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

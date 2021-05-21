@@ -69,11 +69,11 @@ Limitations include:
 - Only 1D convolutions are natively supported.
 - The number of output channels for convolutions must be a multiple of 4.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
-- Concatenations and splitting are supported only along the channel dimension (axis=1).
+- Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 
 #### Experimental Support for 2D Convolutions
 
-The Intel® GNA hardware natively supports only 1D convolution.
+The Intel® GNA hardware natively supports only 1D convolutions.
 
 However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
 

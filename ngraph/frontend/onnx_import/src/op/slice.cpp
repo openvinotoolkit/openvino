@@ -1,23 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <memory>
 #include <vector>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/node.hpp"
@@ -25,14 +14,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "op/gather.hpp"
 #include "utils/common.hpp"
-
-namespace
-{
-    int64_t get_valid_array_idx(int64_t idx, int64_t last_idx)
-    {
-        return (idx >= 0) ? std::min(idx, last_idx) : std::max<int64_t>(0, last_idx + idx);
-    }
-}
 
 namespace ngraph
 {
@@ -73,7 +54,7 @@ namespace ngraph
                 ///       value) or ignored (1 value)
                 ///
                 /// \param[in] axes                 Axes input of ONNX Slice operator
-                /// \param[in] slice_indices_length Lenght of Slice indices
+                /// \param[in] slice_indices_length Length of Slice indices
                 ///                                 (starts, ends, steps)
                 ///
                 /// \return Mask attribute in format required by StridedSlice:v1
@@ -120,7 +101,8 @@ namespace ngraph
                     if (indices_shape.rank().is_static() &&
                         indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
                     {
-                        if (indices_shape[0].get_length() >= slice_indices_length &&
+                        if (static_cast<uint64_t>(indices_shape[0].get_length()) >=
+                                slice_indices_length &&
                             are_axes_sorted)
                         {
                             // adjusting indices is not needed
@@ -143,7 +125,7 @@ namespace ngraph
                         default_opset::Constant::create(indices.get_element_type(), {}, {0});
 
                     int added_indices_number = 0;
-                    for (int i = 0; i < slice_indices_length; ++i)
+                    for (uint64_t i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
@@ -165,7 +147,7 @@ namespace ngraph
                     if (!are_axes_sorted)
                     {
                         OutputVector indices_tmp(adjusted_indices);
-                        for (int i = 0; i < target_axes.size(); ++i)
+                        for (size_t i = 0; i < target_axes.size(); ++i)
                         {
                             adjusted_indices[target_axes[i]] = indices_tmp[i];
                         }
@@ -173,12 +155,14 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {
                 OutputVector slice(const Node& node)
                 {
+                    using ngraph::op::is_null;
+
                     OutputVector inputs{node.get_ng_inputs()};
                     const auto data = inputs.at(0);
                     const auto data_rank = data.get_partial_shape().rank();
@@ -188,7 +172,7 @@ namespace ngraph
 
                     // Slice is calculated over all axes as default
                     Output<ngraph::Node> axes;
-                    if (inputs.size() >= 4) // axes input provided
+                    if (inputs.size() >= 4 && !is_null(inputs.at(3))) // axes input provided
                     {
                         axes = inputs.at(3);
                         CHECK_VALID_NODE(node,
@@ -214,12 +198,12 @@ namespace ngraph
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
                     Output<ngraph::Node> steps;
-                    if (inputs.size() == 5) // steps input provided
+                    if (inputs.size() == 5 && !is_null(inputs.at(4))) // steps input provided
                     {
                         steps = inputs.at(4);
                     }
@@ -272,7 +256,7 @@ namespace ngraph
                     std::vector<uint64_t> normalized_axes =
                         get_normalized_axes_vector(node, data_rank, axes);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(normalized_axes), std::end(normalized_axes)) +
                         1;
                     const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);

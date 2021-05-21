@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "bfloat16_helpers.hpp"
 
 #include <memory>
@@ -158,6 +159,8 @@ protected:
 };
 
 TEST_P(MobileNet_ssd_with_branching, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

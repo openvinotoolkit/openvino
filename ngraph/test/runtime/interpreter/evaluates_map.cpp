@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "evaluates_map.hpp"
 
@@ -32,6 +20,8 @@
 #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
+#include <ngraph/runtime/reference/deformable_convolution.hpp>
+#include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
@@ -39,6 +29,7 @@
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
+#include <ngraph/runtime/reference/fft.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
@@ -64,6 +55,7 @@
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/roi_pooling.hpp>
+#include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
@@ -341,6 +333,37 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
+        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto& out_shape = outputs[0]->get_shape();
+        const auto& in_shape = inputs[0]->get_shape();
+        const auto& offset_shape = inputs[1]->get_shape();
+        const auto& filter_shape = inputs[2]->get_shape();
+        runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+            in_data_ptr,
+            offset_data_ptr,
+            filter_data_ptr,
+            out_data_ptr,
+            in_shape,
+            offset_shape,
+            filter_shape,
+            out_shape,
+            op->get_strides(),
+            op->get_dilations(),
+            op->get_pads_begin(),
+            op->get_pads_end(),
+            op->get_group(),
+            op->get_deformable_group());
+        return true;
+    }
+
     namespace cum_sum_v0
     {
         template <element::Type_t t1, element::Type_t t2>
@@ -514,7 +537,7 @@ namespace
             T* a = axes_input->get_data_ptr<T>();
             auto v = std::vector<T>(a, a + axes_input->get_shape()[0]);
             std::vector<size_t> axes(v.size(), 0);
-            for (int i = 0; i < v.size(); i++)
+            for (size_t i = 0; i < v.size(); i++)
             {
                 if (v[i] < 0)
                 {
@@ -889,6 +912,107 @@ namespace
         return true;
     }
 
+    namespace fft_v7
+    {
+        struct InfoForFFT7
+        {
+            std::vector<float> input_data;
+            std::vector<int64_t> axes_data;
+            Shape input_data_shape;
+            Shape axes_data_shape;
+            Shape output_shape;
+        };
+
+        std::vector<int64_t> get_signal_size(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                             size_t num_of_axes)
+        {
+            if (inputs.size() == 3)
+            {
+                return nms_v5::get_integers(inputs[2], inputs[2]->get_shape());
+            }
+
+            return std::vector<int64_t>(num_of_axes, static_cast<int64_t>(-1));
+        }
+
+        InfoForFFT7 get_info_for_fft7_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs)
+        {
+            InfoForFFT7 result;
+
+            result.input_data_shape = inputs[0]->get_shape();
+            result.axes_data_shape = inputs[1]->get_shape();
+            result.input_data = nms_v5::get_floats(inputs[0], result.input_data_shape);
+            result.axes_data = nms_v5::get_integers(inputs[1], result.axes_data_shape);
+
+            auto output_shape = result.input_data_shape;
+
+            int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
+            int64_t complex_data_rank = input_rank - 1;
+            auto canonicalized_axes = runtime::reference::canonicalize_axes(
+                result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+
+            size_t num_of_axes = result.axes_data.size();
+            auto signal_size = get_signal_size(inputs, num_of_axes);
+
+            for (size_t i = 0; i < num_of_axes; ++i)
+            {
+                int64_t current_axis = canonicalized_axes[i];
+                int64_t current_signal_size = signal_size[i];
+                if (current_signal_size != -1)
+                {
+                    output_shape[current_axis] = current_signal_size;
+                }
+            }
+
+            result.output_shape = output_shape;
+
+            return result;
+        }
+    } // namespace fft_v7
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::DFT>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
+
+        std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
+        runtime::reference::fft(info.input_data.data(),
+                                info.input_data_shape,
+                                info.axes_data.data(),
+                                info.axes_data_shape,
+                                fft_result.data(),
+                                info.output_shape,
+                                runtime::reference::FFTKind::Forward);
+
+        const auto output_type = op->get_input_element_type(0);
+        runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::IDFT>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
+
+        std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
+        runtime::reference::fft(info.input_data.data(),
+                                info.input_data_shape,
+                                info.axes_data.data(),
+                                info.axes_data_shape,
+                                fft_result.data(),
+                                info.output_shape,
+                                runtime::reference::FFTKind::Inverse);
+
+        const auto output_type = op->get_input_element_type(0);
+        runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
+        return true;
+    }
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::LRN>& op,
                   const HostTensorVector& outputs,
@@ -1117,7 +1241,7 @@ namespace
                                    outputs[0]->get_data_ptr<T>(),
                                    inputs[0]->get_shape(),
                                    inputs[1]->get_shape(),
-                                   op->get_auto_broadcast());
+                                   op->get_autob());
         return true;
     }
 
@@ -1258,9 +1382,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[0]->get_data_ptr<T>(),
                                                     inputs[1]->get_data_ptr<T>(),
-                                                    inputs[2]->get_data_ptr<T>(),
                                                     inputs[3]->get_data_ptr<T>(),
                                                     inputs[4]->get_data_ptr<T>(),
                                                     outputs[0]->get_data_ptr<T>(),
@@ -1275,9 +1399,9 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[1]->get_data_ptr<const T>(),
                                                     inputs[2]->get_data_ptr<const T>(),
-                                                    inputs[0]->get_data_ptr<const T>(),
                                                     inputs[3]->get_data_ptr<const T>(),
                                                     inputs[4]->get_data_ptr<const T>(),
                                                     outputs[0]->get_data_ptr<T>(),
@@ -1348,7 +1472,6 @@ namespace
             break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
 
@@ -1423,6 +1546,9 @@ namespace
             break;
         case element::Type_t::f64:
             convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::bf16:
+            convert_v0::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
             break;
         default: return false;
         }
@@ -1849,7 +1975,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::pad(inputs[0]->get_data_ptr<char>(),
                                 inputs[1]->get_data_ptr<char>(),
                                 outputs[0]->get_data_ptr<char>(),
@@ -1867,7 +1992,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gather_tree(inputs[0]->get_data_ptr<const char>(),
                                         inputs[1]->get_data_ptr<const char>(),
                                         inputs[2]->get_data_ptr<const char>(),
@@ -2024,7 +2148,7 @@ namespace
                                                   outputs[0]->get_data_ptr<T>(),
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
-                                                  ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                  op->get_autob());
         return true;
     }
 
@@ -2135,6 +2259,98 @@ namespace
                                              op->get_spatial_bins_x(),
                                              op->get_spatial_bins_y());
 
+        return true;
+    }
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::DeformablePSROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
+                        "2D tensor must be provided as second input. ");
+        outputs[0]->set_shape({inputs[1]->get_shape()[0],
+                               static_cast<size_t>(op->get_output_dim()),
+                               static_cast<size_t>(op->get_group_size()),
+                               static_cast<size_t>(op->get_group_size())});
+
+        const bool has_offset_intput = inputs.size() == 3;
+        if (has_offset_intput)
+        {
+            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                inputs[2]->get_data_ptr<T>(),
+                                                inputs[2]->get_shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
+        else
+        {
+           runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                nullptr,
+                                                ngraph::Shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Roll>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto& shiftType = inputs[1]->get_element_type();
+        std::vector<int64_t> shift_int64;
+        if (shiftType == element::Type_t::i32)
+        {
+            auto shift = inputs[1]->get_data_ptr<const int32_t>();
+            shift_int64.resize(shape_size(inputs[1]->get_shape()));
+            std::transform(shift,
+                           shift + shape_size(inputs[1]->get_shape()),
+                           shift_int64.begin(),
+                           [](const int32_t& elem) { return static_cast<int64_t>(elem); });
+        }
+        const auto& axesType = inputs[2]->get_element_type();
+        std::vector<int64_t> axes_int64;
+        if (axesType == element::Type_t::i32)
+        {
+            auto axes = inputs[2]->get_data_ptr<const int32_t>();
+            axes_int64.resize(shape_size(inputs[2]->get_shape()));
+            std::transform(axes,
+                           axes + shape_size(inputs[2]->get_shape()),
+                           axes_int64.begin(),
+                           [](const int32_t& elem) { return static_cast<int64_t>(elem); });
+        }
+        runtime::reference::roll(inputs[0]->get_data_ptr<const char>(),
+                                 inputs[1]->get_element_type() != element::Type_t::i64
+                                     ? shift_int64.data()
+                                     : inputs[1]->get_data_ptr<const int64_t>(),
+                                 inputs[2]->get_element_type() != element::Type_t::i64
+                                     ? axes_int64.data()
+                                     : inputs[2]->get_data_ptr<const int64_t>(),
+                                 outputs[0]->get_data_ptr<char>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape(),
+                                 inputs[2]->get_shape(),
+                                 inputs[0]->get_element_type().size());
         return true;
     }
 

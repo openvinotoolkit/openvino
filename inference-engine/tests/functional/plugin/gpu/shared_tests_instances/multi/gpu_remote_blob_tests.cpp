@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,10 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
         return;
     }
     InferRequest req = exec_net_multi.CreateInferRequest();
-    ASSERT_NE((std::shared_ptr<InferenceEngine::IInferRequest>)req, nullptr);
+    ASSERT_TRUE(req);
     ASSERT_NO_THROW(req.SetBlob(first_input_name, rblob));
     ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
+    ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
 const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {

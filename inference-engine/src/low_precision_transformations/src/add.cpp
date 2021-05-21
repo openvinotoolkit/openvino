@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,18 +42,19 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
     if (is_type<opset1::Convolution>(parent) ||
         is_type<opset1::GroupConvolution>(parent) ||
+        is_type<opset1::ConvolutionBackpropData>(parent) ||
         (is_type<opset1::MatMul>(parent) &&
         (is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
         return nullptr;
     }
 
-    auto constant = fold<opset1::Negative>(add->get_input_node_shared_ptr(constBranchIndex));
+    auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
     const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(dataBranchIndex), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
         add->get_autob());
 
@@ -73,13 +74,13 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     }
 
     const auto newSubConst = fold<opset1::Subtract>(
-        add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1),
-        add->get_input_node_shared_ptr(1));
+        add->get_input_node_shared_ptr(0)->input_value(1),
+        add->input_value(1));
 
     const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
 
@@ -178,10 +179,10 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         // graph update
-        std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+        OutputVector inputs{ {}, {} };
         auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
 
-        inputs[emptyPathIndex] = dequantizationEmptyPath.data.get_node_shared_ptr();
+        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             newSubtractFullPathValues == nullptr ?
                 fullPathInput :

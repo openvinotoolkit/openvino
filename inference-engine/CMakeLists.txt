@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,6 +32,8 @@ add_subdirectory(thirdparty)
 
 add_subdirectory(src)
 
+add_subdirectory(ie_bridges/c)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
@@ -58,11 +60,9 @@ endfunction()
 # they must be built even if samples build is disabled (required for tests and tools).
 ie_build_samples()
 
-if (ENABLE_PYTHON)
+if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
-
-add_subdirectory(ie_bridges/c)
 
 #
 # Install
@@ -78,14 +78,16 @@ if(UNIX)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 endif()
 
 # install C samples
@@ -105,21 +107,12 @@ endif()
 install(DIRECTORY ie_bridges/c/samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE)
+        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
+        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
 
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
-
-# install Python samples
-
-if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples DEPENDS core)
-
-    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-            COMPONENT python_samples)
-endif()
 
 # install speech demo files
 
@@ -129,6 +122,7 @@ if(SPEECH_LIBS_AND_DEMOS)
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing
             DESTINATION .
+            USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)
 endif()
 
@@ -136,7 +130,7 @@ endif()
 # Developer package
 #
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader gflags ie_samples_utils)
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
 
 # for Template plugin
@@ -154,7 +148,7 @@ configure_file(
 configure_file(
     "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    COPYONLY)
+    @ONLY)
 
 #
 # Coverage

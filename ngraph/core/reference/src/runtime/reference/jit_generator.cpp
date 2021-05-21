@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "jit_generator.hpp"
 #include "ngraph/type/float16.hpp"
 
@@ -170,6 +159,26 @@ namespace ngraph
             }
 
             template <>
+            void Generator::copy<int8_t>(const Xbyak::Reg64& dst,
+                                         const Xbyak::Reg64& src,
+                                         const Xbyak::Reg64& size)
+            {
+                push(rsi);
+                push(r15);
+
+                xor_(rsi, rsi);
+
+                foreach (rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+                    mov(r15b, byte[src + idx * sizeof(int8_t)]);
+                    mov(byte[dst + idx * sizeof(int8_t)], r15b);
+                })
+                    ;
+
+                pop(r15);
+                pop(rsi);
+            }
+
+            template <>
             void Generator::copy<uint16_t>(const Xbyak::Reg64& dst,
                                            const Xbyak::Reg64& src,
                                            const Xbyak::Reg64& size)
@@ -224,6 +233,6 @@ namespace ngraph
             {
                 copy<uint32_t>(dst, src, size);
             }
-        }
-    }
-}
+        } // namespace jit
+    }     // namespace runtime
+} // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<size_t>,               // Logits shapes
-        std::vector<int>,                  // logits lenght
+        std::vector<int>,                  // logits length
         std::vector<std::vector<int>>,     // labels
         std::vector<int>,                  // labels length
         int,                               // blank index

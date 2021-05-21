@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
 
 private:
     friend class ExecutableNetwork;

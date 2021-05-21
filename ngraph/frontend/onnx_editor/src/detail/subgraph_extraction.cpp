@@ -1,25 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <functional>
 #include <onnx/onnx_pb.h>
 #include <stack>
 
 #include "ngraph/check.hpp"
-#include "onnx_editor/detail/subgraph_extraction.hpp"
+#include "subgraph_extraction.hpp"
 
 using namespace ngraph::onnx_editor;
 
@@ -171,8 +159,6 @@ namespace
                      edge.m_node_idx,
                      ". Cannot append a new graph input to this node.");
 
-        const std::string new_input_name = target_node.output(0) + ":" + edge.m_tensor_name;
-
         // if an edge is connected to an initializer, the initializer is removed and substituted
         // with an input
         if (is_graph_initializer(graph, edge.m_tensor_name))
@@ -185,10 +171,10 @@ namespace
             auto& new_input = *(graph.add_input());
             // copy the intermediate tensor properties to the newly created input
             new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
-            *(new_input.mutable_name()) = new_input_name;
+            *(new_input.mutable_name()) = edge.m_tensor_name;
             // attach the new graph input to the target node's input
-            *target_input = new_input_name;
-            return {true, InputEdge{edge.m_node_idx, new_input_name}};
+            *target_input = edge.m_tensor_name;
+            return {true, InputEdge{edge.m_node_idx, edge.m_tensor_name}};
         }
     }
 

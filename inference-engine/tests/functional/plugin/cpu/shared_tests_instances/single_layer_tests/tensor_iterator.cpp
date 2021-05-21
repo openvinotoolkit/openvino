@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     std::vector<bool> should_decompose = {true, false};
-    // output values increase rapidly without clip, so use only seq_lenghts = 2
+    // output values increase rapidly without clip, so use only seq_lengths = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{1, 10};

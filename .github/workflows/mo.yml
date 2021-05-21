@@ -80,12 +80,22 @@ jobs:
           python3 setup.py sdist bdist_wheel
         working-directory: model-optimizer
       
-      - name: Test
+      - name: Test package content
+        run: |
+          echo "src = open('openvino_mo.egg-info/SOURCES.txt', 'rt').read().split()" | tee -a test_wheel.py
+          echo "ref = open('automation/package_BOM.txt', 'rt').read().split()"       | tee -a test_wheel.py
+          echo "for name in ref:"                                                    | tee -a test_wheel.py
+          echo "  if name.endswith('.py'):"                                          | tee -a test_wheel.py
+          echo "    assert name in src or './' + name in src, name + ' file missed'" | tee -a test_wheel.py
+          python3 test_wheel.py
+        working-directory: model-optimizer
+
+      - name: Test conversion
         run: |
           wget -q http://download.tensorflow.org/models/mobilenet_v1_2018_08_02/mobilenet_v1_1.0_224.tgz
           tar -xf mobilenet_v1_1.0_224.tgz
           python3 -m pip install model-optimizer/dist/*.whl
-          python3 -c "import sys, subprocess, mo_tf; subprocess.run([sys.executable, mo_tf.__file__, '--input_model', 'mobilenet_v1_1.0_224_frozen.pb', '--input_shape', '[1,224,224,3]'], check=True)"
+          python3 -m mo --input_model mobilenet_v1_1.0_224_frozen.pb --input_shape "[1,224,224,3]"
 
       - uses: actions/upload-artifact@v2
         with:

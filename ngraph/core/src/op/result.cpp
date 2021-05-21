@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <typeindex>
@@ -66,6 +54,7 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
+
     return true;
 }
 
@@ -83,14 +72,14 @@ AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref)
 
 bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

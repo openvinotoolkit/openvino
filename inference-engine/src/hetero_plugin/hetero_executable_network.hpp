@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,10 +49,10 @@ public:
 
     ~HeteroExecutableNetwork() override = default;
 
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
@@ -65,15 +65,15 @@ private:
     void InitNgraph(const InferenceEngine::CNNNetwork&     network);
 
     struct NetworkDesc {
-        std::string                                 _device;
-        InferenceEngine::CNNNetwork                 _clonedNetwork;
-        InferenceEngine::ExecutableNetwork          _network;
+        std::string                                   _device;
+        InferenceEngine::CNNNetwork                   _clonedNetwork;
+        InferenceEngine::SoExecutableNetworkInternal  _network;
     };
-    std::vector<NetworkDesc> networks;
 
-    Engine*                             _heteroPlugin;
-    std::string                         _name;
-    std::map<std::string, std::string>  _config;
+    std::vector<NetworkDesc>                     _networks;
+    Engine*                                      _heteroPlugin;
+    std::string                                  _name;
+    std::map<std::string, std::string>           _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 

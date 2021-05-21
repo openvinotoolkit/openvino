@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,8 +10,6 @@ function(add_common_target TARGET_NAME STATIC_IE)
     ie_faster_build(${TARGET_NAME}
         UNITY
     )
-
-    set_ie_threading_interface_for(${TARGET_NAME})
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings

@@ -1,6 +1,7 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "compilation_context.hpp"
 
 #include <sys/types.h>
@@ -12,7 +13,6 @@
 #include <xml_parse_utils.h>
 
 #include "ie_itt.hpp"
-#include "cpp_interfaces/exception2status.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"
@@ -86,7 +86,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
 
 std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);
@@ -162,7 +162,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
     size_t seed {};
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
@@ -193,7 +193,7 @@ std::istream& operator >> (std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead) << "Error reading compiled blob header";
+        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
     }
 
     pugi::xml_node compiledBlobNode = document.document_element();

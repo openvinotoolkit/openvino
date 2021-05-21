@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,44 @@
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
+
+namespace Metrics {
+
+/**
+ * @def GPU_METRIC_KEY(name)
+ * @brief shortcut for defining GPU plugin metrics
+ */
+#define GPU_METRIC_KEY(name) METRIC_KEY(GPU_##name)
+#define DECLARE_GPU_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(GPU_##name, __VA_ARGS__)
+
+/**
+ * @def DECLARE_GPU_METRIC_VALUE(name)
+ * @brief shortcut for defining gpu metric values
+ */
+#define DECLARE_GPU_METRIC_VALUE(name) DECLARE_METRIC_VALUE(GPU_##name)
+
+/**
+ * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size, for dGPU - dedicated gpu memory size
+ */
+DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
+
+/**
+ * @brief Metric to get microarchitecture identifier in major.minor.revision format
+ */
+DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
+
+/**
+ * @brief Metric to get count of execution units for current GPU
+ */
+DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
+
+/**
+ * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
+ *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
+ */
+DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
+
+}  // namespace Metrics
 
 /**
  * @brief GPU plugin configuration
@@ -72,6 +110,11 @@ DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
 */
 DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
 
+/**
+* @brief This key sets the max number of host threads that can be used by GPU plugin on model loading.
+* Default value is maximum number of threads available in the environment.
+*/
+DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
 
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine

@@ -308,12 +308,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor);
                 }
             }
         }
@@ -413,10 +413,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         writeBits(layer.NumberOfOperands, os);
 
         for (uint32_t i = 0; i < layer.NumberOfOperands; i++) {
-            if (layer.Operands[i] == nullptr)
+            if (layer.Operands[i] == nullptr) {
                 writeBits(Gna2Tensor{}, os);
-            else
-                writeBits(getTensorWithProperOffset(*layer.Operands[i]), os);
+            } else {
+                Gna2Tensor tensor = getTensorWithProperOffset(*layer.Operands[i]);
+                // we need to remove legacy (up to & including GNA HW 2.0) CNN enforement during export
+                // to avoid issues when importing and running the model on newer GNA HW with libGNA 2.1.x.y
+                if (i == OutOpIdx && layer.Type == Gna2OperationTypeConvolution) {
+                    memset(tensor.Layout, 0, sizeof(tensor.Layout));
+                }
+                writeBits(tensor, os);
+            }
         }
 
         writeBits(layer.NumberOfParameters, os);
@@ -610,12 +617,12 @@ void GNAModelSerial::Import(void *basePointer,
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName.substr(0, nameSize - 1), scale_factor );
                 }
             }
         }
@@ -906,7 +913,7 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream &is,
 void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
         const TranspositionInfoMap &transpositionInfoMap) const {
     for (const auto &transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str()) + 1;
+        auto nameSize = strlen(transpositionInfo.first.c_str());
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
         auto fragmentsNum = transpositionInfo.second.size();

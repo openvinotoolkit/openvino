@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -223,7 +223,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
 /************************************************************/
 
 inline bool is_full_ranged(const TensorIterator::PortMap& rule, const DataPtr& data) {
-    if (!data) THROW_IE_EXCEPTION << "Internal error. data == nullptr";
+    if (!data) IE_THROW() << "Internal error. data == nullptr";
 
     if (rule.axis == -1 || !one_of(rule.stride, 1, -1)) return false;
 
@@ -615,8 +615,11 @@ bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
         auto out_data = ti->outData[rule.from];
 
         if (num == 1) {
-            getInputTo(body_list[0].outputs[rule.to]) = getInputTo(out_data);
-            getInputTo(body_list[0].outputs[rule.to]).begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            auto to_data = body_list[0].outputs[rule.to];
+            auto parent = getCreatorLayer(to_data).lock();
+            std::replace(parent->outData.begin(), parent->outData.end(), to_data, out_data);
+            getCreatorLayer(out_data) = parent;
+            CombineData(out_data, to_data);
             continue;
         }
 
@@ -1543,7 +1546,7 @@ void ConvertPrecision(CNNNetwork& net, Precision from, Precision to) {
             convertPrecisionForAll<Precision::I16, Precision::I32>(net);
             break;
         default:
-            THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to
+            IE_THROW() << "Precision conversion from " << from << " to " << to
                                << " currently is not supported. You may expand precision"
                                   " conversion pass.";
     }

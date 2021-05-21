@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
@@ -62,7 +61,7 @@ void DepthToSpaceTransformation::SetUp() {
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 
     if (inputShape.size() != 4ul) {
-        THROW_IE_EXCEPTION << "not supported input shape size " << inputShape.size();
+        IE_THROW() << "not supported input shape size " << inputShape.size();
     }
 
     function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,14 +7,12 @@
 #include <gmock/gmock.h>
 
 #include "ie_common.h"
-#include "cpp_interfaces/exception2status.hpp"
 
-// TODO: cover <cpp_interfaces/exception2status.hpp> and <details/ie_exception_conversion.hpp> from
 //  tests/unit/inference_engine/exception_test.cpp
 
 TEST(ExceptionTests, CanThrowUsingMacro) {
     std::string message = "Exception message!";
-    ASSERT_THROW(THROW_IE_EXCEPTION << message, InferenceEngine::Exception);
+    ASSERT_THROW(IE_THROW() << message, InferenceEngine::Exception);
 }
 
 TEST(ExceptionTests, CanThrowScoringException) {
@@ -34,7 +32,7 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
     int lineNum = 0;
     try {
         lineNum = __LINE__ + 1;
-        THROW_IE_EXCEPTION << message;
+        IE_THROW() << message;
     }
     catch (InferenceEngine::Exception &iex) {
         std::string ref_message = std::string {"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " " + message;
@@ -45,7 +43,7 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
 TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
     std::string message = "exception";
     try {
-        THROW_IE_EXCEPTION << message;
+        IE_THROW() << message;
     }
     catch (InferenceEngine::Exception &iex) {
         std::string ref_message = message;
@@ -55,16 +53,7 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
 #endif
 
 TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
-    ASSERT_THROW(THROW_IE_EXCEPTION, std::exception);
-}
-
-TEST(ExceptionTests, CanThrowStatusCode) {
-    try {
-        THROW_IE_EXCEPTION_WITH_STATUS(InferNotStarted);
-    }
-    catch (const InferenceEngine::InferNotStarted& iex) {
-        ASSERT_EQ(InferenceEngine::ExceptionToStatus(iex), InferenceEngine::StatusCode::INFER_NOT_STARTED);
-    }
+    ASSERT_THROW(IE_THROW(), std::exception);
 }
 
 #ifdef    NDEBUG  // disabled for debug as macros calls assert()

@@ -8,7 +8,6 @@
 #include <string>
 
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
-#include <ie_icnn_network.hpp>
 
 class MockPlugin : public InferenceEngine::InferencePluginInternal {
     InferenceEngine::IInferencePlugin * _target = nullptr;
@@ -18,23 +17,29 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const InferenceEngine::CNNNetwork &network,
                 const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetwork
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const InferenceEngine::CNNNetwork& network,
                 const std::map<std::string, std::string>& config,
                 InferenceEngine::RemoteContext::Ptr context) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    LoadNetwork(const std::string &modelPath,
+                const std::map<std::string, std::string> &config) override;
+
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
+    ImportNetworkImpl(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
+    ImportNetworkImpl(std::istream& networkModel,
         const InferenceEngine::RemoteContext::Ptr& context,
         const std::map<std::string, std::string>& config) override;
 
@@ -45,6 +50,12 @@ public:
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
+
+    void SetCore(InferenceEngine::ICore* core) noexcept override;
+
+    void SetName(const std::string& name) noexcept override;
+
+    std::string GetName() const noexcept override;
 
     std::map<std::string, std::string> config;
 };

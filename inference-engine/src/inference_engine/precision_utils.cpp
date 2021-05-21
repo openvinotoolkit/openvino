@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ inline float asfloat(uint32_t v) {
     return f;
 }
 
-// Function to convert F32 into F16
+// Function to convert F16 into F32
 float f16tof32(ie_fp16 x) {
     // this is storage for output result
     uint32_t u = static_cast<uint32_t>(x);

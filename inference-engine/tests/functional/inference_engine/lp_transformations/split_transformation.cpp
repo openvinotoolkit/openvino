@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,12 +57,19 @@ inline std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
-class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationTestValues> {
+typedef std::tuple <
+    ngraph::element::Type,
+    SplitTransformationTestValues
+> SplitTransformationParams;
+
+class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationParams> {
 public:
     void SetUp() override {
-        SplitTransformationTestValues testValues = GetParam();
+        ngraph::element::Type precision = std::get<0>(GetParam());
+        SplitTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::SplitFunction::getOriginal(
+            precision,
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -74,6 +81,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
+            precision,
             testValues.inputShape,
             testValues.expected.inputPrecision,
             testValues.expected.dequantizationBefore,
@@ -83,11 +91,13 @@ public:
             testValues.numSplits);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationTestValues> obj) {
-        const SplitTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
+        ngraph::element::Type precision = std::get<0>(obj.param);
+        SplitTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << toString(testValues.params) << "_" <<
+        result << precision << "_" <<
+            toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
@@ -105,6 +115,11 @@ TEST_P(SplitTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
 
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
@@ -160,21 +175,30 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
+            }
+        }
+    },
+    // U8 per channel quantization with different values (constants without batch)
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
             }
         }
     },
@@ -193,21 +217,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::i8,
             {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{2.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{3.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
             }
         }
     },
@@ -226,21 +238,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {1.f}, {11.f}},
             }
         }
     },
@@ -259,21 +259,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::i8,
             {
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {{1.f}, ngraph::element::f32, {1, 1, 1, 1}},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {1.f}, {11.f}}
             }
         }
     },
@@ -358,21 +346,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             {
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {}, {11.f}},
+                {{ngraph::element::f32}, {}, {22.f}},
+                {{ngraph::element::f32}, {}, {33.f}},
             }
         }
     },
@@ -391,21 +367,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {},
             ngraph::element::i8,
             {
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{11.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{22.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
-                {
-                    {ngraph::element::f32},
-                    {},
-                    {{33.f}, ngraph::element::f32, {1, 1, 1, 1}}
-                },
+                {{ngraph::element::f32}, {}, {11.f}},
+                {{ngraph::element::f32}, {}, {22.f}},
+                {{ngraph::element::f32}, {}, {33.f}},
             }
         }
     },
@@ -476,6 +440,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     SplitTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(testValues)),
     SplitTransformation::getTestCaseName);
 } // namespace

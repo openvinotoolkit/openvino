@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -110,13 +98,13 @@ namespace ngraph
 
             private:
                 ///
-                /// \brief      Gets the masked value according to sequence lenght in a batch.
+                /// \brief      Gets the masked value according to sequence length in a batch.
                 ///
                 /// \note       Zeros out values or sets them to default value for inputs with
-                ///             sequence lenght shorter than currently procssed time step.
+                ///             sequence length shorter than currently procssed time step.
                 ///
                 /// \param[in]  data           The input value.
-                /// \param[in]  time_step      The current time step denoting sequence lenght.
+                /// \param[in]  time_step      The current time step denoting sequence length.
                 /// \param[in]  batch_axis     The batch axis index of data tensor.
                 /// \param[in]  default_value  The default value for masked elements.
                 ///
@@ -146,7 +134,7 @@ namespace ngraph
             };
 
             NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        } // namespace v0
 
         namespace v5
         {
@@ -206,7 +194,7 @@ namespace ngraph
             private:
                 direction m_direction;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 
 } // namespace ngraph

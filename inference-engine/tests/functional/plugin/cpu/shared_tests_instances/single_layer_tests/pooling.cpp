@@ -1,5 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +26,10 @@ const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                           {3, 5}};
 const std::vector<std::vector<size_t >> kernel3D = {{2, 2, 2}};
 
-const std::vector<std::vector<size_t >> strides = {{1, 1},
-                                                          {1, 2}};
+const std::vector<std::vector<size_t>> strides = {{1, 1},
+                                                  {1, 2},
+                                                  {2, 1},
+                                                  {2, 2}};
 const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1},
                                                           {2, 2, 2}};
 const std::vector<std::vector<size_t >> stridess3D = {{2, 2, 2}};

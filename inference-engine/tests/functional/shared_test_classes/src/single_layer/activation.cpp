@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +95,18 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 4;
             break;
         }
+        case ngraph::helpers::ActivationTypes::Mish: {
+            data_start_from = -20;
+            data_range = 60;
+            resolution = 32768;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::SoftPlus: {
+            data_start_from = -100;
+            data_range = 200;
+            resolution = 32768;
+            break;
+        }
         default: {
             data_start_from = -10;
             data_range = 20;
@@ -148,7 +159,7 @@ ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph:
             return seluParam;
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
@@ -179,7 +190,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 

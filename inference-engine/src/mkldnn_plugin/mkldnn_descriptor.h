@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,6 @@
 
 class MKLDNNDescriptor {
 public:
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::batch_normalization_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::batch_normalization_forward::desc>();
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::convolution_forward::desc>();
 

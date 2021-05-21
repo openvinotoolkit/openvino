@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_layouts.h>
-#include <cpp_interfaces/exception2status.hpp>
 #include <api/layout.hpp>
 
 #include "ngraph/type/element_type.hpp"
@@ -23,7 +22,7 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for clDNN tensor";
+    default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for clDNN tensor";
     }
 };
 
@@ -48,7 +47,7 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::BOOL:
         return cldnn::data_types::i8;
     default:
-        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+        IE_THROW(ParameterMismatch)
             << "The plugin does not support " << p.name() << " precision";
     }
 }
@@ -74,7 +73,7 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::u1:
         return cldnn::data_types::bin;
     default:
-        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+        IE_THROW(ParameterMismatch)
             << "The plugin does not support " << t.get_type_name()<< " precision";
     }
 }
@@ -95,7 +94,7 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
-        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "The plugin does not support " << l << " layout";
+        IE_THROW(ParameterMismatch) << "The plugin does not support " << l << " layout";
     }
 }
 
@@ -120,7 +119,7 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
-        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+        IE_THROW(ParameterMismatch)
             << "The plugin does not support " << desc.getLayout() << " layout";
     }
 }
@@ -137,7 +136,7 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::nv12;
     default:
-        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+        IE_THROW(ParameterMismatch)
             << "The plugin does not support " << l << " image layout";
     }
 }
@@ -155,7 +154,7 @@ inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     case 6:
         return cldnn::format::bfwzyx;
     default:
-        THROW_IE_EXCEPTION << "Unsupported number of dimensions: " << dimensions;
+        IE_THROW() << "Unsupported number of dimensions: " << dimensions;
     }
 
     return cldnn::format::bfyx;  // Should not get here

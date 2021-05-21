@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
     virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
         if (srcDims.size() < 2) {
-            THROW_IE_EXCEPTION << "Can't create blocked tensor descriptor!";
+            IE_THROW() << "Can't create blocked tensor descriptor!";
         }
 
         SizeVector order(srcDims.size());

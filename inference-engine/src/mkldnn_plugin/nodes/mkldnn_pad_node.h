@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,15 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPadNode : public MKLDNNNode {
 public:
-    MKLDNNPadNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPadNode() override = default;
+    MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     enum PadMode {
@@ -49,6 +50,7 @@ private:
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
+        int nThreads = 0;
         size_t nDimsForWork = 0lu;
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
@@ -62,6 +64,14 @@ private:
             node->padConstantCommon<T>();
         }
     };
+
+    std::string errorPrefix;
+    static const size_t DATA_ID = 0;
+    static const size_t PADS_BEGIN_ID = 1;
+    static const size_t PADS_END_ID = 2;
+    static const size_t PAD_VALUE_ID = 3;
+
+    bool isPadValueSpecified = false;
 };
 
 }  // namespace MKLDNNPlugin

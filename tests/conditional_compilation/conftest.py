@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2021 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # pylint: disable=line-too-long
@@ -7,29 +8,26 @@
 """ Pytest configuration for compilation tests.
 
 Sample usage:
-python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
-    --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
-    --benchmark_app=./bin/benchmark_app test_collect.py
+python3 -m pytest --test_conf=<path to test config> \
+    --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
+    --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
+    --openvino_ref=<Path to root directory with installed OpenVINO>
 """
 
 import sys
+import pytest
+import yaml
 from inspect import getsourcefile
 from pathlib import Path
 
-import pytest
-import yaml
-
 # add ../lib to imports
-sys.path.insert(
-    0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True))
-)
+sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
 
 
 def pytest_addoption(parser):
-    """ Define extra options for pytest options
-    """
+    """Define extra options for pytest options."""
     parser.addoption(
         "--test_conf",
         type=Path,
@@ -40,11 +38,6 @@ def pytest_addoption(parser):
         "--sea_runtool",
         type=Path,
         help="Path to sea_runtool.py"
-    )
-    parser.addoption(
-        "--benchmark_app",
-        type=Path,
-        help="Path to the benchmark_app tool",
     )
     parser.addoption(
         "--collector_dir",
@@ -66,8 +59,7 @@ def pytest_addoption(parser):
 
 
 def pytest_generate_tests(metafunc):
-    """ Generate tests depending on command line options
-    """
+    """Generate tests depending on command line options."""
     params = []
     ids = []
 
@@ -90,12 +82,6 @@ def pytest_generate_tests(metafunc):
 def sea_runtool(request):
     """Fixture function for command-line option."""
     return request.config.getoption("sea_runtool")
-
-
-@pytest.fixture(scope="session")
-def benchmark_app(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption("benchmark_app")
 
 
 @pytest.fixture(scope="session")

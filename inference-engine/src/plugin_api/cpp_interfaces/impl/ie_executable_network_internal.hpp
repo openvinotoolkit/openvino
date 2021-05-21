@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 #include <vector>
 #include <fstream>
 
-#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
-#include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -80,7 +78,7 @@ public:
     }
 
     CNNNetwork GetExecGraphInfo() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -88,37 +86,58 @@ public:
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
      */
-    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
+    virtual void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) {
         _plugin = plugin;
     }
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
         if (config.empty()) {
-            THROW_IE_EXCEPTION << "The list of configuration values is empty";
+            IE_THROW() << "The list of configuration values is empty";
         }
-        THROW_IE_EXCEPTION << "The following config value cannot be changed dynamically for ExecutableNetwork: "
+        IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork: "
                            << config.begin()->first;
     }
 
     Parameter GetConfig(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
+        IE_THROW() << "GetConfig for executable network is not supported by this device";
     }
 
     Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr GetContext() const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
+    }
+
+    /**
+     * @brief      Creates an inference request public implementation.
+     * @return     The request public implementation
+     */
+    IInferRequestInternal::Ptr CreateInferRequest() override {
+        auto asyncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+        return asyncRequestImpl;
     }
 
 protected:
+    /**
+     * @brief      Creates an asynchronous inference request internal implementation.
+     * @note       The method is called by ExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  networkInputs   The network inputs
+     * @param[in]  networkOutputs  The network outputs
+     * @return     A shared pointer to asynchnous inference request object.
+     */
+    virtual IInferRequestInternal::Ptr CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                              OutputsDataMap networkOutputs) = 0;
+
     /**
      * @brief Exports an internal hardware-dependent model to a stream.
      * @note The function is called from ExecutableNetworkInternal::Export(std::ostream&),
@@ -127,10 +146,10 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
     /**

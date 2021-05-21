@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,30 @@
 
 #include "single_layer_tests/convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "../skip_tests_check.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
+class GnaConvolutionLayerTest : public ConvolutionLayerTest, GnaLayerTestCheck {
+protected:
+    void Run() override {
+        GnaLayerTestCheck::SkipTestCheck();
+
+        if (!GnaLayerTestCheck::skipTest) {
+            ConvolutionLayerTest::Run();
+        }
+    }
+
+    void SetUp() override {
+        ConvolutionLayerTest::SetUp();
+    }
+};
+
+TEST_P(GnaConvolutionLayerTest, CompareWithRefs) {
+    Run();
+}
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -46,13 +66,13 @@ const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
 const std::vector<size_t> numOutCannels = {4, 8, 12};
 
 const std::vector<std::vector<size_t >> kernels2D = {
+                                                          {5, 1},
                                                           {4, 1},
-                                                          {1, 4},
+                                                          {1, 3},
+                                                          {1, 2},
                                                           {2, 2},
-                                                          {2, 3},
-                                                          {3, 2},
-                                                          // {4, 2}, TODO: fix sporadic accuracy failures, see issue 45303
-                                                          // {3, 3}, TODO: fix sporadic accuracy failures, see issue 45303
+                                                          {7, 1},
+                                                          {3, 3},
 };
 const std::vector<std::vector<size_t >> strides2D = {
                                                           {1, 1},
@@ -63,9 +83,9 @@ const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {0, 0},
 };
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
-const std::vector<size_t> numOutCannels2D = { 1, 2, 5 };
+const std::vector<size_t> numOutCannels2D = { 8, 16, 32};
 
-const std::vector<size_t> input2DNCHW = { 1, 2, 20, 15 };
+const std::vector<size_t> input2DNCHW = { 1, 8, 20, 16 };
 
 const std::vector<std::vector<size_t>> inputShapesMapTo1d = {{1, 1, 56, 5},
                                                              {1, 32, 56, 5},
@@ -187,8 +207,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLay
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-// TODO: Enable for GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D,
         ::testing::ValuesIn(netPrecisions),
@@ -198,5 +217,5 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayer
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    ConvolutionLayerTest::getTestCaseName);
+    GnaConvolutionLayerTest::getTestCaseName);
 }  // namespace

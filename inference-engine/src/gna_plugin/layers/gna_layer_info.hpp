@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,10 +54,13 @@ class LayerInfo {
         IS_VALID();
         return layer->insData.size() > 1;
     }
-    bool has16BOutput() const noexcept {
+    // The name of the funciton may be somehwat misleading
+    // Explanation: when in low precision mode the listed layers have 8-bit outputs
+    // and when in 16-bit input mode, they have 16-bit outputs
+    bool has8BOr16BOutput() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
-        return layersWith16BOutputs.find(layer->type) != layersWith16BOutputs.end() ||
+        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
+        return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
                                                                         isActivation() ||
                                                             (isCrop() && !isCropAffined());
     }
@@ -72,7 +75,8 @@ class LayerInfo {
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -212,6 +216,9 @@ class LayerInfo {
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
     }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
+    }
     bool isSplit() const noexcept {
         return isOfType("split");
     }
@@ -266,6 +273,9 @@ class LayerInfo {
             std::swap(inputsOrderTransformed[permute.first], inputsOrderTransformed[permute.second]);
         }
         return true;
+    }
+    bool isNonValuesChangable() const {
+        return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
     bool isPooling() const noexcept {
         return isOfType("pooling");
