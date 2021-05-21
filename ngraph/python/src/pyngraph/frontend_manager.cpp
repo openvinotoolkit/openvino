@@ -77,6 +77,12 @@ void regclass_pyngraph_InputModel(py::module m)
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
     im.def("extract_subgraph", &ngraph::frontend::InputModel::extract_subgraph);
     im.def("get_place_by_tensor_name", &ngraph::frontend::InputModel::get_place_by_tensor_name);
+    im.def("get_place_by_operation_name",
+           &ngraph::frontend::InputModel::get_place_by_operation_name);
+    im.def("get_place_by_operation_and_input_port",
+           &ngraph::frontend::InputModel::get_place_by_operation_and_input_port);
+    im.def("get_place_by_operation_and_output_port",
+           &ngraph::frontend::InputModel::get_place_by_operation_and_output_port);
     im.def("set_partial_shape", &ngraph::frontend::InputModel::set_partial_shape);
     im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape);
     im.def("get_inputs", &ngraph::frontend::InputModel::get_inputs);
