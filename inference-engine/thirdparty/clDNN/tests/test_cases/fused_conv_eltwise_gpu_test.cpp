@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
@@ -117,7 +105,6 @@ TEST(fused_conv_eltwise, basic_image2d)
     EXPECT_EQ(outputs_act.begin()->first, "eltwise");
 
     auto output_act = outputs_act.begin()->second.get_memory();
-    auto&& out_act_layout = output_act.get_layout();
     auto out_act_ptr = output_act.pointer<uint8_t>();
 
     topology topology_ref(
@@ -140,7 +127,6 @@ TEST(fused_conv_eltwise, basic_image2d)
     EXPECT_EQ(outputs_ref.begin()->first, "out");
 
     auto output_ref = outputs_ref.begin()->second.get_memory();
-    auto&& out_ref_layout = output_ref.get_layout();
     auto out_ref_ptr = output_ref.pointer<uint8_t>();
 
     for (int i = 0;i < 3 * 256 * 4;i++) {

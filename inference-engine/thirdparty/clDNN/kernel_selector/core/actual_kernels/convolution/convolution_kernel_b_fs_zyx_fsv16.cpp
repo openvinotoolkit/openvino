@@ -1,17 +1,5 @@
-﻿//
-// Copyright (c) 2019-2020 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convolution_kernel_b_fs_zyx_fsv16.h"
@@ -47,19 +35,29 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::str
 }
 
 FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, std::string input_name, Datatype dt,
-                                                                size_t dims) {
+                                                                size_t dims, bool is_vector) {
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
+    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    size_t vec_size = is_vector ? 8 : 1;
     std::vector<std::string> idx_order;
-    if (dims == 5)
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
-    else
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+    if (is_vector) {
+        if (dims == 5)
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
+        else
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+    } else {
+        if (dims == 5)
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "od", "oh", "(ow + i)"};
+        else
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "oh", "(ow + i)"};
+    }
 
-    return { "_VEC" + std::to_string(conf_id),
+    return { suffix,
              idx_order,
-             input_name + std::to_string(conf_id),
+             input_var_name,
              dt,
-             8,
-             FusedOpsConfiguration::LoadType::LT_ALIGNED_READ,
+             vec_size,
+             is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
              FusedOpsConfiguration::BoundaryCheck::ENABLED,
              FusedOpsConfiguration::IndexType::TENSOR_COORD,
              Tensor::DataChannelName::BATCH };
@@ -94,7 +92,7 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params,
                                                                            int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.output;
     const auto& input = params.inputs[0];
@@ -106,7 +104,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
     auto b = out.Batch().v;
     auto g = params.groups;
 
-    const bool is_1stconv = input.Feature().v == 3;
+    const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
     const bool ver_16mb16c = !is_1stconv &&
         ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
         (out.GetDType() == Datatype::F32 && b % 16 == 0));
@@ -120,39 +118,39 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
             else
                 break;
         }
-        kd.cldnnStyle.blockWidth = ow_block;
+        dispatchData.cldnnStyle.blockWidth = ow_block;
         if (out.GetDType() == Datatype::F16) {
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
 
-            kd.gws0 = (f / 2);
-            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-            kd.gws2 = b % 2 == 0 ? b / 2 : b;  // unroll mb by 2
+            dispatchData.gws[0] = (f / 2);
+            dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            dispatchData.gws[2] = b % 2 == 0 ? b / 2 : b;  // unroll mb by 2
         } else {
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
 
             auto ocb = (f % 32 == 0) ? 32 : 16;
-            kd.gws0 = 16;
-            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-            kd.gws2 = b * f / ocb;
+            dispatchData.gws[0] = 16;
+            dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            dispatchData.gws[2] = b * f / ocb;
         }
     } else if (ver_16mb16c) {
-        f = f / g;
-        kd.lws0 = sub_group_size;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        f = (g > 1) ? f/g : Align(f, 16);
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
 
-        kd.gws0 = f;
-        kd.gws1 = x * y * z;
-        kd.gws2 = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
+        dispatchData.gws[0] = f;
+        dispatchData.gws[1] = x * y * z;
+        dispatchData.gws[2] = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
 
-        kd.cldnnStyle.blockWidth = 1;
+        dispatchData.cldnnStyle.blockWidth = 1;
     } else {
         auto oh_block = 1;
-        f = (g > 1) ? Align(f / g, 16) : f;
+        f = Align(f / g, 16);
 
         auto div = 16;
         while (div > 1) {
@@ -170,22 +168,24 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
                 ocb /= 2;
         }
 
-        kd.cldnnStyle.blockWidth = ow_block;
+        dispatchData.cldnnStyle.blockWidth = ow_block;
 
-        kd.gws0 = ocb;
-        kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-        kd.gws2 = b * (f / ocb) * g;
+        dispatchData.gws[0] = ocb;
+        dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+        dispatchData.gws[2] = b * (f / ocb) * g;
 
-        kd.lws0 = sub_group_size;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
-    if (b == 1)
-        kd.efficiency = FORCE_PRIORITY_2;
-    else
-        kd.efficiency = FORCE_PRIORITY_7;
 
-    return kd;
+    return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -201,16 +201,14 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
     if (output.GetDType() != use_data_type)
         return false;
 
-    if (output.Feature().v % feature_block_size != 0)
-        return false;
-
     if (input.GetLayout() == DataLayout::bfzyx) {
-        if (input.Feature().v != 3)
+        if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0)
             return false;
         if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
             return false;
     } else {
-        if ((input.Feature().v / params.groups) % feature_block_size != 0 && (input.Feature().v / params.groups) != 8)
+        if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 &&
+            (input.Feature().v / params.groups) != 8)
             return false;
     }
 
@@ -223,15 +221,14 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
 }
 
 JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params,
-                                                         const DispatchData& runInfo) const {
+                                                               const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.output;
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    const bool is_1stconv = input.Feature().v == 3;
-    const bool ver_16mb16c = !is_1stconv &&
-        ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
-         (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+    const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
+    const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
+                                             (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
@@ -246,9 +243,9 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     else
         jit.AddConstant(MakeJitConstant("CASE_3D", 1));
 
-    jit.AddConstant(MakeJitConstant("LWS_0", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("LWS_2", dispatchData.lws[2]));
 
     if (is_1stconv) {
         if (output.GetDType() == Datatype::F16) {
@@ -260,11 +257,11 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     } else if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("OCB", 1));
     } else {
-        jit.AddConstant(MakeJitConstant("OCB", runInfo.gws0));
+        jit.AddConstant(MakeJitConstant("OCB", dispatchData.gws[0]));
     }
     jit.AddConstant(MakeJitConstant("SUM_SCALE", 1));
 
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("MB_BLOCK", 16));
@@ -290,15 +287,22 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     if (ver_16mb16c && !params.fused_ops.empty()) {
         const auto dims_num = DataTensor::ChannelsCount(input.GetLayout());
         if (output.GetDType() != Datatype::F16) {
-            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1}));
+            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
         } else {
-            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3}));
+            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num, false);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
+                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
         }
     } else if (!is_1stconv && !params.fused_ops.empty()) {
         FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_f16(0, "blockC0", input_dt, true);
@@ -322,12 +326,19 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
+    if (is_1stconv || params.groups > 1) {
+        jit.AddConstant(MakeJitConstant("OC", output.Feature().v / params.groups));
+        jit.AddConstant(MakeJitConstant("IC", input.Feature().v / params.groups));
+    } else {
+        jit.AddConstant(MakeJitConstant("OC", Align(output.Feature().v, 16)));
+        jit.AddConstant(MakeJitConstant("IC", Align(input.Feature().v, 16)));
+    }
+
     jit.AddConstant(MakeJitConstant("MB", "OUTPUT_BATCH_NUM"));
-    jit.AddConstant(MakeJitConstant("OC", output.Feature().v / params.groups));
     jit.AddConstant(MakeJitConstant("OD", "OUTPUT_SIZE_Z"));
     jit.AddConstant(MakeJitConstant("OH", "OUTPUT_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("OW", "OUTPUT_SIZE_X"));
-    jit.AddConstant(MakeJitConstant("IC", input.Feature().v / params.groups));
+
     jit.AddConstant(MakeJitConstant("ID", "INPUT0_SIZE_Z"));
     jit.AddConstant(MakeJitConstant("IH", "INPUT0_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("IW", "INPUT0_SIZE_X"));
@@ -344,15 +355,25 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("PH_R", "PADDING_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("PW_R", "PADDING_SIZE_X"));
 
-    jit.AddConstant(MakeJitConstant("IC_FULL", params.inputs[0].Feature().LogicalDimPadded()));
+    if (is_1stconv || params.groups > 1) {
+        jit.AddConstant(MakeJitConstant("IC_FULL", params.inputs[0].Feature().LogicalDimPadded()));
+        jit.AddConstant(MakeJitConstant("OC_FULL", params.output.Feature().LogicalDimPadded()));
+    } else {
+        jit.AddConstant(MakeJitConstant("IC_FULL", Align(params.inputs[0].Feature().LogicalDimPadded(), 16)));
+        jit.AddConstant(MakeJitConstant("OC_FULL", Align(params.output.Feature().LogicalDimPadded(), 16)));
+    }
+
     jit.AddConstant(MakeJitConstant("ID_FULL", params.inputs[0].Z().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IH_FULL", params.inputs[0].Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IW_FULL", params.inputs[0].X().LogicalDimPadded()));
-
-    jit.AddConstant(MakeJitConstant("OC_FULL", params.output.Feature().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OD_FULL", params.output.Z().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OH_FULL", params.output.Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OW_FULL", params.output.X().LogicalDimPadded()));
+
+    if (params.output.Feature().v % feature_block_size != 0) {
+        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
+        jit.AddConstant(MakeJitConstant("OC_NOTALLIGNED", output.Feature().v));
+    }
 
     return jit;
 }

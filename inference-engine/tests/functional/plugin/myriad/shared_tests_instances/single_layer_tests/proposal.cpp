@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ const auto proposalParams = ::testing::Combine(
         ::testing::ValuesIn(framework_)
 );
 
-INSTANTIATE_TEST_CASE_P(Proposal_tests, ProposalLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Proposal_tests, ProposalLayerTest,
                         ::testing::Combine(
                                 proposalParams,
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),

@@ -35,7 +35,7 @@ cd tensorflow-yolo-v3
 git checkout ed60b90
 ```
 3. Download [coco.names](https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
-4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pretrained weights with the same structure
+4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure
 5. Run a converter:
 - for YOLO-v3:
 ```sh
@@ -44,6 +44,10 @@ python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weig
 - for YOLOv3-tiny:
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3-tiny.weights --tiny
+```
+At this step, you may receive a warning like `WARNING:tensorflow:Entity <...> could not be transformed and will be executed as-is.`. To workaround this issue, switch to gast 0.2.2 with the following command:
+```sh
+pip3 install --user gast==0.2.2
 ```
 
 If you have YOLOv3 weights trained for an input image with the size different from 416 (320, 608 or your own), please provide the `--size` key with the size of your image specified while running the converter. For example, run the following command for an image with size 608:
@@ -85,28 +89,30 @@ where:
 
 To generate the IR of the YOLOv3 TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py
---input_model /path/to/yolo_v3.pb
---tensorflow_use_custom_operations_config $MO_ROOT/extensions/front/tf/yolo_v3.json
---batch 1
+python3 mo_tf.py                                                   \
+--input_model /path/to/yolo_v3.pb                                  \
+--transformations_config $MO_ROOT/extensions/front/tf/yolo_v3.json \
+--batch 1                                                          \
+--output_dir <OUTPUT_MODEL_DIR>
 ```
 
 To generate the IR of the YOLOv3-tiny TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py
---input_model /path/to/yolo_v3_tiny.pb
---tensorflow_use_custom_operations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json
---batch 1
+python3 mo_tf.py                                                        \
+--input_model /path/to/yolo_v3_tiny.pb                                  \
+--transformations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json \
+--batch 1                                                               \
+--output_dir <OUTPUT_MODEL_DIR>
 ```
 
 where:
 
 * `--batch` defines shape of model input. In the example, `--batch` is equal to 1, but you can also specify other integers larger than 1.
-* `--tensorflow_use_custom_operations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
+* `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
 
-OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. For more information, refer to [Object Detection YOLO* V3 Demo, Async API Performance Showcase](@ref omz_demos_object_detection_demo_yolov3_async_README).
+OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. For more information, refer to [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_cpp).
 
 ## Convert YOLOv1 and YOLOv2 Models to the IR
 
@@ -163,14 +169,14 @@ python3 ./mo_tf.py
 --input_model <path_to_model>/<model_name>.pb       \
 --batch 1                                       \
 --scale 255 \
---tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/<yolo_config>.json
+--transformations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/<yolo_config>.json
 ```
 where:
 
 * `--batch` defines shape of model input. In the example, `--batch` is equal to 1, but you can also specify other integers larger than 1.
 * `--scale` specifies scale factor that input values will be divided by. 
 The model was trained with input values in the range `[0,1]`. OpenVINO&trade; toolkit samples read input images as values in `[0,255]` range, so the scale 255 must be applied.
-* `--tensorflow_use_custom_operations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
+* `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).

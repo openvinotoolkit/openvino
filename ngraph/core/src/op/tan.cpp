@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "itt.hpp"
 
@@ -37,16 +25,18 @@ op::Tan::Tan(const Output<Node>& arg)
 
 bool ngraph::op::v0::Tan::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Tan_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Tan_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tan>(new_args.at(0));
 }
 
-namespace
+namespace tanop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -63,28 +53,21 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_tan, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
     }
-}
+} // namespace tanop
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tan::evaluate");
-    return evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(v0_Tan_evaluate);
+    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

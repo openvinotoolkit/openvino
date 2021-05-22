@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <ngraph/type/element_type.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <limits>

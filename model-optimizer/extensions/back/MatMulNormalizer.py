@@ -1,28 +1,18 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from extensions.ops.transpose import Transpose
 from mo.back.replacement import BackReplacementPattern
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
+from mo.ops.shape import Shape
 from mo.ops.unsqueeze import Unsqueeze
+from mo.utils.shape import node_to_get_shape_value_of_indices, new_shape_node_from_shape_nodes
 
 
 class MatMulConstTransposesExtraction(BackReplacementPattern):
@@ -80,7 +70,7 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
 
 
 class PullTransposeThroughFQUp(BackReplacementPattern):
-    """
+    r"""
         BEFORE                                      AFTER
                                                         T  T T  T  T
          \ \ | / /                                       \ \ | / /
@@ -142,3 +132,75 @@ class PullTransposeThroughFQUp(BackReplacementPattern):
             src = port.get_source()
             port.get_connection().set_source(transpose_copy.out_port(0))
             src.connect(start_port)
+
+
+class SmartReshape_HC_Reshape_MatMul(BackReplacementPattern):
+    r"""
+    Relaxes hard-coded input of Reshape in such sub-graphs:
+
+    input_1     Constant
+        \       /
+        Reshape    input_2
+           \       /
+              MatMul
+                |
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        return [MatMulConstTransposesExtraction]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('output_shape', dict(type='Const')),
+                ('output_shape_d', dict()),
+                ('reshape', dict(type='Reshape')),
+                ('reshape_d', dict()),
+                ('other_input', dict(type=lambda t: t not in ['Reshape', 'Transpose'])),
+                ('other_input_d', dict()),
+                ('matmul', dict(type='MatMul')),
+            ],
+            edges=[
+                ('output_shape', 'output_shape_d'),
+                ('output_shape_d', 'reshape', {'in': 1}),
+                ('reshape', 'reshape_d'),
+                ('reshape_d', 'matmul'),
+                ('other_input', 'other_input_d'),
+                ('other_input_d', 'matmul'),
+            ]
+        )
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        matmul = match['matmul']
+        reshape = match['reshape']
+        other_input_port_idx = 0 if match['matmul'].in_port(0).get_source().node.id == match['other_input'].id else 1
+        shape_source = match['matmul'].in_port(other_input_port_idx).get_source()
+        initial_reshape_pattern = reshape.in_port(1).data.get_value()
+        if len(initial_reshape_pattern) != 2:
+            return
+
+        reshape_is_A_input = matmul.in_port(0).get_source().node.id == reshape.id
+        if reshape_is_A_input:
+            idx = -1 if matmul.transpose_b else -2
+        else:
+            idx = -2 if matmul.transpose_a else -1
+        idx = get_canonical_axis_index(initial_reshape_pattern, idx)
+
+        shape_name = shape_source.node.soft_get('name', shape_source.node.id)
+        shape = Shape(graph, {'name': shape_name + '/Shape'}).create_node()
+        shape.in_port(0).connect(shape_source)
+        C = node_to_get_shape_value_of_indices(shape, [idx])
+        N = Const(graph, {'name': shape_name + '/MinusOne', 'value': int64_array([-1])}).create_node()
+
+        if len(initial_reshape_pattern) == 2:
+            if reshape_is_A_input:
+                reshape_pattern = [C, N] if matmul.transpose_a else [N, C]
+            else:
+                reshape_pattern = [N, C] if matmul.transpose_b else [C, N]
+            new_reshape_pattern = new_shape_node_from_shape_nodes(reshape_pattern)
+            reshape.in_port(1).get_connection().set_source(new_reshape_pattern.out_port(0))
+        else:
+            return
+

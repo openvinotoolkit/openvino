@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from libc.stddef cimport size_t
 from libcpp cimport bool
 from libcpp.string cimport string
@@ -90,20 +93,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         @staticmethod
         const Precision FromStr(const string& str)
 
-    cdef cppclass CNNLayer:
-        string name
-        string type
-        Precision precision
-        vector[DataPtr] outData
-        vector[DataWeakPtr] insData
-        string affinity
-        map[string, string] params
-        map[string, CBlob.Ptr] blobs
-
-    ctypedef weak_ptr[CNNLayer] CNNLayerWeakPtr
-    ctypedef shared_ptr[CNNLayer] CNNLayerPtr
-
-
     cdef struct apiVersion:
         int minor
         int major
@@ -141,10 +130,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         BLOCKED
 
 
-cdef extern from "<legacy/ie_layers.h>" namespace "InferenceEngine":
-    cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
-    map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
-
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass ProfileInfo:
@@ -180,7 +165,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const vector[CNNLayerPtr] getLayers() except +
         const map[string, InputInfo.Ptr] getInputsInfo() except +
         const map[string, DataPtr] getInputs() except +
         map[string, DataPtr] getOutputs() except +
@@ -194,6 +178,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
+        string getOVNameForTensor(const string &) except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
@@ -217,6 +202,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
+        unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
+                                              const map[string, string] & config, int num_requests) except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
@@ -233,3 +220,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()
+
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)

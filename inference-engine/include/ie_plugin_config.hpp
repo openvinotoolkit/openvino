@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 
@@ -95,6 +98,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "INT8" - device can support models with INT8 layers
  *  - "BIN" - device can support models with BIN layers
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
+ *  - "BATCHED_BLOB" - device can support BatchedBlob
  */
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
@@ -104,6 +108,7 @@ DECLARE_METRIC_VALUE(FP16);
 DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);
 DECLARE_METRIC_VALUE(WINOGRAD);
+DECLARE_METRIC_VALUE(BATCHED_BLOB);
 
 /**
  * @brief Metric to provide information about a range for streams on platforms where streams are supported.
@@ -140,6 +145,46 @@ DECLARE_METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS, unsigned int);
  * String value is "NUMBER_OF_EXEC_INFER_REQUESTS". This can be used as an executable network metric as well
  */
 DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
+
+/**
+ * @brief Metric which defines the device architecture.
+ */
+DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
+
+/**
+ * @brief Enum to define possible device types
+ */
+enum class DeviceType {
+    integrated = 0,
+    discrete = 1,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+    switch (deviceType) {
+        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
+        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
+        default: os << "unknown"; break;
+    }
+
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
+ */
+DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
+
+/**
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ */
+DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
+
+/**
+ * @brief Metric which defines support of import/export functionality by plugin
+ */
+DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
 
 /**
  * @brief Metric to get a name of network. String value is "NETWORK_NAME".
@@ -193,15 +238,21 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
- * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ *
+ * the following options are implemented only for the TBB as a threading option
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
+ *      on the Windows and MacOS* this option behaves as YES
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
+ *      on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
 DECLARE_CONFIG_VALUE(NUMA);
+DECLARE_CONFIG_VALUE(HYBRID_AWARE);
 
 /**
  * @brief Optimize CPU execution to maximize throughput.
@@ -359,6 +410,26 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
  * user's decision to use this option or not to use
  */
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
+
+/**
+ * @brief This key defines the directory which will be used to store any data cached by plugins.
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ * If this key is not specified or value is empty string, then caching is disabled.
+ * The key might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, "GPU"); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}); // enables models cache
+ * @endcode
+ */
+DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine

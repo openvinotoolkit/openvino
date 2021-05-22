@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,16 +22,14 @@ std::string QueryNetworkTest::getTestCaseName(const ::testing::TestParamInfo<Que
 }
 
 TEST_P(QueryNetworkTest, queryNetworkResultContainAllAndOnlyInputLayers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto& param = GetParam();
     auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, std::get<Plugin>(param));
     ASSERT_NE(nullptr, cnnNetwork.getFunction());
     std::set<std::string> expectedLayers;
     for (auto&& node : function->get_ops()) {
-        if (!ngraph::op::is_parameter(node) &&
-                !ngraph::op::is_constant(node) &&
-                !ngraph::op::is_output(node)) {
-            expectedLayers.insert(node->get_friendly_name());
-        }
+        expectedLayers.insert(node->get_friendly_name());
     }
     std::set<std::string> actualLayers;
     for (auto&& res : queryNetworkResult.supportedLayersMap) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,11 +30,11 @@ struct FormatParserCreator {
     virtual ~FormatParserCreator() = default;
 };
 
-struct INFERENCE_ENGINE_API_CLASS(V2FormatParserCreator) : public FormatParserCreator {
+struct V2FormatParserCreator : public FormatParserCreator {
     std::shared_ptr<IFormatParser> create(size_t version) override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetReaderImpl) {
+class CNNNetReaderImpl {
 public:
     explicit CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator);
 

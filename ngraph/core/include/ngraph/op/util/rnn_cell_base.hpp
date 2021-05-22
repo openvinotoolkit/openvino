@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -30,11 +18,40 @@ namespace ngraph
     {
         namespace util
         {
+            enum class LSTMWeightsFormat
+            {
+                FICO, // IE
+                ICOF, // PyTorch
+                IFCO, // DNNL, TF, MxNet
+                IFOC, // Caffe
+                IOFC, // ONNX
+            };
+
+            ///
+            /// \brief      Change data format of provided node.
+            ///
+            /// \param[in]  node  The input node to be permuted.
+            ///
+            ///
+            /// \param[in]  from_format  Original node weights format.
+            ///
+            ///
+            /// \param[in]  to_format  Weights format to convert to.
+            ///
+            /// \return     Node representing reshaped tensor according to `to_format` weights
+            /// format.
+            ///
+            std::shared_ptr<Node> NGRAPH_API
+                convert_lstm_node_format(const Output<Node>& node,
+                                         LSTMWeightsFormat from_format,
+                                         LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO,
+                                         int64_t axis = 0);
+
             /// \brief      Base class for all recurrent network cells.
             ///
             /// \note       It holds all common attributes.
             ///
-            class NGRAPH_API RNNCellBase
+            class NGRAPH_API RNNCellBase : public Op
             {
             public:
                 ///
@@ -50,7 +67,8 @@ namespace ngraph
                 /// \param[in]  activations_beta   The vector of beta parameters for activation
                 ///                                functions in order respective to activation list.
                 ///
-                RNNCellBase(std::size_t hidden_size,
+                RNNCellBase(const OutputVector& args,
+                            std::size_t hidden_size,
                             float clip,
                             const std::vector<std::string>& activations,
                             const std::vector<float>& activations_alpha,
@@ -58,6 +76,16 @@ namespace ngraph
 
                 RNNCellBase();
                 virtual ~RNNCellBase() = default;
+
+                ///
+                /// \brief      Validates static rank and dimension for provided input parameters.
+                ///             Additionally input_size dimension is checked for X and W inputs.
+                ///
+                ///
+                /// \param[in]  input           Vector with RNN-Cell op inputs in following order:
+                ///                             X, initial_hidden_state, W, R and B.
+                ///
+                void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
 
                 virtual bool visit_attributes(AttributeVisitor& visitor);
                 std::size_t get_hidden_size() const { return m_hidden_size; }

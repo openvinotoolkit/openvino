@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "subgraph_tests/quantized_group_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {
@@ -44,7 +44,7 @@ const auto quantGroupConvBackpropData2DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(QuantGroupConvBackpropData2D, QuantGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConvBackpropData2D, QuantGroupConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantGroupConvBackpropData2DParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -73,7 +73,7 @@ const auto quantGroupConvBackpropData3DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(QuantGroupConvBackpropData3D, QuantGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConvBackpropData3D, QuantGroupConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantGroupConvBackpropData3DParams,
                                 ::testing::ValuesIn(netPrecisions),

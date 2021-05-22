@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -65,7 +53,7 @@ struct shared_mem_params {
     shared_handle context;        ///< OpenCL context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
-#ifdef WIN32
+#ifdef _WIN32
     shared_handle surface;        ///< VA/DXVA surface handle
 #else
     shared_surface surface;
@@ -90,7 +78,7 @@ struct memory {
     static memory share_image(const engine& engine, const layout& layout, shared_handle img, uint32_t net_id = 0);
 
     /// Create shared memory object on @p engine over specified @p plane of video decoder surface @p surf using specified @p layout
-#ifdef WIN32
+#ifdef _WIN32
     static memory share_surface(const engine& engine, const layout& layout, shared_handle surf, uint32_t plane,
         uint32_t net_id = 0);
     static memory share_dx_buffer(const engine& engine, const layout& layout, shared_handle res, uint32_t net_id = 0);

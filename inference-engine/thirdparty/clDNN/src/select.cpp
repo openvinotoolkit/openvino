@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "select_inst.h"
@@ -67,12 +55,21 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
                                 3,
                                 "");
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Mask format",
-                                deps[0]->get_output_layout().format,
-                                "Positive input format",
-                                deps[1]->get_output_layout().format,
-                                "");
+    if (deps[1]->get_output_layout().size != cldnn::tensor(1))
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                              "Mask format",
+                              deps[0]->get_output_layout().format,
+                              "Positive input format",
+                              deps[1]->get_output_layout().format,
+                              "");
+
+    if (deps[2]->get_output_layout().size != cldnn::tensor(1))
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                              "Mask format",
+                              deps[0]->get_output_layout().format,
+                              "Positive input format",
+                              deps[2]->get_output_layout().format,
+                              "");
 
     if (node.get_primitive()->broadcast_type == "none") {
         CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
@@ -89,12 +86,13 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
                                 deps[1]->get_output_layout().size,
                                 "");
     } else if (node.get_primitive()->broadcast_type == "numpy") {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Positive input format",
-                                deps[1]->get_output_layout().format,
-                                "Negative input format",
-                                deps[2]->get_output_layout().format,
-                                "");
+        if (deps[1]->get_output_layout().size != cldnn::tensor(1) && deps[2]->get_output_layout().size != cldnn::tensor(1))
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Positive input format",
+                                  deps[1]->get_output_layout().format,
+                                  "Negative input format",
+                                  deps[2]->get_output_layout().format,
+                                  "");
 
         CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
                                 "Positive input data type",

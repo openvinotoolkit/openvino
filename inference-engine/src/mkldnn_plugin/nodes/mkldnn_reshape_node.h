@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReshapeNode : public MKLDNNNode {
 public:
-    MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNReshapeNode() override = default;
+    MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

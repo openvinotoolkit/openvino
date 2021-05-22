@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <memory>
@@ -37,7 +25,7 @@ runtime::AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment)
     size_t allocation_size = m_byte_size + alignment;
     m_allocated_buffer = static_cast<char*>(ngraph_malloc(allocation_size));
     m_aligned_buffer = m_allocated_buffer;
-    size_t mod = size_t(m_aligned_buffer) % alignment;
+    size_t mod = (alignment != 0) ? size_t(m_aligned_buffer) % alignment : 0;
 
     if (mod != 0)
     {
@@ -67,6 +55,10 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
 {
     if (this != &other)
     {
+        if (m_allocated_buffer != nullptr)
+        {
+            free(m_allocated_buffer);
+        }
         m_allocated_buffer = other.m_allocated_buffer;
         m_aligned_buffer = other.m_aligned_buffer;
         m_byte_size = other.m_byte_size;
@@ -83,13 +75,7 @@ namespace ngraph
 
     AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::AttributeAdapter(
         shared_ptr<runtime::AlignedBuffer>& value)
-        : m_ref(value)
+        : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value)
     {
     }
-
-    void* AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::get_ptr()
-    {
-        return m_ref->get_ptr();
-    }
-    size_t AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::size() { return m_ref->size(); }
-}
+} // namespace ngraph

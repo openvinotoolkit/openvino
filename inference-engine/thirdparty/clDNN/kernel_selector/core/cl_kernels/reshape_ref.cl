@@ -1,22 +1,12 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/common.cl"
 #include "include/data_types.cl"
 
 
-KERNEL (reshape_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL (reshape_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const uint d1 = get_global_id(0);
     const uint d2 = get_global_id(1);
@@ -38,7 +28,7 @@ KERNEL (reshape_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
     const uint od4 = linear % OUTPUT_SIZES[3]; linear /= OUTPUT_SIZES[3];
     const uint od5 = linear % OUTPUT_SIZES[4]; linear /= OUTPUT_SIZES[4];
     const uint od6 = linear % OUTPUT_SIZES[5]; linear /= OUTPUT_SIZES[5];
-    
+
     uint input_offset =  INPUT0_OFFSET +
                          d1*INPUT0_PITCHES[0] +
                          d2*INPUT0_PITCHES[1] +
@@ -53,6 +43,6 @@ KERNEL (reshape_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                          od4*OUTPUT_PITCHES[3] +
                          od5*OUTPUT_PITCHES[4] +
                          od6*OUTPUT_PITCHES[5];
-    
-    output[output_offset] = ACTIVATION(input[input_offset], ACTIVATION_PARAMS);
+
+    output[output_offset] = ACTIVATION(TO_OUTPUT_TYPE(input[input_offset]), ACTIVATION_PARAMS);
 }

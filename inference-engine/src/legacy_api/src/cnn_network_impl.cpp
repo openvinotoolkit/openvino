@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,28 +14,31 @@
 #include "debug.h"
 #include "exec_graph_info.hpp"
 #include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
 
-#include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
+#include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 #include <legacy/cnn_network_impl.hpp>
-#include "network_serializer_v7.hpp"
-#include <shape_infer/ie_reshaper.hpp>
+
+#ifdef ENABLE_V7_SERIALIZE
+# include "network_serializer_v7.hpp"
+#endif
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
+std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     std::map<CNNLayer*, bool> result;
 
     const std::vector<CNNLayerPtr> layers = CNNNetSortTopologically(network);
@@ -54,18 +57,18 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
         for (const DataWeakPtr& insWeakData : layer->insData) {
             const DataPtr insData = insWeakData.lock();
             if (insData == nullptr) {
-                THROW_IE_EXCEPTION << "input data is absent";
+                IE_THROW() << "input data is absent";
             }
 
             const CNNLayerWeakPtr parentWeak = getCreatorLayer(insData);
             const CNNLayerPtr parent = parentWeak.lock();
             if (parent == nullptr) {
-                THROW_IE_EXCEPTION << "parentLayer is absent";
+                IE_THROW() << "parentLayer is absent";
             }
 
             const auto parentIt = result.find(parent.get());
             if (parentIt == result.end()) {
-                THROW_IE_EXCEPTION << "parent layer '" << parent->name << "' was not found";
+                IE_THROW() << "parent layer '" << parent->name << "' was not found";
             }
 
             if (!parentIt->second) {
@@ -83,8 +86,6 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
     return result;
 }
 
-ICNNNetwork::~ICNNNetwork() {}
-
 CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
@@ -92,30 +93,36 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
     auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
-    // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
     ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<::ngraph::pass::CommonOptimizations>();
     manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
 
-    ::ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(graph);
-
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
+
+IE_SUPPRESS_DEPRECATED_START
+
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & ngraphImpl) :
+    CNNNetworkImpl(static_cast<const ICNNNetwork&>(ngraphImpl)) {
+}
+
+IE_SUPPRESS_DEPRECATED_END
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
     // Added additional check on cycles.
     bool res = false;
     try {
-        res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {}, false);
-    } catch (...) {
+        res = CNNNetForestDFS(CNNNetGetAllInputLayers(this), [&](CNNLayerPtr layer) {}, false);
+    } catch (const std::exception & ex) {
+        std::cout << ex.what() << std::endl;
         // Exception means that network was invalid. Reset all data.
     }
 
@@ -154,28 +161,28 @@ void CNNNetworkImpl::removeLayer(const std::string& layerName) {
 void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::string& newName) {
     const auto currentIt = _layers.find(currentName);
     if (currentIt == _layers.end()) {
-        THROW_IE_EXCEPTION << "Layer '" << currentName << "' was not found in layers";
+        IE_THROW() << "Layer '" << currentName << "' was not found in layers";
     }
 
     if (_layers.find(newName) != _layers.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in layers";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in layers";
     }
 
     if (_inputData.find(newName) != _inputData.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in input data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in input data";
     }
 
     if (_outputData.find(newName) != _outputData.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in output data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in output data";
     }
 
     const auto currentDataIt = _data.find(currentName);
     if (currentDataIt == _data.end()) {
-        THROW_IE_EXCEPTION << "Layer '" << currentName << "' was not found in data";
+        IE_THROW() << "Layer '" << currentName << "' was not found in data";
     }
 
     if (_data.find(newName) != _data.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in data";
     }
 
     bool wasUpdatedInput = false;
@@ -223,11 +230,11 @@ void CNNNetworkImpl::validate(int version) {
     InputsDataMap inputs;
     this->getInputsInfo(inputs);
     if (inputs.empty()) {
-        THROW_IE_EXCEPTION << "No input layers";
+        IE_THROW() << "No input layers";
     }
 
     bool res = CNNNetForestDFS(
-        CNNNetGetAllInputLayers(*this),
+        CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())),
         [&](CNNLayerPtr layer) {
             std::string layerName = layer->name;
 
@@ -238,14 +245,14 @@ void CNNNetworkImpl::validate(int version) {
                     auto iter = inputTo.find(layerName);
                     auto dataName = data->getName();
                     if (iter == inputTo.end()) {
-                        THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
+                        IE_THROW() << "Data " << data->getName() << " which inserted into the layer "
                                            << layerName << " does not point at this layer";
                     }
                     if (!getCreatorLayer(data).lock()) {
-                        THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
+                        IE_THROW() << "Data " << dataName << " has no creator layer";
                     }
                 } else {
-                    THROW_IE_EXCEPTION << "Data which inserted into the layer " << layerName << " is nullptr";
+                    IE_THROW() << "Data which inserted into the layer " << layerName << " is nullptr";
                 }
             }
             for (auto data : layer->outData) {
@@ -254,7 +261,7 @@ void CNNNetworkImpl::validate(int version) {
                 for (auto layerIter : inputTo) {
                     CNNLayerPtr layerInData = layerIter.second;
                     if (!layerInData) {
-                        THROW_IE_EXCEPTION << "Layer which takes data " << dataName << " is nullptr";
+                        IE_THROW() << "Layer which takes data " << dataName << " is nullptr";
                     }
                     auto insertedDatas = layerInData->insData;
 
@@ -263,18 +270,18 @@ void CNNNetworkImpl::validate(int version) {
                             return d.lock() == data;
                         });
                     if (it == insertedDatas.end()) {
-                        THROW_IE_EXCEPTION << "Layer " << layerInData->name << " which takes data " << dataName
+                        IE_THROW() << "Layer " << layerInData->name << " which takes data " << dataName
                                            << " does not point at this data";
                     }
                 }
                 auto dataNameSetPair = dataNames.insert(dataName);
                 if (!dataNameSetPair.second) {
-                    THROW_IE_EXCEPTION << "Data name " << dataName << " is not unique";
+                    IE_THROW() << "Data name " << dataName << " is not unique";
                 }
             }
             auto layerSetPair = layerNames.insert(layerName);
             if (!layerSetPair.second) {
-                THROW_IE_EXCEPTION << "Layer name " << layerName << " is not unique";
+                IE_THROW() << "Layer name " << layerName << " is not unique";
             }
         },
         false);
@@ -283,13 +290,13 @@ void CNNNetworkImpl::validate(int version) {
     for (auto i : inputs) {
         CNNLayerPtr layer = getCreatorLayer(i.second->getInputData()).lock();
         if (layer && !equal(layer->type, inputType)) {
-            THROW_IE_EXCEPTION << "Input layer " << layer->name << " should have Input type but actually its type is "
+            IE_THROW() << "Input layer " << layer->name << " should have Input type but actually its type is "
                                << layer->type;
         }
     }
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 }
 
@@ -318,7 +325,7 @@ void CNNNetworkImpl::resolveOutput() {
     // check orphan nodes...
     for (auto kvp : _data) {
         if (!kvp.second->isInitialized())
-            THROW_IE_EXCEPTION << "data name [" << kvp.first << "] dimensions is not known";
+            IE_THROW() << "data name [" << kvp.first << "] dimensions is not known";
 
         // data nodes not going to any layer are basically graph output...
         if (getInputTo(kvp.second).empty()) {
@@ -330,7 +337,7 @@ void CNNNetworkImpl::resolveOutput() {
 void CNNNetworkImpl::addOutput(const string& dataName) {
     auto it = _data.find(dataName);
     if (it == _data.end()) {
-        THROW_IE_EXCEPTION << "data [" << dataName << "] doesn't exist";
+        IE_THROW() << "data [" << dataName << "] doesn't exist";
     }
     auto data = it->second;
     assert(data->getName() == dataName);
@@ -364,31 +371,24 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
 
 StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                                    ResponseDesc* responseDesc) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->run(inputShapes);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc);
+    for (const auto& pair : _inputData) {
+        auto info = pair.second;
+        if (info) {
+            auto data = info->getInputData();
+            auto it = inputShapes.find(pair.first);
+            if (data && it != inputShapes.end()) {
+                auto newDims = it->second;
+                auto currentDims = data->getTensorDesc().getDims();
+                if (newDims != currentDims) {
+                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
+                        "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
+                        "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
+                        "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
+                }
+            }
+        }
     }
-    return OK;
-}
 
-StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                        InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->AddExtension(extension);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 
@@ -396,10 +396,11 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
-        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        Serialization::Serialize(xmlPath, binPath, CNNNetwork(
+            std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         return OK;
 #endif
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
@@ -424,7 +425,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
-        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
+        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(CNNNetwork(shared_from_this()));
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
             CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();
@@ -433,7 +434,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             if (layerT) {
                 const auto it = layersMap.find(layerT.get());
                 if (it == layersMap.end()) {
-                    THROW_IE_EXCEPTION << "layer '" << layerT->name << "' was not found in layers map";
+                    IE_THROW() << "layer '" << layerT->name << "' was not found in layers map";
                 }
                 constOrAbsent = it->second;
             } else {
@@ -447,7 +448,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             }
         }
         return OK;
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
@@ -471,7 +472,7 @@ StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* respon
             }
         }
         return reshape(inputShapes, responseDesc);
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();

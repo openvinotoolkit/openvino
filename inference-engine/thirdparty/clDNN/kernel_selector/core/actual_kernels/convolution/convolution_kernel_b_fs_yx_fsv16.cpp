@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_b_fs_yx_fsv16.h"
 #include "kernel_selector_utils.h"
@@ -19,27 +9,24 @@
 
 namespace kernel_selector {
 
-static const size_t sub_group_size = 16;
-static const size_t feature_block_size = 16;
-
 ConvolutionKernel_b_fs_yx_fsv16::ConvolutionKernel_b_fs_yx_fsv16() : ConvolutionKernelBase("convolution_gpu_bfyx_f16") {
-    std::vector<size_t> outputBlockWidths = {2, 4, 8};
+    std::vector<size_t> outputBlockWidths = { 2, 4, 8 };
     std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
 
     for (auto w : outputBlockWidths) {
         for (auto exeMode : executionModes) {
-            autoTuneOptions.emplace_back(AutoTuneOption{w, exeMode});
+            autoTuneOptions.emplace_back(AutoTuneOption{ w, exeMode });
         }
     }
 }
 
 ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16::GetAutoTuneOptions(const Params& params,
-                                                                                          int /*autoTuneIndex*/) const {
+                                                                                                    int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     auto x = cp.output.X().v;
     auto f = cp.output.Feature().v;
     if (x * f <= 256) {
-        if ( x <= 8 || x * f <= 128)
+        if (x <= 8 || x * f <= 128)
             return { 2, DEFAULT };
         else
             return { 4, DEFAULT };
@@ -53,6 +40,42 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
         else
             return { 8, AGE_BASED };
     }
+}
+
+float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_params& params,
+                                                         const ConvolutionTuningData& tuning_data) const {
+    auto tuneOptions = GetAutoTuneOptions(params, 0);
+    auto blockWidth = tuneOptions.blockWidth;
+
+    auto x = params.output.X().v;
+    auto y = params.output.Y().v;
+    auto f = params.output.Feature().v;
+    auto b = params.output.Batch().v;
+
+    auto threads = CeilDiv(x, blockWidth) * y * CeilDiv(f, tuning_data.feature_block_size) * tuning_data.slm_div_factor * b;
+
+    return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
+}
+
+ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16::GetTuningParams(const convolution_params& params) const {
+    ConvolutionTuningData tuning_data;
+
+    const auto& input = params.inputs[0];
+
+    size_t ic_blocks = CeilDiv(input.Feature().v / params.groups, tuning_data.feature_block_size);
+
+    size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
+
+    bool slm_exception = params.output.X().v == 3 && params.output.Y().v == 3 && params.output.ElementSize() == 4 && params.output.Feature().v <= 512;
+
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.bIMADSupport && !slm_exception)
+        while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+               EstimateOccupancy(params, tuning_data) < 4.0)
+            tuning_data.slm_div_factor *= 2;
+
+    tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
+
+    return tuning_data;
 }
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
@@ -89,33 +112,36 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(const convolution_params& params,
-                                                                           int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params);
+                                                                                int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
+
+    ConvolutionTuningData tuning_data = GetTuningParams(params);
 
     const auto& out = params.output;
 
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
-    kd.cldnnStyle.blockWidth = autoTune.blockWidth;
+    dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
     auto x = out.X().v;
     auto y = out.Y().v;
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x, autoTune.blockWidth) * y;
-    kd.gws1 = Align(f, sub_group_size);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
+    dispatchData.gws[1] = Align(f, tuning_data.feature_block_size) * tuning_data.slm_div_factor;
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = sub_group_size;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = tuning_data.work_group_size;
+    dispatchData.lws[2] = 1;
 
-    if (b == 1)
-        kd.efficiency = FORCE_PRIORITY_2;
-    else
-        kd.efficiency = FORCE_PRIORITY_7;
+    return dispatchData;
+}
 
-    return kd;
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 :  FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -125,27 +151,29 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
 
     const auto& params = static_cast<const convolution_params&>(p);
 
+    ConvolutionTuningData tuning_data = GetTuningParams(params);
+
     const auto& input = params.inputs[0];
     const auto& output = params.output;
 
     if (params.groups > 1) {
         auto outFeaturesPerGroup = output.Feature().v / params.groups;
         auto inFeaturesPerGroup = input.Feature().v / params.groups;
-        auto multipleGroupsInputPreload = (feature_block_size % outFeaturesPerGroup == 0) &&
-                                          (feature_block_size % inFeaturesPerGroup == 0) &&
-                                          (feature_block_size / outFeaturesPerGroup > 1) &&
-                                          (feature_block_size / inFeaturesPerGroup > 1) &&
+        auto multipleGroupsInputPreload = (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
+                                          (tuning_data.feature_block_size % inFeaturesPerGroup == 0) &&
+                                          (tuning_data.feature_block_size / outFeaturesPerGroup > 1) &&
+                                          (tuning_data.feature_block_size / inFeaturesPerGroup > 1) &&
                                           (outFeaturesPerGroup != 1) &&
                                           (inFeaturesPerGroup != 1);
-        auto grouped = inFeaturesPerGroup % sub_group_size == 0 &&
-                       (outFeaturesPerGroup % sub_group_size == 0 || sub_group_size % outFeaturesPerGroup == 0);
+        auto grouped = inFeaturesPerGroup % tuning_data.sub_group_size == 0 &&
+                       (outFeaturesPerGroup % tuning_data.sub_group_size == 0 || tuning_data.sub_group_size % outFeaturesPerGroup == 0);
 
         if (!multipleGroupsInputPreload && !grouped)
             return false;
     }
 
     // Check that padding before features doesn't miss-align the blocks
-    if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0)
+    if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
         return false;
 
     if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
@@ -155,16 +183,18 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& runInfo) const {
+                                                              const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.output;
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    ConvolutionTuningData tuning_data = GetTuningParams(params);
+
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC",
-                                           {"b", "(f_block*16)", "y", "x"},
+                                           {"b", "(feature_block * 16)", "y", "x"},
                                            "dst",
                                            input_dt,
                                            blockWidth,
@@ -173,7 +203,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
                                            IndexType::TENSOR_COORD,
                                            Tensor::DataChannelName::X };
         FusedOpsConfiguration conf_scalar = { "_SCALAR",
-                                              {"b", "(f_block*16)", "y", "(x+i)"},
+                                              {"b", "(feature_block * 16)", "y", "(x + i)"},
                                               "dst[i]",
                                               input_dt,
                                               1,
@@ -189,23 +219,25 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 
     auto outFeaturesPerGroup = output.Feature().v / params.groups;
     auto inFeaturesPerGroup = input.Feature().v / params.groups;
-    auto multipleGroupsInputPreload = (feature_block_size % outFeaturesPerGroup == 0) &&
-                                      (feature_block_size % inFeaturesPerGroup == 0) &&
-                                      (feature_block_size / outFeaturesPerGroup > 1) &&
-                                      (feature_block_size / inFeaturesPerGroup > 1);
+    auto multipleGroupsInputPreload = (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
+                                      (tuning_data.feature_block_size % inFeaturesPerGroup == 0) &&
+                                      (tuning_data.feature_block_size / outFeaturesPerGroup > 1) &&
+                                      (tuning_data.feature_block_size / inFeaturesPerGroup > 1);
 
     if (multipleGroupsInputPreload)
         jit.AddConstant(MakeJitConstant("MULTIPLE_GROUPS_INPUT_PRELOAD", 1));
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, blockWidth)));
-    jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(inFeaturesPerGroup, feature_block_size)));
-    if (params.output.Feature().v % feature_block_size != 0) {
+    jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
+    jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
+    jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(inFeaturesPerGroup, tuning_data.feature_block_size)));
+    if (params.output.Feature().v % tuning_data.feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
-    if (inFeaturesPerGroup % feature_block_size != 0 && !multipleGroupsInputPreload) {
+    if (inFeaturesPerGroup % tuning_data.feature_block_size != 0 && !multipleGroupsInputPreload) {
         jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
     }
 
@@ -213,8 +245,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16::GetTunedKernelsDataByIndex(const Params& params,
-                                                                   const optional_params& options,
-                                                                   const int autoTuneIndex) const {
+                                                                        const optional_params& options,
+                                                                        const int autoTuneIndex) const {
     auto tuneOptions = GetAutoTuneOptions(params, autoTuneIndex);
     return GetCommonKernelsData(params, options, tuneOptions.exeMode, autoTuneIndex);
 }
@@ -224,7 +256,7 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16::GetKernelsDataForAutoTune(const Params& params,
-                                                                  const optional_params& options) const {
+                                                                       const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }

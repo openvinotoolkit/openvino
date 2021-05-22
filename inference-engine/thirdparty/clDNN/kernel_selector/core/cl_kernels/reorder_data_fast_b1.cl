@@ -1,17 +1,6 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "include/fetch.cl"
 #include "include/data_types.cl"
@@ -30,8 +19,6 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
 #elif defined INPUT0_LAYOUT_BS_F_BSV8__AF8  || \
       defined INPUT0_LAYOUT_BS_F_BSV16__AF8
     return GET_DATA_BS_FYX_BSV8_INDEX(INPUT0, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined INPUT0_LAYOUT_BF8_XY16
-    return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_B_FS_YX_FSV16
     return GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_B_FS_ZYX_FSV16
@@ -54,8 +41,6 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 #elif defined OUTPUT_LAYOUT_BS_F_BSV8__AF8  || \
       defined OUTPUT_LAYOUT_BS_F_BSV16__AF8
     return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined OUTPUT_LAYOUT_BF8_XY16
-    return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_B_FS_YX_FSV16
     return GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16

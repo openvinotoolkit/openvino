@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.elementwise import Minimum, Maximum
 from mo.back.replacement import BackReplacementPattern
@@ -63,7 +50,7 @@ class ClampNormalizer(BackReplacementPattern):
                     clamp.out_port(0).get_connection().set_source(min_node.out_port(0))
                 clamp.in_port(2).get_connection().set_destination(min_node.in_port(1))
             assert min_node is not None or max_node is not None, 'Clamp node should have either min or max input used'
-            rename_node(max_node if min_node is None else min_node, name)
+            rename_node(min_node if min_node is not None else max_node, name)
         else:
             a_clamp = AttributedClamp(graph, {'name': name, 'min': min_value, 'max': max_value}).create_node()
             rename_node(a_clamp, name)

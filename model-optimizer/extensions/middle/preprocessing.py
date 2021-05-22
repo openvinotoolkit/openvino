@@ -1,42 +1,13 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-from extensions.middle.LeakyReluPattern import LeakyReLU
+from extensions.middle.LeakyReluPattern import LeakyReLUFusion
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph
-from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
 from mo.utils.utils import refer_to_faq_msg
-
-
-class Preprocessing(MiddleReplacementPattern):
-    enabled = True
-    force_clean_up = True
-
-    def run_after(self):
-        return [LeakyReLU]
-
-    def run_before(self):
-        return [PostMiddleStart]
-
-    def find_and_replace_pattern(self, graph: Graph):
-        argv = graph.graph['cmd_params']
-        if argv.move_to_preprocess:
-            move_scaleshift_to_preprocess(graph)
 
 
 class CaffeMeanFileProcessing(MiddleReplacementPattern):
@@ -45,7 +16,7 @@ class CaffeMeanFileProcessing(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'caffe']
 
     def run_after(self):
-        return [Preprocessing]
+        return [LeakyReLUFusion]
 
     def run_before(self):
         return [PostMiddleStart]

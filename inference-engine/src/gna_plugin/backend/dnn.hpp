@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <cstdio>
 #include <memory.h>
 #include <xmmintrin.h>
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -34,38 +33,10 @@
 #define DNN_RAND_INT32_AMPLITUDE 1048576.0f
 #define DNN_RAND_FLOAT32_AMPLITUDE 8.0f
 
-/**
- * whether to dump weights and biases
- */
-#define DUMP_WB
-/**
- * in light mode only layer names are dumped
- * @param filename
- * @param number_type
- * @return
- */
-#define LIGHT_DUMP
-
 namespace GNAPluginNS {
 namespace backend {
 
-void ApplyAffineTransform(intel_dnn_component_t *component, uint32_t *list, uint32_t listsize);
-void ApplyDiagonalTransform(intel_dnn_component_t *component);
-void ApplyRecurrentTransform(intel_dnn_component_t *component, uint32_t row, void *ptr_feedbacks);
-void ApplyConvolutional1DTransform(intel_dnn_component_t *component);
-void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
-                                            intel_dnn_number_type_t number_type,
-                                            uint32_t listsize);
-void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
-                                            intel_dnn_number_type_t number_type,
-                                            uint32_t listsize,
-                                            uint32_t num_row);
-void ApplyMaxPoolTransform(intel_dnn_component_t *component, intel_dnn_number_type_t number_type);
-void ApplyTranspose(intel_dnn_component_t *component);
-void ApplyCopy(intel_dnn_component_t *component);
-
 void PlotFloatIntDnn(GNAPluginNS::backend::AMIntelDNN *dnn, GNAPluginNS::backend::AMIntelDNN *dnn_int);
-bool isCompatibleDnn(GNAPluginNS::backend::AMIntelDNN dnn1, GNAPluginNS::backend::AMIntelDNN dnn2);
 void ClearScoreError(intel_score_error_t *error);
 void UpdateScoreError(intel_score_error_t *error, intel_score_error_t *total_error);
 void SoftmaxGoogle(float *ptr_output, float *ptr_input, const uint32_t num_outputs, const uint32_t num_inputs);
@@ -81,6 +52,13 @@ template <class T>
 void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
     if (i == component.size() - 1 || ((component[i + 1].operation != kDnnMaxPoolOp)
                                       && (component[i + 1].operation != kDnnPiecewiselinearOp))) {
+        operation++;
+    }
+}
+
+template <class T>
+void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
+    if (i == component.size() - 1 || (component[i + 1].operation != kDnnMaxPoolOp)) {
         operation++;
     }
 }

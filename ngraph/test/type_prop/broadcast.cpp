@@ -1,203 +1,16 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "util/type_prop.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
-
-TEST(type_prop, broadcast_deduce)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    Shape bc_shape{2, 3, 4};
-    auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-    ASSERT_EQ(bc->get_element_type(), element::f32);
-    ASSERT_EQ(bc->get_shape(), bc_shape);
-}
-
-TEST(type_prop, broadcast_axes_oob)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = Shape{2, 3, 4};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1, 3});
-        FAIL() << "Broadcast axis out of bounds not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast axis index (3) exceeds specified output shape rank");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_shape_mismatch_wrong_rank)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = Shape{2, 3, 4, 5};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-        FAIL() << "Output shape mismatch (wrong rank) not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "Broadcast argument shape, specified output shape, and axes are incompatible");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_shape_mismatch_wrong_size)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = Shape{2, 3, 5};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-        FAIL() << "Output shape mismatch (wrong size) not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "Broadcast argument shape, specified output shape, and axes are incompatible");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_partial_rank_dynamic_ok)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    Shape bc_shape{2, 3, 4};
-    auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-    ASSERT_EQ(bc->get_element_type(), element::f32);
-    ASSERT_EQ(bc->get_shape(), bc_shape);
-}
-
-TEST(type_prop, broadcast_partial_rank_dynamic_axes_oob)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto bc_shape = Shape{2, 3, 4};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1, 3});
-        FAIL() << "Broadcast axis out of bounds not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast axis index (3) exceeds specified output shape rank");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_partial_rank_static_dynamic_ok)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
-    Shape bc_shape{2, 3, 4};
-    auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-    ASSERT_EQ(bc->get_element_type(), element::f32);
-    ASSERT_EQ(bc->get_shape(), bc_shape);
-}
-
-TEST(type_prop, broadcast_partial_rank_static_dynamic_axes_oob)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
-    auto bc_shape = Shape{2, 3, 4};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1, 3});
-        FAIL() << "Broadcast axis out of bounds not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast axis index (3) exceeds specified output shape rank");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_partial_rank_static_dynamic_shape_mismatch_wrong_rank)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
-    auto bc_shape = Shape{2, 3, 4, 5};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-        FAIL() << "Output shape mismatch (wrong rank) not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "Broadcast argument shape, specified output shape, and axes are incompatible");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, broadcast_partial_rank_static_dynamic_shape_mismatch_wrong_size)
-{
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
-    auto bc_shape = Shape{2, 3, 5};
-
-    try
-    {
-        auto bc = make_shared<op::Broadcast>(param, bc_shape, AxisSet{1});
-        FAIL() << "Output shape mismatch (wrong size) not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "Broadcast argument shape, specified output shape, and axes are incompatible");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
 
 // Because v3::Broadcast is backward compatible to v1::Broadcast all v1::Broadcast tests should pass
 template <typename T>
@@ -266,8 +79,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(bc->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 16, 50, 50}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 16, 50, 50}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_rank)
@@ -339,7 +151,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 3});
     auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
 
@@ -350,7 +162,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 1. Got 3");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 2. Got 3");
     }
     catch (...)
     {
@@ -391,6 +203,19 @@ TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape)
     bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
     bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{2});
+    const auto target = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
+    const auto target_shape = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
+
+    auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping);
+    ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong)
@@ -803,6 +628,7 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_fail_axes_map_shape,
                            broadcast_axes_wrong_rank,
                            broadcast_fully_dynamic_target_shape,
+                           broadcast_dynamic_values_of_target_shape,
                            broadcast_broadcast_shape_et_wrong,
                            broadcast_axes_et_wrong,
                            broadcast_explicit_all_inputs_dynamic,

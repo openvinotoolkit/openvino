@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,8 +37,8 @@ namespace vpu {
 
 namespace {
 
-void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
-    for (const auto &name : childs) {
+void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& children) {
+    for (const auto &name : children) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
         VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(),
@@ -46,8 +46,8 @@ void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<st
     }
 }
 
-void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
-    for (const auto& name : childs) {
+void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& children) {
+    for (const auto& name : children) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(),
             "Required parameter %s is not found", name);
@@ -160,7 +160,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
     assertOneOrMoreOccurrence(customLayer, {"Kernel"});
     auto kernelNodes = [&] {
         auto nodes = SmallVector<pugi::xml_node>{};
-        for (auto kernel = customLayer.child("Kernel"); !kernel.empty(); kernel = kernel.next_sibling("Kernel")) {
+        FOREACH_CHILD(kernel, customLayer, "Kernel") {
             assertExactlyOneOccurrence(kernel, {"Parameters", "WorkSizes"});
             assertOneOrMoreOccurrence(kernel, {"Source"});
             nodes.push_back(kernel);
@@ -178,12 +178,14 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
                 "each kernel should be provided with 'stage' attribute.", _layerName);
 
             const auto stageNum = std::stod(stageAttr.value());
-            VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
+            VPU_THROW_UNLESS(stageOrder.find(static_cast<int>(stageNum)) == stageOrder.end(),
                 "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
-            stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
+            stageOrder.emplace(static_cast<int>(stageNum), CustomKernel{kernel, _configDir});
         }
 
+        VPU_THROW_UNLESS(!stageOrder.empty(),
+            "Error while binding %s custom layer: No kernels are found.", _layerName);
         VPU_THROW_UNLESS(stageOrder.begin()->first == 0,
             "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
         VPU_THROW_UNLESS(stageOrder.rbegin()->first == stageOrder.size() - 1,

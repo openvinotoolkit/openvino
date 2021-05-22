@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,14 +18,13 @@
 #include <legacy/graph_tools.hpp>
 #include <ngraph/function.hpp>
 #include <ie_precision.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_blob.h>
 #include <ie_plugin_config.hpp>
 #include <cpp/ie_cnn_network.h>
 
 #include <backend/dnn_types.h>
 #include <gna_plugin_policy.hpp>
-#include <gna-api.h>
+#include <backend/gna_types.h>
 #include <gna/gna_config.hpp>
 #include <gna_plugin.hpp>
 #include <gna_lib_ver_selector.hpp>
@@ -292,7 +291,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
-    GNAPropagateMatcher & exact_nnet_structure(intel_nnet_type_t * pNet) {
+    GNAPropagateMatcher & exact_nnet_structure(gna_nnet_type_t * pNet) {
 
         getMatcher().type = GnaPluginTestEnvironment::exactNNetStructure;
         original_nnet = pNet;
@@ -415,7 +414,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return * this;
     }
 
-    GNAPropagateMatcher & to(intel_nnet_type_t *savedNet) {
+    GNAPropagateMatcher & to(gna_nnet_type_t *savedNet) {
         this->savedNet = savedNet;
         return *this;
     }
@@ -427,8 +426,8 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
  protected:
     void match();
-    intel_nnet_type_t * original_nnet = nullptr;
-    intel_nnet_type_t * savedNet = nullptr;
+    gna_nnet_type_t * original_nnet = nullptr;
+    gna_nnet_type_t * savedNet = nullptr;
 };
 
 

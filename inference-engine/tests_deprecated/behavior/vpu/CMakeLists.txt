@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,7 +40,6 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             ${TEST_INCLUDE})
 
     target_compile_definitions(${TARGET_NAME} PRIVATE
-            INSTANTIATE_TESTS=1
             ${FLAG_NAME}=1)
 
     target_link_libraries(${TARGET_NAME} PRIVATE

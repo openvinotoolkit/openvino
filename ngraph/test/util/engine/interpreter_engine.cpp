@@ -1,20 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 
 #include "interpreter_engine.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -30,6 +23,19 @@ namespace
         const auto result = read_vector<T>(results);
 
         return ngraph::test::all_close_f(expected, result, tolerance_bits);
+    }
+
+    testing::AssertionResult
+        compare_with_fp_tolerance(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+                                  const std::shared_ptr<ngraph::runtime::Tensor>& results,
+                                  const float tolerance)
+    {
+        auto comparison_result = testing::AssertionSuccess();
+
+        const auto expected = expected_results->get_vector<float>();
+        const auto result = read_vector<float>(results);
+
+        return ngraph::test::compare_with_tolerance(expected, result, tolerance);
     }
 
     template <typename T>
@@ -57,8 +63,11 @@ namespace
         // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
         std::vector<double> expected_double(expected.size());
         std::vector<double> result_double(result.size());
-        assert(expected.size() == result.size() && "expected and result size must match");
-        for (int i = 0; i < expected.size(); ++i)
+
+        NGRAPH_CHECK(expected.size() == result.size(),
+                     "Number of expected and computed results don't match");
+
+        for (size_t i = 0; i < expected.size(); ++i)
         {
             expected_double[i] = static_cast<double>(expected[i]);
             result_double[i] = static_cast<double>(result[i]);
@@ -66,14 +75,14 @@ namespace
 
         return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
     }
-};
+}; // namespace
 
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
                                                             m_function->get_output_shape(i)));
@@ -86,7 +95,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_dynamic_tensor(
             m_function->get_output_element_type(i), m_function->get_output_partial_shape(i)));
@@ -105,6 +114,49 @@ void test::INTERPRETER_Engine::infer()
                  "Expected number of outputs is different from the function's number "
                  "of results.");
     m_executable->call_with_validate(m_result_tensors, m_input_tensors);
+}
+
+testing::AssertionResult
+    test::INTERPRETER_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
+{
+    auto comparison_result = testing::AssertionSuccess();
+
+    for (size_t i = 0; i < m_expected_outputs.size(); ++i)
+    {
+        const auto& result_tensor = m_result_tensors.at(i);
+        const auto& expected_result_constant = m_expected_outputs.at(i);
+        const auto& element_type = result_tensor->get_element_type();
+
+        const auto& expected_shape = expected_result_constant->get_shape();
+        const auto& result_shape = result_tensor->get_shape();
+
+        if (expected_shape != result_shape)
+        {
+            comparison_result = testing::AssertionFailure();
+            comparison_result << "Computed data shape does not match the expected shape for output "
+                              << i << std::endl;
+            break;
+        }
+
+        switch (element_type)
+        {
+        case element::Type_t::f32:
+            comparison_result =
+                compare_with_fp_tolerance(expected_result_constant, result_tensor, tolerance);
+            break;
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in "
+                                   "'compare_results_with_tolerance_as_fp' method";
+        }
+
+        if (comparison_result == testing::AssertionFailure())
+        {
+            break;
+        }
+    }
+
+    return comparison_result;
 }
 
 testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t tolerance_bits)

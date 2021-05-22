@@ -1,31 +1,22 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-from typing import Iterable
+from typing import Iterable, List, Union
 
 import numpy as np
 
 
-def int64_array(l: Iterable):
-    return np.array(l, dtype=np.int64)
+def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.int64)
 
 
-def float_array(l: list):
-    return np.array(l, dtype=np.float64)
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float64)
+
+
+def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float32)
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
@@ -44,7 +35,7 @@ def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, di
         node['spatial_dims'] = np.array(spatial, dtype=np.int64)
     node['input_channel_dim'] = np.array(input_channel, dtype=np.int64)
     node['output_channel_dim'] = np.array(output_channel, dtype=np.int64)
-    if 'input_channel_dim' not in node['dim_attrs']:
+    if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number
 
@@ -110,3 +101,33 @@ def broadcast_shape(first_shape, second_shape):
         new_val = b_val if a_val == 1 else a_val
         new_shape[-i - 1] = new_val
     return int64_array(new_shape)
+
+
+def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
+    """
+    Calculate shape of a tensor after slicing without actually creating the resulting tensor.
+    Is introduced to prevent potentially large memory consumption.
+    """
+    output_shape = []
+    num_new_axes = np.count_nonzero(list(map(lambda x: x is np.newaxis, slices)))
+    num_ellipsis_inserts = len(input_shape) - len(slices) + num_new_axes + 1
+
+    in_idx = 0
+    for i, s in enumerate(slices):
+        if isinstance(s, slice):
+            output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            in_idx += 1
+        elif s is np.newaxis:
+            output_shape.append(1)
+        elif type(s) in [int, np.int, np.int32, np.int64]:  # shrink_axis
+            in_idx += 1
+        elif s is Ellipsis:
+            for idx in range(num_ellipsis_inserts):
+                output_shape.append(input_shape[in_idx])
+                in_idx += 1
+        else:
+            raise Exception('Element type of a slice List is unacceptable. '
+                            'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
+    for i in range(in_idx, len(input_shape)):
+        output_shape.append(input_shape[i])
+    return int64_array(output_shape)

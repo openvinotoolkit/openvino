@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.ops.LSTM import LSTM
@@ -102,7 +90,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         time_len = match['concatenated_hidden_states'].shape[0]
-        """
+        r"""
         Working with concatenated_cell_states_data part first, because IE TensorIterator primitive doesn't have
         concatenated cell states output and if we can not collapse it, then we does not support this type of BlockLSTM
 
@@ -110,7 +98,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         concatenated cell states over the whole time sequence -> last cell state
 
         BlockLSTM
-           || out 1 (concatenated cell states comming out of BlockLSTM)
+           || out 1 (concatenated cell states coming out of BlockLSTM)
            \/  in 1
         ConcatV2
            || (concatenation with initial state or another unused data)
@@ -265,10 +253,10 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
                     list_of_concatenated_hidden_states_children_node_ids.append(node.id)
 
         if len(list_of_concatenated_hidden_states_children_node_ids) != 1:
-            return  # not supported placement of patten
+            return  # not supported placement of pattern
         conacenated_child_node_id = list_of_concatenated_hidden_states_children_node_ids[0]
         if conacenated_child_node_id != match['after_mul_op_to_the_rest_of_model'].id:
-            return  # not supported placement of patten
+            return  # not supported placement of pattern
 
         gather_indexes = match['gather_0'].in_node(1).value
         if len(gather_indexes) == 1:

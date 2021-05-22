@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "gather_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -84,6 +72,13 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
     }
 }
 
+static int64_t GetGatherBatchDim(const gather_params& params) {
+    if (params.batch_dim < 0)
+        return (int64_t)GetNonEmptyDimsNumber(params.inputs[1]) + params.batch_dim;
+    else
+        return params.batch_dim;
+}
+
 static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
@@ -101,7 +96,7 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     } else if (size == 6) {
         idx_order = {"b", "f", "w", "z", "y", "x"};
     }
-    
+
     return idx_order;
 }
 
@@ -120,7 +115,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 
     for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
         idx_order[i] = zeroVal;
-    
+
     // Fix size to inputs[0] dims size
     for (size_t i = 0; i < params.output.GetDims().size() - params.inputs[0].GetDims().size(); i++)
         idx_order.pop_back();
@@ -130,7 +125,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
     return GetOrderString(idx_order);
 }
 
-static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis) {
+static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order = GetOrder(params.output.GetDims().size());
 
     const std::string zero_val = "0";
@@ -138,8 +133,8 @@ static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis) 
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
     // Shift indices of Gather indices input related to output dims
-    for (size_t i = 0; i < indices_dims_num; i++)
-        idx_order[i] = idx_order[axis + i];
+    for (size_t i = batch_dim; i < indices_dims_num; i++)
+        idx_order[i] = idx_order[axis + i - batch_dim];
 
     for (size_t i = indices_dims_num; i < idx_order.size(); i++)
         idx_order[i] = zero_val;
@@ -152,40 +147,27 @@ static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis) 
 }
 
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
     const auto& output = params.output;
 
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-
     if (output.GetLayout() == DataLayout::bfyx) {
-        global = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
     } else if (output.GetLayout() == DataLayout::bfzyx) {
-        global = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
     } else {
-        global = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
     }
 
-    local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-    
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params))));
+    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
@@ -220,17 +202,19 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     KernelData kd = KernelData::Default<gather_params>(params);
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
 
     return {kd};
+}
+
+KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

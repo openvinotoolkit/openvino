@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fused_conv_eltwise_kernel_bfyx_os_iyx_osv16.h"
 #include <vector>
@@ -148,7 +137,6 @@ fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(const Params& p,
         option.blockWidth = 4;
         option.blockHeight = 3;
         option.prefetch = 5;
-        // run_info.efficiency = FORCE_PRIORITY_7; // GEMM is better
     }
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
@@ -162,38 +150,40 @@ fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(const Params& p,
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::SetDefault(
     const fused_conv_eltwise_params& cp,
     int autoTuneIndex) const {
-    DispatchData runInfo = fused_conv_eltwise_kernel_base::SetDefault(cp);
+    DispatchData dispatchData = fused_conv_eltwise_kernel_base::SetDefault(cp);
 
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
-
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    auto input_block_dims = get_bfyx_req_input_block_dims(runInfo.cldnnStyle.blockWidth,
-                                                          runInfo.cldnnStyle.blockHeight,
+    auto input_block_dims = get_bfyx_req_input_block_dims(dispatchData.cldnnStyle.blockWidth,
+                                                          dispatchData.cldnnStyle.blockHeight,
                                                           cp.conv.filterSize,
                                                           cp.conv.stride,
                                                           cp.conv.dilation,
                                                           sub_group_size,
-                                                          runInfo.fp16UnitUsed ? sub_group_size : sub_group_size / 2,
+                                                          cp.output.GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
                                                           sub_group_size);
-    runInfo.cldnnStyle.inputBlockArraySize = input_block_dims.first;
-    runInfo.cldnnStyle.inputBlockWidth = input_block_dims.second;
+    dispatchData.cldnnStyle.inputBlockArraySize = input_block_dims.first;
+    dispatchData.cldnnStyle.inputBlockWidth = input_block_dims.second;
 
-    runInfo.gws0 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth);
-    runInfo.gws1 = CeilDiv(cp.output.Y().v, runInfo.cldnnStyle.blockHeight);
-    runInfo.gws2 = of_threads_per_batch * cp.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
+    dispatchData.gws[1] = CeilDiv(cp.output.Y().v, dispatchData.cldnnStyle.blockHeight);
+    dispatchData.gws[2] = of_threads_per_batch * cp.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = sub_group_size;
 
-    return runInfo;
+    return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {
@@ -205,19 +195,19 @@ bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, cons
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                                          const DispatchData& runInfo) const {
+                                                                          const DispatchData& dispatchData) const {
     const auto of_maps = params.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps;
 
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", runInfo.cldnnStyle.blockWidth));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", runInfo.cldnnStyle.blockHeight));
-    jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", runInfo.cldnnStyle.inputBlockArraySize));
-    jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", runInfo.cldnnStyle.inputBlockWidth));
-    jit.AddConstant(MakeJitConstant("PREFETCH", runInfo.cldnnStyle.prefetch));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
+    jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", dispatchData.cldnnStyle.inputBlockArraySize));
+    jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
+    jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
 
     if (leftovers) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", leftovers));

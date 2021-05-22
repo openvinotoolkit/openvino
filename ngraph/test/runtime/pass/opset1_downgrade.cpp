@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 
@@ -25,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace opset1_downgrade
 {
     shared_ptr<Node> op_cast(shared_ptr<op::v3::Broadcast> node)
     {
@@ -39,7 +27,14 @@ namespace
         {
             const auto const_filled_with_ones = make_shared<op::v1::Broadcast>(
                 op::Constant::create(data->get_element_type(), {}, {1}), target_shape);
-            replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            if (const_filled_with_ones->get_element_type() == element::boolean)
+            {
+                replacement_node = make_shared<op::v1::LogicalOr>(data, const_filled_with_ones);
+            }
+            else
+            {
+                replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            }
             break;
         }
         case op::BroadcastType::EXPLICIT:
@@ -118,12 +113,12 @@ namespace
         };
         return dispatch_map;
     }
-} // namespace
+} // namespace opset1_downgrade
 
 bool pass::Opset1Downgrade::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
-    auto& dispatch_map = get_dispatch_map();
+    auto& dispatch_map = opset1_downgrade::get_dispatch_map();
     auto it = dispatch_map.find(node->get_type_info());
     if (it != dispatch_map.end())
     {

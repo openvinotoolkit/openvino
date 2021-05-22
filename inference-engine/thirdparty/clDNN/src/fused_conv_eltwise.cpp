@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "fused_conv_eltwise_inst.h"
@@ -229,13 +217,6 @@ layout fused_conv_eltwise_inst::calc_output_layout(fused_conv_eltwise_node const
                        output_range.spatial[0],
                        output_range.spatial[1],
                        output_range.spatial[2]);
-
-    // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
-    // will take byxf and return fs_bs_yx_bsv4_fsv32
-    if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 &&
-        input_layout.size.batch[0] % 4 == 0 && input_layout.size.feature[0] == 3) {
-        return layout{output_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size};
-    }
 
     return {output_type, input_layout.format, output_size};
 }

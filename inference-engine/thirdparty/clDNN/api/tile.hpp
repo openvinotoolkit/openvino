@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -41,19 +29,15 @@ struct tile : public primitive_base<tile> {
 
     /// @brief Constructs tile primitive.
     /// @param id This primitive id.
-    /// @param axis Tiling axis
-    /// @param tiles Tiles number across an axis
+    /// @param out_shape The shape of tiled tensor.
     tile(const primitive_id& id,
          const primitive_id& input,
-         const tile_axis axis,
-         const int tiles,
+         const tensor out_shape,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), axis(axis), tiles(tiles) {}
+        : primitive_base(id, {input}, output_padding), out_shape(out_shape) {}
 
-    /// @brief Tiling axis
-    tile_axis axis;
-    /// @brief Tiles number across an axis
-    int tiles;
+    /// @brief Shape of the output tensor
+    tensor out_shape;
 };
 /// @}
 /// @}

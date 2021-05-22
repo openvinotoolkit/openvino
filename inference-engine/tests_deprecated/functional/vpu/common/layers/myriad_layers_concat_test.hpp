@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,7 +140,7 @@ static  std::vector<int32_t> s_dimension = {
 };
 
 static  std::vector<int32_t> s_batch = {
-    1, 8
+    1 /*, 8 TODO: rewrite to ngraph to have reshape functionality */
 };
 
 static std::vector<InferenceEngine::SizeVector> s_concatCores = {
@@ -150,20 +150,6 @@ static std::vector<InferenceEngine::SizeVector> s_concatCores = {
 static std::vector<InferenceEngine::SizeVector> s_concatInputs = {
     {{1,}, {1, 2, 4}, {1, 2, 3, 4, 5}, {2, 4}}
 };
-
-template<class T>
-std::ostream &operator << (std::ostream & os, const std::vector<T> & vector_of_elements) {
-    os <<"{";
-    int idx=0;
-    for(const auto & element : vector_of_elements) {
-        os << element;
-        if(++idx != vector_of_elements.size()) {
-            os<<",";
-        }
-    }
-    os <<"}";
-    return os;
-}
 
 //function is returning correct name to gtest
 std::string getTestCaseName(testing::TestParamInfo<myriadConcatTestParams> param) {

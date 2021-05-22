@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
-
-#include "ie_blob.h"
-#include "cpp/ie_cnn_network.h"
-#include "debug_options.h"
 
 #include "cldnn_custom_layer.h"
 
@@ -27,6 +22,7 @@ struct Config {
                enableDynamicBatch(false),
                enableInt8(true),
                nv12_two_inputs(false),
+               enable_fp16_for_quantized_models(true),
                queuePriority(cldnn::priority_mode_types::disabled),
                queueThrottle(cldnn::throttle_mode_types::disabled),
                max_dynamic_batch(1),
@@ -34,7 +30,9 @@ struct Config {
                tuningConfig(),
                graph_dumps_dir(""),
                sources_dumps_dir(""),
-               device_id("") {
+               device_id(""),
+               kernels_cache_dir(""),
+               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())) {
         adjustKeyMapValues();
     }
 
@@ -49,6 +47,7 @@ struct Config {
     bool enableDynamicBatch;
     bool enableInt8;
     bool nv12_two_inputs;
+    bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;
@@ -57,6 +56,8 @@ struct Config {
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
     std::string device_id;
+    std::string kernels_cache_dir;
+    size_t n_threads;
 
     std::map<std::string, std::string> key_config_map;
 };

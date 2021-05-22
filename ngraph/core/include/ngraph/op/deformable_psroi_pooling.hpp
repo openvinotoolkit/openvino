@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -32,20 +20,21 @@ namespace ngraph
                 DeformablePSROIPooling() = default;
                 /// \brief Constructs a DeformablePSROIPooling operation
                 ///
-                /// \param input           Input tensor with feature maps
-                /// \param coords          Input tensor describing box consisting
-                ///                        of five element tuples
-                /// \param offsets         Input blob with transformation values
+                /// \param input           Input tensor with position sensitive score maps
+                /// \param coords          Input tensor with list of five element tuples
+                ///                        describing ROI coordinates
+                /// \param offsets         Input tensor with transformation values
                 /// \param output_dim      Pooled output channel number
-                /// \param group_size      Number of groups to encode position-sensitive score maps
+                /// \param group_size      Number of horizontal bins per row to divide ROI area,
+                ///                        it defines output width and height
                 /// \param spatial_scale   Multiplicative spatial scale factor to translate ROI
                 ///                        coordinates from their input scale to the scale used when
                 ///                        pooling
                 /// \param mode            Specifies mode for pooling.
-                /// \param spatial_bins_x  Specifies numbers of bins to divide the input feature
-                ///                         maps over width
-                /// \param spatial_bins_y  Specifies numbers of bins to divide the input feature
-                ///                        maps over height
+                /// \param spatial_bins_x  Specifies numbers of bins to divide ROI single
+                ///                        bin over width
+                /// \param spatial_bins_y  Specifies numbers of bins to divide ROI single
+                ///                        bin over height
                 /// \param no_trans        The flag that specifies whenever third input exists
                 ///                        and contains transformation (offset) values
                 /// \param trans_std       The value that all transformation (offset) values are
@@ -91,16 +80,17 @@ namespace ngraph
                 int64_t get_spatial_bins_y() const { return m_spatial_bins_y; }
                 float get_trans_std() const { return m_trans_std; }
                 int64_t get_part_size() const { return m_part_size; }
+
             private:
                 int64_t m_output_dim;
                 float m_spatial_scale;
-                int64_t m_group_size;
-                std::string m_mode;
-                int64_t m_spatial_bins_x;
-                int64_t m_spatial_bins_y;
-                float m_trans_std;
-                int64_t m_part_size;
+                int64_t m_group_size = 1;
+                std::string m_mode = "bilinear_deformable";
+                int64_t m_spatial_bins_x = 1;
+                int64_t m_spatial_bins_y = 1;
+                float m_trans_std = 1.f;
+                int64_t m_part_size = 1;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

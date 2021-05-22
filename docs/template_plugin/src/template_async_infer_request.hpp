@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #pragma once
 
@@ -19,7 +18,7 @@ public:
                               const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
-    ~TemplateAsyncInferRequest() override;
+    ~TemplateAsyncInferRequest();
 
 private:
     TemplateInferRequest::Ptr           _inferRequest;

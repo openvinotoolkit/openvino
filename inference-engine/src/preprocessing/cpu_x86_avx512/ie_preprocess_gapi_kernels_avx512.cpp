@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,11 @@
 #include "ie_preprocess_gapi_kernels_simd_impl.hpp"
 
 using namespace cv;
+
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
 
 namespace InferenceEngine {
 
@@ -355,17 +360,17 @@ static inline void horizontalPass_anylpi_8U(const short alpha[], const short map
 }
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(        uint8_t* dst[],
-                          const uint8_t* src0[],
-                          const uint8_t* src1[],
-                          const short    alpha[],
-                          const short    clone[],  // 4 clones of alpha
-                          const short    mapsx[],
-                          const short    beta[],
-                              uint8_t    tmp[],
-                          const Size&    inSz,
-                          const Size&    outSz,
-                                  int    lpi) {
+void calcRowLinear_8UC1(uint8_t      * dst[],
+                        const uint8_t* src0[],
+                        const uint8_t* src1[],
+                        const short    alpha[],
+                        const short    clone[],  // 4 clones of alpha
+                        const short    mapsx[],
+                        const short    beta[],
+                        uint8_t        tmp[],
+                        const Size&    inSz,
+                        const Size&    outSz,
+                        int            lpi) {
     bool xRatioEq = inSz.width == outSz.width;
     bool yRatioEq = inSz.height == outSz.height;
 
@@ -637,6 +642,18 @@ void copyRow_8U(const uint8_t in[], uint8_t out[], int length) {
 
 void copyRow_32F(const float in[], float out[], int length) {
     copyRow_32F_impl(in, out, length);
+}
+
+void calcRowLinear_32F(float *dst[],
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                               int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
 }
 
 }  // namespace avx512

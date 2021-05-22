@@ -1,10 +1,10 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <file_utils.h>
+#include <description_buffer.hpp>
 #include <ie_cnn_net_reader_impl.h>
-#include <ie_blob_stream.hpp>
 
 #include <fstream>
 #include <map>
@@ -35,7 +35,7 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
         if (_version < 10) {
             _parser->SetWeights(weights);
         }
-    } catch (const InferenceEngineException& iee) {
+    } catch (const Exception& iee) {
         xmlDoc.reset();
         return DescriptionBuffer(desc) << iee.what();
     }
@@ -78,10 +78,10 @@ void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSi
 #endif
 
     inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << string_file_name;
+    if (!inputFile.is_open()) IE_THROW() << "cannot open file " << string_file_name;
     if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
         inputFile.close();
-        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << string_file_name;
+        IE_THROW() << "cannot read " << maxSize << " bytes from file " << string_file_name;
     }
 
     inputFile.close();
@@ -109,7 +109,7 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
         weightsPtr->allocate();
         readAllFile(filepath, weightsPtr->buffer(), ulFileSize);
         return SetWeights(weightsPtr, resp);
-    } catch (const InferenceEngineException& ex) {
+    } catch (const Exception& ex) {
         return DescriptionBuffer(resp) << ex.what();
     }
 }
@@ -143,22 +143,22 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, Respo
     try {
         pugi::xml_node root = *const_cast<pugi::xml_node*>(&const_root);
         _version = GetFileVersion(root);
-        if (_version < 2) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
+        if (_version < 2) IE_THROW() << "deprecated IR version: " << _version;
 
         if (_version < 10) {
             _parser = parserCreator->create(_version);
             InferenceEngine::details::CNNNetworkImplPtr local_network = _parser->Parse(root);
             name = local_network->getName();
-            local_network->validate(_version);
+            local_network->validate(static_cast<int>(_version));
             network = local_network;
             parseSuccess = true;
         } else {
-            THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
+            IE_THROW() << "cannot parse future versions: " << _version;
         }
     } catch (const std::string& err) {
         parseSuccess = false;
         return DescriptionBuffer(desc) << err;
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         description = e.what();
         parseSuccess = false;
         return DescriptionBuffer(desc) << e.what();

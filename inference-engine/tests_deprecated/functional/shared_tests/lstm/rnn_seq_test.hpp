@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,9 @@ const Named<rnn_param> test_name( [] (const rnn_param &p) {
 
 using RNNSeqTest = PlgTest<rnn_param>;
 
-TEST_P(RNNSeqTest, SingleRNN) {
+// disabled due to transition to ngraph transformation
+// DO NOT DELETE, part of the functionality is still needed
+TEST_P(RNNSeqTest, DISABLED_SingleRNN) {
     auto p = param();
 
     auto cell = std::get<0>(p);
@@ -168,7 +170,7 @@ const auto workload = Combine(
         Values(2),                  // Batch
         Values(3),                  // Sequence size
         Values(0, 1),               // Axis of sequence
-        Values(RESH_NO, RESH_B)     // Reshape mode for batch, sequence or both
+        Values(RESH_NO /*, RESH_B TODO: migrate to ngraph reshape */)  // Reshape mode for batch, sequence or both
 );
 #endif
 
@@ -181,5 +183,5 @@ const auto dyn_seq_workload = Combine(
         Values(1, 8),               // Batch
         Values(3, 100),             // Sequence size
         Values(0, 1),               // Axis of sequence
-        Values(RESH_NO, RESH_B)     // Reshape mode for batch, sequence or both
+        Values(RESH_NO /*, RESH_B TODO: migrate to ngraph reshape */)     // Reshape mode for batch, sequence or both
 );

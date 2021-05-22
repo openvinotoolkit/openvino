@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_winograd_2x3_s1_fused.h"
 
@@ -38,8 +27,8 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1_fused::GetSupportedKey() const {
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+                                                                      const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto idepth = params.inputs[0].Feature().v;
     const auto input_pad_y = params.inputs[0].Y().pad.before + params.inputs[0].Y().pad.after;
@@ -83,7 +72,7 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const conv
 ConvolutionKernel_Winograd_2x3_s1_fused::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1_fused::SetDefault(
     const convolution_params& arg,
     int) const {
-    Parent::DispatchData runInfo = Parent::SetDefault(arg);
+    Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const auto odepth = arg.output.Feature().v;
     const auto input_pad_y = arg.inputs[0].Y().pad.before + arg.inputs[0].Y().pad.after;
@@ -100,21 +89,23 @@ ConvolutionKernel_Winograd_2x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     auto K = odepth;
     auto N = 1;
 
-    uint32_t global_step[3] = {14, 4, 16 * 8};
-    uint32_t local_size[3] = {8, 2, 8};
+    size_t global_step[3] = {14, 4, 16 * 8};
+    size_t local_size[3] = {8, 2, 8};
 
-    uint32_t zStep = local_size[2];
-    runInfo.gws0 = ((uint32_t)((Q + global_step[0] - 1)) / global_step[0]) * local_size[0];
-    runInfo.gws1 = ((uint32_t)((P + global_step[1] - 1)) / global_step[1]) * local_size[1];
-    runInfo.gws2 = ((uint32_t)((N * K * 8 + global_step[2] - 1)) / global_step[2]) * zStep;
+    size_t zStep = local_size[2];
+    dispatchData.gws[0] = ((size_t)((Q + global_step[0] - 1)) / global_step[0]) * local_size[0];
+    dispatchData.gws[1] = ((size_t)((P + global_step[1] - 1)) / global_step[1]) * local_size[1];
+    dispatchData.gws[2] = ((size_t)((N * K * 8 + global_step[2] - 1)) / global_step[2]) * zStep;
 
-    runInfo.lws0 = local_size[0];
-    runInfo.lws1 = local_size[1];
-    runInfo.lws2 = local_size[2];
+    dispatchData.lws[0] = local_size[0];
+    dispatchData.lws[1] = local_size[1];
+    dispatchData.lws[2] = local_size[2];
 
-    runInfo.efficiency = FORCE_PRIORITY_2;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool ConvolutionKernel_Winograd_2x3_s1_fused::Validate(const Params& p, const optional_params& o) const {

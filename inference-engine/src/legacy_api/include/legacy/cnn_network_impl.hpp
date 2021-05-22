@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,24 +15,22 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 #include <ie_icnn_network.hpp>
-#include "description_buffer.hpp"
+#include <cpp/ie_cnn_network.h>
 
 #include <legacy/ie_layers.h>
-#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
 
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
 namespace details {
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
+IE_SUPPRESS_DEPRECATED_START
+
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl); 
-    ~CNNNetworkImpl() override;
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
+    explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
+    ~CNNNetworkImpl();
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
         return nullptr;
@@ -117,17 +115,10 @@ public:
 
     void removeOutput(const std::string& dataName);
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     virtual void validate(int = 2);
 
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
-
-    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
@@ -139,9 +130,11 @@ protected:
     std::map<std::string, DataPtr> _outputData;
     std::string _name;
     DataPtr _emptyData;
-    ShapeInfer::ReshaperPtr _reshaper;
 };
 
+IE_SUPPRESS_DEPRECATED_END
+
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
+
 }  // namespace details
 }  // namespace InferenceEngine

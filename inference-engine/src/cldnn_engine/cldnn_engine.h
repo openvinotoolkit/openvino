@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace CLDNNPlugin {
 using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
 
 class clDNNEngine : public InferenceEngine::InferencePluginInternal,
-    public gpu::details::param_map_obj_getter {
+                    public InferenceEngine::gpu::details::param_map_obj_getter {
     struct impl;
     std::shared_ptr<impl> _impl;
 
@@ -24,28 +24,32 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
     std::map<std::string, cldnn::device> device_map;
     std::mutex engine_mutex;
 
-    CLDNNRemoteCLContext::Ptr m_defaultContext;
+    mutable CLDNNRemoteCLContext::Ptr m_defaultContext;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
-    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const;
+    InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
+                                                         const CLDNNPlugin::Config& config) const;
+
+    void RegisterPrimitives();
+    void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
 public:
     clDNNEngine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                        const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                        InferenceEngine::RemoteContext::Ptr context,
                                                                        const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override;
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override;
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap& params) override;
 };
 
 };  // namespace CLDNNPlugin

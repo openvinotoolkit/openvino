@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,41 +17,12 @@
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace ngraph;
 using namespace std;
-
-TEST(nop_elimination, eliminate_pad) {
-    Shape shape_a{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    CoordinateDiff padding_below{0};
-    CoordinateDiff padding_above{0};
-    auto p = make_shared<op::v0::Pad>(A, B, padding_below, padding_above);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(p), ParameterVector{A, B});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Pad>(f), 0);
-}
-
-TEST(nop_elimination, eliminate_sum) {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto s = make_shared<op::v0::Sum>(A, AxisSet{});
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Sum>(f), 0);
-}
 
 TEST(nop_elimination, eliminate_convert) {
     Shape shape{};
@@ -69,7 +40,7 @@ TEST(nop_elimination, eliminate_convert) {
 
 TEST(nop_elimination, convert_type_agnostic) {
     Shape shape{};
-    auto type = element::from<char>();
+    auto type = element::from<int8_t>();
     auto A = make_shared<op::Parameter>(type, shape);
     auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
     auto c = make_shared<op::v0::Convert>(c1, element::f32);
@@ -84,43 +55,18 @@ TEST(nop_elimination, convert_type_agnostic) {
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_slice) {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto s = make_shared<op::v0::Slice>(A, Coordinate{0, 0}, Coordinate{2, 2});
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Slice>(f), 0);
-}
-
 TEST(nop_elimination, eliminate_broadcast) {
-    Shape shape{};
+    Shape shape{1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto b = make_shared<op::v0::Broadcast>(A, shape, AxisSet{});
+    auto b = make_shared<op::v1::Broadcast>(A,
+                                            op::Constant::create(element::u64, Shape{1}, {1}));
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v0::Broadcast>(f), 0);
-}
-
-TEST(nop_elimination, eliminate_stop_gradient) {
-    Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto s = make_shared<op::v0::StopGradient>(A);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::StopGradient>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
 }
 
 TEST(nop_elimination, pass_property) {
@@ -152,6 +98,45 @@ TEST(nop_elimination, reshape_elimination_v1) {
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(func) == 1);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(nopass_func_zero) == 2);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(func_zero) == 1);
+}
+
+TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
+    std::shared_ptr<Function> f;
+    {
+        auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
+
+        auto relu = std::make_shared<opset4::Relu>(arg);
+        relu->set_friendly_name("relu");
+
+        auto squeeze_axes = opset4::Constant::create(element::i64, Shape{1}, {2});
+        auto squeeze = std::make_shared<opset4::Squeeze>(relu, squeeze_axes);
+        squeeze->set_friendly_name("squeeze");
+
+        auto reshape_shape = opset4::Constant::create(element::i64, Shape{4}, {8, 16, 1, 3});
+        auto reshape = std::make_shared<opset4::Reshape>(squeeze, reshape_shape, false);
+        reshape->set_friendly_name("reshape");
+
+        auto abs = std::make_shared<opset4::Abs>(reshape);
+
+        f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg});
+    }
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::InitNodeInfo>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(f);
+
+    bool reshape_is_missing = true;
+    for (auto node : f->get_ops()) {
+        if (node->get_friendly_name() == "reshape") {
+            reshape_is_missing = false;
+            ASSERT_TRUE(std::dynamic_pointer_cast<opset4::Reshape>(node));
+            auto original_names = getFusedNamesVector(node);
+            sort(original_names.begin(), original_names.end());
+            ASSERT_EQ(original_names, std::vector<std::string>({"reshape", "squeeze"}));
+        }
+    }
+    ASSERT_FALSE(reshape_is_missing);
 }
 
 TEST(nop_elimination, reshape_elimination_v1_dynamic) {
@@ -255,8 +240,16 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
         auto A = make_shared<op::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
         if (multiout) {
+            shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(A, last_dim, element::i32);
+            if (shape[last_dim].is_dynamic()) {
+                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(A),
+                                                op::Constant::create(element::i64, {}, {last_dim}),
+                                                op::Constant::create(element::i64, {}, {0}));
+            } else {
+                k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
+            }
+            A1 = make_shared<op::v1::TopK>(A, k, last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
@@ -727,7 +720,7 @@ TEST(nop_elimination, topk_convert_elimination) {
     auto check_usecase = []() {
         auto A = make_shared<op::Parameter>(element::f32, Shape{20, 3, 4});
         auto A1 = make_shared<op::v0::Abs>(A);
-        auto B = make_shared<op::TopK>(A1, 0, element::i64, 10);
+        auto B = make_shared<op::v1::TopK>(A1, op::Constant::create(element::i64, {}, {10}), 0, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);

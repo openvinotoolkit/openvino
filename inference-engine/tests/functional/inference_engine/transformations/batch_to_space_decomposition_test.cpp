@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/convert_batch_to_space.hpp>
-#include <transformations/convert_space_to_batch.hpp>
+#include <transformations/op_conversions/convert_batch_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 

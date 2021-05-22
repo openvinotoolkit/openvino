@@ -26,7 +26,7 @@
 
 * *bias*
 
-  * **Description**: *beta* represents the offset. Usually positive number to avoid dividing by zero.
+  * **Description**: *bias* represents the offset. Usually positive number to avoid dividing by zero.
   * **Range of values**: no restrictions
   * **Type**: float
   * **Default value**: None
@@ -50,13 +50,26 @@
 
 * **1**: Output tensor of the same shape and type as the `data` input tensor.
 
-**Detailed description**: [Reference](http://yeephycho.github.io/2016/08/03/Normalizations-in-neural-networks/#Local-Response-Normalization-LRN)
+**Detailed description**:
+Local Response Normalization performs a normalization over local input regions.
+Each input value is divided by
+\f[ (bias + \frac{alpha}{{size}^{len(axes)}} \cdot \sum_{i} data_{i})^{beta} \f]
+The sum is taken over a region of a side length `size` and number of dimensions equal to number of axes.
+The region is centered at the input value that's being normalized (with zero padding added if needed).
 
-Here is an example for 4D `data` input tensor and `axes` = `[1]`:
+Here is an example for 4D `data` input tensor and `axes = [1]`:
+```
+sqr_sum[a, b, c, d] =
+    sum(data[a, max(0, b - size / 2) : min(data.shape[1], b + size / 2 + 1), c, d] ** 2)
+output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
+```
 
-    sqr_sum[a, b, c, d] =
-        sum(input[a, b - local_size : b + local_size + 1, c, d] ** 2)
-    output = input / (bias + alpha * sqr_sum) ** beta
+Example for 4D `data` input tensor and `axes = [2, 3]`:
+```
+sqr_sum[a, b, c, d] =
+    sum(data[a, b, max(0, c - size / 2) : min(data.shape[2], c + size / 2 + 1),  max(0, d - size / 2) : min(data.shape[3], d + size / 2 + 1)] ** 2)
+output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
+```
 
 **Example**
 

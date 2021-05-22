@@ -1,17 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "include/include_all.cl"
 #include "include/data_types.cl"
@@ -172,7 +161,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     }
 #endif
 
-#if OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BYXF_AF32
+#if OUTPUT_LAYOUT_B_FS_YX_FSV4
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #if OUTPUT_FEATURE_NUM % 4 == 0
     *((__global OUTPUT_VEC4*)(output + output_pos)) = final_result;

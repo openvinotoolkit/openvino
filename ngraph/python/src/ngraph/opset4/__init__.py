@@ -1,19 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
@@ -82,7 +68,7 @@ from ngraph.opset1.ops import logical_not
 from ngraph.opset1.ops import logical_or
 from ngraph.opset1.ops import logical_xor
 from ngraph.opset1.ops import lrn
-from ngraph.opset1.ops import lstm_cell
+from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
 from ngraph.opset1.ops import max_pool
@@ -137,6 +123,7 @@ from ngraph.opset1.ops import sign
 from ngraph.opset1.ops import sin
 from ngraph.opset1.ops import sinh
 from ngraph.opset1.ops import softmax
+from ngraph.opset4.ops import softplus
 from ngraph.opset2.ops import space_to_batch
 from ngraph.opset1.ops import space_to_depth
 from ngraph.opset1.ops import split

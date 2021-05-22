@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,11 +135,12 @@ private:
             case CustomParamType::InputBuffer:
             case CustomParamType::OutputBuffer:
             case CustomParamType::Data: {
-                VPU_THROW_UNLESS(ports.find(kp) != ports.end(),
-                    "XML specification for %s layer has no definition for %s parameter. Layer name: %s",
+                const auto& kpIt = ports.find(kp);
+                VPU_THROW_UNLESS(kpIt != ports.end(),
+                    "XML specification for %s layer has no definition for '%s' parameter. Layer name: %s",
                     origLayer()->type, kp, origLayer()->name);
 
-                int id = ports.find(kp)->second;
+                int id = kpIt->second;
                 serializer.append(static_cast<uint32_t>(0));
                 serializer.append(static_cast<uint32_t>(id));
                 break;
@@ -195,7 +196,7 @@ private:
                         IE_ASSERT(origData != nullptr);
 
                         auto dims = origData->getDims();
-                        int ndims = dims.size();
+                        auto ndims = dims.size();
 
                         if (ndims > 4) {
                             VPU_THROW_UNLESS(dim.length() == 1,
@@ -476,10 +477,8 @@ void FrontEnd::parseCustom(const Model& model, const ie::CNNLayerPtr& layer, con
         stage->attrs().set("inputOrders", std::move(inputOrders));
         stage->attrs().set("outputOrders", std::move(outputOrders));
 
-        int buffer_size = kernel.kernelBinary().length() + 1024;
-        model->addTempBuffer(
-            stage,
-            DataDesc({buffer_size}));
+        auto buffer_size = kernel.kernelBinary().length() + 1024;
+        model->addTempBuffer(stage, buffer_size);
     }
 }
 

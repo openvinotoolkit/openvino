@@ -1,28 +1,15 @@
-/*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-#include <../api/CPP/cldnn_defs.h>
-#include <../api/CPP/engine.hpp>
-#include <../api/CPP/input_layout.hpp>
-#include <../api/CPP/activation.hpp>
-#include <../api/CPP/softmax.hpp>
-#include <../api/CPP/memory.hpp>
-#include <../api/CPP/fully_connected.hpp>
-#include <../api/CPP/data.hpp>
-#include <../api/CPP/topology.hpp>
+#include <../api/engine.hpp>
+#include <../api/input_layout.hpp>
+#include <../api/activation.hpp>
+#include <../api/softmax.hpp>
+#include <../api/memory.hpp>
+#include <../api/fully_connected.hpp>
+#include <../api/data.hpp>
+#include <../api/topology.hpp>
 #include <iostream>
 
 #include "helper_functions.h"
@@ -45,7 +32,7 @@ topology chapter_2(engine& engine)
     activation relu(
         "relu",  // primitive identifier
         "input", // identifier of input ( output of primitive with provided name is input to current )
-        activation_relu);
+        activation_func::relu);
 
     // Softmax is also very easy to create:
     softmax softmax(
@@ -66,7 +53,7 @@ topology chapter_2(engine& engine)
     data fc_weights("fc_weights", weights_mem);
 
     // Biases are optional but we can use those in this example. Create 'data' in the same way:
-    auto bias_mem = memory::allocate(engine, { data_types::f32,format::bfyx,{ spatial(3) } }); // y, b and f will be set to ones by default
+    auto bias_mem = memory::allocate(engine, { data_types::f32,format::bfyx, tensor(spatial(3)) }); // y, b and f will be set to ones by default
     // Use function to fill data:
     set_values(bias_mem, { 0.0f, 1.0f, 0.5f });
     // Create data primitive.

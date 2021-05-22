@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -25,8 +13,6 @@
 #include "ngraph/op/util/activation_functions.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -42,7 +28,7 @@ namespace ngraph
             ///
             ///             Note this class represents only single *cell* and not whole GRU *layer*.
             ///
-            class NGRAPH_API GRUCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API GRUCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GRUCell", 3};
@@ -149,13 +135,13 @@ namespace ngraph
                         float clip = 0.f,
                         bool linear_before_reset = false);
 
+                virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_linear_before_reset() const { return m_linear_before_reset; }
+
             private:
                 /// brief Add and initialize bias input to all zeros.
                 void add_default_bias_input();
@@ -178,9 +164,6 @@ namespace ngraph
                 ///
                 bool m_linear_before_reset;
             };
-        }
-        using v3::GRUCell;
-    }
-}
-
-NGRAPH_SUPPRESS_DEPRECATED_END
+        } // namespace v3
+    }     // namespace op
+} // namespace ngraph

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "pass_manager.h"
@@ -118,7 +106,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     //     window size spatial Y", filter_size.spatial[1], "First convolution is outside of image. please reduce input
     //     offset Y");
 
-    if (input_layout.format == format::bfzyx) {
+    if (input_layout.format.spatial_num() == 3) {
         // convolution 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "Stride spatial Z",
@@ -217,7 +205,17 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
-    auto number_of_features = weights_layout.size.batch[0] * weights_layout.size.group[0];
+    auto group = desc->groups;
+    int32_t number_of_features = 0;
+    if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
+        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
+    } else {
+        if (format::is_grouped(weights_layout.format)) {
+            number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
+        } else {
+            number_of_features = weights_layout.size.batch[0];
+        }
+    }
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -272,40 +270,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         return {output_type, format::b_fs_yx_32fp, output_size};
     }
 
-    // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
-    // will take byxf and return fs_bs_yx_bsv4_fsv32
-    if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 &&
-        input_layout.size.batch[0] % 4 == 0 && input_layout.size.feature[0] == 3) {
-        return layout{output_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size};
-    }
-
-    auto users = node.get_users();
-    if (users.size() == 1 && users.front()->is_type<convolution>()) {
-        auto conv_split = users.front()->as<convolution>().get_split();
-        auto conv_groups = (int32_t)users.front()->as<convolution>().get_groups();
-
-        bool next_is_dw = ((conv_split > 1 && conv_split == output_size.feature[0]) ||
-                           (conv_groups > 1 && conv_groups == output_size.feature[0]));
-
-        if (input_layout.data_type == data_types::i8 && input_layout.format == format::b_fs_yx_fsv4 && next_is_dw) {
-            return layout{output_type, cldnn::format::byxf_af32, output_size};
-        }
-
-        auto prev_node = node.get_dependencies().front();
-        if (prev_node->is_type<reorder>())
-            prev_node = prev_node->get_dependencies().front();
-
-        auto prev_is_convo = prev_node->is_type<convolution>();
-        if (prev_is_convo) {
-            auto prev2_node = prev_node->get_dependencies().front();
-            auto prev_input_format = prev2_node->get_output_layout().format;
-
-            if (input_layout.data_type == data_types::i8 && input_layout.format == format::byxf_af32 && !next_is_dw &&
-                prev_input_format == format::b_fs_yx_fsv4) {
-                return layout{output_type, cldnn::format::b_fs_yx_fsv4, output_size};
-            }
-        }
-    }
     return {output_type, input_layout.format, output_size};
 }
 
@@ -370,6 +334,11 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
+        auto weights_ifm = filter_inst.size.feature[0];
+        if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
+            weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
+        }
+
         if (bias_term()) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -440,7 +409,7 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
                               "Weights feature maps number",
                               (input_inst.size.feature[0] - input_offset.feature[0]) / split,
                               "input feature maps number",
-                              filter_inst.size.feature[0],
+                              weights_ifm,
                               "Weights/ifm mismatch");
     }
 }

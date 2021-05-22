@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,13 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "gna-api.h"
+#include "backend/gna_types.h"
 #include "gna_permute.hpp"
+#include "gna_lib_ver_selector.hpp"
+#include "gna_copy_layer.hpp"
 
 
 namespace GNAPluginNS {
@@ -48,10 +50,17 @@ class LayerInfo {
     explicit LayerInfo(InferenceEngine::CNNLayer * layer)
         : layer(layer) {
     }
-    bool has16BOutput() const noexcept {
+    bool hasMultipleInputs() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
-        return layersWith16BOutputs.find(layer->type) != layersWith16BOutputs.end() ||
+        return layer->insData.size() > 1;
+    }
+    // The name of the funciton may be somehwat misleading
+    // Explanation: when in low precision mode the listed layers have 8-bit outputs
+    // and when in 16-bit input mode, they have 16-bit outputs
+    bool has8BOr16BOutput() const noexcept {
+        IS_VALID();
+        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
+        return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
                                                                         isActivation() ||
                                                             (isCrop() && !isCropAffined());
     }
@@ -66,7 +75,8 @@ class LayerInfo {
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -97,7 +107,8 @@ class LayerInfo {
              "neglog",
              "neghalflog",
              "softsign",
-             "power"};
+             "power",
+             "fakequantize"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -151,7 +162,10 @@ class LayerInfo {
         IS_VALID();
         return nullptr != as<const InferenceEngine::ScaleShiftLayer*>();
     }
-
+    bool isSyntheticScaleShift() const noexcept {
+        IS_VALID();
+        return layer->name.find("SyntheticScaleShift") != std::string::npos;
+    }
     bool isEltwise() const noexcept {
         IS_VALID();
         return nullptr != as<const InferenceEngine::EltwiseLayer*>();
@@ -187,8 +201,23 @@ class LayerInfo {
     bool isIdentity() const noexcept {
         return isOfType("identity");
     }
+    bool isTanh() const noexcept {
+        return isOfType("tanh");
+    }
+    bool isSigmoid() const noexcept {
+        return isOfType("sigmoid");
+    }
+    bool isSoftSign() const noexcept {
+        return isOfType("softsign");
+    }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
+    }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
     }
     bool isSplit() const noexcept {
         return isOfType("split");
@@ -199,14 +228,17 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
+    bool isFakeQuantize() const noexcept {
+        return isOfType("FakeQuantize");
+    }
     bool isNonFunctional() const noexcept {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze");
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() {
+    bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");
@@ -242,6 +274,9 @@ class LayerInfo {
         }
         return true;
     }
+    bool isNonValuesChangable() const {
+        return isNonFunctional() || isSplit() || isSlice() || isConcat();
+    }
     bool isPooling() const noexcept {
         return isOfType("pooling");
     }
@@ -259,16 +294,25 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
-            try {
-                size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-                return (ALIGN64(cropOffset) != cropOffset);
-            } catch (InferenceEngine::details::InferenceEngineException) {}
+            // currently crop layer only supports 2 bytes in int16 and int8 mode.
+            // In fp32 mode this is not necessary but is useful for testing
+            auto bytesPerCropElement = 2;
+            size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
+            return (ALIGN64(cropOffset) != cropOffset);
         }
         return false;
     }
     bool isCopy() const noexcept {
-        return isOfType("copy");
+        return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
     }
+
+    bool isCopyDelayed() const noexcept {
+        return isOfType(DelayedCopyLayerName);
+    }
+    bool isWeightableIdentity() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+    }
+
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
                                                                         "InnerProduct",

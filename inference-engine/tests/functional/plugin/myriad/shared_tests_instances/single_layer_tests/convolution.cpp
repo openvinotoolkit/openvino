@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,22 +50,51 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(numOutCannels),
         ::testing::Values(ngraph::op::PadType::VALID)
 );
+const auto conv2DParams_BigDimensionValid = ::testing::Combine(
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 1}})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 1}})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 1}})),
+        ::testing::ValuesIn(std::vector<size_t>({64})),
+        ::testing::Values(ngraph::op::PadType::VALID)
+);
 
-INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_BigDimensionValid, ConvolutionLayerTest,
+                        ::testing::Combine(
+                                conv2DParams_BigDimensionValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({1, 3, 1, 2500})),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 3D Convolution ============= */
 // TODO: 3D convolution fails with sigabort
 }  // namespace

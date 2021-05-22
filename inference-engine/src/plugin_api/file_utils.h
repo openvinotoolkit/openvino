@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,41 +45,66 @@ const char FileSeparator = '\\';
 
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { }; }
-    static std::string SharedLibraryExt() { return { "dll" }; }
+    static std::string PluginLibraryPrefix() { return { }; }
+    static std::string PluginLibraryExt() { return { "dll" }; }
 };
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'\\';
-    static std::wstring SharedLibraryPrefix() { return { }; }
-    static std::wstring SharedLibraryExt() { return { L"dll" }; }
+    static std::wstring PluginLibraryPrefix() { return { }; }
+    static std::wstring PluginLibraryExt() { return { L"dll" }; }
 };
 #elif defined __APPLE__
 /// @brief File path separator
 const char FileSeparator = '/';
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { "lib" }; }
-    static std::string SharedLibraryExt() { return { "dylib" }; }
+    static std::string PluginLibraryPrefix() { return { "lib" }; }
+    static std::string PluginLibraryExt() { return { "so" }; }
 };
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'/';
-    static std::wstring SharedLibraryPrefix() { return { L"lib" }; }
-    static std::wstring SharedLibraryExt() { return { L"dylib" }; }
+    static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
+    static std::wstring PluginLibraryExt() { return { L"so" }; }
 };
 #else
 /// @brief File path separator
 const char FileSeparator = '/';
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { "lib" }; }
-    static std::string SharedLibraryExt() { return { "so" }; }
+    static std::string PluginLibraryPrefix() { return { "lib" }; }
+    static std::string PluginLibraryExt() { return { "so" }; }
 };
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'/';
-    static std::wstring SharedLibraryPrefix() { return { L"lib" }; }
-    static std::wstring SharedLibraryExt() { return { L"so" }; }
+    static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
+    static std::wstring PluginLibraryExt() { return { L"so" }; }
 };
 #endif
+
+/**
+ * @brief Interface function to get absolute path of file
+ * @ingroup ie_dev_api_file_utils
+ * @param filePath - path to file, can be relative to current working directory
+ * @return Absolute path of file
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePath);
+
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @ingroup ie_dev_api_file_utils
+ * @param dirPath - path to file, can be relative to current working directory
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::string& dirPath);
+
+/**
+ * @brief Interface function to check if directory exists for given path
+ * @ingroup ie_dev_api_file_utils
+ * @param path - path to directory
+ * @return true if directory exists, false otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) directoryExists(const std::string& path);
 
 /**
  * @brief Interface function to get the size of a file. The function supports UNICODE path
@@ -172,11 +197,11 @@ inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
 }
 
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
-inline std::basic_string<C> makeSharedLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
+inline std::basic_string<C> makePluginLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
     std::basic_string<C> separator(1, FileTraits<C>::FileSeparator);
     if (path.empty())
         separator = {};
-    return path + separator + FileTraits<C>::SharedLibraryPrefix() + input + DotSymbol<C>::value + FileTraits<C>::SharedLibraryExt();
+    return path + separator + FileTraits<C>::PluginLibraryPrefix() + input + DotSymbol<C>::value + FileTraits<C>::PluginLibraryExt();
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT

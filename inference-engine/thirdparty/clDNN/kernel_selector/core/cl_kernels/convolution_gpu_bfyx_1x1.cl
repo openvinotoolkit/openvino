@@ -1,23 +1,13 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/include_all.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
     #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-    
+
     #define MULTIPLY_BLOCKS_16x8_8x16(_result, _blockA, _blockB) \
     { \
         const half16 acol0 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s0 ); \
@@ -64,9 +54,9 @@
 
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(convolution_bfyx_1x1)(
-    __global INPUT0_TYPE* input, 
-    __global OUTPUT_TYPE* output, 
-    __global FILTER_TYPE* weights, 
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global FILTER_TYPE* weights,
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
@@ -107,10 +97,10 @@ KERNEL(convolution_bfyx_1x1)(
     {
         MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA00;
         MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockB00;
-    
+
         uint input_idx = input_offset + k * 8 * xy_block_num * 16;
         uint filter_idx = filter_offset + k * 8 * 16;
-    
+
         blockA00 = ALIGNED_BLOCK_READ8(input, input_idx);
         blockB00 = ALIGNED_BLOCK_READ8(weights, filter_idx);
 
@@ -124,11 +114,7 @@ KERNEL(convolution_bfyx_1x1)(
 
     for(uint i = 0; i < 16; i++)
     {
-    #if OUTPUT_LAYOUT_BF8_XY16
-        const uint dst_index = GET_DATA_BF8_XY16_INDEX(OUTPUT, b, group_f+i, y, x) + out_split_offset;
-    #else
         const uint dst_index = GET_DATA_INDEX(OUTPUT, b, group_f+i, y, x) + out_split_offset;
-    #endif
     #if LEFTOVERS
         if(group_f+i < OUTPUT_FEATURE_NUM)
     #endif

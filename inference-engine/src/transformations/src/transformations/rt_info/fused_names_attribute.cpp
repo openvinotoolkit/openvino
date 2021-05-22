@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace ngraph {
-
-template <typename T>
-VariantImpl<T>::~VariantImpl() { }
 
 template class ngraph::VariantImpl<FusedNames>;
 
@@ -35,7 +32,7 @@ std::vector<std::string> FusedNames::getVectorNames() const {
 }
 
 void FusedNames::fuseWith(const FusedNames &names) {
-    for (auto name : names.fused_names) {
+    for (const auto & name : names.fused_names) {
         fused_names.insert(name);
     }
 }
@@ -60,23 +57,23 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::init(const std::sha
 
 std::string getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using FusedNamesWraper = VariantWrapper<FusedNames>;
+    using FusedNamesWrapper = VariantWrapper<FusedNames>;
 
-    if (!rtInfo.count(FusedNamesWraper::type_info.name)) return {};
+    if (!rtInfo.count(FusedNamesWrapper::type_info.name)) return {};
 
-    const auto &attr = rtInfo.at(FusedNamesWraper::type_info.name);
-    FusedNames fusedNames = as_type_ptr<FusedNamesWraper>(attr)->get();
+    const auto &attr = rtInfo.at(FusedNamesWrapper::type_info.name);
+    FusedNames fusedNames = as_type_ptr<FusedNamesWrapper>(attr)->get();
     return fusedNames.getNames();
 }
 
 std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using FusedNamesWraper = VariantWrapper<FusedNames>;
+    using FusedNamesWrapper = VariantWrapper<FusedNames>;
 
-    if (!rtInfo.count(FusedNamesWraper::type_info.name)) return {};
+    if (!rtInfo.count(FusedNamesWrapper::type_info.name)) return {};
 
-    const auto &attr = rtInfo.at(FusedNamesWraper::type_info.name);
-    FusedNames fusedNames = as_type_ptr<FusedNamesWraper>(attr)->get();
+    const auto &attr = rtInfo.at(FusedNamesWrapper::type_info.name);
+    FusedNames fusedNames = as_type_ptr<FusedNamesWrapper>(attr)->get();
     return fusedNames.getVectorNames();
 }
 

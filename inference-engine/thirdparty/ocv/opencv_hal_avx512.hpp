@@ -2955,41 +2955,11 @@ inline void v512_cleanup() { _mm256_zeroall(); }
 static inline void v_deinterleave(const v_float32x16& low, const v_float32x16& high,
                                         v_float32x16& even,      v_float32x16& odd)
 {
-    __m512 tmp0 = _mm512_unpacklo_ps(low.val, high.val);
-    __m512 tmp1 = _mm512_unpackhi_ps(low.val, high.val);
-    even.val = _mm512_unpacklo_ps(tmp0, tmp1);
-    odd .val = _mm512_unpackhi_ps(tmp0, tmp1);
-}
+    __m512i permute_mask1 = _mm512_setr_epi32(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
+    __m512i permute_mask2 = _mm512_setr_epi32(1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31);
 
-static inline void v_deinterleave(const v_uint8x64& i0, const v_uint8x64& i1,
-                                  const v_uint8x64& i2, const v_uint8x64& i3,
-                                        v_uint8x64& o0,       v_uint8x64& o1,
-                                        v_uint8x64& o2,       v_uint8x64& o3)
-{
-    __m512i u0 = i0.val;                     // a0 b0 c0 d0 a1 b1 c1 d1 ...
-    __m512i u1 = i1.val;                     // a4 b4 c4 d4 ...
-    __m512i u2 = i2.val;                     // a8 b8 c8 d8 ...
-    __m512i u3 = i3.val;                     // a12 b12 c12 d12 ...
-
-    __m512i v0 = _mm512_unpacklo_epi8(u0, u2);  // a0 a8 b0 b8 ...
-    __m512i v1 = _mm512_unpackhi_epi8(u0, u2);  // a2 a10 b2 b10 ...
-    __m512i v2 = _mm512_unpacklo_epi8(u1, u3);  // a4 a12 b4 b12 ...
-    __m512i v3 = _mm512_unpackhi_epi8(u1, u3);  // a6 a14 b6 b14 ...
-
-    u0 = _mm512_unpacklo_epi8(v0, v2);          // a0 a4 a8 a12 ...
-    u1 = _mm512_unpacklo_epi8(v1, v3);          // a2 a6 a10 a14 ...
-    u2 = _mm512_unpackhi_epi8(v0, v2);          // a1 a5 a9 a13 ...
-    u3 = _mm512_unpackhi_epi8(v1, v3);          // a3 a7 a11 a15 ...
-
-    v0 = _mm512_unpacklo_epi8(u0, u1);          // a0 a2 a4 a6 ...
-    v1 = _mm512_unpacklo_epi8(u2, u3);          // a1 a3 a5 a7 ...
-    v2 = _mm512_unpackhi_epi8(u0, u1);          // c0 c2 c4 c6 ...
-    v3 = _mm512_unpackhi_epi8(u2, u3);          // c1 c3 c5 c7 ...
-
-    o0.val = _mm512_unpacklo_epi8(v0, v1);      // a0 a1 a2 a3 ...
-    o1.val = _mm512_unpackhi_epi8(v0, v1);      // b0 b1 b2 b3 ...
-    o2.val = _mm512_unpacklo_epi8(v2, v3);      // c0 c1 c2 c3 ...
-    o3.val = _mm512_unpackhi_epi8(v2, v3);      // d0 d1 d2 d3 ...
+    even.val = _mm512_permutex2var_ps(low.val, permute_mask1, high.val);
+    odd.val = _mm512_permutex2var_ps(low.val, permute_mask2, high.val);
 }
 
 static inline v_uint8x64 v_interleave_low(const v_uint8x64& a, const v_uint8x64& b)
@@ -3093,14 +3063,14 @@ template<int mask, int shift>
 static inline v_uint8x64 v_mask_blend_shiftleft(const v_uint8x64& a, const v_uint8x64& b)
 {
     return v_uint8x64(_mm512_mask_blend_epi16(mask,
-                                              a.val, _mm512_bslli_epi128(b.val, shift)));
+        a.val, _mm512_bslli_epi128(b.val, shift)));
 }
 
 template<int mask, int shift>
 static inline v_uint8x64 v_mask_blend_shiftright(const v_uint8x64& a, const v_uint8x64& b)
 {
     return v_uint8x64(_mm512_mask_blend_epi16(mask,
-                                              _mm512_bsrli_epi128(a.val, shift), b.val));
+        _mm512_bsrli_epi128(a.val, shift), b.val));
 }
 
 static inline v_uint8x64 v_packus(const v_int16x32& a, const v_int16x32& b)
@@ -3115,25 +3085,25 @@ static inline v_uint8x64 v_packus(const v_int16x32& a, const v_int16x32& b)
       | ((uint32_t)((uint8_t)(b3))  << 3*8))
 
 static inline v_uint8x64 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
-                                   char b5, char b6, char b7, char b8, char b9,
-                                   char b10, char b11, char b12, char b13, char b14,
-                                   char b15, char b16, char b17, char b18, char b19,
-                                   char b20, char b21, char b22, char b23, char b24,
-                                   char b25, char b26, char b27, char b28, char b29,
-                                   char b30, char b31, char b32, char b33, char b34,
-                                   char b35, char b36, char b37, char b38, char b39,
-                                   char b40, char b41, char b42, char b43, char b44,
-                                   char b45, char b46, char b47, char b48, char b49,
-                                   char b50, char b51, char b52, char b53, char b54,
-                                   char b55, char b56, char b57, char b58, char b59,
-                                   char b60, char b61, char b62, char b63)
+    char b5, char b6, char b7, char b8, char b9,
+    char b10, char b11, char b12, char b13, char b14,
+    char b15, char b16, char b17, char b18, char b19,
+    char b20, char b21, char b22, char b23, char b24,
+    char b25, char b26, char b27, char b28, char b29,
+    char b30, char b31, char b32, char b33, char b34,
+    char b35, char b36, char b37, char b38, char b39,
+    char b40, char b41, char b42, char b43, char b44,
+    char b45, char b46, char b47, char b48, char b49,
+    char b50, char b51, char b52, char b53, char b54,
+    char b55, char b56, char b57, char b58, char b59,
+    char b60, char b61, char b62, char b63)
 {
     return v_uint8x64(_mm512_setr_epi32(word(b0, b1, b2, b3), word(b4, b5, b6, b7), word(b8, b9, b10, b11),
-                                        word(b12, b13, b14, b15), word(b16, b17, b18, b19), word(b20, b21, b22, b23),
-                                        word(b24, b25, b26, b27), word(b28, b29, b30, b31), word(b32, b33, b34, b35),
-                                        word(b36, b37, b38, b39), word(b40, b41, b42, b43), word(b44, b45, b46, b47),
-                                        word(b48, b49, b50, b51), word(b52, b53, b54, b55), word(b56, b57, b58, b59),
-                                        word(b60, b61, b62, b63)));
+        word(b12, b13, b14, b15), word(b16, b17, b18, b19), word(b20, b21, b22, b23),
+        word(b24, b25, b26, b27), word(b28, b29, b30, b31), word(b32, b33, b34, b35),
+        word(b36, b37, b38, b39), word(b40, b41, b42, b43), word(b44, b45, b46, b47),
+        word(b48, b49, b50, b51), word(b52, b53, b54, b55), word(b56, b57, b58, b59),
+        word(b60, b61, b62, b63)));
 }
 
 static inline void v_deinterleave_expand(const v_uint8x64& src, v_int16x32& even, v_int16x32& odd)
@@ -3145,15 +3115,15 @@ static inline void v_deinterleave_expand(const v_uint8x64& src, v_int16x32& even
                                      -1, 46, -1, 48, -1, 50, -1, 52, -1, 54, -1,
                                      56, -1, 58, -1, 60, -1, 62, -1);
 
-    v_uint8x64 mask_odd  = v_setr_s8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1,
-                                     13, -1, 15, -1, 17, -1, 19, -1, 21, -1, 23,
-                                     -1, 25, -1, 27, -1, 29, -1, 31, -1, 33, -1,
-                                     35, -1, 37, -1, 39, -1, 41, -1, 43, -1, 45,
-                                     -1, 47, -1, 49, -1, 51, -1, 53, -1, 55, -1,
-                                     57, -1, 59, -1, 61, -1, 63, -1);
+    v_uint8x64 mask_odd = v_setr_s8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1,
+                                    13, -1, 15, -1, 17, -1, 19, -1, 21, -1, 23,
+                                    -1, 25, -1, 27, -1, 29, -1, 31, -1, 33, -1,
+                                    35, -1, 37, -1, 39, -1, 41, -1, 43, -1, 45,
+                                    -1, 47, -1, 49, -1, 51, -1, 53, -1, 55, -1,
+                                    57, -1, 59, -1, 61, -1, 63, -1);
 
     even.val = _mm512_shuffle_epi8(src.val, mask_even.val);
-    odd .val = _mm512_shuffle_epi8(src.val, mask_odd.val);
+    odd.val = _mm512_shuffle_epi8(src.val, mask_odd.val);
 }
 
 static inline v_uint64x8 v_set_s64(int b7, int b6, int b5, int b4, int b3, int b2, int b1, int b0)
@@ -3167,25 +3137,39 @@ static inline v_uint32x16 v_set_s32(int b15, int b14, int b13, int b12, int b11,
     return v_uint32x16(_mm512_set_epi32(b15, b14, b13, b12, b11, b10, b9, b8, b7, b6, b5, b4, b3, b2, b1, b0));
 }
 
+static inline v_uint32x16 v_setr_s32(int b1, int b2, int b3, int b4, int b5, int b6, int b7, int b8,
+                                     int b9, int b10, int b11, int b12, int b13, int b14, int b15, int b16)
+{
+    return v_uint32x16(_mm512_setr_epi32(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16));
+}
+
 static inline v_uint8x64 v_shuffle_s8(const v_uint8x64& a, const v_uint8x64& mask)
 {
     return v_uint8x64(_mm512_shuffle_epi8(a.val, mask.val));
 }
+
 static inline v_int16x32 v_load_ccache_expand(const uchar* ptr)
 {
     return v_int16x32(_mm512_cvtepu8_epi16(_mm256_lddqu_si256((const __m256i*)ptr)));                         \
 }
+
 static inline __m512i v512_insert_epi16(__m512i& target, const ushort x, const int index)
 {
     return _mm512_mask_set1_epi16(target, 1UL << index, x);
 }
+
 static inline __m512i v512_insert_epi32(__m512i& target, const int32_t x, const int index)
 {
     return _mm512_mask_set1_epi32(target, 1UL << index, x);
 }
 
+static inline __m512i v512_insert_epi64(__m512i& target, const int64_t x, const int index)
+{
+    return _mm512_mask_set1_epi64(target, 1UL << index, x);
+}
+
 static inline void v_gather_channel(v_uint8x64& vec, const uint8_t tmp[], const short mapsx[],
-                                    int chanNum, int c, int x, int shift)
+    int chanNum, int c, int x, int shift)
 {
     __m256i vec1 = _mm256_setzero_si256();
     __m256i vec2 = _mm256_setzero_si256();
@@ -3292,7 +3276,7 @@ static inline int v512_extract_epi32(__m512i target)
 template <int index>
 static inline int v512_extract_epi16(__m512i target)
 {
-    return (v512_extract_epi32<index/2>(target) >> (index % 2 ? 16 : 0)) & 0xFFFF;
+    return (v512_extract_epi32<index / 2>(target) >> (index % 2 ? 16 : 0)) & 0xFFFF;
 }
 
 static inline v_uint8x64 v_gather_pairs(const uchar src[], const v_int16x32& index) {
@@ -3333,6 +3317,33 @@ static inline v_uint8x64 v_gather_pairs(const uchar src[], const v_int16x32& ind
     r.val = v512_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[v512_extract_epi16<31>(index.val)]), 31);
 
     return r;
+}
+
+static inline void v_gather_pairs(const float src[], const int mapsx[], int x,
+                                  v_float32x16& low, v_float32x16& high) {
+    __m512i lo = _mm512_castps_si512(low.val);
+    __m512i hi = _mm512_castps_si512(high.val);
+
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x]]), 0);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 1]]), 1);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 2]]), 2);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 3]]), 3);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 4]]), 4);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 5]]), 5);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 6]]), 6);
+    lo = v512_insert_epi64(lo, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 7]]), 7);
+
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 8]]), 0);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 9]]), 1);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 10]]), 2);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 11]]), 3);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 12]]), 4);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 13]]), 5);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 14]]), 6);
+    hi = v512_insert_epi64(hi, *reinterpret_cast<const int64_t*>(&src[mapsx[x + 15]]), 7);
+
+    low.val = _mm512_castsi512_ps(lo);
+    high.val = _mm512_castsi512_ps(hi);
 }
 
 namespace {

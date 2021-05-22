@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -61,10 +49,12 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& input,
                     const primitive_id& weights,
                     const primitive_id& bias = "",
-                    const padding& output_padding = padding())
+                    const padding& output_padding = padding(),
+                    const size_t input_size = 2)
         : primitive_base(id, {input}, output_padding),
           weights(weights),
-          bias(bias)
+          bias(bias),
+          input_size(input_size)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -77,16 +67,20 @@ struct fully_connected : public primitive_base<fully_connected> {
         const primitive_id& weights,
         const primitive_id& bias,
         const data_types data_type,
-        const padding& output_padding = padding())
+        const padding& output_padding = padding(),
+        const size_t input_size = 2)
         : primitive_base(id, { input }, output_padding, optional_data_type{data_type}),
         weights(weights),
-        bias(bias)
+        bias(bias),
+        input_size(input_size)
     {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
     /// @brief Primitive id containing bias data.
     primitive_id bias;
+    /// @brief Primitive dimension size.
+    size_t input_size;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

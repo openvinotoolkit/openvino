@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ void PassImpl::run(const Model& model) {
 
         const auto try_hw = stage->attrs().get<int>("try_hw");
 
-        int kernelNDims = kernel_shape.size();
+        auto kernelNDims = kernel_shape.size();
         if (kernelNDims != 3) {
             continue;
         }

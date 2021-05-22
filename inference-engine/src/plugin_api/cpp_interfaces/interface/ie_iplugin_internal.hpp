@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,8 @@
 
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
-#include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
 
 #include <blob_factory.hpp>
@@ -26,13 +24,15 @@
 
 namespace InferenceEngine {
 
+class IExecutableNetworkInternal;
+
 /**
  * @brief      Copies preprocess info
  *
  * @param[in]  from  PreProcessInfo to copy from
  * @param      to    PreProcessInfo to copy to
  */
-static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
+inline void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
     to = from;
     if (from.getMeanVariant() == MEAN_IMAGE) {
         for (size_t i = 0; i < from.getNumberOfChannels(); i++) {
@@ -54,12 +54,12 @@ static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
  * @param      _networkInputs   The network inputs to copy to
  * @param      _networkOutputs  The network outputs to copy to
  */
-static void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
+template <typename Tinput, typename Toutput>
+inline void copyInputOutputInfo(const std::map<std::string, std::shared_ptr<Tinput> > & networkInputs,
+                                const std::map<std::string, std::shared_ptr<Toutput> > & networkOutputs,
                                 InputsDataMap & _networkInputs, OutputsDataMap & _networkOutputs) {
     _networkInputs.clear();
     _networkOutputs.clear();
-
-    IE_SUPPRESS_DEPRECATED_START
 
     for (const auto& it : networkInputs) {
         InputInfo::Ptr newPtr;
@@ -78,8 +78,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         }
         _networkOutputs[it.first] = newData;
     }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 /**
@@ -87,8 +85,7 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePlugin : public details::IRelease,
-                         public std::enable_shared_from_this<IInferencePlugin> {
+class IInferencePlugin : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -116,12 +113,6 @@ class IInferencePlugin : public details::IRelease,
         }
     } _version;
 
-protected:
-    /**
-     * @brief      Destroys the object.
-     */
-    ~IInferencePlugin() override = default;
-
 public:
     /**
      * @brief A shared pointer to IInferencePlugin interface
@@ -144,10 +135,6 @@ public:
         return _version;
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     /**
      * @brief      Provides a name of a plugin
      * @return     The name.
@@ -167,20 +154,30 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
-                                          const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
-                                          const std::map<std::string, std::string>& config,
-                                          RemoteContext::Ptr context) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config,
+                                                                    RemoteContext::Ptr context) = 0;
+
+    /**
+     * @brief Creates an executable network from model file path
+     * @param modelPath A path to model
+     * @param config A string-string map of config parameters relevant only for this load operation
+     * @return Created Executable Network object
+     */
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) = 0;
+
     /**
      * @brief Registers extension within plugin
      * @param extension - pointer to already loaded extension
@@ -218,18 +215,20 @@ public:
 
     /**
      * @brief      Provides a default remote context instance if supported by a plugin
+     * @param[in]  params  The map of parameters
      * @return     The default context.
      */
-    virtual RemoteContext::Ptr GetDefaultContext() = 0;
+    virtual RemoteContext::Ptr GetDefaultContext(const ParamMap& params) = 0;
 
     /**
+     * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
      * @brief Creates an executable network from an previously exported network
      * @param modelFileName - path to the location of the exported file
      * @param config A string -> string map of parameters
-     * @return A reference to a shared ptr of the returned network interface
+     * @return An Executable network
      */
-    virtual IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                                  const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
@@ -238,21 +237,21 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                            const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
      *        and removes Inference Engine magic and plugin name
      * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                            const RemoteContext::Ptr& context,
-                                            const std::map<std::string, std::string>& config) = 0;
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const RemoteContext::Ptr& context,
+                                                                      const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Sets pointer to ICore interface
@@ -270,11 +269,21 @@ public:
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
-     * @param      res      The result of query operator containing supported layers map
+     * @return     The result of query operator containing supported layers map
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
-                              QueryNetworkResult& res) const = 0;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
+
+protected:
+    ~IInferencePlugin() = default;
 };
+
+namespace details {
+template <>
+class SOCreatorTrait<IInferencePlugin> {
+public:
+    static constexpr auto name = "CreatePluginEngine";
+};
+}  // namespace details
 
 }  // namespace InferenceEngine
 
@@ -283,16 +292,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
-            InferenceEngine::IInferencePlugin *&plugin,                                  \
-            InferenceEngine::ResponseDesc *resp) noexcept {                              \
-        try {                                                                            \
-            plugin = new PluginType(__VA_ARGS__);                                        \
-            plugin->SetVersion(version);                                                 \
-            return OK;                                                                   \
-        }                                                                                \
-        catch (std::exception &ex) {                                                     \
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
-        }                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
+    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
+        try {                                                                                                       \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
+        } catch (const InferenceEngine::Exception&) {                                                               \
+            throw;                                                                                                  \
+        } catch (const std::exception& ex) {                                                                        \
+            IE_THROW() << ex.what();                                                                        \
+        } catch (...) {                                                                                             \
+            IE_THROW(Unexpected);                                                             \
+        }                                                                                                           \
+        plugin->SetVersion(version);                                                                                \
     }

@@ -30,7 +30,7 @@ with the shape and type from the 1 input.
 
 **Outputs**
 
-*   **1**: tensor with the same shape and type as `init_value`
+*   **1**: tensor with the same shape and type as `init_value`.
 
 **Example**
 

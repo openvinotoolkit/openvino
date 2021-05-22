@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,7 @@ public:
                   const Strides& dilations,
                   const CoordinateDiff& pads_begin,
                   const CoordinateDiff& pads_end,
+                  const element::Type output_type,
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
 
@@ -57,10 +58,35 @@ public:
                   const Strides& dilations,
                   const CoordinateDiff& pads_begin,
                   const CoordinateDiff& pads_end,
+                  const element::Type output_type,
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
 
+    // KMB compilation support
+    ConvolutionIE(const Output<Node>& data_batch,
+                  const Output<Node>& filters,
+                  const Strides& strides,
+                  const Strides& dilations,
+                  const CoordinateDiff& pads_begin,
+                  const CoordinateDiff& pads_end,
+                  const size_t& group = 1,
+                  const PadType& auto_pad = PadType::EXPLICIT);
+
+    // KMB compilation support
+    ConvolutionIE(const Output<Node>& data_batch,
+                  const Output<Node>& filters,
+                  const Output<Node>& bias,
+                  const Strides& strides,
+                  const Strides& dilations,
+                  const CoordinateDiff& pads_begin,
+                  const CoordinateDiff& pads_end,
+                  const size_t& group = 1,
+                  const PadType& auto_pad = PadType::EXPLICIT);
+
+
     void validate_and_infer_types() override;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
@@ -90,6 +116,7 @@ protected:
     CoordinateDiff m_pads_end;
     PadType m_auto_pad;
     size_t m_group;
+    element::Type m_output_type;
 };
 
 }  // namespace op

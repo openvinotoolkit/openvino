@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 """
 Upload metrics gathered by MemCheckTests into Mongo DB
@@ -80,8 +80,8 @@ def info_from_test_config(test_conf):
     test_conf_root = test_conf_obj.getroot()
     records = {}
     for model_rec in test_conf_root.find("models"):
-        model = model_rec.attrib["path"]
-        records[Path(model)] = {
+        model_name = model_rec.attrib["name"]
+        records[model_name] = {
             "framework": model_rec.attrib.get("framework"),
             "source": model_rec.attrib.get("source"),
         }
@@ -123,10 +123,8 @@ def parse_memcheck_log(log_path):
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
-                model_name=os.path.splitext(
-                    os.path.basename(model['path']))[0],
-                precision=next(pr for pr in PRECISSIONS if pr.upper()
-                               in model['path'].upper()),
+                model_name=os.path.splitext(os.path.basename(model['path']))[0],
+                precision=next(pr for pr in PRECISSIONS if pr.upper() in model['precision'].upper()),
                 model=model['path'],
                 device=model['device'].upper(),
                 status='passed' if passed_match else 'failed' if failed_match else 'started'
@@ -192,6 +190,18 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+    def timeline_key(item):
+        """ Defines order for timeline report entries
+        """
+        if len(item['metrics']['vmhwm']) <= 1:
+            return 1
+        order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
+            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+        if not item['status']:
+            # ensure failed cases are always on top
+            order += sys.maxsize/2
+        return order
+
     client = MongoClient(db_url)
     collection = client[DATABASE][db_collection]
     result = []
@@ -213,7 +223,11 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
             pass  # keep only the record if timeline failed to generate
         items += [record]
         timeline = _transpose_dicts(items, template=record)
+        timeline['status'] = bool(timeline['metrics']['vmrss'][-1] < timeline['ref_metrics']['vmrss'][-1] and
+                                  timeline['metrics']['vmhwm'][-1] < timeline['ref_metrics']['vmhwm'][-1])
         result += [timeline]
+
+    result.sort(key=timeline_key, reverse=True)
     return result
 
 
@@ -221,7 +235,7 @@ def create_memcheck_report(records, db_url, db_collection, output_path):
     """ Create memcheck timeline HTML report for records.
     """
     records.sort(
-        key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
+        key=lambda item: f"{item['status']}{item['device']}{item['model_name']}{item['test_name']}")
     timelines = query_timeline(records, db_url, db_collection)
     import jinja2  # pylint: disable=import-outside-toplevel
     env = jinja2.Environment(

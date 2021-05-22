@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -266,29 +266,20 @@ protected:
         // Infer
         //
 
-        StatusCode st = OK;
-
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputValuesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input", inputValuesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputValuesBlob = _inferRequest.GetBlob("input"));
+        
         void* inputValuesBlobDataPtr = inputValuesBlob->buffer();
         std::memcpy(inputValuesBlobDataPtr, inputBlobDataPtr, inputNum * sizeof(ie_fp16));
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         Blob::Ptr outputValuesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("convolution", outputValuesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputValuesBlob = _inferRequest.GetBlob("convolution"));
+        
         //
         // Check result
         //
@@ -446,7 +437,6 @@ private:
         const int weightsNDims = weightsShape.size();
 
         const int kernelNDims = weightsNDims - 2;
-        const int biasesNDims = 1;
 
         IE_ASSERT(inputNDims == outputNDims);
         IE_ASSERT(inputNDims >= 3); // CHW, NCHW, NCDHW, ...

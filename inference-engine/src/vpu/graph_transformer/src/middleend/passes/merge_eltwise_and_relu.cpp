@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,22 +9,41 @@
 
 #include <vpu/middleend/sw/utility.hpp>
 
+#include <vpu/compile_env.hpp>
+
 namespace vpu {
 
 namespace {
 
+enum class MergeMode {
+    DYNAMIC_NETWORK,
+    STATIC_NETWORK
+};
+
 class PassImpl final : public Pass {
 public:
-    explicit PassImpl(const StageBuilder::Ptr& stageBuilder) : _stageBuilder(stageBuilder) {}
-
+    explicit PassImpl(MergeMode mode) : m_mode(mode) {}
     void run(const Model& model) override;
 
 private:
-    StageBuilder::Ptr _stageBuilder;
+    MergeMode m_mode;
 };
 
 void PassImpl::run(const Model& model) {
-    VPU_PROFILE(mergeEltwiseAndReLU);
+    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.enableEarlyEltwiseReLUFusion;
+    if (enableEarlyEltwiseReLUFusion) {
+        if (m_mode == MergeMode::DYNAMIC_NETWORK) {
+            VPU_PROFILE(mergeEltwiseAndReLUDynamic);
+            if (model->isStatic()) {
+                return;
+            }
+        } else if (m_mode == MergeMode::STATIC_NETWORK) {
+            VPU_PROFILE(mergeEltwiseAndReLUStatic);
+            if (model->isDynamic()) {
+                return;
+            }
+        }
+    }
 
     for (const auto& eltwiseStage : model->getStages()) {
         if (eltwiseStage == nullptr) {
@@ -66,7 +85,8 @@ void PassImpl::run(const Model& model) {
             auto reluInput = reluStage->input(0);
             auto reluOutput = reluStage->output(0);
 
-            if (reluInput->strides() == reluOutput->strides() || reluOutput->checkStrides(StridesRequirement::compact())) {
+            const auto stridesAreSupported = reluInput->strides() == reluOutput->strides() || reluOutput->checkStrides(StridesRequirement::compact());
+            if ((enableEarlyEltwiseReLUFusion && (stridesAreSupported || model->isDynamic())) || (!enableEarlyEltwiseReLUFusion && stridesAreSupported)) {
                 auto reluStageType = reluStage->type();
                 auto reluStageName = reluStage->name();
 
@@ -90,8 +110,12 @@ void PassImpl::run(const Model& model) {
 
 }  // namespace
 
-Pass::Ptr PassManager::mergeEltwiseAndReLU() {
-    return std::make_shared<PassImpl>(_stageBuilder);
+Pass::Ptr PassManager::mergeEltwiseAndReLUStatic() {
+    return std::make_shared<PassImpl>(MergeMode::STATIC_NETWORK);
+}
+
+Pass::Ptr PassManager::mergeEltwiseAndReLUDynamic() {
+    return std::make_shared<PassImpl>(MergeMode::DYNAMIC_NETWORK);
 }
 
 }  // namespace vpu

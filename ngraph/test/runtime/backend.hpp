@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,7 +10,6 @@
 #include "backend_visibility.hpp"
 #include "executable.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/pass/pass_config.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/util.hpp"
@@ -111,14 +98,6 @@ public:
     virtual std::shared_ptr<Executable> compile(std::shared_ptr<Function> func,
                                                 bool enable_performance_data = false) = 0;
 
-    /// \brief Compiles a Function.
-    /// \param func The function to compile
-    /// \param pass_config Configuration object for defining compilation options
-    /// \returns compiled function or nullptr on failure
-    virtual std::shared_ptr<Executable> compile(std::shared_ptr<Function> func,
-                                                ngraph::pass::PassConfig& pass_config,
-                                                bool enable_performance_data = false);
-
     /// \brief Loads a previously saved Executable object from a stream.
     /// \param input_stream the opened input stream containing the saved Executable
     /// \returns A compiled function or throws an exception on error
@@ -144,6 +123,7 @@ public:
     /// \brief Get the version of the backend
     /// The default value of 0.0.0 is chosen to be a parsable version number
     virtual std::string get_version() const { return "0.0.0"; }
+
 private:
     // mutex to modify s_backend_shared_library_search_directory thread safe
     static std::mutex m_mtx;

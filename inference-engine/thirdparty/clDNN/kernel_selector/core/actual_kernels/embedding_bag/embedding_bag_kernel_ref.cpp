@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "embedding_bag_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -43,23 +31,14 @@ JitConstants EmbeddingBagKernelRef::GetJitConstants(const embedding_bag_params& 
 }
 
 CommonDispatchData EmbeddingBagKernelRef::SetDefault(const embedding_bag_params& params) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = { params.output.Batch().v,
-                                   params.output.Feature().v,
-                                   params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -70,15 +49,15 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const op
         return {};
     }
 
-    auto runInfo = SetDefault(newParams);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel,
-            runInfo,
+            dispatchData,
             params.engineInfo,
             kernelName,
             jit,
@@ -88,9 +67,11 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const op
             false,
             (uint32_t)newParams.inputs.size());
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return { kd };
+}
+
+KernelsPriority EmbeddingBagKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {

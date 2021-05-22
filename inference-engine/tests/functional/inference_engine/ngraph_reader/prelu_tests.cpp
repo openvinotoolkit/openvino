@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadPReLUNetwork) {
             </output>
         </layer>
         <layer id="3" name="data" type="Const" version="opset1">
-            <data offset="0" size="256"/>
+            <data element_type="f32" offset="0" shape="1,64,1,1" size="256"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>64</dim>

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 #include "backend.hpp"
 
-#include "backend.hpp"
-
 //! [plugin:header]
 namespace TemplatePlugin {
 
@@ -20,19 +18,19 @@ public:
     using Ptr = std::shared_ptr<Plugin>;
 
     Plugin();
-    ~Plugin() override;
+    ~Plugin();
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult &res) const override;
+    InferenceEngine::QueryNetworkResult
+    QueryNetwork(const InferenceEngine::CNNNetwork &network,
+                 const std::map<std::string, std::string>& config) const override;
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
 
 private:
     friend class ExecutableNetwork;

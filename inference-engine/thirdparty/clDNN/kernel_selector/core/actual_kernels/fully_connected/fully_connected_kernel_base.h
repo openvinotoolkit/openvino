@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #pragma once
 
@@ -43,6 +32,14 @@ public:
 
         uint32_t last_rg_size = 0;
         uint32_t rg_count = 0;
+
+        // Gemm style params
+        uint32_t tile_m = 0;
+        uint32_t tile_n = 0;
+        uint32_t tile_mk = 0;
+        uint32_t tile_nk = 0;
+        uint32_t tile_ms = 0;
+        uint32_t tile_ns = 0;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
@@ -51,22 +48,20 @@ public:
                                                    const optional_params &options,
                                                    DataLayout dl,
                                                    WeightsLayout wl,
-                                                   float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                    const int autoTuneIndex = -1) const;
 
 protected:
-    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const;
     KernelsData GetCommonKernelsData(const Params &params,
                                      const optional_params &options,
                                      DataLayout dl,
                                      WeightsLayout wl,
-                                     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
 
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

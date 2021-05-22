@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_depthwise.h"
@@ -25,14 +14,20 @@ static const size_t x_block_size = 8;
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputWeightsType(WeightsType::F16);
-    k.EnableOutputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
-    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputDataType(Datatype::F16);
+
+    k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
+
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputWeightsType(WeightsType::F32);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
@@ -43,6 +38,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableSubGroupShort();
     k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -63,33 +59,35 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p, const 
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::SetDefault(const convolution_params& params,
-                                                                                     int) const {
-    DispatchData runInfo = Parent::SetDefault(params);
+                                                                                          int) const {
+    DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.output;
 
-    runInfo.gws0 = CeilDiv(out.X().v, x_block_size) * out.Y().v;
-    runInfo.gws1 = Align(out.Feature().v, feature_block_size);
-    runInfo.gws2 = out.Batch().v;
-    runInfo.lws0 = 1;
-    runInfo.lws1 = sub_group_size;
-    runInfo.lws2 = 1;
+    dispatchData.gws[0] = CeilDiv(out.X().v, x_block_size) * out.Y().v;
+    dispatchData.gws[1] = Align(out.Feature().v, feature_block_size);
+    dispatchData.gws[2] = out.Batch().v;
 
-    if (out.Batch().v == 1)
-        runInfo.efficiency = FORCE_PRIORITY_1;
-    else
-        runInfo.efficiency = FORCE_PRIORITY_7;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const convolution_params& params,
-                                                                   const DispatchData& kd) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                        const DispatchData& dispatchData) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t block_width = 8;
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
+        auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "(f_block*16)", "y", "x"},
                                            "dst",
                                            input_dt,
@@ -122,7 +120,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsData(const Params& params,
-                                                                 const optional_params& options) const {
+                                                                      const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 

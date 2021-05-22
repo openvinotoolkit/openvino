@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,5 +16,12 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 InferRequestTests::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTestsResultNotReady,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::Values(std::map<std::string, std::string>({}))),
+    InferRequestTests::getTestCaseName);
 
 }  // namespace

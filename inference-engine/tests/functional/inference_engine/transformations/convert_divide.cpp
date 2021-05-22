@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <transformations/convert_divide.hpp>
+#include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>

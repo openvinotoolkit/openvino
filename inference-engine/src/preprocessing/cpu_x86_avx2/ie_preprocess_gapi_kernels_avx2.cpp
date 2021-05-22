@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,11 @@
 #endif
 
 #include <cstring>
+
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
 
 using namespace cv;
 
@@ -555,6 +560,18 @@ void copyRow_8U(const uint8_t in[], uint8_t out[], int length) {
 }
 void copyRow_32F(const float in[], float out[], int length) {
     copyRow_32F_impl(in, out, length);
+}
+
+void calcRowLinear_32F(float *dst[],
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                       int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
 }
 
 }  // namespace avx

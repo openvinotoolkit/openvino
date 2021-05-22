@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -35,11 +23,13 @@ NGRAPH_TEST(${BACKEND_NAME}, multiple_backends)
     Shape shape{2, 2};
     auto A1 = make_shared<op::Parameter>(element::f32, shape);
     auto B1 = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(A1 + B1, ParameterVector{A1, B1});
+    auto add = std::make_shared<op::v1::Add>(A1, B1);
+    auto f = make_shared<Function>(add, ParameterVector{A1, B1});
 
     auto A2 = make_shared<op::Parameter>(element::f32, shape);
     auto B2 = make_shared<op::Parameter>(element::f32, shape);
-    auto g = make_shared<Function>(A2 * B2, ParameterVector{A2, B2});
+    auto multiply = std::make_shared<op::v1::Multiply>(A2, B2);
+    auto g = make_shared<Function>(multiply, ParameterVector{A2, B2});
 
     auto backend1 = runtime::Backend::create("${BACKEND_NAME}");
 

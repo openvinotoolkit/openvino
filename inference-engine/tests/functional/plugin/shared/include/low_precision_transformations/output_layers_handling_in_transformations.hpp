@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,9 +20,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

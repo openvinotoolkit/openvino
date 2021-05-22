@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,8 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC2_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC3_smoke,
+// TODO: rewrite to ngraph to have reshape functionality
+INSTANTIATE_TEST_CASE_P(DISABLED_accuracy, myriadLayersTestsSqueezeTC3_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC3),
         ::testing::ValuesIn(s_squeezeIndicesTC3),
@@ -31,7 +32,8 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC3_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC4_smoke,
+// TODO: rewrite to ngraph to have reshape functionality
+INSTANTIATE_TEST_CASE_P(DISABLED_accuracy, myriadLayersTestsSqueezeTC4_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC4),
         ::testing::ValuesIn(s_squeezeIndicesTC4),

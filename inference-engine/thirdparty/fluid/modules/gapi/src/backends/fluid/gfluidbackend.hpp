@@ -125,18 +125,18 @@ class GFluidExecutable final: public GIslandExecutable
     GModel::ConstGraph m_gm;
 
     std::vector<std::unique_ptr<FluidAgent>> m_agents;
-    std::vector<cv::gapi::fluid::Buffer> m_buffers;
 
     std::vector<FluidAgent*> m_script;
 
-    using Magazine = detail::magazine<cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
-    Magazine m_res;
+    cv::gimpl::Mag m_res;
 
     std::size_t m_num_int_buffers; // internal buffers counter (m_buffers - num_scratch)
     std::vector<std::size_t> m_scratch_users;
 
     std::unordered_map<int, std::size_t> m_id_map; // GMat id -> buffer idx map
     std::map<std::size_t, ade::NodeHandle> m_all_gmat_ids;
+
+    std::vector<cv::gapi::fluid::Buffer> m_buffers;
 
     void bindInArg (const RcDesc &rc, const GRunArg &arg);
     void bindOutArg(const RcDesc &rc, const GRunArgP &arg);
@@ -152,6 +152,8 @@ public:
 
     virtual void run(std::vector<InObj>  &&input_objs,
                      std::vector<OutObj> &&output_objs) override;
+
+    using GIslandExecutable::run; // (IInput&, IOutput&) version
 
     void run(std::vector<InObj>  &input_objs,
              std::vector<OutObj> &output_objs);

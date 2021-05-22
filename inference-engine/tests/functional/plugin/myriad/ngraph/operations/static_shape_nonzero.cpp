@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 
-#include <details/ie_exception.hpp>
 
 #include <gtest/gtest.h>
 
@@ -84,12 +83,12 @@ std::vector<ngraph::element::Type> outputTypes {
 TEST_P(StaticShapeNonZeroTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::StaticShapeNonZero> op;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(m_param, m_outputType));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(auto fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0), op->output(1)},
             ngraph::ParameterVector{m_param}));
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testStaticShapes),
         testing::ValuesIn(outputTypes))
@@ -106,7 +105,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeInputDataType, ThrowsOnInvalidInputType) {
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTestsNegativeInputDataType, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeInputDataType, testing::Combine(
         testing::Values(ngraph::element::dynamic),
         testing::ValuesIn(testStaticShapes),
         testing::ValuesIn(outputTypes))
@@ -119,7 +118,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeDataShape, ThrowsOnInvalidDataShape) {
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTestsNegativeDataShape, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeDataShape, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testDynamicShapes),
         testing::ValuesIn(outputTypes))
@@ -132,7 +131,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeOutputDataType, ThrowsOnInvalidOutputType)
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTestsNegativeOutputDataType, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeOutputDataType, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testStaticShapes),
         testing::Values(ngraph::element::boolean))

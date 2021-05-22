@@ -1,24 +1,11 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, uni_directional_shape_broadcasting, \
-    uni_directional_broadcasting, bi_directional_broadcasting
+    uni_directional_broadcasting, bi_directional_broadcasting, explicit_broadcasting, explicit_shape_broadcasting
 from mo.utils.error import Error
 
 
@@ -28,7 +15,7 @@ class Broadcast(Op):
         Inputs:
             [0] - tensor to be broadcasted
             [1] - shape to be broadcast to
-            [2] - optional axis parameter that which axis are allowed to be broadcasted
+            [2] - optional axes_mapping tensor
     """
 
     op = 'Broadcast'
@@ -69,6 +56,13 @@ class Broadcast(Op):
                 node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
+            elif node.mode == 'explicit':
+                axes_mapping = node.in_port(2).data.get_value()
+                assert axes_mapping is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                 'is not supported. Node: `{}`'.format(node_name)
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
+                axes_mapping = node.in_port(2).data.get_value()
+                node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
         else:
@@ -76,5 +70,13 @@ class Broadcast(Op):
                 node.out_port(0).data.set_shape(uni_directional_shape_broadcasting(input_shape, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_shape(bi_directional_shape_broadcasting(input_shape, target_shape))
+            elif node.mode == 'explicit':
+                axes_mapping = node.in_port(2).data.get_value()
+                assert axes_mapping is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                 'is not supported. Node: `{}`'.format(node_name)
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
+                axes_mapping = node.in_port(2).data.get_value()
+                new_shape,_ = explicit_shape_broadcasting(input_shape, target_shape, axes_mapping)
+                node.out_port(0).data.set_shape(new_shape)
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 
 #if defined(_WIN32)
     #ifdef IMPLEMENT_FLUID_COMPUTATION_API
@@ -43,6 +44,11 @@ struct Rect{
         return width == 0 && height == 0;
     };
 };
+struct Scalar
+{
+    std::array<double, 4> v;
+};
+
 }
 
 class FLUID_COMPUTATION_VISIBILITY FluidComputation
@@ -98,10 +104,28 @@ public:
     FluidI420toRGBComputation(test::Mat inMat_y, test::Mat inMat_u, test::Mat inMat_v, test::Mat outMat);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidU16ToF32Computation : public FluidComputation
+class FLUID_COMPUTATION_VISIBILITY ConvertDepthComputation : public FluidComputation
 {
 public:
-    FluidU16ToF32Computation(test::Mat inMatU16, test::Mat outMatF32);
+    ConvertDepthComputation(test::Mat inMat, test::Mat outMat, int depth);
+};
+
+class FLUID_COMPUTATION_VISIBILITY DivCComputation : public FluidComputation
+{
+public:
+    DivCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
+class FLUID_COMPUTATION_VISIBILITY SubCComputation : public FluidComputation
+{
+public:
+    SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
+class FLUID_COMPUTATION_VISIBILITY MeanValueSubtractComputation : public FluidComputation
+{
+public:
+    MeanValueSubtractComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& mean, test::Scalar const& std);
 };
 
 #endif // FLUID_TEST_COMPUTATIONS_HPP

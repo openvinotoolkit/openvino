@@ -1,19 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <iostream>
-
 #include "ie_allocator.hpp"
 
+namespace InferenceEngine {
 class SystemMemoryAllocator : public InferenceEngine::IAllocator {
 public:
-    void Release() noexcept override {
-        delete this;
-    }
-
     void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         return handle;
     }
@@ -37,3 +32,5 @@ public:
         return true;
     }
 };
+
+}  // namespace InferenceEngine

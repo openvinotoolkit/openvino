@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// y ou may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "eltwise_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -55,6 +44,10 @@ KernelsData EltwiseKernelRef::GetKernelsData(const Params& params, const optiona
     return GetCommonKernelsData(params, options);
 }
 
+KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
@@ -70,8 +63,13 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
+            FusedOpsConfiguration conf = {"", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        } else {
+            FusedOpsConfiguration conf =  {"", idx_order, "res", input_dt, 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
     }
 
     return jit;

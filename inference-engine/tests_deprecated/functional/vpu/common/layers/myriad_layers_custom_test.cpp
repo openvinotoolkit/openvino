@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFakeQuantize_smoke,
 INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsQuantizeBinarize_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_QuantizeTensors),
-        ::testing::ValuesIn(s_QuantizeLevels),
+        ::testing::Values(2),
         ::testing::ValuesIn(s_QuantizeSwitchOut),
         ::testing::ValuesIn(s_CustomConfig)));
 

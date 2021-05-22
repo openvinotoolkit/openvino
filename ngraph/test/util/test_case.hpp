@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -29,13 +17,16 @@ namespace ngraph
 {
     namespace test
     {
+        std::shared_ptr<Function> function_from_ir(const std::string& xml_path,
+                                                   const std::string& bin_path = {});
+
         template <typename Engine, TestCaseType tct = TestCaseType::STATIC>
         class TestCase
         {
         public:
             TestCase(const std::shared_ptr<Function>& function)
-                : m_function{function}
-                , m_engine{create_engine<Engine>(function, tct)}
+                : m_engine{create_engine<Engine>(function, tct)}
+                , m_function{function}
             {
             }
 
@@ -169,6 +160,23 @@ namespace ngraph
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results(tolerance_bits);
+
+                if (res != testing::AssertionSuccess())
+                {
+                    std::cout << res.message() << std::endl;
+                }
+
+                m_input_index = 0;
+                m_output_index = 0;
+                m_engine.reset();
+
+                EXPECT_TRUE(res);
+            }
+
+            void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f)
+            {
+                m_engine.infer();
+                const auto res = m_engine.compare_results_with_tolerance_as_fp(tolerance);
 
                 if (res != testing::AssertionSuccess())
                 {

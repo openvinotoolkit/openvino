@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
@@ -28,6 +16,7 @@
 #include <src/include/to_string_utils.h>
 #include <api/data.hpp>
 #include "instrumentation.h"
+#include "test_utils/network_test.h"
 
 #include <cmath>
 
@@ -1041,6 +1030,217 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     }
 }
 
+using fully_connected_test_params = std::tuple<
+    size_t,        // batch_num
+    size_t,        // input_f
+    size_t,        // input_x
+    size_t,        // input_y
+    size_t,        // output_f
+    format::type,  // input format
+    format::type,  // output format
+    std::string    // kernel
+>;
+
+template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
+struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_test_params> {
+    void run_test() {
+        size_t batch, input_f, input_x, input_y, output_f;
+        format::type input_format, output_format;
+        std::string kernel;
+
+        std::tie(batch, input_f, input_x, input_y, output_f, input_format, output_format, kernel) = GetParam();
+
+        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
+        auto weights_data = generate_smart_random_4d<WeightsT>(output_f, input_f, input_y, input_x);
+        auto bias_data = generate_smart_random_2d<BiasT>(1, output_f);
+
+        auto eng = get_test_engine();
+        auto net = network_test(eng);
+        auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
+        auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
+        auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
+        auto fc = net.add_fully_connected<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel });
+
+        net.run(build_options(build_option::optimize_data(true)));
+    }
+};
+
+using fully_connected_random_test_f32 = fully_connected_random_test<float, float, float, float>;
+using fully_connected_random_test_f16 = fully_connected_random_test<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+
+TEST_P(fully_connected_random_test_f32, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f32,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx, format::yxfb),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
+                        fully_connected_random_test_f32,
+                        ::testing::Combine(
+                            ::testing::Values(2, 8),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_f16, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
+                            // - there are nans in output.
+                            ::testing::Values(2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::yxfb),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
+                        fully_connected_random_test_f16,
+                        ::testing::Combine(
+                            ::testing::Values(2, 8),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values("")), );
+
+
+template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
+struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
+    void run_test() {
+        size_t batch, input_f, input_x, input_y, output_y;
+        format::type input_format, output_format;
+        std::string kernel;
+
+        std::tie(batch, input_f, input_x, input_y, output_y, input_format, output_format, kernel) = GetParam();
+
+        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
+        auto weights_data = generate_smart_random_4d<WeightsT>(output_y, input_y, 1, 1);
+        auto bias_data = generate_smart_random_2d<BiasT>(1, output_y);
+
+        auto eng = get_test_engine();
+        auto net = network_test(eng);
+        auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
+        auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
+        auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
+        auto fc = net.add_fully_connected_3d<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
+
+        net.run(build_options(build_option::optimize_data(true)));
+    }
+};
+
+
+using fully_connected_random_test_f32_3d = fully_connected_random_test_3d<float, float, float, float>;
+using fully_connected_random_test_f16_3d = fully_connected_random_test_3d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+using fully_connected_random_test_i8_3d = fully_connected_random_test_3d<int8_t, int8_t, int8_t, float>;
+
+TEST_P(fully_connected_random_test_f32_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f32_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_big,
+                        fully_connected_random_test_f32_3d,
+                        ::testing::Combine(
+                            ::testing::Values(3),
+                            ::testing::Values(16, 17, 32),
+                            ::testing::Values(1),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_f16_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f16_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_i8_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_i8_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_big,
+                        fully_connected_random_test_i8_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(16,17),
+                            ::testing::Values(1),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+
 struct quantization_t {
     VF<float> input_low;
     VF<float> input_high;
@@ -1336,7 +1536,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_i8_test::PrintToStringParamName
 );
@@ -1350,7 +1550,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_u8_test::PrintToStringParamName
 );
@@ -1364,7 +1564,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_f32_test::PrintToStringParamName
 );
@@ -1378,7 +1578,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_i8_test::PrintToStringParamName
 );
@@ -1392,7 +1592,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_u8_test::PrintToStringParamName
 );
@@ -1406,7 +1606,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_f32_test::PrintToStringParamName
 );

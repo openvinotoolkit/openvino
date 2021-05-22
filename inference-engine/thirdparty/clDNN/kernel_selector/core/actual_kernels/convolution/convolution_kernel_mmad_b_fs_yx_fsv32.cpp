@@ -1,16 +1,6 @@
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_mmad_b_fs_yx_fsv32.h"
 #include <vector>
@@ -25,10 +15,14 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
@@ -92,46 +86,48 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDefault(const convolution_params& cp,
                                                                                      int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
-
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
     size_t ow_group = 8;
     while (ow_group > 1) {
-        if (CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth) % ow_group == 0)
+        if (CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
             break;
         ow_group--;
     }
 
-    runInfo.gws0 = Align(cp.output.Feature().v, 32) / 4;
-    runInfo.gws1 = Align(CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth), ow_group) * cp.output.Y().v * cp.output.Z().v;
-    runInfo.gws2 = cp.output.Batch().v;
+    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 4;
+    dispatchData.gws[1] = Align(CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.output.Y().v * cp.output.Z().v;
+    dispatchData.gws[2] = cp.output.Batch().v;
 
-    runInfo.lws0 = 8;
-    runInfo.lws1 = ow_group;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = ow_group;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolution_params& params,
-                                                                   const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                   const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("OW_GROUP", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws0));
+    jit.AddConstant(MakeJitConstant("OW_GROUP", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("OSV_SIZE", 32));
     jit.AddConstant(MakeJitConstant("ISV_SIZE", 32));
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", runInfo.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("IFM_BLOCKS", CeilDiv(params.inputs[0].Feature().v, 32)));
     auto input = params.inputs[0];
     auto output = params.output;
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1;
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
@@ -171,9 +167,6 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
 
 KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_2;
-
     return kd;
 }
 

@@ -2,22 +2,54 @@
 
 The sections below contain detailed list of changes made to the Inference Engine API in recent releases.
 
-## Deprecation Notice
+## 2021.4
 
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
+### New API
 
-Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.
+* InferenceEngine::Core::LoadNetwork(modelPath, deviceName, config) simplified API to read and load network in one call
 
-Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.
+### Deprecated API
+
+ * InferenceEngine::Parameter(const std::shared_ptr<ngraph::Variant>&)
+ * InferenceEngine::Parameter(std::shared_ptr<ngraph::Variant>& var)
+ * std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const
+ * InferenceEngine::Parameter::operator std::shared_ptr<ngraph::Variant>() const
+
+## 2021.3
+
+### New API
+
+ * InferenceEngine::InferRequest::Cancel to cancel inference request execution
+ * InferenceEngine::Layout::HWC to support HWC layout for input or output blobs
+ * InferenceEngine::Precision::F64 data precision for f64 data type
+ * InferenceEngine::CNNNetwork::getOVNameForTensor to map frameworks tensor names to OpenVINO internal tensor names
+
+### Deprecated API
+
+ * InferenceEngine::IVariableState interface is deprecated, use InferenceEngine::VariableState wrapper
+
+## 2021.2
+
+### New API
+
+ **State API**
+
+ * InferenceEngine::InferRequest::QueryState query state value of network on current infer request
+ * InferenceEngine::IVariableState class instead of IMemoryState (rename)
+ * InferenceEngine::IVariableState::GetState instead of IMemoryState::GetLastState (rename)
+
+ **BatchedBlob** - represents a InferenceEngine::BatchedBlob containing other blobs - one per batch.
+
+ **Transformations API** - added a new header `ie_transformations.hpp` which contains transformations for InferenceEngine::CNNNetwork object. Such transformations can be called prior to loading network for compilation for particular device:
+
+ * InferenceEngine::LowLatency
+
+### Deprecated API
+
+ **State API**
+
+ * InferenceEngine::ExecutableNetwork::QueryState - use InferenceEngine::InferRequest::QueryState
+ * InferenceEngine::IVariableState::GetLastState - use InferenceEngine::IVariableState::GetState
 
 ## 2021.1
 
@@ -150,7 +182,7 @@ Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting Jun
 
 ### Deprecated API
 
- **Myriad Plugin API:**
+ **MYRIAD Plugin API:**
 
  * VPU_CONFIG_KEY(IGNORE_IR_STATISTIC)
 

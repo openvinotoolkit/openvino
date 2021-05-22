@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
@@ -77,7 +65,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_b, 2));
+    topology.add(tile("tile", "input", tensor(2, 2, 2, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
                                      2.f, 0.f, 6.f, 5.2f };
@@ -106,7 +94,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_f, 2));
+    topology.add(tile("tile", "input", tensor(1, 4, 2, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
                                      5.f, 1.5f,
@@ -134,11 +122,11 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_y, 2));
+    topology.add(tile("tile", "input", tensor(1, 2, 2, 4)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
                                      5.f, 1.5f,
@@ -166,11 +154,11 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
+    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_x, 2));
+    topology.add(tile("tile", "input", tensor(1, 2, 4, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
                                      5.f, 1.5f,
@@ -197,12 +185,12 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
 TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
     const auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 1 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
+    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_x, 4));
+    topology.add(tile("tile", "input", tensor(1, 2, 4, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f};
     set_values(input, input_vec);
@@ -230,7 +218,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(tile("tile", "input", tile::along_z, 2));
+    topology.add(tile("tile", "input", tensor(1, 2, 2, 2, 4)));
 
     std::vector<float> input_vec = {
         1.f, 0.f,
@@ -258,4 +246,3 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
-

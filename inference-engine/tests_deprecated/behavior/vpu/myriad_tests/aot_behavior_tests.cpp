@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,6 @@ std::string getTestCaseName(testing::TestParamInfo<BehTestParams> obj) {
     return obj.param.device + "_" + obj.param.input_blob_precision.name()
         + (obj.param.config.size() ? "_" + obj.param.config.begin()->second : "");
 }
-
-const int BLOB_VERSION_MAJOR = 3;
 }
 
 #if (defined(_WIN32) || defined(_WIN64) )
@@ -69,27 +67,15 @@ class AOTBehaviorTests : public BehaviorPluginTest {
     }
 
     void canImportBlob() {
-        ASSERT_EQ(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_NO_THROW(importBlob()) << response.msg;
     }
 
     void canNotImportBlob() {
-        ASSERT_NE(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_THROW(importBlob(), InferenceEngine::Exception) << response.msg;
     }
 
-    StatusCode importBlob() {
-        InferenceEngine::Core core;
-        ExecutableNetwork ret;
-
-        try
-        {
-            ret = core.ImportNetwork("local_tmp.fw", GetParam().device, { {KEY_LOG_LEVEL, LOG_DEBUG} } );
-        }
-        catch (InferenceEngine::details::InferenceEngineException ex)
-        {
-            return ex.getStatus();
-        }
-
-        return StatusCode::OK;
+    void importBlob() {
+        InferenceEngine::Core{}.ImportNetwork("local_tmp.fw", GetParam().device);
     }
 
     void setHeaderVersion(int major, int minor) {

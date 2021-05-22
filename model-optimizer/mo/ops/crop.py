@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -164,7 +151,7 @@ class Crop(Op):
         node['dim'] = dim
         node.out_node().shape = new_shape
 
-        if node.in_node(0).has_valid('value') and not node.graph.graph['cmd_params'].enable_ssd_gluoncv:
+        if node.in_node(0).has_valid('value') and not getattr(node.graph.graph['cmd_params'], 'enable_ssd_gluoncv', False):
             out_value = np.copy(node.in_node(0).value)
 
             slice_indexes = []

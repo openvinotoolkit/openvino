@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -161,6 +149,7 @@ protected:
         }
 
         std::vector<event_impl::ptr> tmp_events(events);
+        std::vector<event_impl::ptr> all_events;
 
         // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
@@ -181,13 +170,17 @@ protected:
 
                 auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
                 new_events.push_back(event);
+                all_events.push_back(event);
             }
 
             tmp_events = new_events;
         }
 
-        bool group_events = split > 1 ? true : false;
-        return aggregate_events(tmp_events, net_id, group_events);
+        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+            return aggregate_events(tmp_events, net_id);
+
+        bool group_events = (all_events.size() > 1);
+        return aggregate_events(all_events, net_id, group_events);
     }
 };
 

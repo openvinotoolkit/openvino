@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import collections
 import logging as log
 from copy import deepcopy
@@ -105,12 +93,27 @@ class Node:
         # no handling of control flow edges -- TODO
         control_flow = False
         if not skip_if_absent and idx not in self.in_ports(control_flow=control_flow):
-            raise Error("Input port with index {} does't exist in node {}.".format(idx, self.soft_get('name')))
+            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
         if not self.in_port(idx).disconnected():
             self.in_port(idx).disconnect()
         del self._in_ports[idx]
         # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
-        self.in_ports_count = len(self._in_ports)
+        self['in_ports_count'] = len(self._in_ports)
+
+    def delete_output_port(self, idx, skip_if_absent=False):
+        if not self.has_valid('_out_ports'):
+            raise Error(
+                'Cannot removed ports with indices {} from node {} because node doesn\'t '
+                'have _out_ports attribute'.format(idx, self.soft_get('name')))
+        # no handling of control flow edges -- TODO
+        control_flow = False
+        if not skip_if_absent and idx not in self.out_ports(control_flow=control_flow):
+            raise Error("Output port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
+        if not self.out_port(idx).disconnected():
+            self.out_port(idx).disconnect()
+        del self._out_ports[idx]
+        # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
+        self['out_ports_count'] = len(self._out_ports)
 
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
@@ -580,21 +583,27 @@ class Graph(nx.MultiDiGraph):
             # Also check that all necessary ports are exists
             message = "Attempt to connect {} to {}.".format(u_for_edge, v_for_edge)
             if self.stage == 'front':
-                assert unode.kind == 'op' and vnode.kind == 'op', "{} Wrong add_adge usage! You can connect only two operations in front phase".format(message)
-                assert 'in' in attr and 'out' in attr, "Missing necessary attribute in or out when adding edge between {} and {}".format(u_for_edge, v_for_edge)
+                assert unode.kind == 'op' and vnode.kind == 'op', "{} Wrong add_adge usage! You can connect only two " \
+                                                                  "operations in front phase".format(message)
+                assert 'in' in attr and 'out' in attr, "Missing necessary attribute in or out when adding edge " \
+                                                       "between {} and {}".format(u_for_edge, v_for_edge)
                 is_control_flow = 'control_flow_edge' in attr and attr['control_flow_edge'] is True
                 in_port = 'control_flow_{}'.format(attr['in']) if is_control_flow else attr['in']
                 out_port = 'control_flow_{}'.format(attr['out']) if is_control_flow else attr['out']
-                assert unode.has_port('out', out_port, control_flow=is_control_flow), "{} Missing out port ({}) in {} node".format(message, out_port, unode.name)
-                assert vnode.has_port('in', in_port, control_flow=is_control_flow), "{} Missing in port ({}) in {} node".format(message, in_port, vnode.name)
+                assert unode.has_port('out', out_port, control_flow=is_control_flow), \
+                    "{} Missing out port ({}) in {} node".format(message, out_port, unode.soft_get('name', unode.id))
+                assert vnode.has_port('in', in_port, control_flow=is_control_flow), \
+                    "{} Missing in port ({}) in {} node".format(message, in_port, vnode.soft_get('name', vnode.id))
             elif self.stage in ['middle', 'back']:
                 assert (unode.kind == 'data' and vnode.kind == 'op') or (unode.kind == 'op' and vnode.kind == 'data')
                 if unode.kind == 'data' and vnode.kind == 'op':
                     assert 'in' in attr, "Attribute in is missing when adding edge to {}".format(v_for_edge)
-                    assert vnode.has_port('in', attr['in']), "{} Node {} has no in port ({})".format(message, vnode.name, attr['in'])
+                    assert vnode.has_port('in', attr['in']), "{} Node {} has no in port ({})" \
+                                                             "".format(message, vnode.name, attr['in'])
                 if unode.kind == 'op' and vnode.kind == 'data':
                     assert 'out' in attr, "Attribute out is missing when adding edge from {}".format(u_for_edge)
-                    assert unode.has_port('out', attr['out']), "{} Node {} has no out port ({})".format(message, unode.name, attr['out'])
+                    assert unode.has_port('out', attr['out']), "{} Node {} has no out port ({})" \
+                                                               "".format(message, unode.name, attr['out'])
 
         return super().add_edge(u_for_edge, v_for_edge, key=key, **attr)
 
@@ -759,7 +768,8 @@ class Graph(nx.MultiDiGraph):
                                                                                            list(
                                                                                                node.out_ports().keys())))
 
-    def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout'],
+    def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout',
+                                                          'internal_layer_id'],
                                 edge_attrs: list = ['in', 'out'], nodes_to_dump: list = None,
                                 save_to_svg=False, highlight_nodes: list = None):
 
@@ -789,11 +799,12 @@ class Graph(nx.MultiDiGraph):
 
         def _node_label(node_id, node_attrs: dict, attrs_to_print: list):
             label = str(node_id) + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
-                                                  for key in attrs_to_print if key in node_attrs])
+                                                       for key in attrs_to_print if key in node_attrs])
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
                     if node_attrs['value'] is not None:
-                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                        label += '\\nvalue=\\"' + \
+                                 ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
                     else:
                         label += '\\nvalue=None'
             return label
@@ -847,7 +858,6 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-#        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:
@@ -975,7 +985,7 @@ class Graph(nx.MultiDiGraph):
         if undead_node_types is None:
             undead_node_types = []
 
-        if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
+        if not getattr(self.graph['cmd_params'], 'static_shape', False):
             undead_node_types.extend(['ShapeOf', 'Shape', 'slice_like'])
 
         mark_output_reachable_nodes(self)
@@ -1037,7 +1047,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
     else:
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
-        opoutput_node.in_edge()['fw_tensor_debug_info'] = [(node_name, port)]
+
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))
     log.debug("Add edge from {} to {}".format(node_name, opoutput_node.id))
@@ -1074,6 +1084,44 @@ def rename_node(node: Node, name):
 def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
+
+
+def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+    """
+    Gets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            if attr_name in edge:
+                return edge[attr_name]
+    return None
+
+
+def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+    """
+    Sets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            edge[attr_name] = new_value
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

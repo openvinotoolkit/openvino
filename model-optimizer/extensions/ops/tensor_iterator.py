@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2017-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from copy import copy, deepcopy
 
 from extensions.ops.parameter import Parameter
@@ -119,8 +107,7 @@ class TensorIterator(Op):
         for record in ti.back_edges:
             if record[layer_attr_name] != old_layer_id:
                 continue
-            if (port_attr_name in record and record[port_attr_name] == old_port_id) \
-                    or new_port_id is not None:
+            if (port_attr_name in record and record[port_attr_name] == old_port_id) or new_port_id is not None:
                 record[layer_attr_name] = new_layer_id
                 if new_port_id is None:
                     del record[port_attr_name]
@@ -213,7 +200,7 @@ class TensorIterator(Op):
             internal_node = node_map[internal_node_id]
 
             if internal_node.soft_get('type') != 'Result':
-                # this output wont get out of the body, but it is still Result and needed on non first iterations of TI
+                # this output won't get out of the body, but it is still Result and needed on non first iterations of TI
                 assert 'from_port' in record
                 out_port = TensorIterator.special_port_to_real_port(internal_node, record['from_port'], 'out')
                 assert out_port in internal_node.out_ports() and not internal_node.out_port(out_port).disconnected()
@@ -233,13 +220,8 @@ class TensorIterator(Op):
 
         TensorIterator.validate_maps(ti)
 
-    def substitute_ie_attrs(self, new_attrs: dict):
-        """
-        Replace standard list of attribute in layer/data by attributes
-        delivered by backend_attrs
-        """
-
-        port_map_attrs = [
+    def port_map_attrs(self):
+        return [
             'external_port_id',
             'internal_layer_id',
             'internal_port_id',
@@ -247,14 +229,20 @@ class TensorIterator(Op):
             'start',
             'stride',
             'end',
-            'part_size'
+            'part_size',
         ]
+
+    def substitute_ie_attrs(self, new_attrs: dict):
+        """
+        Replace standard list of attribute in layer/data by attributes
+        delivered by backend_attrs
+        """
+
+        port_map_attrs = self.port_map_attrs()
 
         back_edges_attrs = [
             ('from-layer', 'from_layer'),
-            ('from-port', 'from_port'),
             ('to-layer', 'to_layer'),
-            ('to-port', 'to_port'),
         ]
 
         new_attrs.update({
@@ -265,9 +253,9 @@ class TensorIterator(Op):
                     ('data', self.backend_attrs() + self.default_backend_attrs, []),
                     '@ports',
                     ('port_map', [], [
-                        ('@list', lambda node: self.generate_port_map(node, node.input_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.input_port_map, 'in'),
                          ('input', port_map_attrs, [])),
-                        ('@list', lambda node: self.generate_port_map(node, node.output_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.output_port_map, 'out'),
                          ('output', port_map_attrs, [])),
                     ]),
                     ('back_edges', [], [
@@ -278,7 +266,7 @@ class TensorIterator(Op):
         })
 
     @staticmethod
-    def find_port_id(node: Node, virtual_id, attr):
+    def find_port_id(node: Node, virtual_id: str, attr: str):
         attrs = node.edge({attr: virtual_id})[2]
         assert bool('in' in attrs) != bool('out' in attrs), attrs
         return attrs['in' if 'in' in attrs else 'out']
@@ -291,16 +279,10 @@ class TensorIterator(Op):
         return internal_nodes[0][0]
 
     @staticmethod
-    def find_internal_layer_and_port(graph: Graph, virtual_layer_id, virtual_port_id):
-        internal_layer_id = __class__.find_internal_layer_id(graph, virtual_layer_id)
-        internal_port_id = __class__.find_port_id(Node(graph, internal_layer_id), virtual_port_id, 'internal_port_id')
-        return internal_layer_id, internal_port_id
-
-    @staticmethod
-    def generate_port_map(node: Node, src_port_map):
+    def generate_port_map(node: Node, src_port_map, dir: str):
         """ Extract port_map attributes from node and node.body attributes.
 
-            It iterates over src_port_map and substitude external_port_id, internal_port_id and
+            It iterates over src_port_map and substitute external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
         """
         result_list = []

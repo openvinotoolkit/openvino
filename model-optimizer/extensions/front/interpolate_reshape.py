@@ -1,21 +1,10 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.ops.gather import Gather
+from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -24,7 +13,7 @@ from mo.ops.shape import Shape
 
 
 class InterpolateWithConcat(FrontReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
 
     BEFORE:
@@ -119,10 +108,13 @@ class InterpolateWithConcat(FrontReplacementPattern):
         or through identity operation sequence. Returns the list of Concat sources that satisfy the condition.
         """
         assert concat.soft_get('type') == 'Concat'
-        sources = []
+        sources, ports_to_omit = [], []
+        if concat.has_valid('N'):
+            # TODO: should be removed after Concat operation normalization
+            ports_to_omit.append(concat.N)
 
         for in_port in concat.in_ports().values():
-            if in_port.disconnected():
+            if in_port.disconnected() or in_port.idx in ports_to_omit:
                 continue
             next_node = in_port.get_source().node
             while next_node.soft_get('type') != 'Interpolate' and next_node.has_and_set('identity'):
@@ -138,9 +130,7 @@ class InterpolateWithConcat(FrontReplacementPattern):
     def make_interpolate_reshape_able(self, interpolate: Node, concat: Node):
         assert interpolate.soft_get('type') == 'Interpolate'
         assert concat.soft_get('type') == 'Concat'
-
-        interp_axes = interpolate.soft_get('axes', None)
-        interp_axes = interp_axes if interp_axes is None else int64_array(interp_axes)
+        interp_axes = Interpolate.get_axes(interpolate)
         concat_axis = self.get_concat_axis(concat)
 
         if concat_axis is None or interp_axes is None \
@@ -160,12 +150,12 @@ class InterpolateWithConcat(FrontReplacementPattern):
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
         gather = create_op_with_const_inputs(graph, Gather,
-                                             {1: np.array(interpolate.axes, dtype=np.int32), 2: int64_array(0)},
+                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, input_node=shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate'):
+        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
 

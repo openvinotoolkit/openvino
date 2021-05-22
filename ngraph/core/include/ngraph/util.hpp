@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -34,6 +22,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 
@@ -48,7 +37,7 @@ namespace ngraph
         class Backend;
         class Value;
         class Tensor;
-    }
+    } // namespace runtime
 
     template <typename T>
     std::string join(const T& v, const std::string& sep = ", ")
@@ -227,16 +216,13 @@ namespace ngraph
     AxisVector get_default_order(size_t rank);
 
     NGRAPH_API
+    AxisVector get_default_order(const Rank& rank);
+
+    NGRAPH_API
     AxisVector get_default_order(const Shape& shape);
 
-    // NodeExecutors are used in compiler optimization passes like ConstantFolding to execute a node
-    // using the supplied input and output memory locations.
-    // A BuildNodeExecutor returns a backend-specific NodeExecutor for a given Node type
-    using NodeExecutorTy =
-        std::function<void(const std::vector<void*>& inputs, std::vector<void*>& outputs)>;
-    using BuildNodeExecutor = std::function<NodeExecutorTy(const ngraph::Node*)>;
-
-    using BuildNodeExecutorMap = std::unordered_map<std::type_index, BuildNodeExecutor>;
+    NGRAPH_API
+    AxisVector get_default_order(const PartialShape& shape);
 
     //
     // EnumMask is intended to work with a scoped enum type. It's used to store
@@ -391,6 +377,84 @@ std::vector<T> read_vector(std::shared_ptr<ngraph::runtime::Tensor> tv)
     std::vector<T> rc(element_count);
     tv->read(rc.data(), size);
     return rc;
+}
+
+template <typename T>
+std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor)
+{
+    NGRAPH_CHECK(tensor != nullptr,
+                 "Invalid Tensor received, can't read the data from a null pointer.");
+
+    switch (tensor->get_element_type())
+    {
+    case ngraph::element::Type_t::boolean:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::boolean>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::bf16:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::bf16>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::f16:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f16>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::f32:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f32>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::f64:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f64>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::i8:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i8>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::i16:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i16>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::i32:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i32>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::i64:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i64>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::u1: NGRAPH_CHECK(false, "u1 element type is unsupported"); break;
+    case ngraph::element::Type_t::u8:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u8>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::u16:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u16>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::u32:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u32>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    case ngraph::element::Type_t::u64:
+    {
+        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u64>();
+        return std::vector<T>(p, p + tensor->get_element_count());
+    }
+    default: NGRAPH_UNREACHABLE("unsupported element type");
+    }
 }
 
 std::vector<float> NGRAPH_API read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv);

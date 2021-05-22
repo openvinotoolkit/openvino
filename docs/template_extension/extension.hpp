@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,10 @@ namespace TemplateExtension {
 
 class Extension : public InferenceEngine::IExtension {
 public:
-    Extension() = default;
+    Extension();
+    ~Extension();
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
     void Unload() noexcept override {}
-    void Release() noexcept override { delete this; }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override;
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override;

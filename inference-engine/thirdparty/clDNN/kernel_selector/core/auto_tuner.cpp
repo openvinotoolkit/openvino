@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "auto_tuner.h"
 #include <iostream>
@@ -34,8 +23,9 @@ TuningCache::TuningCache(const std::string& cacheFilePath, bool createMode)
     std::ifstream tuningFile(cacheFilePath);
 
     if (tuningFile && tuningFile.good()) {
-        rapidjson::IStreamWrapper isw{ tuningFile };
-        cache.ParseStream(isw);
+        std::stringstream buffer;
+        buffer << tuningFile.rdbuf();
+        cache.Parse(buffer.str().c_str());
     } else {
         if (!createMode) {
             throw std::runtime_error("Tuning file: " + cacheFilePath +
@@ -329,7 +319,7 @@ std::tuple<std::string, int> AutoTuner::LoadKernelOffline(std::shared_ptr<Tuning
                                                           const Params& params) {
     static const uint32_t defaultComputeUnits = 24;
     auto result = deviceCache->LoadKernel(params, false);
-    if (std::get<0>(result).empty()) {
+    if (std::get<0>(result).empty() && params.engineInfo.computeUnitsCount != defaultComputeUnits) {
         result = deviceCache->LoadKernel(params, defaultComputeUnits);
     }
     return result;

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 //================================================================================================
 // ElementType
@@ -46,11 +34,13 @@ namespace ngraph
             f16,
             f32,
             f64,
+            i4,
             i8,
             i16,
             i32,
             i64,
             u1,
+            u4,
             u8,
             u16,
             u32,
@@ -65,7 +55,7 @@ namespace ngraph
             {
             }
             Type(const Type&) = default;
-            Type(const Type_t t)
+            constexpr Type(const Type_t t)
                 : m_type{t}
             {
             }
@@ -74,7 +64,6 @@ namespace ngraph
                  bool is_signed,
                  bool is_quantized,
                  const std::string& cname);
-            ~Type() {}
             Type& operator=(const Type&) = default;
             const std::string& c_type_string() const;
             size_t size() const;
@@ -91,9 +80,6 @@ namespace ngraph
             size_t bitwidth() const;
             // The name of this type, the enum name of this type
             const std::string& get_type_name() const;
-            bool operator==(const Type& other) const;
-            bool operator!=(const Type& other) const { return !(*this == other); }
-            bool operator<(const Type& other) const;
             friend NGRAPH_API std::ostream& operator<<(std::ostream&, const Type&);
             static std::vector<const Type*> get_known_types();
 
@@ -123,29 +109,32 @@ namespace ngraph
             static bool merge(element::Type& dst, const element::Type& t1, const element::Type& t2);
 
             // \brief This allows switch(element_type)
-            operator Type_t() const { return m_type; }
+            constexpr operator Type_t() const { return m_type; }
+
         private:
             Type_t m_type{Type_t::undefined};
         };
 
         typedef std::vector<Type> TypeVector;
 
-        extern NGRAPH_API const Type undefined;
-        extern NGRAPH_API const Type dynamic;
-        extern NGRAPH_API const Type boolean;
-        extern NGRAPH_API const Type bf16;
-        extern NGRAPH_API const Type f16;
-        extern NGRAPH_API const Type f32;
-        extern NGRAPH_API const Type f64;
-        extern NGRAPH_API const Type i8;
-        extern NGRAPH_API const Type i16;
-        extern NGRAPH_API const Type i32;
-        extern NGRAPH_API const Type i64;
-        extern NGRAPH_API const Type u1;
-        extern NGRAPH_API const Type u8;
-        extern NGRAPH_API const Type u16;
-        extern NGRAPH_API const Type u32;
-        extern NGRAPH_API const Type u64;
+        constexpr Type undefined(Type_t::undefined);
+        constexpr Type dynamic(Type_t::dynamic);
+        constexpr Type boolean(Type_t::boolean);
+        constexpr Type bf16(Type_t::bf16);
+        constexpr Type f16(Type_t::f16);
+        constexpr Type f32(Type_t::f32);
+        constexpr Type f64(Type_t::f64);
+        constexpr Type i4(Type_t::i4);
+        constexpr Type i8(Type_t::i8);
+        constexpr Type i16(Type_t::i16);
+        constexpr Type i32(Type_t::i32);
+        constexpr Type i64(Type_t::i64);
+        constexpr Type u1(Type_t::u1);
+        constexpr Type u4(Type_t::u4);
+        constexpr Type u8(Type_t::u8);
+        constexpr Type u16(Type_t::u16);
+        constexpr Type u32(Type_t::u32);
+        constexpr Type u64(Type_t::u64);
 
         template <typename T>
         Type from()
@@ -183,7 +172,7 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& out, const ngraph::element::Type& obj);
-    }
+    } // namespace element
 
     template <>
     class NGRAPH_API AttributeAdapter<element::Type_t>
@@ -214,10 +203,11 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         operator element::Type&() { return m_ref; }
+
     protected:
         element::Type& m_ref;
     };
 
     /// \brief Return the number of bytes in the compile-time representation of the element type.
     size_t compiler_byte_size(element::Type_t et);
-}
+} // namespace ngraph

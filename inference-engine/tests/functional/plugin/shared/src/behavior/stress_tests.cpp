@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,14 +26,12 @@ void MultipleAllocations::SetUp() {
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
-
     InferenceEngine::CNNNetwork cnnNet(function);
     auto ie = PluginCache::get().ie();
 
     std::cout << "Load the network " << m_allocationsCount << " times..." << std::flush;
-    for (int i = 0; i < m_allocationsCount; ++i) {
-        ie->LoadNetwork(cnnNet, targetDevice);
+    for (unsigned int i = 0; i < m_allocationsCount; ++i) {
+        ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 
     std::cout << "\nCheck inference.\n";
@@ -44,7 +42,9 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
         LoadNetwork();
 
         std::cout << "Infer(): " << j << std::flush;
-
+        if (j == 0) {
+            GenerateInputs();
+        }
         Infer();
         Validate();
     }

@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "kernel_selector_common.h"
 #include "reorder_kernel_base.h"
@@ -34,8 +23,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::os_is_yx_osv32_isv32p:
         case WeightsLayout::os_is_yx_isv16_osv16:
         case WeightsLayout::os_is_zyx_isv16_osv16:
-        case WeightsLayout::is_os_zyx_osv16_isv16:
-        case WeightsLayout::is_os_yx_osv16_isv16:
+        case WeightsLayout::is_os_zyx_isv16_osv16:
+        case WeightsLayout::is_os_yx_isv16_osv16:
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:
         case WeightsLayout::os_zyxi_osv16:
@@ -46,8 +35,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::gs_oiyx_gsv32:
         case WeightsLayout::g_os_iyx_osv16_rotate_180:
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:
-        case WeightsLayout::g_is_os_zyx_osv16_isv16:
-        case WeightsLayout::g_is_os_yx_osv16_isv16:
+        case WeightsLayout::g_is_os_zyx_isv16_osv16:
+        case WeightsLayout::g_is_os_yx_isv16_osv16:
         case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
         case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
         case WeightsLayout::g_os_is_zyx_isv16_osv16:
@@ -151,26 +140,16 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weights_params& params) const {
     const auto& out = params.output;
 
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    std::vector<size_t> global(3);
+    dispatchData.gws = { out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    global = {out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     auto& input = params.inputs[0];
     DataTensor input_tensor = input;
@@ -183,64 +162,56 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         input_tensor = DataTensor(input_sizes, input.GetDType(), DataLayout::image_2d_rgba);
     }
 
-    auto global = GetTensorFriendlyWorkGroups(input_tensor);
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.gws = GetTensorFriendlyWorkGroups(input_tensor);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         std::vector<size_t> sizes = { 32, 16, 8, 4 };
         for (auto& s : sizes) {
-            if (kd.gws2 % s == 0) {
-                kd.lws0 = 1;
-                kd.lws1 = 1;
-                kd.lws2 = s;
+            if (dispatchData.gws[2] % s == 0) {
+                dispatchData.lws[0] = 1;
+                dispatchData.lws[1] = 1;
+                dispatchData.lws[2] = s;
                 break;
             }
         }
     }
 
     if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 && params.inputs[0].Feature().v % 16 == 0) {
-        kd.lws0 = 1;
-        kd.lws1 = 16;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 16;
+        dispatchData.lws[2] = 1;
     }
 
-    return kd;
+    return dispatchData;
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options, float estimated_time) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORDER);
+    if (!Validate(params, options))
+        return {};
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());
 
-    DispatchData runInfo;
+    DispatchData dispatchData;
 
-    runInfo = SetDefault(newParams);
+    dispatchData = SetDefault(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kernel.arguments = GetArgsDesc(1, false, false);
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options, float estimated_time) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -249,24 +220,20 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
     KernelData kd = KernelData::Default<reorder_params>(params);
     reorder_params& newParams = *static_cast<reorder_params*>(kd.params.get());
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kernel.arguments = GetArgsDesc(1, false, false);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

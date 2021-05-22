@@ -1,27 +1,14 @@
-/*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-#include <../api/CPP/cldnn_defs.h>
-#include <../api/CPP/engine.hpp>
-#include <../api/CPP/input_layout.hpp>
-#include <../api/CPP/memory.hpp>
-#include <../api/CPP/data.hpp>
-#include <../api/CPP/topology.hpp>
-#include <../api/CPP/network.hpp>
-#include <../api/CPP/custom_gpu_primitive.hpp>
+#include <../api/engine.hpp>
+#include <../api/input_layout.hpp>
+#include <../api/memory.hpp>
+#include <../api/data.hpp>
+#include <../api/topology.hpp>
+#include <../api/network.hpp>
+#include <../api/custom_gpu_primitive.hpp>
 #include <iostream>
 #include <iomanip>
 #include <chrono>
@@ -72,7 +59,7 @@ void chapter_7(engine& my_engine)
     std::string entry_point = "add_kernel";
     
     // Parameter binding for the custom primitive
-    std::vector<cldnn_arg> parameters = { { arg_input, 0 }, { arg_input, 1 }, { arg_output, 0 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 }, { custom_gpu_primitive::arg_input, 1 }, { custom_gpu_primitive::arg_output, 0 } };
     
     // Output layout for the custom primitive
     layout output_layout = my_layout;

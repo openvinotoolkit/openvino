@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
@@ -1646,7 +1634,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
 
     auto output = outputs.begin()->second.get_memory();
 
-    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+    auto get_bsv16_fsv16_index = [] (int32_t /* b_size */, int32_t /* f_size */, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
                                      int32_t f_pad_before, int32_t f, int32_t f_pad_after,
                                      int32_t z_pad_before, int32_t z, int32_t z_pad_after,
                                      int32_t y_pad_before, int32_t y, int32_t y_pad_after,
@@ -1728,7 +1716,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
 
     auto output = outputs.begin()->second.get_memory();
 
-    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+    auto get_bsv16_fsv16_index = [] (int32_t /* b_size */, int32_t /* f_size */, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
                                      int32_t f_pad_before, int32_t f, int32_t f_pad_after,
                                      int32_t z_pad_before, int32_t z, int32_t z_pad_after,
                                      int32_t y_pad_before, int32_t y, int32_t y_pad_after,

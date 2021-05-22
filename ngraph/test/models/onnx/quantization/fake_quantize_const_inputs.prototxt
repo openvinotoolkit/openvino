@@ -70,6 +70,7 @@ graph {
     }
   }
   node {
+    domain: "org.openvinotoolkit"
     input: "X"
     input: "input_low"
     input: "input_high"

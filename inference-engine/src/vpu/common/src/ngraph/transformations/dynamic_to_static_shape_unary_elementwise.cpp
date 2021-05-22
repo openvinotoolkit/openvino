@@ -1,10 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"

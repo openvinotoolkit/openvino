@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import ast
 import logging as log
 import re
@@ -37,6 +25,7 @@ def restore_edges(graph: Graph, get_edges: callable):
     n1 --> n2 edge with attributes attrs.
     It is possible that two nodes n1 and n2 have more than one n1 --> n2 edges, so the resulting graph is Graph.
     """
+    used_tensors = set()
     for node in list(graph.nodes()):
         edges = get_edges(Node(graph, node))
         for u, v, d in edges:
@@ -49,7 +38,10 @@ def restore_edges(graph: Graph, get_edges: callable):
                     ' and '.join(undefined) +
                     refer_to_faq_msg(25)
                 )
+            used_tensors.add(u)
+
         graph.add_edges_from(edges)
+    return used_tensors
 
 
 def remove_control_dependency_inputs(graph: Graph):
@@ -58,6 +50,8 @@ def remove_control_dependency_inputs(graph: Graph):
     :param graph: graph to operate on 
     """
     for _, attrs in list(graph.nodes(data=True)):
+        if 'pb' not in attrs:
+            continue
         pb = attrs['pb']
         ind = 0
         while ind < len(pb.input):
@@ -129,6 +123,22 @@ def attr_getter(node: Node, name: str):
         elif type(node[name]) is not np.ndarray:
             return str(node[name])
     return None
+
+
+def bool_to_str(node: Node, attr: str):
+    # Function converts 0/1 or bool False/True or '0'/'1' values to str 'false'/'true' which need to appear in IR
+    attribute_name = node.soft_get(attr, None)
+    if attribute_name is None:
+        return None
+    if isinstance(attribute_name, bool):
+        return str(attribute_name).lower()
+    elif attribute_name in [0, 1]:
+        return str(bool(attribute_name)).lower()
+    elif attribute_name in ['0', '1']:
+        return str(bool(int(attribute_name))).lower()
+    else:
+        raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
+            attribute_name, attr, node.soft_get('name')))
 
 
 def kernel_getter(node: Node, dim: int):
@@ -441,7 +451,7 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
-def get_node_id_with_ports(graph: Graph, node_name: str):
+def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
     :param graph: graph to operate on
@@ -462,12 +472,12 @@ def get_node_id_with_ports(graph: Graph, node_name: str):
             node = Node(graph, graph.get_node_id_by_name(name))
             if match.group(1):
                 in_port = int(match.group(1).replace(':', ''))
-                if in_port not in [e['in'] for e in node.in_edges().values()]:
+                if skip_if_no_port and in_port not in [e['in'] for e in node.in_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
             if match.group(3):
                 out_port = int(match.group(3).replace(':', ''))
-                if out_port not in [e['out'] for e in node.out_edges().values()]:
+                if skip_if_no_port and out_port not in [e['out'] for e in node.out_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
 
@@ -729,6 +739,24 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
     return sinks
 
 
+def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params: dict = {}):
+    """
+    Adds identity nodes marked with needs_removal=True attribute after each output of the graph.
+    These nodes are used for storing tensor names information at the incoming edge
+    and are removed with the OutputCut transformation.
+    :param graph: graph to operate on.
+    :param outputs: list of output node ids.
+    :param add_edge: method which adds an edge to the graph with the following signature:
+     f(src_node_id: str, dst_node_id: str, in_port: int).
+    :param params: extra parameters for add_edge method.
+    """
+    for output in outputs:
+        fake_node_name = graph.unique_id(output)
+        graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
+                       infer=None, needs_removal=True, symbol_dict={'op': 'Identity'})
+        add_edge(graph, output, fake_node_name, **params)
+
+
 def set_is_input(graph: Graph, placeholders: list, is_input: bool):
     for placeholder in placeholders:
         graph.node[placeholder]['is_input'] = is_input
@@ -832,8 +860,9 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
                                         name=get_new_placeholder_name(node_id, is_out_port, port)))
 
+    fw_name = Node(graph, node_id).soft_get('name')
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
+                  'fw_tensor_debug_info': [(fw_name, fw_name)],
                   'data_attrs': ['fw_tensor_debug_info']}
     if not data:
         if is_out_port:

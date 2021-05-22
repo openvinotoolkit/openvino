@@ -1,16 +1,6 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "reverse_sequence_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -20,8 +10,14 @@
 namespace kernel_selector {
 ParamsKey ReverseSequenceKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableAllInputLayout();
@@ -35,23 +31,15 @@ ParamsKey ReverseSequenceKernelRef::GetSupportedKey() const {
 
 CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_params& params,
                                                         const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = {params.output.Batch().v,
-                                  params.output.Feature().v,
-                                  params.output.Y().v * params.output.X().v};
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ReverseSequenceKernelRef::GetJitConstants(const reverse_sequence_params& params) const {
@@ -69,17 +57,19 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
 
     assert(params.GetType() == KernelType::REVERSE_SEQUENCE);
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
 
     return {kd};
+}
+
+KernelsPriority ReverseSequenceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

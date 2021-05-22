@@ -1,21 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
+#include <iterator>
+#include <ngraph/validation_util.hpp>
 #include <sstream>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
@@ -26,44 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::v0::Reverse::type_info;
-
-op::v0::Reverse::Reverse(const Output<Node>& arg, const AxisSet& reversed_axes)
-    : Op({arg})
-    , m_reversed_axes(reversed_axes)
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::v0::Reverse::validate_and_infer_types()
-{
-    const auto input_shape = get_input_partial_shape(0);
-    const Dimension input_rank = input_shape.rank();
-
-    if (input_rank.is_static())
-    {
-        // Make sure all reversed axis indices are valid.
-        for (size_t axis : m_reversed_axes)
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  axis < input_rank.get_length(),
-                                  "Reverse axis (",
-                                  axis,
-                                  ") is out of bounds (argument shape: ",
-                                  input_shape,
-                                  ").");
-        }
-    }
-
-    set_output_type(0, get_input_element_type(0), input_shape);
-}
-
-shared_ptr<Node> op::v0::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Reverse>(new_args.at(0), m_reversed_axes);
-}
 
 constexpr NodeTypeInfo op::v1::Reverse::type_info;
 
@@ -87,12 +40,14 @@ op::v1::Reverse::Reverse(const Output<Node>& data,
 
 bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Reverse_visit_attributes);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
 
 void op::v1::Reverse::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Reverse_validate_and_infer_types);
     if (m_mode == Mode::MASK)
     {
         NODE_VALIDATION_CHECK(this,
@@ -132,13 +87,10 @@ void op::v1::Reverse::validate_and_infer_types()
 
     if (input_rank.is_static())
     {
-        const auto rank = input_rank.get_length();
-        const auto rev_axes_node = input_value(1).get_node_shared_ptr();
+        const size_t rank = input_rank.get_length();
 
-        if (op::is_constant(rev_axes_node))
+        if (const auto& rev_axes_constant = get_constant_from_source(input_value(1)))
         {
-            const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
-
             if (m_mode == Mode::INDEX)
             {
                 const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
@@ -171,6 +123,7 @@ void op::v1::Reverse::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Reverse_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
 }
@@ -184,27 +137,43 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
 
     return allowed_values.at(mode);
 }
-bool op::v0::Reverse::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
+
+namespace reverseop
 {
-    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                outputs[0]->get_data_ptr<char>(),
-                                inputs[0]->get_shape(),
-                                outputs[0]->get_shape(),
-                                get_reversed_axes(),
-                                inputs[0]->get_element_type().size());
-    return true;
-}
-bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
+    template <element::Type_t ET>
+    void get_axes(AxisSet& axes, const HostTensorPtr& in)
+    {
+        auto axes_indices = in->get_data_ptr<ET>();
+        size_t axes_rank = in->get_element_count();
+        std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
+    }
+} // namespace reverseop
+
+#define GET_AXES(a, ...)                                                                           \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(get_reverse_axes, _, a));                                       \
+        reverseop::get_axes<element::Type_t::a>(__VA_ARGS__);                                      \
+    }                                                                                              \
+    break;
+
+bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
 {
     AxisSet axes{};
     if (get_mode() == op::v1::Reverse::Mode::INDEX)
     {
-        auto axes_mask = inputs[1]->get_data_ptr<int64_t>();
-        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+        switch (inputs[1]->get_element_type())
         {
-            axes.emplace(i);
+            GET_AXES(i8, axes, inputs[1]);
+            GET_AXES(i16, axes, inputs[1]);
+            GET_AXES(i32, axes, inputs[1]);
+            GET_AXES(i64, axes, inputs[1]);
+            GET_AXES(u8, axes, inputs[1]);
+            GET_AXES(u16, axes, inputs[1]);
+            GET_AXES(u32, axes, inputs[1]);
+            GET_AXES(u64, axes, inputs[1]);
+        default: NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
         }
     }
     else // Mode::MASK
@@ -225,6 +194,13 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                 axes,
                                 inputs[0]->get_element_type().size());
     return true;
+}
+
+bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Reverse_evaluate);
+    return evaluate_reverse(outputs, inputs);
 }
 
 namespace ngraph

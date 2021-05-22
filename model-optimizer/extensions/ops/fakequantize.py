@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -49,6 +36,7 @@ class FakeQuantize(Op):
             'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 1,
+            'auto_broadcast': 'numpy'
         }
         super().__init__(graph, mandatory_props, attrs)
         if self.attrs['levels'] is None:
@@ -57,6 +45,7 @@ class FakeQuantize(Op):
     def supported_attrs(self):
         return [
             'levels',
+            'auto_broadcast'
         ]
 
     @staticmethod
@@ -66,7 +55,7 @@ class FakeQuantize(Op):
         inputs = [node.in_node(i) for i in range(5)]
         x, input_low, input_high, output_low, output_high = inputs
         assert x.has_valid('shape')
-        # TODO Check all input[1..4] shapes are broadcastable to intput[0] shape
+        # TODO Check all inputs[1..4] shapes are broadcastable to inputs[0] shape
         assert all([broadcastable(inputs[i].shape, inputs[0].shape) for i in range(1, 5)]), \
             "Not all shapes from FakeQuantize inputs can be broadcasted to input[0] for node {}".format(
                 node.soft_get('name'))

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;
@@ -22,38 +21,121 @@ void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
     this->config = config;
 }
 
-ExecutableNetwork
-MockPlugin::LoadNetwork(const ICNNNetwork &network,
+Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {
+    if (_target) {
+        return _target->GetMetric(name, options);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+MockPlugin::LoadNetwork(const CNNNetwork &network,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
         return _target->LoadNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        IE_THROW(NotImplemented);
+    }
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
+                        RemoteContext::Ptr context) {
+    if (_target) {
+        return _target->LoadNetwork(network, config, context);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::LoadNetwork(const std::string &modelPath,
+                        const std::map<std::string, std::string> &config) {
+    if (_target) {
+        return _target->LoadNetwork(modelPath, config);
+    } else {
+        return InferenceEngine::InferencePluginInternal::LoadNetwork(modelPath, config);
     }
 }
 
 ExecutableNetworkInternal::Ptr
-MockPlugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
     return {};
 }
 
-InferenceEngine::IInferencePlugin *__target = nullptr;
-
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        IInferencePlugin *p = nullptr;
-        std::swap(__target, p);
-        plugin = new MockPlugin(p);
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+InferenceEngine::ExecutableNetworkInternal::Ptr
+MockPlugin::ImportNetworkImpl(std::istream& networkModel,
+                              const std::map<std::string, std::string>& config) {
+    if (_target) {
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, config));
+    } else {
+        IE_THROW(NotImplemented);
     }
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
-        InferenceEngine::IInferencePlugin *target) {
+InferenceEngine::ExecutableNetworkInternal::Ptr
+MockPlugin::ImportNetworkImpl(std::istream& networkModel,
+                              const InferenceEngine::RemoteContext::Ptr& context,
+                              const std::map<std::string, std::string>& config) {
+    if (_target) {
+        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, context, config));
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+InferenceEngine::RemoteContext::Ptr MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
+    if (_target) {
+        return _target->GetDefaultContext(params);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+InferenceEngine::QueryNetworkResult
+MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                         const std::map<std::string, std::string>& config) const {
+    if (_target) {
+        return _target->QueryNetwork(network, config);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+    if (_target) {
+        _target->SetCore(core);
+    }
+    InferenceEngine::InferencePluginInternal::SetCore(core);
+}
+
+void MockPlugin::SetName(const std::string& name) noexcept {
+    if (_target) {
+        _target->SetName(name);
+    }
+    InferenceEngine::InferencePluginInternal::SetName(name);
+}
+
+std::string MockPlugin::GetName() const noexcept {
+    if (_target) {
+        return _target->GetName();
+    }
+    return InferenceEngine::InferencePluginInternal::GetName();
+}
+
+
+InferenceEngine::IInferencePlugin *__target = nullptr;
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+    IInferencePlugin *p = nullptr;
+    std::swap(__target, p);
+    plugin = std::make_shared<MockPlugin>(p);
+}
+
+INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)
+CreatePluginEngineProxy(InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 

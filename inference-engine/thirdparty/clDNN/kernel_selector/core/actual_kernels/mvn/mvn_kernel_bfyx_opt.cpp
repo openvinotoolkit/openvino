@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "mvn_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
@@ -44,57 +33,55 @@ ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
 }
 
 MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-        kd.dataSetSize = input.X().v * input.Y().v * input.Z().v;
-        kd.dataSetsCount = input.Batch().v * input.Feature().v;
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
     } else {
-        kd.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
-        kd.dataSetsCount = input.Batch().v;
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
+        dispatchData.dataSetsCount = input.Batch().v;
     }
 
     // start with 1 thread per data set
-    kd.gws0 = 1;
-    kd.gws1 = kd.dataSetsCount;
-    kd.gws2 = 1;
-    kd.itemsNum = kd.dataSetSize;
+    dispatchData.gws[0] = 1;
+    dispatchData.gws[1] = dispatchData.dataSetsCount;
+    dispatchData.gws[2] = 1;
+    dispatchData.itemsNum = dispatchData.dataSetSize;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * (kd.fp16UnitUsed ? sizeof(short) : sizeof(float));
+    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
     // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
     // reads.
-    while ((kd.itemsNum > 32 || kd.lws0 < kd.itemsNum) && (2 * kd.lws0 <= max_lws)) {
-        kd.lws0 *= 2;
-        kd.itemsNum /= 2;
+    while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        dispatchData.lws[0] *= 2;
+        dispatchData.itemsNum /= 2;
     }
 
-    kd.gws0 = kd.lws0;
-    kd.leftovers = kd.dataSetSize % kd.lws0;
+    dispatchData.gws[0] = dispatchData.lws[0];
+    dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
 
-    return kd;
+    return dispatchData;
 }
 
-JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData kd) const {
-    auto jit = MVNKernelBase::GetJitConstants(params, kd);
+JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const {
+    auto jit = MVNKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ITEMS_NUM", kd.itemsNum),
-        MakeJitConstant("LWS", kd.lws0),
-        MakeJitConstant("GWS", kd.gws0),
-        MakeJitConstant("DATA_SETS_COUNT", kd.dataSetsCount),
-        MakeJitConstant("DATA_SET_SIZE", kd.dataSetSize),
-        MakeJitConstant("LEFTOVERS", kd.leftovers),
+        MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
+        MakeJitConstant("LWS", dispatchData.lws[0]),
+        MakeJitConstant("GWS", dispatchData.gws[0]),
+        MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
+        MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
+        MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
     });
     auto activation_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
@@ -136,6 +123,10 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
 }
 
 KernelsData MVNKernelBfyxOpt::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_7);
+    return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

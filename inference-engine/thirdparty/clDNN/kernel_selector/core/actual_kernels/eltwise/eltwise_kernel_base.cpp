@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "eltwise_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -116,6 +106,34 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
     }
 
     return true;
+}
+
+bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) const {
+    // These modes are supposed to produce BOOL output type
+    // but this kernel uses vector data types, and these operation will produce 0xFFFF / 0x0000 instead of 0 / 1 values
+    // The value might be then converted to fp16/fp32 and used for some arithmetic, which will lead to invalid results, thus reject these modes
+    // to fallback on ref kernel with scalar types.
+    // TODO: Consider updating optimized kernels to produce 0/1 output for vector code if such operation is a bottleneck in some model
+    const std::vector<EltwiseMode> unsupported_modes = {
+        EltwiseMode::EQ,
+        EltwiseMode::NE,
+        EltwiseMode::LT,
+        EltwiseMode::LE,
+        EltwiseMode::GT,
+        EltwiseMode::GE,
+        EltwiseMode::LOGIC_AND,
+        EltwiseMode::LOGIC_OR,
+        EltwiseMode::LOGIC_XOR,
+        EltwiseMode::FLOOR_MOD,
+    };
+
+    for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
+        const auto& ew =  params.operations[op_num];
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end())
+            return true;
+    }
+
+    return false;
 }
 
 JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
@@ -247,7 +265,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD:
-                op += "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
+                op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 break;
             case EltwiseMode::ASSIGN:
                 op += input0_str;
@@ -443,9 +461,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
@@ -512,17 +530,14 @@ JitConstants EltwiseKernelBase::GetJitConstants(const eltwise_params& params) co
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        auto global = GetTensorFriendlyWorkGroups(params.output);
-        kd.gws0 = global[0];
-        kd.gws1 = global[1];
-        kd.gws2 = global[2];
+        dispatchData.gws = GetTensorFriendlyWorkGroups(params.output);
     } else if (CheckInputsOutputNoPitchSameDims(params)) {
-        kd.gws0 = params.output.LogicalSize();
-        kd.gws1 = 1;
-        kd.gws2 = 1;
+        dispatchData.gws[0] = params.output.LogicalSize();
+        dispatchData.gws[1] = 1;
+        dispatchData.gws[2] = 1;
     } else {
         const auto& out = params.output;
 
@@ -536,58 +551,58 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             gws.push_back(1U);
         }
 
-        kd.gws0 = gws[0];
+        dispatchData.gws[0] = gws[0];
         if (n_dims == 6) {
-            kd.gws1 = gws[1] * gws[2] * gws[3];  // y*z*w
-            kd.gws2 = gws[4] * gws[5];
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3];  // y*z*w
+            dispatchData.gws[2] = gws[4] * gws[5];
         } else if (n_dims == 5) {
-            kd.gws1 = gws[1] * gws[2];  // y*z
-            kd.gws2 = gws[3] * gws[4];
+            dispatchData.gws[1] = gws[1] * gws[2];  // y*z
+            dispatchData.gws[2] = gws[3] * gws[4];
         } else {
-            kd.gws1 = gws[1];
-            kd.gws2 = gws[2] * gws[3];
+            dispatchData.gws[1] = gws[1];
+            dispatchData.gws[2] = gws[2] * gws[3];
         }
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2}, params.engineInfo);
+    auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
     const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
-    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
-        params.output.Feature().v % 16 == 0 && kd.gws1 % 16 == 0) {
-        kd.lws0 = 1;
+    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+        params.output.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
+        dispatchData.lws[0] = 1;
         for (auto lws : optimal_lws_values) {
-            if (kd.gws1 % lws == 0) {
-                kd.lws1 = lws;
+            if (dispatchData.gws[1] % lws == 0) {
+                dispatchData.lws[1] = lws;
                 break;
             }
         }
-        kd.lws2 = 1;
+        dispatchData.lws[2] = 1;
     } else if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        kd.gws2 = Align(kd.gws2, 32);
-        kd.lws0 = 1;
-        kd.lws1 = 1;
-        kd.lws2 = 32;
+        dispatchData.gws[2] = Align(dispatchData.gws[2], 32);
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 32;
     } else if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && params.output.Feature().v % 32 == 0) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
-            kd.lws0 = 1;
-            kd.lws1 = 32;
-            kd.lws2 = 1;
-        } else if (kd.gws0 == params.output.LogicalSize()) {
-            kd.lws0 = local[0];
-            kd.lws1 = local[1];
-            kd.lws2 = local[2];
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = 32;
+            dispatchData.lws[2] = 1;
+        } else if (dispatchData.gws[0] == params.output.LogicalSize()) {
+            dispatchData.lws = local;
         } else {
-            kd.lws0 = 1;
-            kd.lws1 = 1;
-            kd.lws2 = 32;
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 32;
         }
     } else {
-        kd.lws0 = local[0];
-        kd.lws1 = local[1];
-        kd.lws2 = local[2];
+        dispatchData.lws[0] = local[0];
+        dispatchData.lws[1] = local[1];
+        dispatchData.lws[2] = local[2];
     }
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
@@ -600,22 +615,20 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    DispatchData runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     return {kd};
 }

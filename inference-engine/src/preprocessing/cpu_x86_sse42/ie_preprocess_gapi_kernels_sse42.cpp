@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,11 @@
 #error CV_SIMD128 is required!
 #endif
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
+
 #include <cstring>
 
 using namespace cv;
@@ -51,7 +56,7 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(      uint8_t *dst[],
+void calcRowLinear_8UC1(uint8_t       *dst[],
                         const uint8_t *src0[],
                         const uint8_t *src1[],
                         const short    alpha[],
@@ -83,16 +88,29 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
                     //      function: resize_bilinear_u8
                     //         label: vertical_pass
                     //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                     __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                     __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
                     __m128i val1lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                     __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+                                                                      *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
+#endif
                     __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                     __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                     __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);
@@ -377,15 +395,29 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
             for (int x = 0; x < outSz.width; ) {
                 for (; x <= outSz.width - 8; x += 8) {
                     v_uint8x16 t0, t1, t2, t3;
+#ifdef __i386__
+                    t0.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 0]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 1]])));
+                    t1.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 2]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 3]])));
+                    t2.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 4]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 5]])));
+                    t3.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 6]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 7]])));
+#else
                     t0.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 0]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
                     t1.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 2]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
                     t2.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 4]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
                     t3.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 6]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
-
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
+#endif
                     v_uint8x16 r0, r1, r2, r3;
                     v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
 
@@ -507,7 +539,20 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                 //      function: resize_bilinear_u8
                 //         label: vertical_pass
                 //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                 __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
                         *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                 __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
@@ -516,7 +561,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                         *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                 __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
                         *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+#endif
                 __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                 __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                 __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);
@@ -859,163 +904,47 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
 
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 3;
-
+                      const uint8_t* src0[],
+                      const uint8_t* src1[],
+                      const short    alpha[],
+                      const short    clone[],  // 4 clones of alpha
+                      const short    mapsx[],
+                      const short    beta[],
+                          uint8_t    tmp[],
+                      const Size&    inSz,
+                      const Size&    outSz,
+                      const int      lpi) {
+    constexpr int chanNum = 3;
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
 void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 4;
+                      const uint8_t* src0[],
+                      const uint8_t* src1[],
+                      const short    alpha[],
+                      const short    clone[],  // 4 clones of alpha
+                      const short    mapsx[],
+                      const short    beta[],
+                          uint8_t    tmp[],
+                      const Size&   inSz,
+                      const Size&   outSz,
+                      const int     lpi) {
+    constexpr int chanNum = 4;
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 32F)
 void calcRowLinear_32F(float *dst[],
-                 const float *src0[],
-                 const float *src1[],
-                 const float  alpha[],
-                 const int    mapsx[],
-                 const float  beta[],
-                 const Size & inSz,
-                 const Size & outSz,
-                       int    lpi) {
-    bool xRatioEq1 = inSz.width  == outSz.width;
-    bool yRatioEq1 = inSz.height == outSz.height;
-
-    if (!xRatioEq1 && !yRatioEq1) {
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 res0 = s00*alpha0 + s01*alpha1;
-                v_float32x4 res0 = v_fma(s00 - s01, alpha0, s01);
-
-                v_float32x4 s1l, s1h, s10, s11;
-                v_gather_pairs(src1[l], sx, s1l, s1h);
-                v_deinterleave(s1l, s1h, s10, s11);
-
-            //  v_float32x4 res1 = s10*alpha0 + s11*alpha1;
-                v_float32x4 res1 = v_fma(s10 - s11, alpha0, s11);
-
-            //  v_float32x4 d = res0*beta0 + res1*beta1;
-                v_float32x4 d = v_fma(res0 - res1, beta0, res1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                float res0 = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-                float res1 = src1[l][sx0]*alpha0 + src1[l][sx1]*alpha1;
-                dst[l][x] = beta0*res0 + beta1*res1;
-            }
-        }
-
-    } else if (!xRatioEq1) {
-        GAPI_DbgAssert(yRatioEq1);
-
-        for (int l = 0; l < lpi; l++) {
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 d = s00*alpha0 + s01*alpha1;
-                v_float32x4 d = v_fma(s00 - s01, alpha0, s01);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                dst[l][x] = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-            }
-        }
-
-    } else if (!yRatioEq1) {
-        GAPI_DbgAssert(xRatioEq1);
-        int length = inSz.width;  // == outSz.width
-
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= length - 4; x += 4) {
-                v_float32x4 s0 = v_load(&src0[l][x]);
-                v_float32x4 s1 = v_load(&src1[l][x]);
-
-            //  v_float32x4 d = s0*beta0 + s1*beta1;
-                v_float32x4 d = v_fma(s0 - s1, beta0, s1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < length; x++) {
-                dst[l][x] = beta0*src0[l][x] + beta1*src1[l][x];
-            }
-        }
-
-    } else {
-        GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
-        int length = inSz.width;  // == outSz.width
-        for (int l = 0; l < lpi; l++) {
-            memcpy(dst[l], src0[l], length * sizeof(float));
-        }
-    }
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                               int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
 }
 
 //------------------------------------------------------------------------------

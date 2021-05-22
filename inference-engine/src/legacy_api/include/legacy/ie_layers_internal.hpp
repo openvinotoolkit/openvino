@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <tuple>
 
-#include "ie_api.h"
 #include <legacy/ie_layers.h>
 #include "legacy/ie_util_internal.hpp"
 

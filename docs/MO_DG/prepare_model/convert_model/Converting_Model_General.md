@@ -1,10 +1,11 @@
 # Converting a Model Using General Conversion Parameters {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General}
 
-To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo.py`` with
-specifying a path to the input model file:
+To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo.py`` specifying a path to the input model file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model INPUT_MODEL
+python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
+
+The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
@@ -109,7 +110,6 @@ Framework-agnostic parameters:
   --disable_gfusing     Turn off fusing of grouped convolutions
   --enable_concat_optimization
                         Turn on Concat optimization.
-  --move_to_preprocess  Move mean values to IR preprocess section
   --extensions EXTENSIONS
                         Directory or a comma separated list of directories
                         with extensions. To disable all extensions including
@@ -127,12 +127,10 @@ Framework-agnostic parameters:
                         value, for example: "node_name->True". It will be
                         DEPRECATED in future releases. Use --input option to
                         specify a value for freezing.
-  --generate_deprecated_IR_V7
-                        Force to generate old deprecated IR V7 with layers
-                        from old IR specification.
-  --keep_shape_ops      [ Experimental feature ] Enables `Shape` operation
-                        with all children keeping. This feature makes model
-                        reshapable in Inference Engine
+  --static_shape        Enables IR generation for fixed input shape (folding
+                        `ShapeOf` operations and shape-calculating sub-graphs
+                        to `Constant`). Changing model input shape using
+                        the Inference Engine API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.
@@ -160,7 +158,7 @@ If both mean and scale values are specified, the mean is subtracted first and th
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
 * Open the example script/application executing the model and track how the input data is read and passed to the framework.
-* Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, the pre-processing is most probably the part of the model.
+* Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
 There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
@@ -168,66 +166,63 @@ There are situations when the input data shape for the model is not fixed, like 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
 Input data for your application can be of RGB or BRG color input order. For example, Inference Engine samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the Inference Engine samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
 
-## When to Specify `--keep_shape_ops` Command Line Parameter
-The `--keep_shape_ops` is an **experimental** command line parameter, so the model conversion may fail if it is specified.
-
-By default, the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
-
-If the `--keep_shape_ops` command line parameter is specified then the Model Optimizer keeps *Shape* operations in the model and inserts additional layers to convert the graph layout from NHWC to NCHW layout if necessary.
+## When to Specify `--static_shape` Command Line Parameter
+If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
+Resulting Intermediate Representation will not be resizable with the help of Inference Engine.
 
 ## Examples of CLI Commands
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with debug log level:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --log_level DEBUG
+python3 mo.py --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with the output IR called `result.*` in the specified `output_dir`:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
+python3 mo.py --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/ 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with one input with scale values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59]
+python3 mo.py --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5]
+python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale and mean values specified for the particular nodes:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5]
+python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8
+python3 mo.py --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with disabled fusing for linear operations to Convolution and grouped convolutions:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing
+python3 mo.py --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16
+python3 mo.py --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto.
  file For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto
+python3 mo.py --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for TensorFlow* FaceNet* model with a placeholder freezing value. 
 It replaces the placeholder with a constant layer that contains the passed value.
 For more information about FaceNet conversion, please refer to [this](tf_specific/Convert_FaceNet_From_Tensorflow.md) page
 ```sh
-python3 mo.py --input_model FaceNet.pb --input "phase_train->False"
+python3 mo.py --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for any model with a placeholder freezing tensor of values. 
@@ -237,5 +232,5 @@ Tensor here is represented in square brackets with each value separated from ano
 If data type is set in the model, this tensor will be reshaped to a placeholder shape and casted to placeholder data type.
 Otherwise, it will be casted to data type passed to `--data_type` parameter (by default, it is FP32).
 ```sh
-python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]"
+python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
 ```

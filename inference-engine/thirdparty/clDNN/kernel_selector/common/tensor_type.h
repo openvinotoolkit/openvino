@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #pragma once
 
@@ -51,11 +40,7 @@ enum DataLayout {
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_f_bsv8__af8,         // for optimized FC
     bs_f_bsv16__af8,        // for optimized FC
-    bf8_xy16,               // for optimized conv1x1
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
-    byxf_af32,              // for MMAD convolution
-    byx8_f4,                // for MMAD convolution
-    fs_bs_yx_bsv4_fsv32,    // for batched MMAD
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     bfzyx,                  // batch+feature+3D spatial
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
@@ -73,6 +58,7 @@ enum WeightsLayout {
     oi = 0,
     io,
     oiyx,
+    ioyx,
     oyxi,
     iyxo,
     yxio,
@@ -81,8 +67,8 @@ enum WeightsLayout {
     os_iyx_osv32__ai32,
     os_iyx_osv64,
     os_is_zyx_isv16_osv16,
-    is_os_zyx_osv16_isv16,
-    is_os_yx_osv16_isv16,
+    is_os_zyx_isv16_osv16,
+    is_os_yx_isv16_osv16,
     os_is_zyx_isv8_osv16_isv2,
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
@@ -92,6 +78,7 @@ enum WeightsLayout {
     os_i_osv16__ai8,
     os_i_osv16,
     os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
     i_yxs_os_yxsv2_osv16,
@@ -109,6 +96,8 @@ enum WeightsLayout {
     dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
     os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
+    os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
+    os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                  // 1,5...
     os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -123,12 +112,16 @@ enum WeightsLayout {
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
+    os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
+    iozyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     goiyx,
+    gioyx,
     goizyx,
+    giozyx,
     gyxio,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
@@ -137,11 +130,12 @@ enum WeightsLayout {
     gs_oiyx_gsv32,
     g_os_iyx_osv16_rotate_180,
     gi_yxs_os_yxsv2_osv16,
-    g_is_os_zyx_osv16_isv16,
-    g_is_os_yx_osv16_isv16,
+    g_is_os_zyx_isv16_osv16,
+    g_is_os_yx_isv16_osv16,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
+    g_os_is_zyx_osv16_isv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
     g_os_is_yx_isv16_osv16,
@@ -196,10 +190,12 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oi:
         case WeightsLayout::io:
         case WeightsLayout::oiyx:
+        case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::iozyx:
         case WeightsLayout::dlstm_dir_io:
             return true;
         default:

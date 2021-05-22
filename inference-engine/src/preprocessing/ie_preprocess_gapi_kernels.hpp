@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,16 +143,26 @@ namespace gapi {
         }
     };
 
-    G_TYPED_KERNEL(U16toF32, <cv::GMat(cv::GMat)>, "com.intel.ie.u16tof32") {
-        static cv::GMatDesc outMeta(const cv::GMatDesc& in) {
-            GAPI_Assert(in.depth == CV_16U);
+    G_TYPED_KERNEL(ConvertDepth, <cv::GMat(cv::GMat, int depth)>, "com.intel.ie.ConvertDepth") {
+        static cv::GMatDesc outMeta(const cv::GMatDesc& in, int depth) {
+            GAPI_Assert(in.depth == CV_8U || in.depth == CV_16U || in.depth == CV_32F);
+            GAPI_Assert(depth == CV_8U || depth == CV_32F || depth == CV_16U);
 
-            return in.withDepth(CV_32F);
+            return in.withDepth(depth);
         }
     };
 
+    G_TYPED_KERNEL(GSubC, <cv::GMat(cv::GMat, cv::GScalar, int)>, "com.intel.ie.math.subC") {
+        static cv::GMatDesc outMeta(cv::GMatDesc a, cv::GScalarDesc, int ddepth) {
+            return a.withDepth(ddepth);
+        }
+    };
 
-
+    G_TYPED_KERNEL(GDivC, <cv::GMat(cv::GMat, cv::GScalar, double, int)>, "com.intel.ie.math.divC") {
+        static cv::GMatDesc outMeta(cv::GMatDesc a, cv::GScalarDesc, double, int ddepth) {
+            return a.withDepth(ddepth);
+        }
+    };
     cv::gapi::GKernelPackage preprocKernels();
 
 }  // namespace gapi

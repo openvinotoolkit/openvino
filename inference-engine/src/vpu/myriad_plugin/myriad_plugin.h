@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "description_buffer.hpp"
 #include "myriad_executable_network.h"
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
 #include <memory>
 #include <string>
@@ -21,28 +21,27 @@ class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    ~Engine() override {
+    ~Engine() {
         MyriadExecutor::closeDevices(_devicePool, _mvnc);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const ie::ICNNNetwork& network,
+            const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 
-    void QueryNetwork(
-            const ie::ICNNNetwork& network,
-            const std::map<std::string, std::string>& config,
-            ie::QueryNetworkResult& res) const override;
+    ie::QueryNetworkResult QueryNetwork(
+            const ie::CNNNetwork& network,
+            const std::map<std::string, std::string>& config) const override;
 
     using ie::InferencePluginInternal::ImportNetwork;
 
-    ie::IExecutableNetwork::Ptr ImportNetwork(
+    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             const std::string& modelFileName,
             const std::map<std::string, std::string>& config) override;
 
-    ie::ExecutableNetwork ImportNetwork(
+    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
             const std::map<std::string, std::string>& config) override;
 

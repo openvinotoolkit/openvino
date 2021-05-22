@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -43,10 +31,10 @@ NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear)
     attrs.mode = "linear";
     attrs.align_corners = false;
     const auto input = make_shared<op::Parameter>(element::f32, input_shape);
-    const auto output_shape_input = op::Constant::create(element::i64, {4}, {1, 1, 1, 2});
+    const auto output_shape_input = op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 2});
     std::vector<float> intput_data{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
 
-    auto interpolate = make_shared<op::Interpolate>(input, output_shape_input, attrs);
+    auto interpolate = make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
     auto f = make_shared<Function>(interpolate, ParameterVector{input});
 
     auto backend = runtime::Backend::create("IE_CPU");

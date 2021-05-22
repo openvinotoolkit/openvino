@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "ocl_toolkit.h"
@@ -41,37 +29,11 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-namespace {
-std::string ndrange_to_string(cl::NDRange const& range) {
-    std::string ret = "(";
-    for (cl::size_type i = 0; i < range.dimensions(); ++i) ret += (!i ? "" : ", ") + std::to_string(range.get()[i]);
-
-    ret += ")";
-    return ret;
-}
-
-std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
-    std::string ret = "(";
-    bool empty = true;
-    for (auto& ev : events) {
-        std::string id = "unk";
-        if (auto* ocl_ev = dynamic_cast<cldnn::gpu::base_event*>(ev.get()))
-            id = std::to_string(ocl_ev->get_queue_stamp());
-
-        ret += (empty ? "" : ", ") + id;
-        empty = false;
-    }
-
-    ret += ")";
-    return ret;
-}
-}  // namespace
-
 // static class memebers - pointers to dynamically obtained OpenCL extension functions
 cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
 cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;
 cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = NULL;
-#ifdef WIN32
+#ifdef _WIN32
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
 
@@ -117,7 +79,6 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
                    << std::to_string(device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
@@ -230,9 +191,10 @@ void gpu_toolkit::release_pending_memory(uint32_t queue_id) { get_command_queue(
 
 void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
     std::vector<cl::Event> clevents;
-    for (auto& ev : events)
-        if (auto ocl_ev = dynamic_cast<base_event*>(ev.get()))
-            clevents.push_back(ocl_ev->get());
+    for (auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+            clevents.push_back(ocl_base_ev->get());
+    }
 
     try {
         cl::WaitForEvents(clevents);

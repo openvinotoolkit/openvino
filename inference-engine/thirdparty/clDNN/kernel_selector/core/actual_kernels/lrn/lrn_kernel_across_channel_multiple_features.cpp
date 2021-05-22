@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "lrn_kernel_across_channel_multiple_features.h"
 #include <algorithm>
@@ -56,7 +45,7 @@ static unsigned int GetOfmPerSimd(const lrn_params& params) {
 }
 
 CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
 
     unsigned int ofm_per_simd = GetOfmPerSimd(params);
@@ -65,24 +54,22 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
         const auto& out = params.output;
         const unsigned int alignment = out.X().v > 16 ? 32 : 16;
 
-        runInfo.gws0 = Align(out.X().v, alignment);
-        runInfo.gws1 = out.Y().v;
-        runInfo.gws2 = (out.Feature().v * out.Batch().v) / ofm_per_simd;
+        dispatchData.gws[0] = Align(out.X().v, alignment);
+        dispatchData.gws[1] = out.Y().v;
+        dispatchData.gws[2] = (out.Feature().v * out.Batch().v) / ofm_per_simd;
 
-        runInfo.lws0 = alignment;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = alignment;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     } else if (input.GetLayout() == DataLayout::yxfb) {
-        runInfo.gws0 /= ofm_per_simd;
-        runInfo.lws0 = std::min(std::max(runInfo.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-        while (runInfo.gws0 % runInfo.lws0 != 0) {
-            --runInfo.lws0;
+        dispatchData.gws[0] /= ofm_per_simd;
+        dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+        while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+            --dispatchData.lws[0];
         }
     }
 
-    runInfo.efficiency = FORCE_PRIORITY_6;
-
-    return runInfo;
+    return dispatchData;
 }
 
 bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p, const optional_params& o) const {
@@ -98,8 +85,8 @@ bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p, const opt
     return true;
 }
 
-JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input = params.inputs[0];
     const auto& input_dt = params.inputs[0].GetDType();
     const auto& output = params.output;
@@ -122,6 +109,10 @@ JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_p
 
 KernelsData LRNKernelAcrossChannelMultipleFeatures::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_6);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

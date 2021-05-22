@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -76,6 +64,9 @@ namespace ngraph
                 int get_sampling_ratio() const { return m_sampling_ratio; }
                 float get_spatial_scale() const { return m_spatial_scale; }
                 PoolingMode get_mode() const { return m_mode; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             private:
                 PoolingMode mode_from_string(const std::string& mode) const;
 
@@ -86,9 +77,9 @@ namespace ngraph
                 float m_spatial_scale;
                 PoolingMode m_mode;
             };
-        }
+        } // namespace v3
         using v3::ROIAlign;
-    }
+    } // namespace op
 
     std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& mode);
 
@@ -106,4 +97,4 @@ namespace ngraph
             "AttributeAdapter<op::v3::ROIAlign::PoolingMode>", 3};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

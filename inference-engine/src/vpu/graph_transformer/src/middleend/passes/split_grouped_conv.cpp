@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ void PassImpl::run(const Model& model) {
                 if (stage->type() == StageType::StubDeconv) {
                     deconvolutionRelayout(
                         origWeights, weights->desc().totalDimSize(),
-                        newWeightsPtr, newWeightsSize,
+                        newWeightsPtr, static_cast<int>(newWeightsSize),
                         kernelSizeX, kernelSizeY,
                         input->desc().dim(Dim::C),
                         output->desc().dim(Dim::C),

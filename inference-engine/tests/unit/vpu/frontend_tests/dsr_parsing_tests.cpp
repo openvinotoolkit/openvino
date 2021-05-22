@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,6 +110,23 @@ TEST_F(DSRParsingTests, DSRParserDoesntAssertOnCorrectIO) {
 
     ASSERT_NO_THROW(frontEnd->parseDSR(_testModel.getBaseModel(), dsrLayer,
                                        {inputStage->output(0), inputStage->output(1)}, _testModel.getOutputs()));
+}
+
+TEST_F(DSRParsingTests, DSRParserDoesntAssertOnTwoOutputsWithSameShapeData) {
+    _testModel.createInputs({_dataDesc});
+    _testModel.createOutputs({_dataDesc, _dataDesc});
+
+    const auto& inputStage = _testModel.addStage(
+            {InputInfo::fromNetwork(0)},
+            {OutputInfo::intermediate(_dataDesc), OutputInfo::intermediate(_dataDesc), OutputInfo::intermediate(_correstShapeDesc)});
+
+    const auto& dsrLayer1 = createDSRLayer();
+    const auto& dsrLayer2 = createDSRLayer();
+
+    ASSERT_NO_THROW(frontEnd->parseDSR(_testModel.getBaseModel(), dsrLayer1,
+                                       {inputStage->output(0), inputStage->output(2)}, {_testModel.getOutputs()[0]}));
+    ASSERT_NO_THROW(frontEnd->parseDSR(_testModel.getBaseModel(), dsrLayer2,
+                                       {inputStage->output(1), inputStage->output(2)}, {_testModel.getOutputs()[1]}));
 }
 
 TEST_F(DSRParsingTests, DSRParserPreservesConnectionsOnOutputDSR) {

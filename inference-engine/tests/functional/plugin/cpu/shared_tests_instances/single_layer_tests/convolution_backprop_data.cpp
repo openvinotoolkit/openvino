@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,18 +47,26 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
@@ -92,18 +100,26 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);

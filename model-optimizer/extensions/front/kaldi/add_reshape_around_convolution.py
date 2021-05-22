@@ -1,28 +1,16 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-from extensions.ops.elementwise import Mul, Pow
-from extensions.ops.split import VariadicSplit
+from extensions.ops.elementwise import Div
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
+from mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 class ReplaceConvolutionReshape(FrontReplacementPattern):
@@ -56,31 +44,44 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         node_name = node.soft_get('name', node.id)
 
         # create Reshape before convolution
-        # shape = [in_shape[0], in_shape[1]/patch_stride, 1, patch_stride]
-        shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
-        shape.in_port(0).connect(node.in_port(0).get_source())
+        # if transpose will be applied (new models)
+        #   shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), patch_stride, C=1]
+        # else (for old models to avoid fails on GNA - should be removed as soon as GNA will be changed)
+        #   shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), C=1, patch_stride]
+        sp_dim_1 = 1
+        if node.has_valid('patch_stride'):
+            channel_dim = 2
+            sp_dim_2 = 3
+            frame_height = node.patch_stride
+        else:
+            channel_dim = 3
+            sp_dim_2 = 2
+            frame_height = node.height_in
 
-        split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(0), 2: int64_array([1, -1])},
-                                            {'name': shape.name + '/split_batch', 'out_ports_count': 2}, shape)
+        i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
+        i_shape.in_port(0).connect(node.in_port(0).get_source())
 
-        pow_node = create_op_node_with_second_input(graph, Pow, int64_array([-1]), {'name': node_name + '/patch_stride/inverse'})
-        conv_patch_stride = Const(graph, {'value': int64_array([node.patch_stride]),
-                                          'name': node_name + '/patch_stride/'}).create_node()
-        pow_node.in_port(0).connect(conv_patch_stride.out_port(0))
+        N, H = node_to_get_shape_value_of_indices(i_shape, [0]), node_to_get_shape_value_of_indices(i_shape, [1])
 
-        mul = Mul(graph, {'name': node_name + '/mul_inverse_stride_h'}).create_node()
-        mul.in_port(0).connect(split.out_port(1))
-        mul.in_port(1).connect(pow_node.out_port(0))
+        div = create_op_with_const_inputs(
+            graph, Div, {1: int64_array([frame_height * node.kernel[1]])}, {'name': node_name + '/div_stride_h'})
+        div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {2: int64_array([1])},
+        concat = create_op_with_const_inputs(graph, Concat, {sp_dim_2: int64_array([frame_height]),
+                                                             channel_dim: int64_array([node.kernel[1]])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
-
-        concat.in_port(0).connect(split.out_port(0))
-        concat.in_port(1).connect(mul.out_port(0))
-        concat.in_port(3).connect(conv_patch_stride.out_port(0))
+        concat.in_port(0).connect(N.out_port(0))
+        concat.in_port(sp_dim_1).connect(div.out_port(0))
 
         reshape_in = Reshape(graph, {'name': node_name + '/reshape_in'}).create_node()
         reshape_in.in_port(1).connect(concat.out_port(0))
+
+        # change layout from NHWC to NCHW
+        # should be replaced by common Permute logic in future
+        transpose = None
+        if channel_dim == 3 and node.channel_dims == 1:
+            transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
+                                                         {'name': node.name + '/Transpose'}, reshape_in)
 
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
@@ -88,7 +89,7 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
 
         # connect input_reshape_node
         source = node.in_port(0).get_source()
-        node.in_port(0).get_connection().set_source(reshape_in.out_port(0))
+        node.in_port(0).get_connection().set_source(transpose.out_port(0) if transpose else reshape_in.out_port(0))
         reshape_in.in_port(0).connect(source)
         # connect output_reshape_node
         node.out_port(0).get_connection().set_source(reshape_out.out_port(0))

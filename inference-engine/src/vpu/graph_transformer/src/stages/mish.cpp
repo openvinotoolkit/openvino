@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,10 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
+    }
+
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        return StageSHAVEsRequirements::NeedMax;
     }
 };
 

@@ -1,22 +1,11 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.gather import Gather
+from extensions.ops.interpolate import Interpolate
 from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
@@ -26,7 +15,7 @@ from mo.ops.shape import Shape
 
 
 class InterpolateConcat(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
 
     BEFORE:
@@ -53,10 +42,9 @@ class InterpolateConcat(BackReplacementPattern):
                         \                   /
                            Concat(axis=1)
                         shape=[1, 7, 60, 160]
-
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
     force_shape_inference = True
     id = 'reshape_interpolate_through_concat'
 
@@ -67,7 +55,7 @@ class InterpolateConcat(BackReplacementPattern):
 
         output_shape = interpolate.out_port(0).data.get_shape()
 
-        interp_axes = [get_canonical_axis_index(output_shape, axis) for axis in interpolate.axes]
+        interp_axes = [get_canonical_axis_index(output_shape, axis) for axis in Interpolate.get_axes(interpolate)]
         concat_axis = get_canonical_axis_index(output_shape, concat.axis)
         if concat_axis in interp_axes:
             return
@@ -82,7 +70,8 @@ class InterpolateConcat(BackReplacementPattern):
 
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
-        gather = create_op_with_const_inputs(graph, Gather, {1: np.array(interpolate.axes, dtype=np.int32), 2: int64_array(0)},
+        gather = create_op_with_const_inputs(graph, Gather,
+                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
@@ -96,17 +85,15 @@ class InterpolateConcat(BackReplacementPattern):
 
 
 class InterpolateReshapeWA(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph.
     WARNING: Could cause troubles if model has hard-coded Interpolate intentionally -- rare situation
-
     BEFORE:
         input                   Const
     shape=[1, 3, 30, 40]      value=[60, 160]
             \                   /
            Interpolate(axes=(2, 3))
             shape=[1, 3, 60, 160]
-
     AFTER:
             input
     shape=[1, 3, 30, 40]
@@ -122,7 +109,7 @@ class InterpolateReshapeWA(BackReplacementPattern):
       shape=[1, 3, 60, 160]
     """
     enabled = False
-    graph_condition = [lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
     force_shape_inference = True
     id = 'reshape_interpolate_wa'
 
@@ -132,7 +119,7 @@ class InterpolateReshapeWA(BackReplacementPattern):
     @staticmethod
     def make_interpolate_reshapeable(interpolate):
         assert interpolate.soft_get('type') == 'Interpolate'
-        axes = interpolate.axes
+        axes = Interpolate.get_axes(interpolate)
         input_shape = interpolate.in_port(0).data.get_shape()
         output_shape = interpolate.out_port(0).data.get_shape()
         if not np.all(np.remainder(output_shape, input_shape) == 0) and \

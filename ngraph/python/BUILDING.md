@@ -1,64 +1,160 @@
-# Building the Python API for nGraph
+# Building the nGraph Python* API
 
-## Building nGraph Python Wheels
+This document provides the instructions for building the nGraph Python API from source on Linux, macOS and Windows 10 platforms.
 
-If you want to try a newer version of nGraph's Python API than is available
-from PyPI, you can build the latest version from source code. This process is
-very similar to what is outlined in our [ngraph_build] instructions with two
-important differences:
+For each platform, you can build and install the API as a part of OpenVINO™ Toolkit or as a Python wheel.
+A Python wheel is a portable package that allows you to install nGraph in your Python distribution, or dedicated virtual environment.
 
-1. You must specify: `-DNGRAPH_PYTHON_BUILD_ENABLE=ON` and `-DNGRAPH_ONNX_IMPORT_ENABLE=ON`
-   when running `cmake`.
+## Linux* and macOS*
 
-2. Instead of running `make`, use the command `make python_wheel`.
+### Prerequisites
 
-    `$ cmake ../ -DNGRAPH_PYTHON_BUILD_ENABLE=ON -DNGRAPH_ONNX_IMPORT_ENABLE=ON`
+To build the nGraph Python API, you need to install a few additional packages.
 
-    `$ make python_wheel`
+On Ubuntu* 20.04 LTS you can use the following instructions to install the required packages, including Python and Cython.
 
-After this procedure completes, the `ngraph/build/python/dist` directory should
-contain the Python packages of the version you cloned. For example, if you
-checked out and built `0.21` for Python 3.7, you might see something like:
+    apt install git wget build-essential cmake
+    apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
 
-    $ ls python/dist/
-    ngraph-core-0.21.0rc0.tar.gz
-    ngraph_core-0.21.0rc0-cp37-cp37m-linux_x86_64.whl
+On macOS, you can use [Homebrew](https://brew.sh) to install required packages:
 
-## Building nGraph Python Wheels on Windows
+    brew install cmake
+    brew install automake
+    brew install libtool
+    brew install python3
 
-The build process on Windows consists of 3 steps:
+Install Cython in the Python installation, or virtualenv that you are planning to use:
 
-1. Configure the build with the following `cmake` invocation:
-~~~~
-cmake ..
-      -G"Visual Studio 15 2017 Win64"
-      -DCMAKE_BUILD_TYPE=Release
-      -DCMAKE_INSTALL_PREFIX="C:\temporary_install_dir"
-      -DNGRAPH_PYTHON_BUILD_ENABLE=TRUE
-      -DNGRAPH_ONNX_IMPORT_ENABLE=TRUE
-      -DCMAKE_CXX_COMPILER=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Tools\MSVC\14.16.27023\bin\Hostx64\x64
-~~~~
+    pip3 install cython
+
+ ### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
+
+The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
+The workspace directory is specified by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice: 
+
+    export OPENVINO_BASEDIR=/path/to/my/workspace
+
+Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`. Please note that we're disabling
+the building of a few modules by setting the `ENABLE_*` flag to `OFF`. In order to build the OpenVINO™ Python APIs
+set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
+
+    cd "${OPENVINO_BASEDIR}"
+    git clone --recursive https://github.com/openvinotoolkit/openvino.git
+    mkdir openvino/build
+    cd openvino/build
+    
+    cmake .. \
+        -DENABLE_CLDNN=OFF \
+        -DENABLE_OPENCV=OFF \
+        -DENABLE_VPU=OFF \
+        -DENABLE_PYTHON=ON \
+        -DNGRAPH_PYTHON_BUILD_ENABLE=ON \
+        -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
+        -DCMAKE_INSTALL_PREFIX="${OPENVINO_BASEDIR}/openvino_dist"
+    
+    make -j 4
+    make install
+
+The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder. 
+Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
+
+    source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
+
+If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE` 
+variable. For example: 
+
+```
+-DPYTHON_EXECUTABLE=/path/to/venv/bin/python
+-DPYTHON_EXECUTABLE=$(which python3.8)
+```   
+
+### Build an nGraph Python Wheel on Linux and macOS
+
+You can build the Python wheel running the following command:
+
+    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
+    python3 setup.py bdist_wheel
+
+Once completed, the wheel package should be located under the following path:
+
+    $ ls "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+
+You can now install the wheel in your Python environment:
+
+    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+
+## Windows* 10
+
+### Prerequisites
+
+In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need to install Microsoft Visual Studio* and Python. 
+
+Once Python is installed, you also need to install Cython using `pip install cython`.
+
+### Configure and Build as a Part of OpenVINO™ Toolkit on Windows
+
+The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
+The workspace directory is specified by the `OPENVINO_BASEDIR` variable. Set this variable to a directory of your choice:
+    
+    set OPENVINO_BASEDIR=/path/to/my/workspace
+
+Configure the build with a `cmake` invocation similar to the following. Note that need to set `-G` and 
+`-DCMAKE_CXX_COMPILER` to match the version and location of your Microsoft Visual Studio installation.
+
+```
+cmake .. ^
+    -G"Visual Studio 16 2019" ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DCMAKE_INSTALL_PREFIX="%OPENVINO_BASEDIR%/openvino_dist" ^
+    -DENABLE_CLDNN=OFF ^
+    -DENABLE_OPENCV=OFF ^
+    -DENABLE_VPU=OFF ^
+    -DNGRAPH_PYTHON_BUILD_ENABLE=ON ^
+    -DNGRAPH_ONNX_IMPORT_ENABLE=ON ^
+    -DENABLE_PYTHON=ON ^
+    -DCMAKE_CXX_COMPILER="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.27.29110\bin\Hostx64\x64"
+
+```
+
 There are a couple of things to notice here. One is that the full path to the x64 version of
-MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and cmake may
+MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and `cmake` may
 fail to detect it correctly.
-The other equally important thing to note is that the temporary directory where the build is to be installed can be specified.
-This examples uses `C:\temporary_install_dir` however, a subdirectory of `ngraph\build` works as well.
-The final Python wheel will contain the contents of this temporary directory so it's very important to set it.
 
-2. Build the `install` target:
+If you want to specify an exact Python version, use the following options:
+```
+-DPYTHON_EXECUTABLE="C:\Program Files\Python37\python.exe" ^
+-DPYTHON_LIBRARY="C:\Program Files\Python37\libs\python37.lib" ^
+-DPYTHON_INCLUDE_DIR="C:\Program Files\Python37\include" ^
+```
 
-    `cmake --build . --target install --config Release -j 8`
+In order to build and install OpenVINO™, build the `install` target:
 
-In this step nGraph will be built and installed to the temporary directory specified above. You can
+    cmake --build . --target install --config Release -j 8
+
+In this step, OpenVINO™ is built and installed to the directory specified above. You can
 adjust the number of threads used in the building process to your machine's capabilities.
 
-3. Build the Python wheel itself:
+Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`:
 
-    `cmake --build . --target python_wheel --config Release -j 8`
+    %OPENVINO_BASEDIR%\openvino_dist\bin\setupvars.bat
 
-The final wheel should be located in `build\python\dist` directory.
+### Build an nGraph Python Wheel on Windows
 
-### Using a virtualenv (optional)
+Build the Python wheel package:
+
+    cd "%OPENVINO_BASEDIR%/openvino/ngraph/python"
+    python setup.py bdist_wheel
+
+The final wheel should be located in the `ngraph\python\dist` directory.
+
+    dir openvino\ngraph\python\dist\
+    10/09/2020  04:06 PM         4,010,943 ngraph_core-0.0.0-cp38-cp38-win_amd64.whl
+
+## Run Tests
+
+### Use a virtualenv (Optional)
 
 You may wish to use a virutualenv for your installation.
 
@@ -66,21 +162,21 @@ You may wish to use a virutualenv for your installation.
     $ source venv/bin/activate
     (venv) $
 
-### Installing the wheel
+### Install the nGraph Wheel and Other Requirements
 
-You may wish to use a virutualenv for your installation.
+    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
+    (venv) $ pip3 install -r requirements.txt
+    (venv) $ pip3 install -r requirements_test.txt
+    (venv) $ pip3 install dist/ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
 
-    (venv) $ pip install ngraph/build/python/dist/ngraph_core-0.21.0rc0-cp37-cp37m-linux_x86_64.whl
+### Run Tests
 
-## Running tests
+You should now be able to run tests. 
 
-Unit tests require additional packages be installed:
+You may need to run the `setupvars` script from the OpenVINO™ Toolkit to set paths to OpenVINO™ components.
 
-    (venv) $ cd ngraph/python
-    (venv) $ pip install -r test_requirements.txt
+    source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
 
-Then run tests:
+Now you can run tests using `pytest`:
 
-    (venv) $ pytest test/ngraph/
-
-[ngraph_build]: http://ngraph.nervanasys.com/docs/latest/buildlb.html
+    pytest tests

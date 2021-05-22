@@ -1,13 +1,18 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
 set(TARGET_NAME "ie_api")
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
+set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
+set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
@@ -16,8 +21,7 @@ set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
-file(GLOB OTHER_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
+file(GLOB OTHER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
 
 foreach(PYX_FILE ${OTHER_SOURCES})
@@ -30,9 +34,16 @@ foreach(PYX_FILE ${OTHER_SOURCES})
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
 endforeach()
 
+if(COMMAND ie_add_vs_version_file)
+    foreach(target IN LISTS INSTALLED_TARGETS)
+        ie_add_vs_version_file(NAME ${target}
+                               FILEDESCRIPTION "Inference Engine Python library")
+    endforeach()
+endif()
+
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()
-    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx")
+    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_FLAGS ${ie_c_cxx_deprecated})
 endfunction()
 
@@ -51,26 +62,19 @@ add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/inference_engine/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
+    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
-
-# creates a folder in openvino directory and a symlink to benchmark
-# inside bin directory for developers for running python benchmark_app
-if(UNIX)
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools
-)
-    file(COPY ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools/)
-endif()
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
-        ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        ARCHIVE DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS __init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
         COMPONENT ${PYTHON_VERSION})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

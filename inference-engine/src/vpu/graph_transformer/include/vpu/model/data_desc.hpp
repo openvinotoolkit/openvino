@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -338,8 +338,8 @@ public:
             if (_flags[ind] != other._flags[ind]) {
                 return !_flags[ind];
             }
-            if (_flags[ind] && _values[ind].second < other._values[ind].second) {
-                return true;
+            if (_flags[ind] && _values[ind].second != other._values[ind].second) {
+                return _values[ind].second < other._values[ind].second;
             }
         }
         return false;
@@ -409,7 +409,7 @@ public:
 
     DimsOrder() = default;
     static DimsOrder fromCode(StorageOrder64 code);
-    static DimsOrder fromNumDims(int numDims);
+    static DimsOrder fromNumDims(size_t numDims);
     static DimsOrder fromPermutation(const DimVector& perm);
     static DimsOrder fromLayout(ie::Layout const& layout);
 
@@ -513,7 +513,7 @@ public:
             int ind = 0;
             for (auto i = dimsBegin; i < dimsEnd; i++) {
                 auto val = *i;
-                _dims.set(perm[ind], val);
+                _dims.set(perm[ind], static_cast<int>(val));
                 ++ind;
             }
         } else {

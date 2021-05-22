@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<InferenceEngine::Precision> inputPrecision = {
+const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::U8,
@@ -25,7 +25,11 @@ const std::vector<std::tuple<int, int>> shuffleParameters = {
 };
 
 const auto testCases = ::testing::Combine(::testing::ValuesIn(shuffleParameters),
-                                          ::testing::ValuesIn(inputPrecision),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          ::testing::Values(InferenceEngine::Layout::ANY),
+                                          ::testing::Values(InferenceEngine::Layout::ANY),
                                           ::testing::ValuesIn(inputShapes),
                                           ::testing::Values(CommonTestUtils::DEVICE_GPU));
 

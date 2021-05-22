@@ -1,15 +1,11 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # [cmake:plugin]
 set(TARGET_NAME "templatePlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # adds a shared library with plugin
@@ -20,9 +16,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR template_plugin.cpp)
 
 target_include_directories(${TARGET_NAME} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}")
-
-target_include_directories(${TARGET_NAME} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
 # link common Inference Engine libraries
@@ -33,12 +27,16 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
 target_link_libraries(${TARGET_NAME} PRIVATE
-    ngraph_backend
-    interpreter_backend)
+    IE::ngraph_backend
+    IE::interpreter_backend)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-#                     POSSIBLE_PLUGINS ${TARGET_NAME})
+if(ENABLE_TEMPLATE_PLUGIN)
+    ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                        POSSIBLE_PLUGINS ${TARGET_NAME})
+endif()
 # [cmake:plugin]
 
 # ATTENTION: uncomment to install component

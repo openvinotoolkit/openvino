@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,24 @@ struct NV12toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct I420toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct ResizeRoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
 struct ResizeRGB8URoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
-struct U16toF32TestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
+struct ConvertDepthTestGAPI: public TestParams<std::tuple<
+                            int,  // input matrix depth
+                            int,  // output matrix depth
+                            cv::Size,
+                            double>>   // tolerance
+{};
+struct DivCTestGAPI: public TestParams<std::tuple<
+                            int,  // input matrix depth
+                            int,  // input matrix channels number
+                            cv::Size,
+                            cv::Scalar, // second operarnd
+                            double>>    // tolerance
+{};
+
+struct SubCTestGAPI : public DivCTestGAPI
+{};
+
+struct MeanValueGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 //------------------------------------------------------------------------------
 
 struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};
@@ -43,9 +60,16 @@ struct ColorConvertYUV420TestIE:
                                              double>>                       // tolerance
 {};
 
+struct PrecisionConvertTestIE: public TestParams<std::tuple<cv::Size,
+                                                            int,     // input  matrix depth
+                                                            int,     // output matrix depth
+                                                            double>> // tolerance
+{};
+
 //------------------------------------------------------------------------------
 
-using PreprocParams = std::tuple< InferenceEngine::Precision     // input-output data type
+using PreprocParams = std::tuple< std::pair<InferenceEngine::Precision     // input data type
+                                           , InferenceEngine::Precision>   // output data type
                                 , InferenceEngine::ResizeAlgorithm // resize algorithm, if needed
                                 , InferenceEngine::ColorFormat // input color format, if needed
                                 , InferenceEngine::Layout        // input tensor layout

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Copyright (C) 2018-2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 APP_NAME="MyriadFunctionalTests"
@@ -31,7 +32,7 @@ else
 fi
 
 echo "Test directory: ${TEST_DIR}"
-cd ${TEST_DIR}
+cd "${TEST_DIR}"
 
 export IE_VPU_MYRIADX=1
 
@@ -64,7 +65,7 @@ fi
 # Wait for all processes to finish
 sts=""
 for p in ${pids}; do
-    if wait ${p}; then
+    if wait "${p}"; then
         sts+=" 1"
     else
         sts+=" 0"

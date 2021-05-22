@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #ifndef NGRAPH_OP
 #warning "NGRAPH_OP not defined"
@@ -62,7 +50,6 @@ NGRAPH_OP(GroupConvolution, ngraph::op::v1)
 NGRAPH_OP(GroupConvolutionBackpropData, ngraph::op::v1)
 NGRAPH_OP(GRN, ngraph::op::v0)
 NGRAPH_OP(HardSigmoid, ngraph::op::v0)
-NGRAPH_OP(Interpolate, ngraph::op::v0)
 NGRAPH_OP(Less, ngraph::op::v1)
 NGRAPH_OP(LessEqual, ngraph::op::v1)
 NGRAPH_OP(Log, ngraph::op::v0)
@@ -71,8 +58,7 @@ NGRAPH_OP(LogicalNot, ngraph::op::v1)
 NGRAPH_OP(LogicalOr, ngraph::op::v1)
 NGRAPH_OP(LogicalXor, ngraph::op::v1)
 NGRAPH_OP(LRN, ngraph::op::v0)
-NGRAPH_OP(LSTMCell, ngraph::op::v0)
-NGRAPH_OP(LSTMSequence, ngraph::op::v0)
+NGRAPH_OP(LSTMCell, ngraph::op::v4)
 NGRAPH_OP(MatMul, ngraph::op::v0)
 NGRAPH_OP(MaxPool, ngraph::op::v1)
 NGRAPH_OP(Maximum, ngraph::op::v1)
@@ -157,8 +143,10 @@ NGRAPH_OP(Asinh, ngraph::op::v3)
 NGRAPH_OP(Atanh, ngraph::op::v3)
 NGRAPH_OP(CTCLoss, ngraph::op::v4)
 NGRAPH_OP(HSwish, ngraph::op::v4)
-NGRAPH_OP(NonMaxSuppression, ngraph::op::v4)
+NGRAPH_OP(Interpolate, ngraph::op::v4)
 NGRAPH_OP(Mish, ngraph::op::v4)
+NGRAPH_OP(NonMaxSuppression, ngraph::op::v4)
 NGRAPH_OP(ReduceL1, ngraph::op::v4)
 NGRAPH_OP(ReduceL2, ngraph::op::v4)
+NGRAPH_OP(SoftPlus, ngraph::op::v4)
 NGRAPH_OP(Swish, ngraph::op::v4)

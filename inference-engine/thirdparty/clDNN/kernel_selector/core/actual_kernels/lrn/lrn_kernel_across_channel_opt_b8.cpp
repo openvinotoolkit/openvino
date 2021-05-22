@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "lrn_kernel_across_channel_opt_b8.h"
 
@@ -36,12 +25,12 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
 }
 
 CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& params) const {
-    CommonDispatchData run_info = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
-    run_info.gws0 /= 8;
-    run_info.lws0 = 8;  // gws0 is dividable by 64, so after correction it will be dividable by 8.
+    dispatchData.gws[0] /= 8;
+    dispatchData.lws[0] = 8;  // gws[0] is dividable by 64, so after correction it will be dividable by 8.
 
-    return run_info;
+    return dispatchData;
 }
 
 bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params& o) const {
@@ -62,8 +51,8 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
     return true;
 }
 
-JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
@@ -86,6 +75,10 @@ JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params
 }
 
 KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_8);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelAcrossChannel_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ public:
     // Constants
     static constexpr char kMyriadXName[] = "ma2480";
     static constexpr char kMyriad2Name[] = "ma2450";
+    static constexpr char kMyriadXPCIeName[] = "mxl";
 
     //Constructor
     MyriadDevicesInfo();
@@ -54,7 +55,8 @@ const std::string& MyriadDevicesInfo::firmwareDir() {
 }
 
 bool MyriadDevicesInfo::isMyriadXDevice(const std::string &device_name) {
-    return (device_name.find(kMyriadXName) != std::string::npos);
+    return ( (device_name.find(kMyriadXName) != std::string::npos)
+             || (device_name.find(kMyriadXPCIeName) != std::string::npos) );
 }
 
 bool MyriadDevicesInfo::isMyriad2Device(const std::string &device_name) {

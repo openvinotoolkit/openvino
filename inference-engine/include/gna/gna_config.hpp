@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,11 +43,10 @@ namespace GNAConfigParams {
 DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 
 /**
-* @brief By default gna api work in Int16 precision, however this can be adjusted if necessary,
+* @brief By default gna api works with Int16 weights precision, however this can be adjusted if necessary,
 * currently supported values are I16, I8
 */
 DECLARE_GNA_CONFIG_KEY(PRECISION);
-
 
 /**
 * @brief if turned on, dump GNA firmware model into specified file
@@ -55,7 +54,7 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
-* @brief inforamtion on GNA generation chosen for firmware model dump, can be overriden by GNA3
+* @brief information on GNA generation chosen for firmware model dump, can be overridden by GNA3
 */
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 
@@ -79,6 +78,27 @@ DECLARE_GNA_CONFIG_VALUE(AVX2);
 DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
+* @brief The option to override the GNA HW execution target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
+* By default (in case of no value set) the behavior depends on GNA HW availability:
+* If GNA HW is present, use the option corresponding to this HW.
+* If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
+* A fully supported GNA HW generation means it must be supported by booth the OV GNA Plugin and the core GNA Library.
+* For the GNA Library 2.0.X.Y, the latest supported GNA HW generation corresponds to GNA_TARGET_2_0.
+* For the GNA Library 2.1.X.Y, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
+* For the OV GNA Plugin 2021.4, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
+*/
+DECLARE_GNA_CONFIG_KEY(EXEC_TARGET);
+
+DECLARE_GNA_CONFIG_VALUE(TARGET_2_0);
+DECLARE_GNA_CONFIG_VALUE(TARGET_3_0);
+
+/**
+* @brief The option to override the GNA HW compile target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
+* By default the same as GNA_EXEC_TARGET.
+*/
+DECLARE_GNA_CONFIG_KEY(COMPILE_TARGET);
+
+/**
 * @brief if enabled produced minimum memory footprint for loaded network in GNA memory, default value is YES
 */
 DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
@@ -93,6 +113,13 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 
 /**
+* @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
+* will use to find PWL functions.
+* By default (in case of NO value set), 1.0 value is used.
+*/
+DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
+
+/**
 * @brief By default, the GNA plugin uses one worker thread for inference computations.
 * This parameter allows you to create up to 127 threads for software modes.
 *
@@ -101,4 +128,12 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 */
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
+
+namespace Metrics {
+    /**
+    * @brief Metric to get a std::string of GNA Library version, usually in the form <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
+    */
+    DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
+}  // namespace Metrics
+
 }  // namespace InferenceEngine

@@ -174,7 +174,7 @@ Model Optimizer tried to infer a specified layer via the Caffe\* framework, howe
 
 #### 13. What does the message "Cannot infer shapes due to exception in Caffe" mean? <a name="question-13"></a>
 
-Model Optimizer tried to infer a custom layer via the Caffe\* framework, however an error occurred, meaning that the model could not be inferred using the Caffe. It might happen if you try to convert the model with some noise weights and biases resulting in problems with layers with dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Extending Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+Model Optimizer tried to infer a custom layer via the Caffe\* framework, but an error occurred, meaning that the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases that result in problems with layers that have dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 14. What does the message "Cannot infer shape for node {} because there is no Caffe available. Please register python infer function for op or use Caffe for shape inference" mean? <a name="question-14"></a>
 
@@ -200,7 +200,7 @@ You might have specified negative values with `--mean_file_offsets`. Only positi
 
 `--scale` sets a scaling factor for all channels. `--scale_values` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the Using Framework-Agnostic Conversion Parameters: for <a href="ConvertFromCaffe.html#using-framework-agnostic-conv-param">Converting a Caffe* Model</a>, <a href="ConvertFromTensorFlow.html#using-framework-agnostic-conv-param">Converting a TensorFlow* Model</a>, <a href="ConvertFromMXNet.html#using-framework-agnostic-conv-param">Converting an MXNet* Model</a>.
 
-#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pretrained weights" mean? <a name="question-20"></a>
+#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pre-trained weights" mean? <a name="question-20"></a>
 
 Model Optimizer cannot find a `.prototxt` file for a specified model. By default, it must be located in the same directory as the input model with the same name (except extension). If any of these conditions is not satisfied, use `--input_proto` to specify the path to the `.prototxt` file.
 
@@ -258,7 +258,7 @@ This error occurs when the `SubgraphMatch._add_output_node` function is called m
 
 #### 35. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean? <a name="question-35"></a>
 
-While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please, refer to [Sub-Graph Replacement in the Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md) for more details.
+While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) for more details.
 
 #### 36. What does the message "Cannot write an event file for the TensorBoard to directory" mean? <a name="question-36"></a>
 
@@ -365,7 +365,7 @@ Keep in mind that there is no space between and inside the brackets for input sh
 
 #### 58. What does the message "Please provide input layer names for input layer shapes" mean? <a name="question-58"></a>
 
-When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe\* Model](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe.html). Additional information for `--input_shape` is in FAQ [#57](#question-57).
+When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe* Model](convert_model/Convert_Model_From_Caffe.md. Additional information for `--input_shape` is in FAQ [#57](#question-57).
 
 #### 59. What does the message "Values cannot be parsed" mean? <a name="question-59"></a>
 
@@ -615,3 +615,16 @@ You need to specify values for each input of the model. For more information, re
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
+
+\htmlonly
+
+<script>
+  window.addEventListener('load', function(){
+    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
+    if (questionID) {
+      window.location = window.location.pathname + '#' + encodeURI(questionID);
+    }
+  });
+</script>
+
+\endhtmlonly

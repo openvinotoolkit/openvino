@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,17 +11,14 @@ if (ENABLE_CLDNN)
             HeteroPlugin)
 endif()
 
-include(add_ie_target)
-
 addIeTarget(
         NAME myriadTestData
-        DEVELOPER_PACKAGE
+        DEVELOPER_PACKAGE inference_engine_tests
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/test_data
         LINK_LIBRARIES
         ieTestHelpers
         DEFINES
-        INSTANTIATE_TESTS=1
         PUBLIC
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"
@@ -30,7 +26,7 @@ addIeTarget(
 
 addIeTarget(
     NAME VPUCommonTests
-    DEVELOPER_PACKAGE
+    DEVELOPER_PACKAGE inference_engine_tests
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/common
     ADDITIONAL_SOURCE_DIRS
@@ -41,21 +37,22 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
     LINK_LIBRARIES
         IESharedTests
+        ieTestHelpers
+        funcTestUtils
+        format_reader
         vpu_graph_transformer
-        vpu_custom_kernels
-    DEFINES
-        INSTANTIATE_TESTS=1
-    EXPORT_DEPENDENCIES
         vpu_custom_kernels
 )
 
 target_include_directories(VPUCommonTests INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/vpu_base
     ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
+    $<TARGET_PROPERTY:funcTestUtils,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-ie_developer_export_targets(vpu_custom_kernels)
+openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS vpu_custom_kernels)
+
 addIeTargetTest(
     NAME MyriadFunctionalTests
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests

@@ -36,12 +36,12 @@ OpenVINO™ toolkit introduces its own format of graph representation and its ow
 A graph is represented with two files: an XML file and a binary file.
 This representation is commonly referred to as the *Intermediate Representation* or *IR*.
 
-XML file describes a network topology using `<layer>` tag for an operation node and `<edge>` tag is for a data-flow connection.
+The XML file describes a network topology using a `<layer>` tag for an operation node and an `<edge>` tag for a data-flow connection.
 Each operation has a fixed number of attributes that define operation flavor used for a node.
 For example, `Convolution` operation has such attributes as `dilation`, `stride`, `pads_begin` and `pads_end`.
 
-XML file doesn't have big constant values, like convolution weights.
-Instead, it refers to a part of accompanying binary file that stores such values in a binary format.
+The XML file doesn't have big constant values, like convolution weights.
+Instead, it refers to a part of the accompanying binary file that stores such values in a binary format.
 
 Here is an example of a small IR XML file that corresponds to a graph from the previous section:
 
@@ -242,20 +242,4 @@ To differentiate versions of the same operation type, like `ReLU`, the suffix `-
 `N` usually refers to the first `opsetN` where this version of the operation is introduced.
 It is not guaranteed that new operations will be named according to that rule, the naming convention might be changed, but not for old operations which are frozen completely.
 
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
 

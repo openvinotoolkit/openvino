@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,30 +7,38 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 #if GNA_LIB_VER == 2
 #include "gna_api_wrapper.hpp"
+#include "gna2-capability-api.h"
 #include "gna2-device-api.h"
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
 #include "gna2-memory-api.h"
 #include "gna2_model_export_helper.hpp"
+#include "gna2_model_debug_log.hpp"
 #else
 #include "gna-api-status.h"
 #include "gna-api.h"
 #endif
 
-#include "details/ie_exception.hpp"
+#include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
 
+//#define MODEL_DUMP
+
+std::mutex GNADeviceHelper::acrossPluginsSync{};
+
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     void * memPtr = nullptr;
 #if GNA_LIB_VER == 1
     memPtr = GNAAlloc(nGNAHandle, size_requested, size_granted);
 #else
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2MemoryAlloc");
 #endif
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
@@ -41,12 +49,31 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 }
 
 void GNADeviceHelper::free(void * ptr) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     GNAFree(nGNAHandle);
 #else
     const auto status = Gna2MemoryFree(ptr);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2MemoryFree");
 #endif
+}
+
+std::string GNADeviceHelper::getGnaLibraryVersionPrivate() {
+#if GNA_LIB_VER == 1
+    return "1.X";
+#else
+    char buffer[64] = {};
+    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
+    if (status != Gna2StatusSuccess) {
+        return "2.Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
+    }
+    return buffer;
+#endif
+}
+
+std::string GNADeviceHelper::GetGnaLibraryVersion() {
+    static std::string gnaLibraryVersion{ getGnaLibraryVersionPrivate() };
+    return gnaLibraryVersion;
 }
 
 #if GNA_LIB_VER == 1
@@ -54,6 +81,7 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
                    const uint32_t *pActiveIndices,
                    uint32_t nActiveIndices,
                    intel_gna_proc_t nGNAProcType) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId;
 
     nGNAStatus = GNAPropagateForward(nGNAHandle, pNeuralNetwork,
@@ -62,29 +90,59 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
     return reqId;
 }
 #else
+
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
 void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     wait(propagate(requestConfigId, gna2AccelerationMode));
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    uint32_t reqId;
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    uint32_t reqId{};
     if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
-    checkGna2Status(status1);
+    checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
-    checkGna2Status(status2);
+    checkGna2Status(status2, "Gna2RequestEnqueue");
+
+    unwaitedRequestIds.insert(reqId);
+
     return reqId;
 }
 
-uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
+void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        if (gnaModel.Operations[i].Type == Gna2OperationTypeConvolution) {
+            snprintf(
+                const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
+                sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
+                "GNA1");
+        }
+    }
+}
+
+uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
+    if (enforceLegacyCnnNeeded()) {
+        enforceLegacyCnns(gnaModel);
+    }
+#if GNA_LIB_VER == 2 && defined MODEL_DUMP
+    std::string path =
+#ifdef _WIN32
+        ".\\";
+#else
+        "./";
+#endif
+    DumpGna2Model(gnaModel, path, false);
+#endif
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
     checkGna2Status(status, gnaModel);
@@ -92,22 +150,84 @@ uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
 }
 
 void GNADeviceHelper::releaseModel(const uint32_t model_id) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2ModelRelease(model_id);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2ModelRelease");
+}
+
+bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
+    const auto compileTargetDevice = getTargetDevice(false);
+    return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(compileTargetDevice);
+}
+
+namespace {
+    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
+} // namespace
+
+Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
+    auto parsed = Gna2DeviceVersion2_0;
+    auto throwUnsupportedGnaTarget = [&](std::string extraSuffix) {
+        auto key = execTarget ? InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET : InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET;
+        THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
+    };
+    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+        if (!isGnaLibVersion2_1)
+            throwUnsupportedGnaTarget(", when GNA Library version is 2.0.X.Y");
+        parsed = Gna2DeviceVersion3_0;
+    } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
+        throwUnsupportedGnaTarget("");
+    }
+    return parsed;
+}
+
+Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
+    if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
+        return isGnaLibVersion2_1 ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+    return detectedGnaDevVersion;
+}
+
+Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const {
+    const auto declared = execTarget ? executionTarget : compileTarget;
+    if (declared.empty()) {
+        return execTarget ? getDefaultTarget() : getTargetDevice(true);
+    }
+    return parseDeclaredTarget(declared, execTarget);
 }
 
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
-    checkGna2Status(status);
-    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, gna2HwConsistency);
-        checkGna2Status(status);
+    checkGna2Status(status, "Gna2RequestConfigCreate");
+
+    // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
+    // (bit exactly) as on the selected GNA execution target generation.
+    // See the GNA Plugin's GNA_EXEC_TARGET config option description.
+    if (swExactMode) {
+        const auto consistentDevice = getTargetDevice(true);
+        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
+        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
     }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");
 
     return reqConfId;
+}
+
+uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    uint32_t numberOfGnaDevices = 0;
+    auto status = Gna2DeviceGetCount(&numberOfGnaDevices);
+    checkGna2Status(status, "Gna2DeviceGetCount");
+    return numberOfGnaDevices;
+}
+
+uint32_t GNADeviceHelper::selectGnaDevice() {
+    const auto deviceCount = getNumberOfGnaDevices();
+    if (deviceCount != 1) {
+        THROW_GNA_EXCEPTION << "Unsupported number of GNA devices detected = " << deviceCount;
+    }
+    return 0;
 }
 
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
@@ -119,14 +239,14 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                 static_cast<int>(status), static_cast<int>(s));
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
-            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ", consider updating the GNA driver";
+            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " <<
+                gna2StatusBuffer.data() << ", consider updating the GNA driver" <<
+                decoratedGnaLibVersion();
         }
 
         Gna2ModelError error;
         auto getLastErrorStatus = Gna2ModelGetLastError(&error);
-        if (!Gna2StatusIsSuccessful(getLastErrorStatus)) {
-            THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data();
-        }
+        checkGna2Status(getLastErrorStatus, "Gna2ModelGetLastError");
 
         std::stringstream ss;
         ss << "\n GNA Library Error:\n";
@@ -159,24 +279,29 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                                         ? errorReasons.at(reason)
                                         : "Unknown Error Reason";
         ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
-        ss << "   Value (0x" << std::hex << std::to_string(error.Value) << ")";
+        ss << "   Value (0x" << std::hex << error.Value << ")";
 
-        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ss.str();
+        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " <<
+            gna2StatusBuffer.data() << ss.str() <<
+            decoratedGnaLibVersion();
     }
 }
 
-void GNADeviceHelper::checkGna2Status(Gna2Status status) {
+void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
+        const auto prefix = "Unsuccessful " + from + " call, Gna2Status: (";
         const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), gna2StatusBuffer.size());
         if (!Gna2StatusIsSuccessful(s))
             snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
                 static_cast<int>(status), static_cast<int>(s));
+        std::string suffix;
         if (status == Gna2StatusDeviceIngoingCommunicationError ||
             status == Gna2StatusDeviceOutgoingCommunicationError) {
-            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ", consider updating the GNA driver";
+            suffix = ", consider updating the GNA driver";
         }
-        THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data();
+        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
+            decoratedGnaLibVersion();
     }
 }
 
@@ -269,13 +394,18 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
-    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return false;
+    if (status == Gna2StatusWarningDeviceBusy) {
+        return GNA_REQUEST_PENDING;
     }
-    checkGna2Status(status);
+    unwaitedRequestIds.erase(reqId);
+    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+        return GNA_REQUEST_ABORTED;
+    }
+    checkGna2Status(status, "Gna2RequestWait");
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -285,7 +415,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 #if GNA_LIB_VER == 1
@@ -356,14 +486,15 @@ void GNADeviceHelper::checkStatus() const {
 #endif
 
 void GNADeviceHelper::open(uint8_t n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
 #else
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2DeviceGetVersion");
     status = Gna2DeviceOpen(nGnaDeviceIndex);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2DeviceOpen");
     // TODO: GNA2: uncomment when scratchpad repaired
     // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     // checkGna2Status(status);
@@ -373,21 +504,34 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 
 void GNADeviceHelper::close() {
 #if GNA_LIB_VER == 1
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
-    const auto status = Gna2DeviceClose(nGnaDeviceIndex);
-    checkGna2Status(status);
+    auto requestsToClose = unwaitedRequestIds;
+    for (auto requestId : requestsToClose) {
+        try {
+            wait(requestId);
+        } catch (...) {
+            gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
+        }
+    }
+    {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+        const auto status = Gna2DeviceClose(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceClose");
+    }
 #endif
     deviceOpened = false;
 }
 
 void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     gmmSetThreads(n_threads);
 #else
     const auto status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
-    checkGna2Status(status);
+    checkGna2Status(status, "Gna2DeviceSetNumberOfThreads");
 #endif
 }
 

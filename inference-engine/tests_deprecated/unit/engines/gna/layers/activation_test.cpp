@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
 #include <ie_precision.hpp>
-#include <ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/power.hpp>
 #include <debug.h>
 #include "../gna_matcher.hpp"
 

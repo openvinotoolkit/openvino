@@ -10,11 +10,10 @@ tuning for new kind of models, hardwares or drivers.
 
 ## Tuned data
 
-GPU tuning data is saved in JSON format.
-File's content is composed of 2 types of attributes and 1 type of value:
-1. Execution units number - this attribute splits the content into different EU sections.
-2. Hash - hashed tuned kernel data.
-Key: Array with kernel name and kernel's mode index.
+GPU tuning data is saved in JSON format. The file is composed of 2 types of attributes and 1 type of value:
+* Execution units number (attribute): splits the content into different EU sections
+* Hash (attribute): hashed tuned kernel data
+* Key (value): Array with kernel name and kernel's mode index
 
 ## Usage
 
@@ -29,12 +28,9 @@ File with tuned data is the result of this step.
 > **NOTE** If a filename passed to `KEY_TUNING_FILE` points to existing tuned data and you are tuning a new model, then this file will be extended by new data. This allows you to extend existing `cache.json` provided in the OpenVINO™ release package. 
 
 The example below shows how to set and use the key files:
-```cpp
-Core ie;          
-  ie.SetConfig({{ CONFIG_KEY(TUNING_MODE), CONFIG_VALUE(TUNING_CREATE) }}, "GPU");
-  ie.SetConfig({{ CONFIG_KEY(TUNING_FILE), "/path/to/tuning/file.json" }}, "GPU");
-  // Further LoadNetwork calls will use the specified tuning parameters
-```
+
+@snippet snippets/GPU_Kernels_Tuning.cpp part0
+
 ---
 
 You can activate the inference with tuned data by setting `KEY_TUNING_MODE` flag to `TUNING_USE_EXISTING` and

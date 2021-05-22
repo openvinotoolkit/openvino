@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,20 +93,26 @@ void FrontEnd::parsePad(const Model& model, const ie::CNNLayerPtr& _layer, const
     auto layer = std::dynamic_pointer_cast<ie::PadLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
-    IE_ASSERT(layer->pads_begin.size() == 4);
-    IE_ASSERT(layer->pads_end.size() == 4);
+    const auto ndims = inputs[0]->desc().dimsOrder().numDims();
+    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "Layer %s support only 3D and 4D input, but %dD provided", layer->name, ndims);
 
+    VPU_THROW_UNLESS(layer->pads_begin.size() <= 4, "Layer %s support pads_begin size less than or equal 4, but %d provided",
+                     layer->name, layer->pads_begin.size());
+    VPU_THROW_UNLESS(layer->pads_end.size() <= 4, "Layer %s support pads_end size less than or equal 4, but %d provided",
+            layer->name, layer->pads_end.size());
+
+    DimsOrder dimsOrder = inputs[0]->desc().dimsOrder();
     DimValues pads_begin;
-    pads_begin.set(Dim::W, layer->pads_begin[3]);
-    pads_begin.set(Dim::H, layer->pads_begin[2]);
-    pads_begin.set(Dim::C, layer->pads_begin[1]);
-    pads_begin.set(Dim::N, layer->pads_begin[0]);
+    pads_begin.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_begin[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_begin.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_begin[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_begin.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_begin[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_begin.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_begin[dimToIeInd(Dim::N, ndims)] : 0);
 
     DimValues pads_end;
-    pads_end.set(Dim::W, layer->pads_end[3]);
-    pads_end.set(Dim::H, layer->pads_end[2]);
-    pads_end.set(Dim::C, layer->pads_end[1]);
-    pads_end.set(Dim::N, layer->pads_end[0]);
+    pads_end.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_end[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_end.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_end[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_end.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_end[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_end.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_end[dimToIeInd(Dim::N, ndims)] : 0);
 
     _stageBuilder->addPadStage(
         model,

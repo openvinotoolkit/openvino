@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -22,7 +10,7 @@ import logging as log
 
 import onnx
 
-from mo.graph.graph import fill_graph_with_nodes, Graph
+from mo.graph.graph import fill_graph_with_nodes, Graph, Node
 from mo.utils.error import Error, FrameworkError
 
 
@@ -54,56 +42,40 @@ def node_id(pb):
         return 'NoNamed'
 
 
-def protobuf2nx(graph, pb):
-    '''Convert proto message with ONNX model to equivalent NX representation.
-    All nodes and edges are restored here as ONNX model has op/data representation,
-    that means that nodes are connected via tensor names. Name of tensors are defined
-    on demand in nodes, so we have a code similar to Caffe here. '''
-    # graph = fill_graph_with_nodes(graph, pb.graph.node, get_id=node_id, get_attrs=protobuf_attrs)
-    # convert initializers to a NX graph for easier control of model consistency and to use it as a dictionary later
-    initializers = Graph()
-    fill_graph_with_nodes(initializers, pb.graph.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+def protobuf2nx(graph: Graph, pb):
+    """
+    Convert proto message with ONNX model to equivalent NX representation. All nodes and edges are restored here as
+    ONNX model has op/data representation, that means that nodes are connected via tensor names. Name of tensors are
+    defined on demand in nodes, so we have a code similar to Caffe here.
 
+    :param graph: the Graph object to load the graph into
+    :param pb: the ONNX file protobuf message
+    :return: None
+    """
     # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
     data_nodes_map = {}
 
-    # first go through all inputs and separate constant from placeholders
-    for inp in pb.graph.input:
-        name = str(inp.name)
-        if graph.has_node(name):
-            raise Error('Name {} of input node already exists, input names are duplicated.', name)
-        elif initializers.has_node(name):
-            # this is a constant
-            graph.add_node(name, kind='op', op='Const', pb=inp, pb_init=initializers.node[name]['pb'])
-        else:
-            # this is a placeholder
-            graph.add_node(name, kind='op', op='Parameter', pb=inp)
-        # add to a tensors map
-        assert not name in data_nodes_map, 'Inconsistency between data_nodes_map and graph.nodes'
-        data_nodes_map[name] = (name, 0)
+    graph_pb = pb.graph
+    add_initializers_and_inputs_to_graph(graph, graph_pb, data_nodes_map)
+
     output_ids = []
-    for outp in pb.graph.output:
+    for outp in graph_pb.output:
         name = str(outp.name)
         if graph.has_node(name):
-            raise Error('Name {} of output node already exists in graph.', name)
+            log.error('Name {} of output node already exists in graph. Ignoring this output. If the output is required,'
+                      ' please rename it.'.format(name), extra={'is_warning': True})
+            continue
         else:
             # add fake node on output
             graph.add_node(name, kind='op', op='FakeOutput', pb=outp)
             output_ids.append(name)
 
-    # go over all initializer and make sure that all of them are added to the graph
-    for initializer in initializers.nodes():
-        initializer_id = 'onnx_initializer_node_' + initializer
-        if not graph.has_node(initializer_id):
-            graph.add_node(initializer_id, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
-                           pb_init=initializers.node[initializer]['pb'])
-            data_nodes_map[initializer] = (initializer_id, 0)
-
     # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
     # important)
-    for node in pb.graph.node:
+    for node in graph_pb.node:
         # create an NX node
-        id = graph.unique_id(node_id(node))
+        fw_name = node_id(node)
+        id = graph.unique_id(fw_name)
         graph.add_node(id, pb=node, kind='op')
 
         # add incoming edges based on data_nodes_map
@@ -124,7 +96,7 @@ def protobuf2nx(graph, pb):
                 'out': src_port,
                 'in': dst_port,
                 'name': inp,
-                'fw_tensor_debug_info': [(inp, inp)],
+                'fw_tensor_debug_info': [(src_id, inp)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -138,7 +110,7 @@ def protobuf2nx(graph, pb):
                     'out': src_port,
                     'in': 0,
                     'name': out,
-                    'fw_tensor_debug_info': [(out, out)],
+                    'fw_tensor_debug_info': [(fw_name, out)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
@@ -147,3 +119,41 @@ def protobuf2nx(graph, pb):
             if out in data_nodes_map:
                 log.debug("Detected reuse of blob {}.".format(out))
             data_nodes_map[out] = (id, src_port)
+
+    graph.graph['tensor_mapping'] = data_nodes_map  # save main graph tensor names mapping for Loop op parsing
+
+
+def add_initializers_and_inputs_to_graph(graph: Graph, graph_pb, data_nodes_map: dict):
+    """
+    The function adds nodes specified in the 'initializer' attribute of the pb and input nodes.
+    :param graph: the Graph to add nodes to
+    :param graph_pb: the graph protobuf message
+    :param data_nodes_map: the dictionary with mapping of tensor names to node id and port
+    :return: the list of Parameter nodes
+    """
+    initializers = Graph()
+    fill_graph_with_nodes(initializers, graph_pb.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+
+    parameters = []
+    # first go through all inputs and separate constant from placeholders
+    for inp in graph_pb.input:
+        name = str(inp.name)
+        if graph.has_node(name):
+            raise Error('Name {} of input node already exists, input names are duplicated.', name)
+        elif initializers.has_node(name):
+            graph.add_node(name, kind='op', op='Const', pb=inp, pb_init=initializers.node[name]['pb'])
+        else:
+            graph.add_node(name, kind='op', op='Parameter', pb=inp)
+            parameters.append(Node(graph, name))
+
+        assert name not in data_nodes_map, 'Inconsistency between data_nodes_map and graph.nodes'
+        data_nodes_map[name] = (name, 0)
+
+    # go over all initializers and make sure that all of them are added to the graph
+    for initializer in initializers.nodes():
+        initializer_id = initializer
+        if not graph.has_node(initializer_id):
+            graph.add_node(initializer_id, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
+                           pb_init=initializers.node[initializer]['pb'])
+            data_nodes_map[initializer] = (initializer_id, 0)
+    return parameters

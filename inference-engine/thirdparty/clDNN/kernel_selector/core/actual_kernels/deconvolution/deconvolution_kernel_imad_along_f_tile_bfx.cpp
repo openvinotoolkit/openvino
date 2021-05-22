@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "deconvolution_kernel_imad_along_f_tile_bfx.hpp"
 
@@ -31,10 +21,12 @@ ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::UINT8);
 
@@ -52,9 +44,6 @@ ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-
-    k.EnableInputLayout(DataLayout::byxf_af32);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
 
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
@@ -109,36 +98,31 @@ WeightsLayout DeconvolutionKernel_imad_along_f_tile_bfx::GetPreferredWeightsLayo
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx::SetDefault(const deconvolution_params& params) const {
-    auto dispatch = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
     auto tile_x = GetTileX(params);
     auto tile_ofm = GetTileOFM(params);
     auto tile_b = GetTileB(params);
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
          CeilDiv(params.output.X().v, tile_x) * params.output.Y().v * params.output.Z().v,
          Align(CeilDiv(params.output.Feature().v, tile_ofm), simd),
          CeilDiv(params.output.Batch().v, tile_b)
     };
 
-    std::vector<size_t> local = { 1, simd, 1 };
+    dispatchData.lws = { 1, simd, 1 };
 
-    dispatch.gws0 = global[0];
-    dispatch.gws1 = global[1];
-    dispatch.gws2 = global[2];
+    return dispatchData;
+}
 
-    dispatch.lws0 = local[0];
-    dispatch.lws1 = local[1];
-    dispatch.lws2 = local[2];
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const deconvolution_params&>(params);
 
     // Currently most optimized for fsv16 formats
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-        dispatch.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatch.efficiency = FORCE_PRIORITY_8;
-    }
-
-    return dispatch;
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
+        return FORCE_PRIORITY_7;
+    else
+        return FORCE_PRIORITY_8;
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {
@@ -177,9 +161,6 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
             input_tile_ifm_pitch = zyx_pitch_factor * 16 * 16;
         }
         input_in_tile_batch_pitch = 16;
-    } else if (in_layout == DataLayout::byxf_af32) {
-        input_tile_ifm_pitch = tile_ifm;
-        input_in_tile_batch_pitch = zyx_pitch_factor * Align(in.Feature().LogicalDimPadded(), 32);
     }
 
     jit.AddConstant(MakeJitConstant("INPUT_VALID_TILE_IFM_PITCH", input_tile_ifm_pitch != 0));
@@ -240,8 +221,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
         fsv = 16;
     }
     if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32
-        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32
-        || params.inputs[0].GetLayout() == DataLayout::byxf_af32) {
+        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         fsv = 32;
     }
 

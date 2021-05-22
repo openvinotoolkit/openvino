@@ -1,26 +1,30 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
-#include <ie_iinfer_request.hpp>
-#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <ie_parameter.hpp>
+#include <ie_remote_context.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include <details/ie_so_pointer.hpp>
+
 namespace InferenceEngine {
+
+class IInferRequestInternal;
 
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
- * which is used in ExecutableNetworkBase forwarding mechanism.
  * @ingroup ie_dev_api_exec_network_api
  */
-class IExecutableNetworkInternal {
+class IExecutableNetworkInternal : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
      * @brief A shared pointer to IExecutableNetworkInternal interface
@@ -51,11 +55,12 @@ public:
     /**
      * @brief Create an inference request object used to infer the network
      *  Note: the returned request will have allocated input and output blobs (that can be changed later)
-     * @param req - shared_ptr for the created request
+     * @return shared_ptr for the created request
      */
-    virtual void CreateInferRequest(IInferRequest::Ptr& req) = 0;
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequest() = 0;
 
     /**
+     * @deprecated Use IExecutableNetworkInternal::Export(std::ostream& networkModel)
      * @brief Export the current created executable network so it can be used later in the Import() main API
      * @param modelFileName - path to the location of the exported file
      */
@@ -69,46 +74,47 @@ public:
 
     /**
      * @brief Get executable graph information from a device
-     * @param graphPtr network ptr to store executable graph information
+     * @return A network object to store executable graph information
      */
-    virtual void GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr) = 0;
+    virtual CNNNetwork GetExecGraphInfo() = 0;
 
     /**
+     * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
      * @brief Queries memory states.
      * @return Returns memory states
      */
-    virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
+    virtual std::vector<IVariableStateInternal::Ptr> QueryState() = 0;
 
     /**
      * @brief Sets configuration for current executable network
      * @param config Map of pairs: (config parameter name, config parameter value)
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
      */
-    virtual void SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) = 0;
+    virtual void SetConfig(const std::map<std::string, Parameter>& config) = 0;
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
-     * @param name - config key, can be found in ie_plugin_config.hpp
-     * @param result - value of config corresponding to config key
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param name A config key, can be found in ie_plugin_config.hpp
+     * @return A value of config corresponding to config key
      */
-    virtual void GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const = 0;
+    virtual Parameter GetConfig(const std::string& name) const = 0;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
-     * @param name  - metric name to request
-     * @param result - metric value corresponding to metric key
-     * @param resp - Pointer to the response message that holds a description of an error if any
-     *             occurred
+     * @param name  A metric name to request
+     * @return A metric value corresponding to metric key
      */
-    virtual void GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const = 0;
+    virtual Parameter GetMetric(const std::string& name) const = 0;
 
     /**
      * @brief Gets the remote context.
-     * @param pContext  A reference to a context
-     * @param resp A response
+     * @return A reference to a context
      */
-    virtual void GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const = 0;
+    virtual RemoteContext::Ptr GetContext() const = 0;
 };
+
+/**
+ * @brief SOPointer to IExecutableNetworkInternal.
+ */
+using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

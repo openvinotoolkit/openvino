@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #else
 #include <mm_malloc.h>
 #endif
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "gna_plugin_log.hpp"
 
 #if GNA_LIB_VER == 2
@@ -51,7 +51,7 @@ class CPPWrapper<Gna2Model> {
             THROW_GNA_EXCEPTION << "out of memory in while allocating "<< n << " GNA layers";
         }
         obj.NumberOfOperations = n;
-        for (int i = 0; i < obj.NumberOfOperations; i++) {
+        for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {
             obj.Operations[i].Type = Gna2OperationTypeNone;
             obj.Operations[i].Operands = nullptr;
             obj.Operations[i].NumberOfOperands = 0;
@@ -61,7 +61,7 @@ class CPPWrapper<Gna2Model> {
     }
     ~CPPWrapper() {
         if (obj.Operations != nullptr) {
-            for (int i = 0; i < obj.NumberOfOperations; i++) {
+            for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {
                 freeGna2Operation(obj.Operations[i]);
             }
             gnaUserFree(obj.Operations);
@@ -81,7 +81,7 @@ class CPPWrapper<Gna2Model> {
 };
 #else
 template <>
-class CPPWrapper<intel_nnet_type_t> {
+class CPPWrapper<gna_nnet_type_t> {
 public:
     intel_nnet_type_t obj;
 

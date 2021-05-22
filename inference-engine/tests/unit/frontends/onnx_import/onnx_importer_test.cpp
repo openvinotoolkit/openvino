@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,6 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 
     int count_topk = 0;
     int count_constants = 0;
-    int count_goe = 0;
     int count_parameters = 0;
 
     for (auto op : function->get_ops()) {
@@ -107,7 +106,7 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
     }
     catch(const ngraph::ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Failure opening file:"), error.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Error during import of ONNX model expected to be in file:"), error.what());
     }
     catch(...) {
         FAIL() << "Expected 'ngraph::ngraph_error' exception was not thrown despite the ONNX model file does not exist";

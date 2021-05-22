@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,30 +25,42 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U8
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
-        Sign,
-        Abs
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sigmoid, {}},
+        {Tanh,    {}},
+        {Relu,    {}},
+        {Exp,     {}},
+        {Log,     {}},
+        {Sign,    {}},
+        {Abs,     {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
         {{1, 128}, {{}}},
-        {{1, 10 * 1024}, {{}}}
+        {{1, 10 * 1024}, {{}}},
+        {{8, 128}, {{}}},
+        {{1, 4, 2, 256}, {{}}},
+        {{4, 4, 4, 4}, {{}}},
+        {{1, 16, 1, 128}, {{}}},
+        {{1, 8, 15, 128}, {{}}},
+        {{1, 4, 4, 128}, {{}}},
+        {{8}, {{}}},
+        {{5}, {{}}},
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

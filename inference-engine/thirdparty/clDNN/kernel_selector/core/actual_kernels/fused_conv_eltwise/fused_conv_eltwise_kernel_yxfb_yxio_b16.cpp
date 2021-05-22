@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fused_conv_eltwise_kernel_yxfb_yxio_b16.h"
 #include <string>
@@ -76,7 +65,7 @@ size_t GetOfmPerWorkitem(Datatype dataType) {
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_yxfb_yxio_b16::SetDefault(
     const fused_conv_eltwise_params& arg,
     int) const {
-    DispatchData runInfo = fused_conv_eltwise_kernel_base::SetDefault(arg);
+    DispatchData dispatchData = fused_conv_eltwise_kernel_base::SetDefault(arg);
 
     const auto filter_ofm_num = arg.weights.OFM().v;
     const auto batch_size = arg.output.Batch().v;
@@ -85,16 +74,16 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_yxfb_yxio
     const size_t batchesPerWorkItem = GetBatchesPerWorkItem(batch_size, arg.inputs[0].GetDType());
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
-    if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.efficiency = FORCE_PRIORITY_7;
-    } else {
-        runInfo.efficiency = FORCE_PRIORITY_9;
-    }
+    dispatchData.lws[0] = min_lws;
+    dispatchData.gws[0] = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
 
-    runInfo.lws0 = min_lws;
-    runInfo.gws0 = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority fused_conv_eltwise_kernel_yxfb_yxio_b16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    auto const& p = static_cast<const fused_conv_eltwise_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_7 : FORCE_PRIORITY_9;
 }
 
 bool fused_conv_eltwise_kernel_yxfb_yxio_b16::Validate(const Params& p, const optional_params& o) const {
@@ -138,10 +127,10 @@ bool fused_conv_eltwise_kernel_yxfb_yxio_b16::Validate(const Params& p, const op
 }
 
 JitConstants fused_conv_eltwise_kernel_yxfb_yxio_b16::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                                      const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                                      const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    const auto local_work_group_size = kd.lws0;
+    const auto local_work_group_size = dispatchData.lws[0];
     const auto batch_size = params.output.Batch().v;
 
     if (params.inputs[0].GetDType() == Datatype::F32) {
@@ -166,7 +155,7 @@ JitConstants fused_conv_eltwise_kernel_yxfb_yxio_b16::GetJitConstants(const fuse
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(params.inputs[0].GetDType());
 
     jit.AddConstants({
-        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0),
+        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]),
         MakeJitConstant("OFM_PER_WORK_ITEM", ofmPerWorkItem),
         MakeJitConstant("BATCHES_PER_WORK_ITEM",
                         batchesPerWorkItem),  // how many batches will a single work item compute

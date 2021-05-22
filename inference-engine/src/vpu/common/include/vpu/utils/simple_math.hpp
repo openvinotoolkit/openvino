@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,8 @@
 namespace vpu {
 
 template <typename T>
-Optional<int> parseNumber(const std::string& s) {
-    T value;
+Optional<T> parseNumber(const std::string& s) {
+    T value{};
     if ((std::istringstream(s) >> value >> std::ws).eof()) {
         return {value};
     }
@@ -78,6 +78,7 @@ public:
     }
 
     float toFloat() const { return isInt ? static_cast<float>(value.i) : value.f; }
+    int toInt() const { return isInt ? value.i : static_cast<int>(value.f); }
 
     OPERATOR(+)
     OPERATOR(-)
@@ -88,7 +89,7 @@ public:
         if (isInt && other.isInt) {
             return IntOrFloat{value.i % other.value.i};
         }
-        THROW_IE_EXCEPTION << "Can't apply modulus operation to floating point value";
+        IE_THROW() << "Can't apply modulus operation to floating point value";
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include <vpu/private_plugin_config.hpp>
 #include <gna/gna_config.hpp>
 #include <multi-device/multi_device_config.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <memory>
 #include <fstream>

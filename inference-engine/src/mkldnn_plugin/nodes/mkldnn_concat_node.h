@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNConcatNode : public MKLDNNNode {
 public:
-    MKLDNNConcatNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNConcatNode() override = default;
+    MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
@@ -25,6 +25,8 @@ public:
     void execute(mkldnn::stream strm) override;
 
     bool isOptimized() const;
+
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
 private:
     size_t axis = 0;

@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 import os
 from enum import Enum
@@ -82,11 +70,13 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
 
     for c in cls.__subclasses__():
         # Force enabling operations
-        if hasattr(c, 'id') and c.id in enabled_transforms:
+        if hasattr(c, 'id') and c.id in enabled_transforms or \
+                ".".join([c.__module__, c.__name__]) in enabled_transforms:
             setattr(c, 'enabled', True)
 
         # Force disabling operations
-        if hasattr(c, 'id') and c.id in disabled_transforms:
+        if hasattr(c, 'id') and c.id in disabled_transforms or \
+                ".".join([c.__module__, c.__name__]) in disabled_transforms:
             setattr(c, 'enabled', False)
 
         if c not in registered_list:
@@ -126,7 +116,7 @@ class DependencyGraph(Graph):
         if nodes_to_dump is None:
             nodes_to_dump = self.nodes()
         string = '\ndigraph {\n'
-        string += 'node [color=lightblue2, style=filled];\n'
+        string += 'node [color=lightblue2, style=filled, shape=box];\n'
 
         for node in nodes_to_dump:
             attrs = ""
@@ -282,7 +272,7 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
     log.debug("Run replacer {}".format(replacer_cls))
 
     try:
-        if hasattr(replacer, 'run_not_recursively'):
+        if hasattr(replacer, 'run_not_recursively') and replacer.run_not_recursively:
             replacer.find_and_replace_pattern(graph)
         else:
             for_graph_and_each_sub_graph_recursively(graph, replacer.find_and_replace_pattern)
@@ -293,8 +283,12 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
         if hasattr(replacer, 'force_shape_inference') and replacer.force_shape_inference:
             shape_inference(graph)
 
-        for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_empty_graph(replacer_cls))
-        for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_shapes_consistency())
+        if hasattr(replacer, 'run_not_recursively') and replacer.run_not_recursively:
+            graph.check_empty_graph(replacer_cls)
+            graph.check_shapes_consistency()
+        else:
+            for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_empty_graph(replacer_cls))
+            for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_shapes_consistency())
 
     except Error as err:
         raise Error('Exception occurred during running replacer "{}" ({}): {}'.format(

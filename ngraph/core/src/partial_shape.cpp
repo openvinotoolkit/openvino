@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <iostream>
@@ -23,26 +11,59 @@
 
 using namespace ngraph;
 
+PartialShape::PartialShape()
+    : PartialShape(std::initializer_list<Dimension>{})
+{
+}
+
+PartialShape::PartialShape(std::initializer_list<Dimension> init)
+    : PartialShape(true, init)
+{
+}
+
 PartialShape::PartialShape(const std::vector<Dimension::value_type>& dimensions)
     : m_rank_is_static(true)
+    , m_dimensions(dimensions.begin(), dimensions.end())
 {
-    std::transform(dimensions.cbegin(),
-                   dimensions.cend(),
-                   std::back_inserter(m_dimensions),
-                   [](const Dimension::value_type& dimension) { return dimension; });
 }
 
 PartialShape::PartialShape(const Shape& shape)
-    : PartialShape(true, {})
+    : m_rank_is_static(true)
+    , m_shape_type(ShapeType::SHAPE_IS_STATIC)
+    , m_dimensions(shape.begin(), shape.end())
 {
-    m_dimensions.assign(shape.begin(), shape.end());
+}
+
+PartialShape::PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions)
+    : m_rank_is_static(rank_is_static)
+    , m_dimensions(dimensions)
+{
+}
+
+PartialShape::PartialShape(const std::vector<Dimension>& dimensions)
+    : m_rank_is_static(true)
+    , m_dimensions(dimensions)
+{
 }
 
 bool ngraph::PartialShape::is_static() const
 {
-    return m_rank_is_static && std::all_of(m_dimensions.begin(),
-                                           m_dimensions.end(),
-                                           [](const Dimension& d) { return d.is_static(); });
+    ShapeType shape_type = m_shape_type;
+
+    if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN || m_shape_type == ShapeType::SHAPE_IS_UPDATED)
+    {
+        shape_type =
+            m_rank_is_static && std::all_of(m_dimensions.begin(),
+                                            m_dimensions.end(),
+                                            [](const Dimension& d) { return d.is_static(); })
+                ? ShapeType::SHAPE_IS_STATIC
+                : ShapeType::SHAPE_IS_DYNAMIC;
+
+        if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN)
+            m_shape_type = shape_type;
+    }
+
+    return shape_type == ShapeType::SHAPE_IS_STATIC;
 }
 
 bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const
@@ -185,7 +206,7 @@ bool PartialShape::compatible(const PartialShape& s) const
     // are elementwise compatible everywhere.
     else
     {
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             if (!m_dimensions[i].compatible(s.m_dimensions[i]))
             {
@@ -213,7 +234,7 @@ bool PartialShape::same_scheme(const PartialShape& s) const
 
         bool success = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             success &= (*this)[i].same_scheme(s[i]);
         }
@@ -236,7 +257,7 @@ bool PartialShape::relaxes(const PartialShape& s) const
     {
         bool all_relax = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             all_relax &= ((*this)[i].relaxes(s[i]));
         }
@@ -259,7 +280,7 @@ bool PartialShape::refines(const PartialShape& s) const
     {
         bool all_refine = true;
 
-        for (size_t i = 0; i < rank().get_length(); i++)
+        for (int64_t i = 0; i < rank().get_length(); i++)
         {
             all_refine &= ((*this)[i].refines(s[i]));
         }
@@ -282,11 +303,12 @@ bool PartialShape::merge_rank(Rank r)
     {
         m_rank_is_static = true;
         m_dimensions = std::vector<Dimension>(r.get_length(), Dimension::dynamic());
+        m_shape_type = ShapeType::SHAPE_IS_UNKNOWN;
         return true;
     }
     else
     {
-        return (m_dimensions.size() == r.get_length());
+        return (static_cast<int64_t>(m_dimensions.size()) == r.get_length());
     }
 }
 
@@ -297,13 +319,13 @@ Shape PartialShape::to_shape() const
         throw std::invalid_argument("to_shape was called on a dynamic shape.");
     }
 
-    std::vector<size_t> dimensions_to_shape(m_dimensions.size());
+    std::vector<size_t> shape_dimensions(m_dimensions.size());
     std::transform(m_dimensions.begin(),
                    m_dimensions.end(),
-                   dimensions_to_shape.begin(),
+                   shape_dimensions.begin(),
                    [](const Dimension& d) { return d.get_length(); });
 
-    return Shape(dimensions_to_shape.begin(), dimensions_to_shape.end());
+    return shape_dimensions;
 }
 
 bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src)
@@ -327,7 +349,7 @@ bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src)
     {
         // Ranks are both static, and they match.
         bool success = true;
-        for (size_t i = 0; i < dst.rank().get_length(); i++)
+        for (int64_t i = 0; i < dst.rank().get_length(); i++)
         {
             success &= Dimension::merge(dst[i], dst[i], src[i]);
         }
@@ -357,7 +379,7 @@ bool PartialShape::broadcast_merge_into(PartialShape& dst,
             auto new_rank = std::max(dst_rank, src_rank);
             std::vector<Dimension> dims(new_rank);
             bool success = true;
-            for (size_t i = 0; i < new_rank; i++)
+            for (int64_t i = 0; i < new_rank; i++)
             {
                 auto dsti =
                     i < (new_rank - dst_rank) ? Dimension(1) : dst[i - (new_rank - dst_rank)];
@@ -444,6 +466,8 @@ Dimension& PartialShape::operator[](size_t i)
     {
         throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
     }
+    m_shape_type =
+        ShapeType::SHAPE_IS_UPDATED; // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
 
@@ -458,9 +482,9 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get(
         }
         else
         {
-            for (size_t i = 0; i < m_ref.rank().get_length(); ++i)
+            for (int64_t i = 0; i < m_ref.rank().get_length(); ++i)
             {
-                auto& elt = m_ref[i];
+                const auto& elt = static_cast<const PartialShape&>(m_ref)[i];
                 m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
             }
         }

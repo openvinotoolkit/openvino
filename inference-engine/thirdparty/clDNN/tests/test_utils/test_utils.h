@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 //todo move to another folder
 
@@ -168,6 +156,36 @@ std::vector<T> generate_random_1d(size_t a, int min, int max, int k = 8) {
     return v;
 }
 
+template<typename Type>
+std::vector<Type> generate_random_norepetitions_1d(size_t size, int min, int max, float bound = 0.45) {
+    // Rerurn repeatless vector with size = size in range(min, max)
+    static std::default_random_engine generator(random_seed);
+    std::uniform_int_distribution<int> distribution(min, max);
+    std::uniform_real_distribution<float> to_bound_dist(0, bound);
+    std::set<int> repeatless;
+    std::vector<float> v(size, 0);
+    std::vector<Type> res(size);
+    int i = 0;
+    int temp;
+    if (max - min >= int(size) - 1){
+        while (repeatless.size() < size) {
+            temp = distribution(generator);
+            if (repeatless.find(temp) == repeatless.end()) {
+                repeatless.insert(temp);
+                v[i] = (float)temp;
+                i++;
+            }
+        }
+        for (size_t k = 0; k < v.size(); k++) {
+            v[k] += to_bound_dist(generator);
+            res[k] = static_cast<Type>(v[k]);
+        }
+    } else {
+        throw "Array size is bigger than size of range(min, max). Unable to generate array of unique integer numbers";
+    }
+    return res;
+}
+
 template<typename T>
 std::vector<std::vector<T>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
     std::vector<std::vector<T>> v(a);
@@ -304,15 +322,15 @@ inline void check_exception_massage(const cldnn::engine& engine, cldnn::topology
 // Default values:
 // relative_error_threshold = 1e-3
 // absolute_error_threshold = 1e-6
-// absoulte_error_limit = 1e-4
+// absolute_error_limit = 1e-4
 inline bool are_equal(
     const float ref_item,
     const float item,
     const float relative_error_threshold = 1e-3,
     const float absolute_error_threshold = 1e-6,
-    const float absoulte_error_limit     = 1e-4) {
+    const float absolute_error_limit     = 1e-4) {
 
-        if( fabs(item) < absoulte_error_limit) {
+        if( fabs(item) < absolute_error_limit) {
             if(fabs( item - ref_item ) > absolute_error_threshold) {
                 std::cout << "Ref val: " << ref_item << "\tSecond val: " << item << std::endl;
                 return false;

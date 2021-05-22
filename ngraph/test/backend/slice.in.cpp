@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
@@ -23,6 +12,8 @@
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -98,11 +89,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto B = make_shared<op::Parameter>(element::f32, shape_a);
-    auto C = make_shared<op::Add>(A, B);
+    auto C = make_shared<op::v1::Add>(A, B);
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(C, Coordinate{0, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -128,7 +119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -153,7 +144,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
     auto B = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -177,7 +168,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{5, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{3, 4});
     auto E = make_shared<op::Slice>(B, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -195,15 +186,15 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_reshape)
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
 {
     Shape shape_a{4, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 5});
-    auto C = make_shared<op::Reshape>(B, AxisVector{1, 0}, Shape{5, 3});
+    auto C = builder::opset1::transpose(B);
     auto D = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{5, 3});
-    auto E = make_shared<op::Reshape>(D, AxisVector{1, 0}, Shape{3, 4});
+    auto E = builder::opset1::transpose(D);
     auto r = make_shared<op::Slice>(E, Coordinate{1, 0}, Coordinate{3, 4});
     auto f = make_shared<Function>(r, ParameterVector{A});
 

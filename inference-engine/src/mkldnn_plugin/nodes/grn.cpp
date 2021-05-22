@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,22 +8,49 @@
 #include <string>
 #include <vector>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset1.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class GRNImpl: public ExtLayerBase {
-public:
-    explicit GRNImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 1 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+            const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+            if (!grn) {
+                errorMessage = "Only opset1 GRN operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            bias = layer->GetParamAsFloat("bias");
+    std::string errorPrefix;
 
-            addConfig(layer, {{ConfLayout::PLN, false, 0}}, {{ConfLayout::PLN, false, 0}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+public:
+    explicit GRNImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
+            const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            bias = grn->get_bias();
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

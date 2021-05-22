@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -90,7 +78,7 @@ memory_impl::ptr memory_pool::get_memory(const layout& layout, const shared_mem_
                 params,
                 net_id), false };
             return mem_impl;
-#ifdef WIN32
+#ifdef _WIN32
         } else if (params->mem_type == shared_mem_type::shared_mem_dxbuffer) {
             memory_impl::ptr mem_impl{ new gpu::gpu_dx_buffer(engine_impl::ptr(_engine), layout,
                 params,
@@ -254,8 +242,7 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.size.feature[0] % 32 == 0)) &&
                 // TODO: check if this condition always correct
-                ((layout.format == format::byxf_af32 && layout.size.feature[0] == rec_list._memory->get_layout().size.feature[0]) ||
-                 (layout.format != format::byxf_af32 && layout.size.feature[0] <= rec_list._memory->get_layout().size.feature[0])) &&
+                layout.size.feature[0] <= rec_list._memory->get_layout().size.feature[0] &&
                 layout.size.batch[0] <= rec_list._memory->get_layout().size.batch[0] &&
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&

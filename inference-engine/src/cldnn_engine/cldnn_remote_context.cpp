@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include "cldnn_remote_context.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -20,7 +21,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
 ParamMap CLDNNRemoteBlobImpl::getParams() const {
@@ -35,7 +36,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
-#ifdef WIN32
+#ifdef _WIN32
     case BT_DX_BUF_SHARED:
         return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER) },
@@ -61,7 +62,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(VA_PLANE),  params.plane }
         };
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared object type " << m_mem_type;
+        IE_THROW() << "Unsupported shared object type " << m_mem_type;
     }
 }
 
@@ -80,6 +81,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
@@ -92,7 +94,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
         case BlobType::BT_BUF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
             break;
-#ifdef WIN32
+#ifdef _WIN32
         case BlobType::BT_SURF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
             break;
@@ -108,7 +110,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_image(*eng, m_layout, m_mem)));
             break;
         default:
-            THROW_IE_EXCEPTION << unsupported_str << m_mem_type;
+            IE_THROW() << unsupported_str << m_mem_type;
         }
     }
 
@@ -127,7 +129,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     case BlobType::BT_BUF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
         break;
-#ifdef WIN32
+#ifdef _WIN32
     case BlobType::BT_SURF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
         break;
@@ -149,7 +151,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
-        _allocator = shared_from_irelease(reinterpret_cast<IAllocator*>(&m_allocator));
+        _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };
@@ -238,7 +240,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
             m_va_display = _va_device = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(VA_DEVICE));
             m_type = ContextType::DEV_SHARED;
         } else {
-            THROW_IE_EXCEPTION << "Invalid execution context type" << contextTypeStr;
+            IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
     }
 
@@ -248,21 +250,26 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     auto iter = device_map.find(m_config.device_id);
     auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
 
-    m_engine = std::make_shared<cldnn::engine>(dev,
-        cldnn::engine_configuration((m_config.useProfiling ||
-            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
-            false,
-            m_config.dumpCustomKernels,
-            std::string(),
-            std::string(),
-            true,
-            std::string(),
-            m_config.sources_dumps_dir,
-            m_config.queuePriority,
-            m_config.queueThrottle,
-            m_config.memory_pool_on,
-            m_config.throughput_streams));
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl::Create");
+        m_engine = std::make_shared<cldnn::engine>(dev,
+            cldnn::engine_configuration((m_config.useProfiling ||
+                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
+                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
+                false,
+                m_config.dumpCustomKernels,
+                std::string(),
+                std::string(),
+                true,
+                std::string(),
+                m_config.sources_dumps_dir,
+                m_config.queuePriority,
+                m_config.queueThrottle,
+                m_config.memory_pool_on,
+                m_config.throughput_streams,
+                m_config.kernels_cache_dir,
+                m_config.n_threads));
+    }
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {
@@ -277,7 +284,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
         ret[GPU_PARAM_KEY(VA_DEVICE)] = m_va_display;
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared context type " << m_type;
+        IE_THROW() << "Unsupported shared context type " << m_type;
     }
 
     return ret;

@@ -1,30 +1,18 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <functional>
 #include <iterator>
 #include <numeric>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "reshape.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -74,12 +62,12 @@ namespace ngraph
                     std::size_t input_shape_product =
                         std::accumulate(std::begin(input_shape),
                                         std::end(input_shape),
-                                        1UL,
+                                        size_t{1},
                                         std::multiplies<std::size_t>());
                     std::size_t output_shape_product =
                         std::accumulate(std::begin(inferred_dims),
                                         std::end(inferred_dims),
-                                        1UL,
+                                        size_t{1},
                                         std::multiplies<std::size_t>());
                     *neg_value_it = input_shape_product / output_shape_product;
                 }
@@ -112,6 +100,26 @@ namespace ngraph
                 }
 
                 return builder::opset1::reshape(node, Shape{});
+            }
+
+            Output<ngraph::Node>
+                reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
+                                                    const Output<ngraph::Node>& expected_rank)
+            {
+                // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+                const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
+                const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
+                const auto tail_shape_rank =
+                    std::make_shared<default_opset::Subtract>(expected_rank, two_const);
+                const auto tail_shape =
+                    std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+
+                // Construct new bias shape: [1, C, 1, 1, ... ]
+                const auto C_dim = std::make_shared<default_opset::ShapeOf>(node);
+                const auto new_shape = std::make_shared<default_opset::Concat>(
+                    OutputVector{one_const, C_dim, tail_shape}, 0);
+
+                return std::make_shared<default_opset::Reshape>(node, new_shape, false);
             }
 
         } // namespace  reshape

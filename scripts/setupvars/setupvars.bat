@@ -1,18 +1,7 @@
 @echo off
 
-:: Copyright (c) 2018-2019 Intel Corporation
-::
-:: Licensed under the Apache License, Version 2.0 (the "License");
-:: you may not use this file except in compliance with the License.
-:: You may obtain a copy of the License at
-::
-::      http://www.apache.org/licenses/LICENSE-2.0
-::
-:: Unless required by applicable law or agreed to in writing, software
-:: distributed under the License is distributed on an "AS IS" BASIS,
-:: WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-:: See the License for the specific language governing permissions and
-:: limitations under the License.
+:: Copyright (C) 2018-2021 Intel Corporation
+:: SPDX-License-Identifier: Apache-2.0
 
 set ROOT=%~dp0
 call :GetFullPath "%ROOT%\.." ROOT
@@ -21,7 +10,18 @@ set SCRIPT_NAME=%~nx0
 set "INTEL_OPENVINO_DIR=%ROOT%"
 set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
 
-where /q libmmd.dll || echo Warning: libmmd.dll couldn't be found in %%PATH%%. Please check if the redistributable package for Intel(R) C++ Compiler is installed and the library path is added to the PATH environment variable. System reboot can be required to update the system environment.
+set "python_version="
+
+:: command line arguments parsing
+:input_arguments_loop
+if not "%1"=="" (
+    if "%1"=="-pyver" (
+        set "python_version=%2"
+        shift
+    )
+    shift
+    goto :input_arguments_loop
+)
 
 :: OpenCV
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
@@ -40,42 +40,60 @@ set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%PATH%"
+set "OPENMP_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\omp\lib"
+set "GNA_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\gna\lib"
+
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENMP_DIR%;%GNA_DIR%;%OPENVINO_LIB_PATHS%"
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
+set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
+)
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
 set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
 )
 
+:: TBB
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb (
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%OPENVINO_LIB_PATHS%"
+set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\cmake"
+)
+
 :: nGraph
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%PATH%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVINO_LIB_PATHS%"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 )
+
+:: Add libs dirs to the PATH
+set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.5. or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
-:: Check Python version
-for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
-   set version=%%F
+:: Check Python version if user did not pass -pyver
+
+if "%python_version%" == "" (
+    for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
+       set python_version=%%F
+    )
 )
 
-for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
-   set Major=%%b
-   set Minor=%%c
+for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
+   set pyversion_major=%%a
+   set pyversion_minor=%%b
 )
 
-if "%Major%" geq "3" (
-   if "%Minor%" geq "5" (
-      set python_ver=okay
+if "%pyversion_major%" geq "3" (
+   if "%pyversion_minor%" geq "6" (
+      set check_pyversion=okay
    )
 )
 
-if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+if not "%check_pyversion%"=="okay" (
+   echo Unsupported Python version. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -91,11 +109,11 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%Major%.%Minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker (
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker;%PYTHONPATH%

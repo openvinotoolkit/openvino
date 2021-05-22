@@ -1,16 +1,6 @@
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_fs_byx_fsv32.h"
 #include <vector>
@@ -37,6 +27,9 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
@@ -108,25 +101,27 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(const convolution_params& arg,
                                                                                int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.blockWidth = option.blockWidth;
+    dispatchData.cldnnStyle.inputBlockWidth = getInputWidth(arg, option.blockWidth);
 
-    runInfo.cldnnStyle.blockHeight = 1;
-    runInfo.cldnnStyle.blockWidth = option.blockWidth;
-    runInfo.cldnnStyle.inputBlockWidth = getInputWidth(arg, option.blockWidth);
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 16;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
+    dispatchData.gws[1] = arg.output.Y().v;
+    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
 
-    runInfo.gws0 = CeilDiv(arg.output.X().v, option.blockWidth);
-    runInfo.gws1 = arg.output.Y().v;
-    runInfo.gws2 = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ConvolutionKernel_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {
@@ -139,27 +134,34 @@ bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_pa
     if (cp.output.Feature().pad.before % fsv != 0)
         return false;
 
+    // Input feature padding must be multiple of fsv to keep block alignment
+    if (cp.inputs[0].Feature().pad.before % fsv != 0)
+        return false;
+
     return true;
 }
 
 JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& kd) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                             const DispatchData& dispatchData) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+    auto accumulator_type = GetAccumulatorType(params);
+    auto activation_type = GetAccumulatorType(params);
 
-    jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", kd.cldnnStyle.inputBlockWidth));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", kd.cldnnStyle.blockWidth));
+    jit.Merge(MakeTypeJitConstants(accumulator_type, "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(activation_type, "ACTIVATION"));
+    jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("FSV", fsv));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subGroupSize));
     jit.AddConstant(MakeJitConstant("FSV_PER_THREAD", fsvPerThread));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
                                                {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                               "tmp_write[out_f]", input_dt, 1 };
+                                               "tmp_write[out_f]", activation_type, 1 };
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                             "out[out_idx]", input_dt, 1 };
+                                             "res", activation_type, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
     }
 

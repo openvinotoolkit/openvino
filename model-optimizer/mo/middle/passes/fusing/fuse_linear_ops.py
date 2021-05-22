@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -105,7 +92,14 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             shape = np.append(shape, 1)
 
         mul_val = np.array(value)
-        value = np.reshape(value, shape)
+        # If the value fails to reshape to the provided shape, skip fusing.
+        # This can happen in case of group != 1 of the convolution.
+        try:
+            value = np.reshape(value, shape)
+        except ValueError:
+            log.error("Cannot fuse const from {} to {}. Reshape failed. Skipping.".format(
+                node.soft_get('name', node.id),fuse_node.soft_get('name', fuse_node.id)), extra={'is_warning': True})
+            return False
 
         # Weights multiplication
         mul_name = node.name + '_copy'
@@ -113,9 +107,40 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         w_mul = node.copy_node({'name': mul_name, 'in_ports_count': len(node.in_ports()),
                                 'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
-        w_const = weights_port.get_source()
-        weights_port.get_connection().set_source(w_mul.out_port(0))
-        w_const.connect(w_mul.in_port(tensor_port.idx))
+
+        r"""
+        In this transformation we remove Mul or Div node (node) that goes after fuse_node and
+        create new Mul node (w_mul), connect it with the corrected const value (mul_const) and
+        insert w_mul before the fuse_node. So the input data of fuse_node becomes different. 
+        For this reason we need to use set_destination from previous operation to w_mul which 
+        guaranties that data node will be reused on previous_op -> w_mul connection and its 
+        attributes won't be copied to the data node of w_mul -> fuse_node connection.   
+        
+        BEFORE                        AFTER
+
+                                 previous_op      mul_const
+                                         \     /
+            previous_op                   w_mul
+               |                            |
+             fuse_node   const          fuse_node     
+                 \     /                    |       
+                  node                   next_op      
+                   |                              
+                 next_op                      
+        """
+        weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
+        w_mul.out_port(0).connect(weights_port)
+
+        # As fusing is applied to convolutions it is important to keep 'permutation' and 'input_permutation' attributes
+        # which were obtained from original model. These attributes are stored on the incoming edge to the operation
+        # node and during the reconnection they are moved to the new connection. But during reconnection in this
+        # transformation these attributes are moved to the previous node. So we need manually set them at the
+        # incoming edge to fuse_node.
+        in_edge = w_mul.in_edge(tensor_port.idx)
+        if 'permutation' in in_edge:
+            fuse_node.in_edge(weights_port.idx)['permutation'] = in_edge['permutation']
+        if 'input_permutation' in in_edge:
+            fuse_node.in_edge(weights_port.idx)['input_permutation'] = in_edge['input_permutation']
 
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
@@ -134,7 +159,9 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         producer_port = tensor_port.get_source()
         tensor_port.disconnect()
         const_port.disconnect()
-        node.out_port(0).get_connection().set_source(producer_port)
+        # as Mul node is added before convolution, output tensor from Convolution node
+        # corresponds to original Mul node
+        node.out_port(0).get_connection().set_source(producer_port, "dest")
 
     return is_fused
 

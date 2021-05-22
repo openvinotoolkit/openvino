@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "pooling_kernel_gpu_int8_ref.h"
 #include <string>
@@ -29,7 +18,6 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -38,7 +26,6 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -58,11 +45,15 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
 }
 
 KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
 }
 
-JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
+}
+
+JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    JitConstants jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 

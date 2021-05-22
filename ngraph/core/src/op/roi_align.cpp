@@ -1,20 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include "roi_align.hpp"
+#include "ngraph/op/roi_align.hpp"
+#include "itt.hpp"
+
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/roi_align.hpp"
+#include "ngraph/util.hpp" // for host_tensor_2_vector
 
 using namespace std;
 using namespace ngraph;
@@ -59,10 +52,19 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
         "The data type for input and ROIs is expected to be a floating point type. Got: ",
+        get_input_element_type(0),
+        " and: ",
+        get_input_element_type(1));
+
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_element_type(0) == get_input_element_type(1),
+        "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
         get_input_element_type(0),
         " and: ",
         get_input_element_type(1));
@@ -150,6 +152,7 @@ void op::v3::ROIAlign::validate_and_infer_types()
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_ROIAlign_visit_attributes);
     visitor.on_attribute("pooled_h", m_pooled_h);
     visitor.on_attribute("pooled_w", m_pooled_w);
     visitor.on_attribute("sampling_ratio", m_sampling_ratio);
@@ -161,6 +164,7 @@ bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_ROIAlign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ROIAlign>(new_args.at(0),
                                  new_args.at(1),
@@ -177,7 +181,8 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
     template <>
-    EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get()
+    NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>&
+        EnumNames<op::v3::ROIAlign::PoolingMode>::get()
     {
         static auto enum_names =
             EnumNames<op::v3::ROIAlign::PoolingMode>("op::v3::ROIAlign::PoolingMode",
@@ -190,4 +195,103 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+} // namespace ngraph
+
+namespace roi_alinop
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& feature_maps,
+                  const HostTensorPtr& rois,
+                  const std::vector<int64_t>& batch_indices_vec_scaled_up,
+                  const HostTensorPtr& out,
+                  const int pooled_height,
+                  const int pooled_width,
+                  const int sampling_ratio,
+                  const float spatial_scale,
+                  const op::v3::ROIAlign::PoolingMode& pooling_mode,
+                  const Shape& batch_indices_shape)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
+                                         rois->get_data_ptr<ET>(),
+                                         batch_indices_vec_scaled_up.data(),
+                                         out->get_data_ptr<ET>(),
+                                         feature_maps->get_shape(),
+                                         rois->get_shape(),
+                                         batch_indices_shape,
+                                         out->get_shape(),
+                                         pooled_height,
+                                         pooled_width,
+                                         sampling_ratio,
+                                         spatial_scale,
+                                         pooling_mode);
+        return true;
+    }
+
+    bool evaluate_roi_align(const HostTensorVector& args,
+                            const HostTensorPtr& out,
+                            const int pooled_height,
+                            const int pooled_width,
+                            const int sampling_ratio,
+                            const float spatial_scale,
+                            const op::v3::ROIAlign::PoolingMode& pooling_mode)
+    {
+        auto feature_maps = args[0];
+        auto rois = args[1];
+        auto batch_indices = args[2];
+        std::vector<int64_t> batch_indices_vec_scaled_up =
+            host_tensor_2_vector<int64_t>(batch_indices);
+
+        bool rc = true;
+        switch (feature_maps->get_element_type())
+        {
+            NGRAPH_TYPE_CASE(evaluate_roi_align,
+                             bf16,
+                             feature_maps,
+                             rois,
+                             batch_indices_vec_scaled_up,
+                             out,
+                             pooled_height,
+                             pooled_width,
+                             sampling_ratio,
+                             spatial_scale,
+                             pooling_mode,
+                             batch_indices->get_shape());
+            NGRAPH_TYPE_CASE(evaluate_roi_align,
+                             f16,
+                             feature_maps,
+                             rois,
+                             batch_indices_vec_scaled_up,
+                             out,
+                             pooled_height,
+                             pooled_width,
+                             sampling_ratio,
+                             spatial_scale,
+                             pooling_mode,
+                             batch_indices->get_shape());
+            NGRAPH_TYPE_CASE(evaluate_roi_align,
+                             f32,
+                             feature_maps,
+                             rois,
+                             batch_indices_vec_scaled_up,
+                             out,
+                             pooled_height,
+                             pooled_width,
+                             sampling_ratio,
+                             spatial_scale,
+                             pooling_mode,
+                             batch_indices->get_shape());
+        default: rc = false; break;
+        }
+
+        return rc;
+    }
+} // namespace roi_alinop
+
+bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v3_ROIAlign_evaluate);
+    return roi_alinop::evaluate_roi_align(
+        inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }

@@ -1,32 +1,30 @@
-# ******************************************************************************
-# Copyright 2018-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import all_arrays_equal, get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35926, xfail_issue_35927
+from tests.test_onnx.utils import (
+    all_arrays_equal,
+    get_node_model,
+    import_onnx_model,
+    run_model,
+    run_node,
+)
+from tests import (xfail_issue_35927,
+                   xfail_issue_44854,
+                   xfail_issue_44858,
+                   xfail_issue_44968)
 
 
-@xfail_issue_35926
 def test_reshape():
-    input_data = np.arange(2560).reshape([16, 4, 4, 10])
-    reshape_node = onnx.helper.make_node("Reshape", inputs=["x"], outputs=["y"], shape=(256, 10))
+    input_data = np.arange(2560, dtype=np.int32).reshape([16, 4, 4, 10])
+    reshape_node = onnx.helper.make_node(
+        "Reshape", inputs=["x"], outputs=["y"], shape=(256, 10)
+    )
     expected_output = input_data.reshape([256, 10])
 
     ng_results = run_node(reshape_node, [input_data], opset_version=4)
@@ -50,10 +48,15 @@ def test_reshape_opset5():
             inputs=[],
             outputs=["const_shape"],
             value=onnx.helper.make_tensor(
-                name="const_tensor", data_type=onnx.TensorProto.INT64, dims=shape.shape, vals=shape.flatten()
+                name="const_tensor",
+                data_type=onnx.TensorProto.INT64,
+                dims=shape.shape,
+                vals=shape.flatten(),
             ),
         )
-        reshape_node = onnx.helper.make_node("Reshape", inputs=["data", "const_shape"], outputs=["reshaped"])
+        reshape_node = onnx.helper.make_node(
+            "Reshape", inputs=["data", "const_shape"], outputs=["reshaped"]
+        )
 
         graph = make_graph(
             [const_node, reshape_node],
@@ -72,17 +75,16 @@ def test_reshape_opset5():
         assert np.array_equal(ng_results[0], expected_output)
 
 
-@xfail_issue_35926
+@pytest.mark.xfail(reason="RuntimeError: Reshape z has dynamic second input!")
 def test_reshape_opset5_param_err():
     original_shape = [2, 3, 4]
-    output_shape = np.array([4, 2, 3], dtype=np.int64)
+    output_shape = np.array([4, 2, 3], dtype=np.int32)
     input_data = np.random.random_sample(original_shape).astype(np.float32)
     reshape_node = onnx.helper.make_node("Reshape", inputs=["x", "y"], outputs=["z"])
     ng_result = run_node(reshape_node, [input_data, output_shape], opset_version=5)
     assert ng_result[0].shape == output_shape
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "axis,expected_output",
     [
@@ -94,7 +96,7 @@ def test_reshape_opset5_param_err():
     ],
 )
 def test_flatten(axis, expected_output):
-    data = np.arange(120).reshape([2, 3, 4, 5])
+    data = np.arange(120, dtype=np.int32).reshape([2, 3, 4, 5])
     node = onnx.helper.make_node("Flatten", inputs=["x"], outputs=["y"], axis=axis)
     ng_results = run_node(node, [data])
     assert np.array_equal(ng_results, [expected_output])
@@ -108,16 +110,17 @@ def test_flatten_exception():
         run_node(node, [data])
 
 
-@xfail_issue_35926
 def test_transpose():
-    data = np.arange(120).reshape([2, 3, 4, 5])
+    data = np.arange(120, dtype=np.int32).reshape([2, 3, 4, 5])
 
     node = onnx.helper.make_node("Transpose", inputs=["x"], outputs=["y"])
     expected_output = data.T
     ng_results = run_node(node, [data])
     assert np.array_equal(ng_results, [expected_output])
 
-    node = onnx.helper.make_node("Transpose", inputs=["x"], outputs=["y"], perm=(3, 1, 0, 2))
+    node = onnx.helper.make_node(
+        "Transpose", inputs=["x"], outputs=["y"], perm=(3, 1, 0, 2)
+    )
     expected_output = np.transpose(data, axes=(3, 1, 0, 2))
     ng_results = run_node(node, [data])
     assert np.array_equal(ng_results, [expected_output])
@@ -172,10 +175,9 @@ def test_slice_opset1():
     assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_35926
 def test_concat():
-    a = np.array([[1, 2], [3, 4]])
-    b = np.array([[5, 6]])
+    a = np.array([[1, 2], [3, 4]], dtype=np.int32)
+    b = np.array([[5, 6]], dtype=np.int32)
 
     node = onnx.helper.make_node("Concat", inputs=["x"], outputs=["z"], axis=0)
     ng_results = run_node(node, [a])
@@ -186,8 +188,8 @@ def test_concat():
     ng_results = run_node(node, [a, b])
     assert np.array_equal(ng_results, [expected_output])
 
-    a = np.array([[1, 2], [3, 4]])
-    b = np.array([[5, 6]]).T
+    a = np.array([[1, 2], [3, 4]], dtype=np.int32)
+    b = np.array([[5, 6]], dtype=np.int32).T
     expected_output = np.concatenate((a, b), axis=1)
     node = onnx.helper.make_node("Concat", inputs=["x", "y"], outputs=["z"], axis=1)
     ng_results = run_node(node, [a, b])
@@ -196,90 +198,130 @@ def test_concat():
     test_cases = {
         "1d": ([1, 2], [3, 4]),
         "2d": ([[1, 2], [3, 4]], [[5, 6], [7, 8]]),
-        "3d": ([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[9, 10], [11, 12]], [[13, 14], [15, 16]]]),
+        "3d": (
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            [[[9, 10], [11, 12]], [[13, 14], [15, 16]]],
+        ),
     }
 
     for _, values in test_cases.items():
         values = [np.asarray(v) for v in values]
         for i in range(len(values[0].shape)):
             in_args = ["value" + str(k) for k in range(len(values))]
-            node = onnx.helper.make_node("Concat", inputs=list(in_args), outputs=["output"], axis=i,)
+            node = onnx.helper.make_node(
+                "Concat",
+                inputs=list(in_args),
+                outputs=["output"],
+                axis=i,
+            )
             expected_output = np.concatenate(values, i)
-            ng_results = run_node(node, list(values))
+            ng_results = run_node(node, np.array(values, dtype=np.int32))
             assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_35926
+@xfail_issue_44968
 def test_squeeze():
-    data = np.arange(6).reshape([1, 2, 3, 1])
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
     expected_output = data.reshape([2, 3])
 
-    node = onnx.helper.make_node("Squeeze", inputs=["x"], outputs=["y"], axes=[0, 3])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 3]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     data = np.random.randn(1, 3, 4, 5).astype(np.float32)
     expected_output = np.squeeze(data, axis=0)
-    node = onnx.helper.make_node("Squeeze", inputs=["x"], outputs=["y"], axes=[0])
-    ng_results = run_node(node, [data])
+    axes = np.array([0]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
 
+@xfail_issue_44858
 def test_unsqueeze():
     data = np.random.randn(3, 4, 5).astype(np.float32)
     expected_output = np.expand_dims(data, axis=0)
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0])
-    ng_results = run_node(node, [data])
+    axes = np.array([0]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     expected_output = np.reshape(data, [1, 3, 4, 5, 1])
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0, 4])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 4]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     expected_output = np.reshape(data, [1, 3, 1, 4, 5])
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0, 2])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 2]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "node, expected_output",
     [
         # Split into 2 equal parts along axis=0
         (
             onnx.helper.make_node("Split", inputs=["x"], outputs=["y", "z"], axis=0),
-            [np.array([[0, 1, 2, 3]]), np.array([[4, 5, 6, 7]])],
+            [
+                np.array([[0, 1, 2, 3]], dtype=np.int32),
+                np.array([[4, 5, 6, 7]], dtype=np.int32),
+            ],
         ),
         # Default, split along axis=0 into 2 equal parts
         (
             onnx.helper.make_node("Split", inputs=["x"], outputs=["y", "z"]),
-            [np.array([[0, 1, 2, 3]]), np.array([[4, 5, 6, 7]])],
+            [
+                np.array([[0, 1, 2, 3]], dtype=np.int32),
+                np.array([[4, 5, 6, 7]], dtype=np.int32),
+            ],
         ),
         # Split into 2 equal parts along axis=1
         (
             onnx.helper.make_node("Split", inputs=["x"], outputs=["a", "b"], axis=1),
-            [np.array([[0, 1], [4, 5]]), np.array([[2, 3], [6, 7]])],
+            [
+                np.array([[0, 1], [4, 5]], dtype=np.int32),
+                np.array([[2, 3], [6, 7]], dtype=np.int32),
+            ],
         ),
         # Split into 4 equal parts along axis=1
         (
-            onnx.helper.make_node("Split", inputs=["x"], outputs=["a", "b", "c", "d"], axis=1),
-            [np.array([[0], [4]]), np.array([[1], [5]]), np.array([[2], [6]]), np.array([[3], [7]])],
-        ),
-        # Split into 2 unequal parts along axis=1
-        (
-            onnx.helper.make_node("Split", inputs=["x"], outputs=["a", "b"], axis=1, split=(3, 1)),
-            [np.array([[0, 1, 2], [4, 5, 6]]), np.array([[3], [7]])],
+            onnx.helper.make_node(
+                "Split", inputs=["x"], outputs=["a", "b", "c", "d"], axis=1
+            ),
+            [
+                np.array([[0], [4]], dtype=np.int32),
+                np.array([[1], [5]], dtype=np.int32),
+                np.array([[2], [6]], dtype=np.int32),
+                np.array([[3], [7]], dtype=np.int32),
+            ],
         ),
     ],
 )
 def test_split_2d(node, expected_output):
-    data = np.arange(8).reshape(2, 4)
+    data = np.arange(8, dtype=np.int32).reshape(2, 4)
     ng_results = run_node(node, [data])
     assert all_arrays_equal(ng_results, expected_output)
 
 
+@xfail_issue_44854
+def test_split_2d_splits_input():
+    data = np.arange(8, dtype=np.int32).reshape(2, 4)
+    splits = np.array([3, 1]).astype(np.int64)
+    node = onnx.helper.make_node(
+        "Split", inputs=["x", "splits"], outputs=["a", "b"], axis=1
+    )
+    expected_outputs = [
+        np.array([[0, 1, 2], [4, 5, 6]], dtype=np.int32),
+        np.array([[3], [7]], dtype=np.int32),
+    ]
+    ng_results = run_node(node, [data, splits])
+    assert all_arrays_equal(ng_results, expected_outputs)
+
+
+@xfail_issue_44854
 def test_split_1d():
     # 1D
     data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).astype(np.float32)
@@ -292,13 +334,16 @@ def test_split_1d():
     ng_results = run_node(node, [data])
     assert all_arrays_equal(ng_results, expected_outputs)
 
-    node = onnx.helper.make_node("Split", inputs=["input"], outputs=["y", "z", "w"], axis=0, split=[2, 3, 1])
+    splits = np.array([2, 3, 1]).astype(np.int64)
+    node = onnx.helper.make_node(
+        "Split", inputs=["input", "splits"], outputs=["y", "z", "w"], axis=0
+    )
     expected_outputs = [
         np.array([1.0, 2.0]).astype(np.float32),
         np.array([3.0, 4.0, 5.0]).astype(np.float32),
         np.array([6.0]).astype(np.float32),
     ]
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data, splits])
     assert all_arrays_equal(ng_results, expected_outputs)
 
     # Default values
@@ -313,12 +358,15 @@ def test_split_1d():
     ng_results = run_node(node, [data])
     assert all_arrays_equal(ng_results, expected_outputs)
 
-    node = onnx.helper.make_node("Split", inputs=["input"], outputs=["y", "z"], split=[2, 4])
+    splits = np.array([2, 4]).astype(np.int64)
+    node = onnx.helper.make_node(
+        "Split", inputs=["input", "splits"], outputs=["y", "z"], split=[2, 4]
+    )
     expected_outputs = [
         np.array([1.0, 2.0]).astype(np.float32),
         np.array([3.0, 4.0, 5.0, 6.0]).astype(np.float32),
     ]
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data, splits])
     assert all_arrays_equal(ng_results, expected_outputs)
 
 
@@ -328,9 +376,13 @@ def test_depth_to_space():
     data = np.random.random_sample(shape).astype(np.float32)
     tmp = np.reshape(data, [b, blocksize, blocksize, c // (blocksize ** 2), h, w])
     tmp = np.transpose(tmp, [0, 3, 4, 1, 5, 2])
-    expected_output = np.reshape(tmp, [b, c // (blocksize ** 2), h * blocksize, w * blocksize])
+    expected_output = np.reshape(
+        tmp, [b, c // (blocksize ** 2), h * blocksize, w * blocksize]
+    )
 
-    node = onnx.helper.make_node("DepthToSpace", inputs=["x"], outputs=["y"], blocksize=blocksize)
+    node = onnx.helper.make_node(
+        "DepthToSpace", inputs=["x"], outputs=["y"], blocksize=blocksize
+    )
     ng_results = run_node(node, [data])
     assert np.array_equal(ng_results, [expected_output])
 
@@ -347,7 +399,16 @@ def test_depth_to_space():
     ).astype(np.float32)
     # (1, 1, 4, 6) output tensor
     expected_output = np.array(
-        [[[[0, 6, 1, 7, 2, 8], [12, 18, 13, 19, 14, 20], [3, 9, 4, 10, 5, 11], [15, 21, 16, 22, 17, 23]]]]
+        [
+            [
+                [
+                    [0, 6, 1, 7, 2, 8],
+                    [12, 18, 13, 19, 14, 20],
+                    [3, 9, 4, 10, 5, 11],
+                    [15, 21, 16, 22, 17, 23],
+                ]
+            ]
+        ]
     ).astype(np.float32)
 
     ng_results = run_node(node, [data])

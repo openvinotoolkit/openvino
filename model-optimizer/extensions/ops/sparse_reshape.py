@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -61,6 +48,6 @@ class SparseReshape(Op):
         output_indices_shape = np.concatenate((input_indices_shape[0:1], new_shape_shape))
         node.out_port(0).data.set_shape(output_indices_shape)
 
-        # TODO: implement constant value propogation for common case
+        # TODO: implement constant value propagation for common case
         if np.array_equal(input_shape_value, output_shape_value) and input_indices_value is not None:
             node.out_port(0).data.set_value(input_indices_value)

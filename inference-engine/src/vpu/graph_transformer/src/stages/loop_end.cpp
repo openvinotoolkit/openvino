@@ -1,20 +1,16 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/frontend/frontend.hpp"
 #include "vpu/stages/iteration_rule.hpp"
 
-#include <utility>
-#include <map>
 #include <memory>
 #include <string>
 
 namespace vpu {
 
 namespace {
-
-const int32_t dynamicIterationNum = -1;
 
 class LoopEnd : public StageNode {
 public:
@@ -28,8 +24,8 @@ protected:
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
         const auto& endCopies = attrs().getOrDefault<IterationComponents>("end-iteration-components", {});
         for (const auto& iteration : endCopies) {
-            const auto& dstIdx = iteration.first.first;
-            const auto& srcIdx = iteration.second;
+            const auto& dstIdx = static_cast<int>(iteration.first.first);
+            const auto& srcIdx = static_cast<int>(iteration.second);
             orderInfo.setOutput(outputEdge(dstIdx), inputEdge(srcIdx)->input()->desc().dimsOrder());
         }
 
@@ -56,22 +52,23 @@ protected:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        int32_t iterations_count = attrs().has("batchId") ? dynamicIterationNum : attrs().get<uint32_t>("iterations-count");
-        serializer.append(iterations_count);
+        const auto iterationsCount = static_cast<std::int32_t>(attrs().getOrDefault<std::uint32_t>("iterations-count", g_dynamicIterationCount));
+        serializer.append(iterationsCount);
+
+        const auto& endCopies = attrs().getOrDefault<IterationComponents>("end-iteration-components", {});
+        serializer.append(checked_cast<uint32_t>(endCopies.size()));
 
         if (attrs().has("batchId")) {
             const auto batchId = attrs().get<uint32_t>("batchId");
-            const auto numDims = inputEdge(batchId)->input()->desc().numDims();
+            const auto numDims = outputEdge(batchId)->output()->desc().numDims();
             const auto batchDimInd = numDims - 1 - dimToIeInd(Dim::N, numDims);
             serializer.append(static_cast<uint32_t>(batchDimInd));
         }
 
-        const auto& endCopies = attrs().getOrDefault<IterationComponents>("end-iteration-components", {});
-        serializer.append(checked_cast<uint32_t>(endCopies.size()));
         for (const auto& component : endCopies) {
             const auto& rule = component.first.second;
             auto axis = rule.axis;
-            auto axisInd = static_cast<int32_t>(output(component.first.first)->desc().dimsOrder().dimInd(axis));
+            auto axisInd = static_cast<int32_t>(output(static_cast<int>(component.first.first))->desc().dimsOrder().dimInd(axis));
 
             serializer.append(axisInd);
             serializer.append(rule.start);
@@ -85,12 +82,12 @@ protected:
 
         if (attrs().has("batchId")) {
             auto batchId = attrs().get<uint32_t>("batchId");
-            inputEdge(batchId)->input()->serializeBuffer(serializer);
+            outputEdge(batchId)->output()->serializeBuffer(serializer);
         }
 
         for (const auto& iteration : endCopies) {
-            output(iteration.first.first)->serializeBuffer(serializer);
-            input(iteration.second)->serializeBuffer(serializer);
+            output(static_cast<int>(iteration.first.first))->serializeBuffer(serializer);
+            input(static_cast<int>(iteration.second))->serializeBuffer(serializer);
         }
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <utility>
 
 #include <mvnc.h>
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
 
 #include <ie_parameter.hpp>
 
@@ -79,7 +79,7 @@ class MyriadExecutor {
 
 public:
     MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
-                        const LogLevel& vpuLogLevel, const Logger::Ptr& log);
+                   const LogLevel& vpuLogLevel, const Logger::Ptr& log);
     ~MyriadExecutor() = default;
 
     /**

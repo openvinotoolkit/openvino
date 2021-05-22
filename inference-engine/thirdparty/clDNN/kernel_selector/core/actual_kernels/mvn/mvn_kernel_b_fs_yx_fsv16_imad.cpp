@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
 #include "common/common_tools.h"
@@ -30,10 +20,12 @@ ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
@@ -65,7 +57,7 @@ bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p, const optional_para
 }
 
 MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_params& params) const {
-    auto kd = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
     auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
@@ -77,28 +69,28 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_p
 
     auto lws = std::max(std::min(items_num, max_lws) / simd, (size_t)1) * simd;
 
-    kd.gws0 = lws;
-    kd.gws1 = CeilDiv(params.output.Feature().v, fsv);
-    kd.gws2 = params.output.Batch().v;
+    dispatchData.gws[0] = lws;
+    dispatchData.gws[1] = CeilDiv(params.output.Feature().v, fsv);
+    dispatchData.gws[2] = params.output.Batch().v;
 
-    kd.lws0 = lws;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = lws;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.itemsNum = 1;
+    dispatchData.itemsNum = 1;
 
-    return kd;
+    return dispatchData;
 }
 
-JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& params, DispatchData kd) const {
-    auto jits = Parent::GetJitConstants(params, kd);
+JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
+    auto jits = Parent::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
     jits.Merge(MakeTypeJitConstants(activation_dt, "MEAN"));
     jits.AddConstant(MakeJitConstant("SIMD", simd));
-    jits.AddConstant(MakeJitConstant("LWS", kd.lws0));
-    jits.AddConstant(MakeJitConstant("GWS", kd.gws0));
-    jits.AddConstant(MakeJitConstant("ITEM_GROUPS", kd.itemsNum));
+    jits.AddConstant(MakeJitConstant("LWS", dispatchData.lws[0]));
+    jits.AddConstant(MakeJitConstant("GWS", dispatchData.gws[0]));
+    jits.AddConstant(MakeJitConstant("ITEM_GROUPS", dispatchData.itemsNum));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
@@ -124,7 +116,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& par
 
 MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefaultForMulti(
     const mvn_params& params) const {
-    MultiDispatchData md;
+    MultiDispatchData dispatchData;
 
     auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
@@ -137,55 +129,54 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
 
     // TODO Check if larger number of work-groups does not provide benefit
     size_t item_groups = pref_work_groups;
-    md.item_groups = item_groups;
+    dispatchData.item_groups = item_groups;
 
     size_t stage1_lws = lws;
 
-    md.stage_1.gws0 = stage1_lws * item_groups;
-    md.stage_1.gws1 = CeilDiv(params.output.Feature().v, fsv);
-    md.stage_1.gws2 = params.output.Batch().v;
+    dispatchData.stage_1.gws[0] = stage1_lws * item_groups;
+    dispatchData.stage_1.gws[1] = CeilDiv(params.output.Feature().v, fsv);
+    dispatchData.stage_1.gws[2] = params.output.Batch().v;
 
-    md.stage_1.lws0 = stage1_lws;
-    md.stage_1.lws1 = 1;
-    md.stage_1.lws2 = 1;
+    dispatchData.stage_1.lws[0] = stage1_lws;
+    dispatchData.stage_1.lws[1] = 1;
+    dispatchData.stage_1.lws[2] = 1;
 
-    md.stage_1.itemsNum = item_groups;
+    dispatchData.stage_1.itemsNum = item_groups;
 
     size_t stage2_lws = std::max(std::min(item_groups, max_lws) / simd, (size_t)1) * simd;
 
-    md.stage_2.gws0 = stage2_lws;
-    md.stage_2.gws1 = CeilDiv(params.output.Feature().v, fsv);
-    md.stage_2.gws2 = params.output.Batch().v;
+    dispatchData.stage_2.gws[0] = stage2_lws;
+    dispatchData.stage_2.gws[1] = CeilDiv(params.output.Feature().v, fsv);
+    dispatchData.stage_2.gws[2] = params.output.Batch().v;
 
-    md.stage_2.lws0 = stage2_lws;
-    md.stage_2.lws1 = 1;
-    md.stage_2.lws2 = 1;
+    dispatchData.stage_2.lws[0] = stage2_lws;
+    dispatchData.stage_2.lws[1] = 1;
+    dispatchData.stage_2.lws[2] = 1;
 
-    md.stage_2.itemsNum = item_groups;
+    dispatchData.stage_2.itemsNum = item_groups;
 
-    md.stage_final.gws0 = std::max(items_num / simd, (size_t)1) * simd;
-    md.stage_final.gws1 = CeilDiv(params.output.Feature().v, fsv);
-    md.stage_final.gws2 = params.output.Batch().v;
+    dispatchData.stage_final.gws[0] = std::max(items_num / simd, (size_t)1) * simd;
+    dispatchData.stage_final.gws[1] = CeilDiv(params.output.Feature().v, fsv);
+    dispatchData.stage_final.gws[2] = params.output.Batch().v;
 
-    md.stage_final.lws0 = simd;
-    md.stage_final.lws1 = 1;
-    md.stage_final.lws2 = 1;
+    dispatchData.stage_final.lws[0] = simd;
+    dispatchData.stage_final.lws[1] = 1;
+    dispatchData.stage_final.lws[2] = 1;
 
-    md.stage_final.itemsNum = 1;
+    dispatchData.stage_final.itemsNum = 1;
 
-    return md;
+    return dispatchData;
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params,
-                                                                   const optional_params& options,
-                                                                   float estimated_time) const {
+                                                                   const optional_params& options) const {
     if (!Validate(params, options))
         return {};
 
     constexpr size_t intermidiate_bytes = 4;
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
-    auto runInfo = SetDefaultForMulti(orgParams);
+    auto dispatchData = SetDefaultForMulti(orgParams);
 
     size_t kernels_num = params.mvnNormalizeVariance ? 5 : 3;
     KernelData kd = KernelData::Default<mvn_params>(params, kernels_num);
@@ -193,13 +184,13 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     auto finalKernelName = GetKernelName(orgParams);
     {
         // Mean first stage
-        auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_1);
+        auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_1", 1));
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
         FillCLKernelData(kernel,
-                         runInfo.stage_1,
+                         dispatchData.stage_1,
                          params.engineInfo,
                          finalKernelName,
                          jit,
@@ -213,17 +204,17 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
-                                         runInfo.item_groups * intermidiate_bytes);
+                                         dispatchData.item_groups * intermidiate_bytes);
     }
     {
         // Mean second stage
-        auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_2);
+        auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_2);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_2", 1));
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[1];
         FillCLKernelData(kernel,
-                         runInfo.stage_2,
+                         dispatchData.stage_2,
                          params.engineInfo,
                          finalKernelName,
                          jit,
@@ -241,13 +232,13 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     }
     if (params.mvnNormalizeVariance) {
         // Variance first stage
-        auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_1);
+        auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_1", 1));
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[2];
         FillCLKernelData(kernel,
-                         runInfo.stage_1,
+                         dispatchData.stage_1,
                          params.engineInfo,
                          finalKernelName,
                          jit,
@@ -264,13 +255,13 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     }
     if (params.mvnNormalizeVariance) {
         // Variance second stage
-        auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_2);
+        auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_2);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_2", 1));
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[3];
         FillCLKernelData(kernel,
-                         runInfo.stage_2,
+                         dispatchData.stage_2,
                          params.engineInfo,
                          finalKernelName,
                          jit,
@@ -287,7 +278,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                                          intermidiate_bytes);
     }
     {  // Final
-        auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_final);
+        auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_final);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN", 1));
         cldnn_jit.AddConstant(MakeJitConstant("PRECALC_MEAN", 1));
         cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
@@ -295,7 +286,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[kernels_num - 1];
         FillCLKernelData(kernel,
-                         runInfo.stage_final,
+                         dispatchData.stage_final,
                          params.engineInfo,
                          finalKernelName,
                          jit,
@@ -311,7 +302,6 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         }
     }
     kd.internalBufferDataType = Datatype::F32;
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
@@ -329,8 +319,12 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
     if (enough_slm && enough_lws && enough_items)
-        return GetMultiStageKernelsData(orgParams, optParams, FORCE_PRIORITY_4);
+        return GetMultiStageKernelsData(orgParams, optParams);
     else
-        return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_4);
+        return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

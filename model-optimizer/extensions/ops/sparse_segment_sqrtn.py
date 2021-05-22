@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -28,7 +15,7 @@ class SparseSegmentSqrtN(Op):
             - [0, required] Data tensor from which rows are selected for the sum divided by sqrt of N (ND),
             - [1, required] Tensor of indices of selected rows from the first input tensor along 0 dimension (1D),
             - [2, required] Tensor of segment IDs to which selected rows belong.
-                            Selected rows beloging to the same segment are summed up. The tensor has the same size as the second input.
+                            Selected rows belonging to the same segment are summed up. The tensor has the same size as the second input.
                             Values must be sorted and can be repeated. (1D).
         
         One output:

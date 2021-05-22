@@ -15,17 +15,23 @@ The toolkit consists of three primary components:
 
 In addition, demo scripts, code samples and demo applications are provided to help you get up and running with the toolkit:
 * **Demo Scripts** - Shell scripts that automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios.  
-* [**Code Samples**](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html) - Small console applications that show you how to: 
+* **[Code Samples](../IE_DG/Samples_Overview.md)** - Small console applications that show you how to: 
     * Utilize specific OpenVINO capabilities in an application
     * Perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more.
-* [**Demo Applications**](https://docs.openvinotoolkit.org/latest/_demos_README.html) - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
+* **[Demo Applications](@ref omz_demos)** - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
 
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
-This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for Linux*](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html).
+This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for Linux*](../install_guides/installing-openvino-linux.md).
 
-By default, the installation directory is `/opt/intel/openvino`, but the installation gave you the option to use the directory of your choice. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `/opt/intel` with the directory in which you installed the software.
+By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
+* For root or administrator: `/opt/intel/openvino_<version>/`
+* For regular users: `/home/<USER>/intel/openvino_<version>/`
 
-The primary tools for deploying your models and applications are installed to the `/opt/intel/openvino/deployment_tools` directory.
+For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`
+
+If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `/opt/intel` or `/home/<USER>/` with the directory in which you installed the software.
+
+The primary tools for deploying your models and applications are installed to the `/opt/intel/openvino_2021/deployment_tools` directory.
 <details>
     <summary><strong>Click for the Intel® Distribution of OpenVINO™ toolkit directory structure</strong></summary>
    
@@ -40,9 +46,9 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples/`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`src/`          | Source files for CPU extensions.|
 | `model_optimizer/`                      | Model Optimizer directory. Contains configuration scripts, scripts to run the Model Optimizer and other files. See the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-| `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_intel_index) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
+| `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_group_intel) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`demos/`        | Demo applications for inference scenarios. Also includes documentation and build scripts.| 
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel).|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`tools/`        | Model Downloader and Accuracy Checker tools. |
 | `tools/`                                | Contains a symbolic link to the Model Downloader folder and auxiliary tools to work with your models: Calibration tool, Benchmark and Collect Statistics tools.|
 
@@ -57,7 +63,7 @@ The simplified OpenVINO™ workflow is:
 
 ## Use the Demo Scripts to Learn the Workflow
 
-The demo scripts in `/opt/intel/openvino/deployment_tools/demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps let you see how to: 
+The demo scripts in `/opt/intel/openvino_2021/deployment_tools/demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps let you see how to: 
 * Compile several samples from the source files delivered as part of the OpenVINO toolkit.
 * Download trained models.
 * Perform pipeline steps and see the output on the console.
@@ -70,7 +76,9 @@ The demo scripts can run inference on any [supported target device](https://soft
 ./<script_name> -d [CPU, GPU, MYRIAD, HDDL]
 ```
 
-Before running the demo applications on Intel® Processor Graphics or on an Intel® Neural Compute Stick 2 device, you must complete the  [Steps for Intel® Processor Graphics (GPU)](https://docs.openvinotoolkit.org/2020.1/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps) or [Steps for Intel® Neural Compute Stick 2](https://docs.openvinotoolkit.org/2020.1/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps).
+Before running the demo applications on Intel® Processor Graphics or on an Intel® Neural Compute Stick 2 device, you must complete the additional configuration steps. For details, see:
+* Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-linux.md)
+* Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-linux.md).
 
 The following paragraphs describe each demo script.
 
@@ -85,6 +93,13 @@ The script:
 
 <details>
     <summary><strong>Click for an example of running the Image Classification demo script</strong></summary>
+
+To preview the image that the script will classify:
+
+```sh
+cd ${INTEL_OPENVINO_DIR}/deployment_tools/demo
+eog car.png
+```
 
 To run the script to perform inference on a CPU:
 
@@ -149,7 +164,7 @@ To run the script performing inference on Intel® Processor Graphics:
 
 When the verification script completes, you see an image that displays the resulting frame with detections rendered as bounding boxes, and text:
 
-![](https://docs.openvinotoolkit.org/latest/inference_pipeline_script_lnx.png)
+![](../img/inference_pipeline_script_lnx.png)
 
 </details>
 
@@ -165,11 +180,12 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Benchmark demo script</strong></summary>
 
-To run the script that performs inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
+To run the script that performs inference (runs on CPU by default):
 
 ```sh
-./demo_squeezenet_download_convert_run.sh -d HDDL
+./demo_benchmark_app.sh
 ```
+
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>
 
@@ -187,21 +203,21 @@ You will perform the following steps:
 
 Each demo and code sample is a separate application, but they use the same behavior and components. The code samples and demo applications are:
 
-* [Code Samples](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html) - Small console applications that show how to utilize specific OpenVINO capabilities within an application and execute specific tasks such as loading a model, running inference, querying specific device capabilities, and more.
+* [Code Samples](../IE_DG/Samples_Overview.md) - Small console applications that show how to utilize specific OpenVINO capabilities within an application and execute specific tasks such as loading a model, running inference, querying specific device capabilities, and more.
 
-* [Demo Applications](https://docs.openvinotoolkit.org/latest/_demos_README.html) - Console applications that provide robust application templates to support developers in implementing specific deep learning scenarios. They may also involve more complex processing pipelines that gather analysis from several models that run inference simultaneously. For example concurrently detecting a person in a video stream and detecting attributes such as age, gender and/or emotions.
+* [Demo Applications](@ref omz_demos) - Console applications that provide robust application templates to support developers in implementing specific deep learning scenarios. They may also involve more complex processing pipelines that gather analysis from several models that run inference simultaneously. For example concurrently detecting a person in a video stream and detecting attributes such as age, gender and/or emotions.
  
 Inputs you'll need to specify:
-- **A compiled OpenVINO™ code sample or demo application** that runs inferencing against a model that has been run through the Model Optimizer, resuiting in an IR, using the other inputs you provide.
+- **A compiled OpenVINO™ code sample or demo application** that runs inferencing against a model that has been run through the Model Optimizer, resulting in an IR, using the other inputs you provide.
 - **One or more models** in the Intermediate Representation format. Each model is trained for a specific task. Examples include pedestrian detection, face detection, vehicle detection, license plate recognition, head pose, and others. Different models are used for different applications. Models can be chained together to provide multiple features; for example vehicle + make/model + license plate recognition.
 - **One or more media files**. The media is typically a video file, but can be a still photo.
-- **One or more target device** on which you run inference. The target device can be the CPU, GPU, FPGA, or VPU accelerator.
+- **One or more target device** on which you run inference. The target device can be the CPU, GPU, or VPU accelerator.
 
 ### Build the Code Samples and Demo Applications 
 
 To perform sample inference, run the Image Classification code sample and Security Barrier Camera demo application that were automatically compiled when you ran the Image Classification and Inference Pipeline demo scripts. The binary files are in the `~/inference_engine_cpp_samples_build/intel64/Release` and `~/inference_engine_demos_build/intel64/Release` directories, respectively.
 
-To run other sample code or demo applications, build them from the source files delivered as part of the OpenVINO toolkit. To learn how to build these, see the [Inference Engine Code Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html#build_samples_linux) and the [Demo Applications Overview](https://docs.openvinotoolkit.org/latest/_demos_README.html#build_the_demo_applications) sections.
+To run other sample code or demo applications, build them from the source files delivered as part of the OpenVINO toolkit. To learn how to build these, see the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos) sections.
 
 ### <a name="download-models"></a> Step 1: Download the Models
 
@@ -211,7 +227,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](https://docs.openvinotoolkit.org/latest/_tools_downloader_README.html#model_downloader_usage).
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, etc.
 - Train your own model.
         
@@ -219,7 +235,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**: 
 ```sh
-cd /opt/intel/openvino/deployment_tools/tools/model_downloader/
+cd /opt/intel/openvino_2021/deployment_tools/tools/model_downloader/
 ```
 ```sh
 python3 info_dumper.py --print_all
@@ -323,7 +339,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 
 3. Run the Model Optimizer script:
    ```sh
-   cd /opt/intel/openvino/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
@@ -336,7 +352,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `~/models/public/squeezenet1.1/ir` output directory:
 
 ```sh
-   cd /opt/intel/openvino/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
@@ -344,9 +360,9 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `~/models/public/squeezenet1.1/ir` directory.
 
-Copy the `squeezenet1.1.labels` file from the `/opt/intel/openvino/deployment_tools/demo/` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
+Copy the `squeezenet1.1.labels` file from the `/opt/intel/openvino_2021/deployment_tools/demo/` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
    ```sh   
-   cp /opt/intel/openvino/deployment_tools/demo/squeezenet1.1.labels <ir_dir>
+   cp /opt/intel/openvino_2021/deployment_tools/demo/squeezenet1.1.labels <ir_dir>
    ```
 </details>
 
@@ -357,18 +373,18 @@ Many sources are available from which you can download video media to use the co
 - https://images.google.com
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes two sample images that you can use for running code samples and demo applications:
-* `/opt/intel/openvino/deployment_tools/demo/car.png`
-* `/opt/intel/openvino/deployment_tools/demo/car_1.bmp`
+* `/opt/intel/openvino_2021/deployment_tools/demo/car.png`
+* `/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp`
 
 ### <a name="run-image-classification"></a>Step 4: Run the Image Classification Code Sample
 
-> **NOTE**: The Image Classification code sample is automatically compiled when you ran the Image Classification demo script. If you want to compile it manually, see the [Inference Engine Code Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html#build_samples_linux) section. 
+> **NOTE**: The Image Classification code sample is automatically compiled when you ran the Image Classification demo script. If you want to compile it manually, see the *Build the Sample Applications on Linux* section in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md). 
 
 To run the **Image Classification** code sample with an input image on the IR: 
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino/bin/setupvars.sh
+   source /opt/intel/openvino_2021/bin/setupvars.sh
    ``` 
 2. Go to the code samples build directory:
    ```sh
@@ -381,29 +397,33 @@ To run the **Image Classification** code sample with an input image on the IR:
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
 
-The following commands run the Image Classification Code Sample using the `car.png` file from the `/opt/intel/openvino/deployment_tools/demo/` directory as an input image, the IR of your model from `~/models/public/squeezenet1.1/ir` and on different hardware devices:
+The following commands run the Image Classification Code Sample using the `car.png` file from the `/opt/intel/openvino_2021/deployment_tools/demo/` directory as an input image, the IR of your model from `~/models/public/squeezenet1.1/ir` and on different hardware devices:
 
 **CPU:**
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
    ```
 
    **GPU:**
    
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
-    [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps).
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires additional hardware configuration steps. For details, see the Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-linux.md).
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d GPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d GPU
    ```
    
    **MYRIAD:** 
 
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute 
-   Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-    [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
+   > **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-linux.md).
    ```sh   
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
    ```
+   
+   **HDDL:**
+
+  > **NOTE**: Running inference on the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs device with the HDDL plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the [installation instructions](../install_guides/installing-openvino-linux.md).
+  ```sh   
+  ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d HDDL
+  ```
 
 When the Sample Application completes, you see the label and confidence for the top-10 categories on the display. Below is a sample output with inference results on CPU:    
 ```sh
@@ -437,13 +457,13 @@ Throughput: 375.3339402 FPS
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
-> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you ran the Inference Pipeline demo scripts. If you want to build it manually, see the [Demo Applications Overview](https://docs.openvinotoolkit.org/latest/_demos_README.html#build_the_demo_applications) section.
+> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you ran the Inference Pipeline demo scripts. If you want to build it manually, see the [Demo Applications Overview](@ref omz_demos) section.
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IRs:
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino/bin/setupvars.sh
+   source /opt/intel/openvino_2021/bin/setupvars.sh
    ``` 
 2. Go to the demo application build directory:
    ```sh
@@ -460,23 +480,28 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 **CPU:**
 
 ```sh
-./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m /home/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml -m_va /home/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml -m_lpr /home/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml -d CPU
+./security_barrier_camera_demo -i /opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp -m /home/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml -m_va /home/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml -m_lpr /home/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml -d CPU
 ```
 
 **GPU:**
    
-> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps).
+> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires additional hardware configuration steps. For details, see the Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-linux.md).
 ```sh
-./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
+./security_barrier_camera_demo -i /opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
 ```
 
 **MYRIAD:** 
    
-> **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute 
-   Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-    [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps).
+> **NOTE**: Running inference on the Intel® Neural Compute Stick 2 device with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-linux.md).
 ```sh   
 ./classification_sample_async -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
+```
+
+**HDDL:**
+
+> **NOTE**: Running inference on the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs device with the HDDL plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the [installation instructions](../install_guides/installing-openvino-linux.md).
+```sh   
+./classification_sample_async -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d HDDL
 ```
 
 </details>
@@ -487,7 +512,7 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ``` 
 2. Have the directory path for the following:
 - Code Sample binaries located in `~/inference_engine_cpp_samples_build/intel64/Release`
@@ -496,6 +521,24 @@ source /opt/intel/openvino/bin/setupvars.sh
 - Model: Neural Network topology converted with the Model Optimizer to the IR format (.bin and .xml files). See <a href="#download-models">Download Models</a> for more information.
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
+
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos_README) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
+build_samples.sh
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+build_demos.sh
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `~/inference_engine_samples_build/intel64/Release`
+* `~/inference_engine_cpp_samples_build/intel64/Release`
+* `~/inference_engine_demos_build/intel64/Release`
 
 Template to call sample code or a demo application:
 
@@ -548,9 +591,8 @@ You can see all the sample application’s parameters by adding the `-h` or `--h
 Use these resources to learn more about the OpenVINO™ toolkit:
 
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [Introduction to Intel® Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
-* [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-* [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
+* [OpenVINO™ Toolkit Overview](../index.md)
+* [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
+* [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 * [Overview of OpenVINO™ Toolkit Pre-Trained Models](https://software.intel.com/en-us/openvino-toolkit/documentation/pretrained-models)
-* [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic)

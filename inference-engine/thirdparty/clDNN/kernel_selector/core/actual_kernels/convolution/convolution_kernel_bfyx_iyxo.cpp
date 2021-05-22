@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_bfyx_iyxo.h"
 #include <vector>
@@ -39,19 +28,21 @@ ParamsKey ConvolutionKernel_bfyx_iyxo::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(const convolution_params& cp, int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    runInfo.efficiency = FORCE_PRIORITY_9;
+    dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 4;
+    dispatchData.gws[1] = cp.output.Y().v;
+    dispatchData.gws[2] = sub_group_size;
 
-    runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 4;
-    runInfo.gws1 = cp.output.Y().v;
-    runInfo.gws2 = sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = sub_group_size;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = sub_group_size;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_params& o) const {
@@ -76,10 +67,10 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_param
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params, const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
 
     return jit;
 }

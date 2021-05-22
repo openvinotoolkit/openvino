@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,13 +20,13 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
             </output>
         </layer>
         <layer id="3" name="1345_const" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="" size="4"/>
             <output>
                 <port id="1" precision="FP32" />
             </output>
         </layer>
         <layer id="4" name="3459_const" type="Const" version="opset1">
-            <data offset="4" size="4"/>
+            <data element_type="f32" offset="4" shape="" size="4"/>
             <output>
                 <port id="1" precision="FP32" />
             </output>

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,36 +189,26 @@ TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
      _outputsInfo = network.getOutputsInfo();
     _outputsInfo["roi_align"]->setPrecision(Precision::FP16);
 
-    StatusCode st = OK;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     Blob::Ptr roisBlob;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("boxes", roisBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(roisBlob = _inferRequest.GetBlob("boxes"));
     genROIs(roisBlob, test_params, num_rois);
 
     Blob::Ptr featureMapBlob;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("feature_map", featureMapBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(featureMapBlob = _inferRequest.GetBlob("feature_map"));
     GenRandomData(featureMapBlob);
 
     Blob::Ptr batchIndicesBlob;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("batch_indices", batchIndicesBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(batchIndicesBlob = _inferRequest.GetBlob("batch_indices"));
     genBatchIndices(batchIndicesBlob, num_rois, num_batches);
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest.Infer());
+    
     Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("roi_align", outputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("roi_align"));
+    
     Blob::Ptr refOutputBlob = make_shared_blob<float>({Precision::FP32,
                                                       outputBlob->getTensorDesc().getDims(),
                                                       outputBlob->getTensorDesc().getLayout()});
@@ -243,16 +233,26 @@ TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
 static std::vector<Dims> s_ROIAlignLayerInput = {
     {{5, 256, 160, 157}},
 };
-
 static std::vector<roi_align_param> s_ROIAlignLayerParam = {
     {{640, 640, 7, 9, 2, 1.4f}},
 };
-
 static std::vector<number_rois> s_ROIAlignNumROIs = {
     53
 };
-
 static std::vector<roi_align_mode> s_ROIAlignMode = {
-        std::string("avg"),
-        std::string("max")
+    std::string("avg"),
+    std::string("max")
+};
+
+static std::vector<Dims> s_ROIAlignLayerInput_Faster = {
+    {{1, 256, 200, 257}},
+};
+static std::vector<roi_align_param> s_ROIAlignLayerParam_Faster = {
+    {{640, 640, 7, 7, 2, 0.25f}},
+};
+static std::vector<number_rois> s_ROIAlignNumROIs_Faster = {
+    750
+};
+static std::vector<roi_align_mode> s_ROIAlignMode_Faster = {
+    std::string("avg")
 };

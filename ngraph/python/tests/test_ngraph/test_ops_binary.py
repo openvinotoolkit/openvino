@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import operator
 
 import numpy as np
@@ -21,7 +9,6 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
 
 
 @pytest.mark.parametrize(
@@ -202,10 +189,9 @@ def test_binary_operators_with_scalar(operator, numpy_function):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_multiply():
-    A = np.arange(48).reshape((8, 1, 6, 1))
-    B = np.arange(35).reshape((7, 1, 5))
+    A = np.arange(48, dtype=np.int32).reshape((8, 1, 6, 1))
+    B = np.arange(35, dtype=np.int32).reshape((7, 1, 5))
 
     expected = np.multiply(A, B)
     result = run_op_node([A, B], ng.multiply)

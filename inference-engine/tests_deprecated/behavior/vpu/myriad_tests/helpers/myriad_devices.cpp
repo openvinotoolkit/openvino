@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 
 constexpr char MyriadDevicesInfo::kMyriadXName[];
 constexpr char MyriadDevicesInfo::kMyriad2Name[];
+constexpr char MyriadDevicesInfo::kMyriadXPCIeName[];
 
 MyriadDevicesInfo::MyriadDevicesInfo() {
 #if (defined(_WIN32) || defined(_WIN64))

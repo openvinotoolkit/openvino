@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24,6 +12,8 @@
 #include <utility>
 
 #include "reshape_inst.h"
+#include "one_hot_inst.h"
+#include "permute_inst.h"
 
 using namespace cldnn;
 
@@ -85,8 +75,9 @@ void remove_redundant_reorders::run(program_impl& p) {
                 continue;
 
             auto output_padded = static_cast<bool>(output_layout.data_padding);
-            auto can_omit_padding = (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
-                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4);
+            auto can_omit_padding = ((output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
+                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4)) ||
+                                    (output_layout.format == format::b_fs_zyx_fsv16 && input.get_output_layout().format == format::bfzyx);
 
             if (output_padded && !can_omit_padding) {
                 if (input.get_users().size() != 1)
@@ -166,7 +157,7 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         bool no_output_optimization = remove_output_reorders ?
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                r_node.get_dependency(0).can_be_optimized()) : r_node.is_output();
+                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
@@ -276,64 +267,71 @@ void remove_redundant_reorders::run(program_impl& p) {
 
     // This pass removed reorder if previous node can store directly to required layout
     itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>())  // only care for reorders
-            continue;
+    if (enable_reorder_fusing) {
+        while (itr != p.get_processing_order().end()) {
+            auto& node_ptr = *itr++;
+            if (!node_ptr->is_type<reorder>())  // only care for reorders
+                continue;
 
-        auto& node = node_ptr->as<reorder>();
+            auto& node = node_ptr->as<reorder>();
 
-        auto& input = node.input();
-        auto output_layout = node.get_output_layout();
+            auto& input = node.input();
+            auto output_layout = node.get_output_layout();
 
-        if (node.is_output())
-            continue;
+            if (node.is_output())
+                continue;
 
-        if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
-            continue;
+            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
+                continue;
 
-        if (!node.get_fused_activations_funcs().empty())
-            continue;
+            if (!node.get_fused_activations_funcs().empty())
+                continue;
 
-        if (input.get_users().size() != 1 || node.get_users().empty())
-            continue;
+            if (input.get_users().size() != 1 || node.get_users().empty())
+                continue;
 
-        auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-        if (!same_data_type)
-            continue;
+            bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>()) || (input.is_type<permute>());
+            if (!same_data_type && !allowed_dt_conversion_fuse)
+                continue;
 
-        if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
-            continue;
+            if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
+                continue;
 
-        input.set_output_layout(output_layout, false);
-        if (input.type()->does_possible_implementation_exist(p.get_engine(), input)) {
-            p.replace_all_usages(node, input);
-            p.add_optimized_primitive_info(node.id());
-            p.remove_all_connections(node);
-            p.remove_if_dangling(node);
+            input.set_output_layout(output_layout, false);
+            if (input.type()->does_possible_implementation_exist(p.get_engine(), input)) {
+                p.replace_all_usages(node, input);
+                p.add_optimized_primitive_info(node.id());
+                p.remove_all_connections(node);
+                p.remove_if_dangling(node);
+            }
         }
     }
-
-    // This pass removed reorder if the next node supports reorder's input format
+    // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
-        if (!node->is_type<reorder>() || !node->is_in_data_flow() || node->get_users().size() != 1 || node->get_dependencies().size() != 1)
+        auto& node_ptr = *itr++;
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
             continue;
 
-        auto& usr = node->get_users().front();
-        auto& dep = node->get_dependency(0);
+        auto& usr = node_ptr->get_users().front();
+        auto& dep = node_ptr->get_dependency(0);
         if (!usr->is_type<quantize>() ||
             (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
              dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
              dep.get_output_layout().format != format::bfyx))
             continue;
 
-        dep.merge_output_padding(node->get_output_layout().data_padding);
-        p.replace_all_usages(*node, dep);
-        p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
-        p.remove_if_dangling(*node);
+        auto& node = node_ptr->as<reorder>();
+        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
+        if (!same_data_type)
+            continue;
+
+        dep.merge_output_padding(node.get_output_layout().data_padding);
+        p.replace_all_usages(node, dep);
+        p.add_optimized_primitive_info(node.id());
+        p.remove_all_connections(node);
+        p.remove_if_dangling(node);
     }
 
     // This pass removes reorder for Convolution BFYX -> FS_B_YX_FSV32

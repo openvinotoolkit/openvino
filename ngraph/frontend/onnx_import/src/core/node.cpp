@@ -1,26 +1,14 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <onnx/onnx_pb.h>
 
-#include "attribute.hpp"
-#include "graph.hpp"
-#include "node.hpp"
-#include "null_node.hpp"
-#include "tensor.hpp"
+#include "core/attribute.hpp"
+#include "core/graph.hpp"
+#include "core/null_node.hpp"
+#include "core/tensor.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph
 {
@@ -33,6 +21,8 @@ namespace ngraph
 
             Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
                 : m_node_proto{&node_proto}
+                , m_name{node_proto.has_name() ? node_proto.name() : ""}
+                , m_domain{get_node_domain(node_proto)}
                 , m_graph{&graph}
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
@@ -54,6 +44,10 @@ namespace ngraph
 
             bool has_attribute(const std::string& name) const;
 
+            Subgraph get_subgraph_from_attribute(
+                const std::string& name,
+                const std::map<std::size_t, std::string>& carried_dependencies_map) const;
+
             template <typename T>
             T get_attribute_value(const std::string& name, T default_value) const;
 
@@ -65,6 +59,8 @@ namespace ngraph
 
         private:
             const ONNX_NAMESPACE::NodeProto* m_node_proto;
+            std::string m_name;
+            std::string m_domain;
             const Graph* m_graph;
             std::vector<Attribute> m_attributes;
             std::vector<std::reference_wrapper<const std::string>> m_output_names;
@@ -74,9 +70,9 @@ namespace ngraph
         const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const { return *m_node_proto; }
         const Graph& Node::Impl::graph() const { return *m_graph; }
         const std::vector<Attribute>& Node::Impl::attributes() const { return m_attributes; }
-        const std::string& Node::Impl::domain() const { return m_node_proto->domain(); }
+        const std::string& Node::Impl::domain() const { return m_domain; }
         const std::string& Node::Impl::op_type() const { return m_node_proto->op_type(); }
-        const std::string& Node::Impl::name() const { return m_node_proto->name(); }
+        const std::string& Node::Impl::name() const { return m_name; }
         const std::vector<std::reference_wrapper<const std::string>>&
             Node::Impl::get_output_names() const
         {
@@ -96,6 +92,21 @@ namespace ngraph
                     return attribute.get_name() == name;
                 });
             return it != std::end(m_attributes);
+        }
+
+        Subgraph Node::Impl::get_subgraph_from_attribute(
+            const std::string& name,
+            const std::map<std::size_t, std::string>& carried_dependencies_map) const
+        {
+            auto it = std::find_if(
+                std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
+                    return attribute.get_name() == name;
+                });
+            if (it == std::end(m_attributes))
+            {
+                throw error::node::UnknownAttribute{this->name(), name};
+            }
+            return it->get_subgraph(graph(), carried_dependencies_map);
         }
 
         template <typename T>
@@ -129,15 +140,8 @@ namespace ngraph
         template <>
         Subgraph Node::Impl::get_attribute_value(const std::string& name) const
         {
-            auto it = std::find_if(
-                std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-                    return attribute.get_name() == name;
-                });
-            if (it == std::end(m_attributes))
-            {
-                throw error::node::UnknownAttribute{this->name(), name};
-            }
-            return it->get_subgraph(graph());
+            const std::map<std::size_t, std::string> empty_map;
+            return get_subgraph_from_attribute(name, empty_map);
         }
 
         OutputVector Node::Impl::get_ng_nodes(const Node& node) const
@@ -213,6 +217,39 @@ namespace ngraph
         bool Node::has_attribute(const std::string& name) const
         {
             return m_pimpl->has_attribute(name);
+        }
+
+        Subgraph Node::get_subgraph_from_attribute(
+            const std::string& name,
+            const std::map<std::size_t, std::string>& carried_dependencies_map) const
+        {
+            return m_pimpl->get_subgraph_from_attribute(name, carried_dependencies_map);
+        }
+
+        std::vector<std::string> Node::get_attribute_names() const
+        {
+            std::vector<std::string> attr_names;
+            const auto& node_attributes = m_pimpl->attributes();
+            attr_names.reserve(node_attributes.size());
+            std::transform(std::begin(node_attributes),
+                           std::end(node_attributes),
+                           std::back_inserter(attr_names),
+                           [](const Attribute& a) { return a.get_name(); });
+            return attr_names;
+        }
+
+        const Attribute& Node::get_attribute(const std::string& name) const
+        {
+            const auto& node_attributes = m_pimpl->attributes();
+            auto found_attr =
+                std::find_if(std::begin(node_attributes),
+                             std::end(node_attributes),
+                             [&name](const Attribute& a) { return a.get_name() == name; });
+            if (found_attr == std::end(node_attributes))
+            {
+                throw error::node::UnknownAttribute{this->get_name(), name};
+            }
+            return *found_attr;
         }
 
         template <>

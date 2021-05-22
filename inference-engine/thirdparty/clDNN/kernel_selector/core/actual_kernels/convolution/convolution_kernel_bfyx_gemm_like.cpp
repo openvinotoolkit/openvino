@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_bfyx_gemm_like.h"
 #include <string>
@@ -49,21 +38,21 @@ std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_par
 }
 
 JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+                                                              const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.output.Feature().v / params.groups, runInfo.gemmStyle.subBlockDimN)),
-        MakeJitConstant("DX", runInfo.gemmStyle.globalWorkSizeDX),
-        MakeJitConstant("DY", runInfo.gemmStyle.globalWorkSizeDY),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.output.Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
+        MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("FILTER_SIZE_X_DIV2", params.filterSize.x / 2),
         MakeJitConstant("INPUT_BUFFER_WIDTH_PADDED", ""),  // TODO: enable non padding path again
         MakeJitConstant("INPUT_BUFFER_HEIGHT_PADDED", ""),
     });
 
-    if (CeilDiv(RoundUp(params.output.X().v * params.output.Y().v, runInfo.gemmStyle.subBlockDimM),
-                runInfo.gemmStyle.globalWorkSizeDY) %
-            runInfo.lws1 !=
+    if (CeilDiv(RoundUp(params.output.X().v * params.output.Y().v, dispatchData.gemmStyle.subBlockDimM),
+                dispatchData.gemmStyle.globalWorkSizeDY) %
+            dispatchData.lws[1] !=
         0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
 
@@ -73,29 +62,33 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
 ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEMMLike::SetDefault(
     const convolution_params& arg,
     int autoTuneIndex) const {
-    DispatchData runInfo = Parent::SetDefault(arg, autoTuneIndex);
+    DispatchData dispatchData = Parent::SetDefault(arg, autoTuneIndex);
 
-    runInfo.lws0 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[2] = 1;
 
     if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.gemmStyle = {1, arg.filterSize.x, 32, 32, 1, 1};
-        runInfo.lws1 = 16;
-        runInfo.efficiency = FORCE_PRIORITY_6;
+        dispatchData.gemmStyle = {1, arg.filterSize.x, 32, 32, 1, 1};
+        dispatchData.lws[1] = 16;
     } else {
-        runInfo.gemmStyle = {2, arg.filterSize.x, 32, 32, 2, 1};
-        runInfo.lws1 = 8;
-        runInfo.efficiency = FORCE_PRIORITY_8;
+        dispatchData.gemmStyle = {2, arg.filterSize.x, 32, 32, 2, 1};
+        dispatchData.lws[1] = 8;
     }
 
-    size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, runInfo.gemmStyle.subBlockDimM);
-    size_t sgemm_n = RoundUp(arg.output.Feature().v / arg.groups, runInfo.gemmStyle.subBlockDimN);
+    size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, dispatchData.gemmStyle.subBlockDimM);
+    size_t sgemm_n = RoundUp(arg.output.Feature().v / arg.groups, dispatchData.gemmStyle.subBlockDimN);
 
-    runInfo.gws0 = RoundUp(CeilDiv(sgemm_n, runInfo.gemmStyle.globalWorkSizeDX), runInfo.lws0);
-    runInfo.gws1 = RoundUp(CeilDiv(sgemm_m, runInfo.gemmStyle.globalWorkSizeDY), runInfo.lws1);
-    runInfo.gws2 = arg.output.Batch().v * arg.groups;
+    dispatchData.gws[0] = RoundUp(CeilDiv(sgemm_n, dispatchData.gemmStyle.globalWorkSizeDX), dispatchData.lws[0]);
+    dispatchData.gws[1] = RoundUp(CeilDiv(sgemm_m, dispatchData.gemmStyle.globalWorkSizeDY), dispatchData.lws[1]);
+    dispatchData.gws[2] = arg.output.Batch().v * arg.groups;
 
-    return runInfo;
+    return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
 bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {

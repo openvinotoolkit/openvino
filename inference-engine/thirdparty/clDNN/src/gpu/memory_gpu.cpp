@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "error_handler.h"
@@ -31,7 +19,7 @@ gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
                        bool reset)
     : lockable_gpu_mem(engine), memory_impl(engine, layout, net_id, allocation_type::cl_mem, false),
       _buffer(_context->context(), CL_MEM_READ_WRITE, size()) {
-    if (reset) zero_buffer();
+    if (reset || is_memory_reset_needed(_layout)) zero_buffer();
 }
 
 gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
@@ -72,7 +60,7 @@ void gpu_buffer::fill(unsigned char pattern, event_impl::ptr ev) {
 shared_mem_params gpu_buffer::get_internal_params() const {
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(_context->context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -185,7 +173,7 @@ void gpu_image2d::fill(unsigned char pattern, event_impl::ptr ev) {
 shared_mem_params gpu_image2d::get_internal_params() const {
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(_context->context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -211,7 +199,7 @@ shared_mem_params gpu_media_buffer::get_internal_params() const {
             static_cast<shared_handle>(_buffer.get()), surface, plane };
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 gpu_dx_buffer::gpu_dx_buffer(const refcounted_obj_ptr<engine_impl>& engine,
     const layout& new_layout,
     const shared_mem_params* params,
@@ -256,7 +244,7 @@ gpu_usm::gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& la
             "Unknown unified shared memory type!");
     }
 
-    if (reset) zero_buffer();
+    if (reset || is_memory_reset_needed(_layout)) zero_buffer();
 }
 
 void* gpu_usm::lock() {
@@ -309,7 +297,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
         static_cast<shared_handle>(_engine->get_context()->context().get()),  // context handle
         nullptr,  // user_device handle
         nullptr,  // mem handle
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,  // surface handle
 #else
         0,  // surface handle

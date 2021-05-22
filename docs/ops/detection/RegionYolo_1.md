@@ -62,10 +62,10 @@
 
   * **Description**: *do_softmax* is a flag that specifies the inference method and affects how the number of regions is determined. It also affects output shape. If it is 0, then output shape is 4D, and 2D otherwise.
   * **Range of values**:
-    * *False* - do not perform softmax
-    * *True* - perform softmax
+    * *false* - do not perform softmax
+    * *true* - perform softmax
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *mask*

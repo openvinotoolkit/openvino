@@ -1,21 +1,8 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -31,8 +18,10 @@ class ProposalOp(Op):
             'post_nms_topn': 300,  # default in caffe-shared
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
-            'out_ports_count': 2,
-            'normalize': 0,
+            'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2,
+            'normalize': False,
+            'clip_before_nms': True,
+            'clip_after_nms': False,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -61,9 +50,9 @@ class ProposalOp(Op):
             'framework',
             'box_coordinate_scale',
             'box_size_scale',
-            'normalize',
-            'clip_after_nms',
-            'clip_before_nms',
+            ('normalize', lambda node: bool_to_str(node, 'normalize')),
+            ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
         ]
 
     @staticmethod

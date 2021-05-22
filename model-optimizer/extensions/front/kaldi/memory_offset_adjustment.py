@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -65,7 +53,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
                                                           'splitted': False}).create_node()
                 # add element_size for MemoryOffset after Parameter for infer
                 if in_node.op == 'Parameter':
-                    memory_align['element_size'] = in_node.shape[1]
+                    memory_align['element_size'] = in_node.shape
                 in_port.get_connection().set_source(memory_align.out_port(0))
                 memory_align.in_port(0).connect(in_node_out_port)
                 memory_align['frame_time'] = memory_align.t
@@ -76,7 +64,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
 
 
 class MemoryOffsetAdjustment(FrontReplacementSubgraph):
-    """
+    r"""
     Pass used to fix wrong results in the following situation:
                               input
                               |   \
@@ -88,7 +76,7 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
                               \      |
                                \     |
                                Concat
-    In Left branch we have MemoryOffset with k > 0 so we wait until kth frame will be calcualted. In right branch
+    In Left branch we have MemoryOffset with k > 0 so we wait until kth frame will be calculated. In right branch
     we have no such offsets. As result we Concat (or use in any calculations with more than 1 input) kth frame from
     left branch and 0th from right branch. So we need to add synchronization before Concat node. it can be done with
     MemoryOffset(k) inserted before Concat.
@@ -100,8 +88,8 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
-        from extensions.front.kaldi.split_memoryoffsets import SplitMemoryOffsets
-        return [SplitMemoryOffsets]
+        from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
+        return [SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):
         should_continue = False

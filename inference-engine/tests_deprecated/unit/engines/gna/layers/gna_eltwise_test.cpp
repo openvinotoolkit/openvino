@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
 #include <ie_precision.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include "../gna_matcher.hpp"
 
 using namespace InferenceEngine;
@@ -69,7 +69,7 @@ class GNAEltwiseTest : public GNATest<>, public testing::WithParamInterface<GNAE
             FC2 = std::make_shared<ngraph::op::v1::Reshape>(FC2, reshape_pattern, false);
         }
 
-        auto add = std::make_shared<ngraph::op::Add>(FC1, FC2);
+        auto add = std::make_shared<ngraph::op::v1::Add>(FC1, FC2);
 
         auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{input1, input2});
 

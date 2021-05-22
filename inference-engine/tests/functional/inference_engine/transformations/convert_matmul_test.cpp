@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,9 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
-#include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -80,7 +80,9 @@ TEST(TransformationTests, ConvertMatMulTest2) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
 
-        auto reshape = ngraph::op::util::reshapeTo(input2, {1, 2, 1});
+        auto usnqueeze_input2 = std::make_shared<ngraph::opset1::Unsqueeze>(input2,
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
+        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input2, {1, 2, 1});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 
@@ -111,7 +113,9 @@ TEST(TransformationTests, ConvertMatMulTest3) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
         auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
 
-        auto reshape = ngraph::op::util::reshapeTo(input1, {1, 1, 2});
+        auto usnqueeze_input1 = std::make_shared<ngraph::opset1::Unsqueeze>(input1,
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input1, {1, 1, 2});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 
@@ -221,6 +225,7 @@ TEST(TransformationTests, ConvertMatMulTest7) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
 
         ngraph::pass::Manager m;
+        auto pass_config = m.get_pass_config();
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ConvertMatMulToFC>();
         m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
@@ -235,7 +240,8 @@ TEST(TransformationTests, ConvertMatMulTest7) {
             return false;
         };
 
-        m.set_callback(callback);
+        pass_config->set_callback<ngraph::pass::ReshapeFullyConnected>(callback);
+
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -251,4 +257,19 @@ TEST(TransformationTests, ConvertMatMulTest7) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertMatMulDynamic) {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+
+        auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
+        m.register_pass<ngraph::pass::ReshapeFullyConnected>();
+        ASSERT_NO_THROW(m.run_passes(f));
 }

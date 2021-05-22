@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "arg_max_min_kernel_base.h"
 
@@ -37,30 +25,22 @@ JitConstants ArgMaxMinKernelBase::GetJitConstants(const arg_max_min_params& para
 }
 
 ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_min_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+    dispatchData.gws = { 128, params.inputs[0].Batch().v, 1 };
+    dispatchData.lws = { 128, 1, 1 };
 
-    // Determine global work sizes.
-    kd.gws0 = 128;
-    kd.gws1 = params.inputs[0].Batch().v;
-    kd.gws2 = 1;
-
-    kd.lws0 = 128;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-
-    return kd;
+    return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
-    DispatchData runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
@@ -69,9 +49,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimatedTime;
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     return {kd};
 }

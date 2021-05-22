@@ -1,4 +1,9 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 #distutils: language=c++
+#cython: embedsignature=True
+
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -7,13 +12,12 @@ from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr
 from libc.stdlib cimport malloc, free
-from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t
+from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t, uint32_t, uint64_t
 from libc.stddef cimport size_t
 from libc.string cimport memcpy
 
 import os
 from fnmatch import fnmatch
-from pathlib import Path
 import threading
 import warnings
 from copy import deepcopy
@@ -56,14 +60,25 @@ cdef c_map_to_dict(map[string, string] c_map):
 def get_version():
     return C.get_version().decode()
 
+
+def read_network(path_to_xml : str, path_to_bin : str):
+    cdef IENetwork net = IENetwork()
+    net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
+    return net
+
+
 ## This class defines Tensor description
 cdef class TensorDesc:
+
     def __eq__(self, other : TensorDesc):
         return self.layout == other.layout and self.precision == other.precision and self.dims == other.dims
+
     def __ne__(self, other : TensorDesc):
         return self.layout != other.layout or self.precision != other.precision or self.dims != other.dims
+
     def __deepcopy__(self, memodict={}):
         return TensorDesc(deepcopy(self.precision, memodict), deepcopy(self.dims, memodict), deepcopy(self.layout, memodict))
+
     ## Class constructor
     # @param precision: target memory precision
     # @param dims: target memory dimensions
@@ -71,35 +86,39 @@ cdef class TensorDesc:
     # @return Instance of defines class
     def __cinit__(self, precision : str, dims : [list, tuple], layout : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         self.impl = C.CTensorDesc(C.Precision.FromStr(precision.encode()), dims, layout_str_to_enum[layout])
+
     ## Shape (dimensions) of the TensorDesc object
     @property
     def dims(self):
         return self.impl.getDims()
+
     @dims.setter
     def dims(self, dims_array : [list, tuple]):
         self.impl.setDims(dims_array)
+
     ## Precision of the TensorDesc object
     @property
     def precision(self):
         return self.impl.getPrecision().name().decode()
+
     @precision.setter
     def precision(self, precision : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         self.impl.setPrecision(C.Precision.FromStr(precision.encode()))
+
     ## Layout of the TensorDesc object
     @property
     def layout(self):
         return layout_int_to_str_map[self.impl.getLayout()]
+
     @layout.setter
     def layout(self, layout : str):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         self.impl.setLayout(layout_str_to_enum[layout])
 
 ## This class represents Blob
@@ -114,12 +133,15 @@ cdef class Blob:
     def __cinit__(self, TensorDesc tensor_desc = None, array : np.ndarray = None):
         cdef CTensorDesc c_tensor_desc
         cdef float[::1] fp32_array_memview
+        cdef double[::1] fp64_array_memview
         cdef int16_t[::1] I16_array_memview
         cdef uint16_t[::1] U16_array_memview
         cdef uint8_t[::1] U8_array_memview
         cdef int8_t[::1] I8_array_memview
         cdef int32_t[::1] I32_array_memview
         cdef int64_t[::1] I64_array_memview
+        cdef uint32_t[::1] U32_array_memview
+        cdef uint64_t[::1] U64_array_memview
 
         cdef int16_t[:] x_as_uint
         cdef int16_t[:] y_as_uint
@@ -137,20 +159,26 @@ cdef class Blob:
             precision = tensor_desc.precision
             if precision == "FP32":
                 self._ptr = C.make_shared_blob[float](c_tensor_desc)
-            elif precision == "FP16" or precision == "I16":
+            elif precision == "FP64":
+                self._ptr = C.make_shared_blob[double](c_tensor_desc)
+            elif precision == "FP16" or precision == "I16" or precision == "BF16":
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc)
             elif precision == "Q78" or precision == "U16":
                 self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc)
-            elif  precision == "U8" or precision == "BOOL":
+            elif precision == "U8" or precision == "BOOL":
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc)
-            elif  precision == "I8" or precision == "BIN":
+            elif precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc)
-            elif  precision == "I32":
+            elif precision == "I32":
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc)
-            elif  precision == "I64":
+            elif precision == "U32":
+                self._ptr = C.make_shared_blob[uint32_t](c_tensor_desc)
+            elif precision == "I64":
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc)
+            elif precision == "U64":
+                self._ptr = C.make_shared_blob[uint64_t](c_tensor_desc)
             else:
-                raise AttributeError("Unsupported precision {} for blob".format(precision))
+                raise AttributeError(f"Unsupported precision {precision} for blob")
             deref(self._ptr).allocate()
         elif tensor_desc is not None and self._array_data is not None:
             c_tensor_desc = tensor_desc.impl
@@ -158,38 +186,48 @@ cdef class Blob:
             size_arr = np.prod(array.shape)
             size_td = np.prod(tensor_desc.dims)
             if size_arr != size_td:
-                raise AttributeError("Number of elements in provided numpy array {} and "
-                                     "required by TensorDesc {} are not equal".format(size_arr, size_td))
+                raise AttributeError(f"Number of elements in provided numpy array {size_arr} and "
+                                     f"required by TensorDesc {size_td} are not equal")
             if self._array_data.dtype != format_map[precision]:
-                raise ValueError("Data type {} of provided numpy array "
-                                 "doesn't match to TensorDesc precision {}".format(self._array_data.dtype, precision))
+                raise ValueError(f"Data type {self._array_data.dtype} of provided numpy array "
+                                 f"doesn't match to TensorDesc precision {precision}")
             if not self._array_data.flags['C_CONTIGUOUS']:
                 self._array_data = np.ascontiguousarray(self._array_data)
             if precision == "FP32":
                 fp32_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[float](c_tensor_desc, &fp32_array_memview[0], fp32_array_memview.shape[0])
-            elif precision == "FP16":
-                raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
+            elif precision == "FP64":
+                fp64_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
+            elif precision == "FP16" or precision == "BF16":
+                I16_array_memview = self._array_data.view(dtype=np.int16)
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "I16":
                 I16_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "Q78" or precision == "U16":
                 U16_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc, &U16_array_memview[0], U16_array_memview.shape[0])
-            elif  precision == "U8" or precision == "BOOL":
+            elif precision == "U8" or precision == "BOOL":
                 U8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc, &U8_array_memview[0], U8_array_memview.shape[0])
-            elif  precision == "I8" or precision == "BIN":
+            elif precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 I8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc, &I8_array_memview[0], I8_array_memview.shape[0])
-            elif  precision == "I32":
+            elif precision == "I32":
                 I32_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc, &I32_array_memview[0], I32_array_memview.shape[0])
-            elif  precision == "I64":
+            elif precision == "U32":
+                U32_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint32_t](c_tensor_desc, &U32_array_memview[0], U32_array_memview.shape[0])
+            elif precision == "I64":
                 I64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc, &I64_array_memview[0], I64_array_memview.shape[0])
+            elif precision == "U64":
+                U64_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint64_t](c_tensor_desc, &U64_array_memview[0], U64_array_memview.shape[0])
             else:
-                raise AttributeError("Unsupported precision {} for blob".format(precision))
+                raise AttributeError(f"Unsupported precision {precision} for blob")
 
     def __deepcopy__(self, memodict):
         res = Blob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
@@ -244,7 +282,7 @@ cdef class IECore:
             versions[device].major = ver.apiVersion.major
         return versions
 
-    ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
+    ## Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
     #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.
@@ -258,42 +296,36 @@ cdef class IECore:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
-    cpdef IENetwork read_network(self, model: [str, bytes, Path], weights: [str, bytes, Path] = "", init_from_buffer: bool = False):
+    cpdef IENetwork read_network(self, model: [str, bytes, os.PathLike], weights: [str, bytes, os.PathLike] = "", init_from_buffer: bool = False):
         cdef uint8_t*bin_buffer
         cdef string weights_
         cdef string model_
         cdef IENetwork net = IENetwork()
         if init_from_buffer:
-            bin_buffer = <uint8_t *> malloc(len(weights))
-            memcpy(bin_buffer, <uint8_t *> weights, len(weights))
             model_ = bytes(model)
-            net.impl = self.impl.readNetwork(model_, bin_buffer, len(weights))
+            net.impl = self.impl.readNetwork(model_, weights, len(weights))
         else:
             weights_ = "".encode()
-            if isinstance(model, Path) and (isinstance(weights, Path) or not weights):
-                if not model.is_file():
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if model.suffix not in [ ".onnx", ".prototxt"]:
-                    if not weights.is_file():
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = bytes(weights)
-                model_ = bytes(model)
-            else:
-                if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
-                    if not os.path.isfile(weights):
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = weights.encode()
-                model_ = model.encode()
-            net.impl =  self.impl.readNetwork(model_, weights_)
+
+            model = os.fspath(model)
+            if not os.path.isfile(model):
+                raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
+            model_ = model.encode()
+
+            if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")) and weights:
+                weights = os.fspath(weights)
+                if not os.path.isfile(weights):
+                    raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
+                weights_ = weights.encode()
+
+            net.impl = self.impl.readNetwork(model_, weights_)
         return net
 
     ## Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
     #    and creates an `ExecutableNetwork` object of the `IENetwork` class.
     #    You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
     #    resources).
-    #  @param network: A valid `IENetwork` instance
+    #  @param network: A valid `IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
     #  @param device_name: A device name of a target plugin
     #  @param config: A dictionary of plugin configuration keys and their values
     #  @param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
@@ -307,16 +339,19 @@ cdef class IECore:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  ```
-    cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
+    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                             "or zero for auto detection".format(num_requests))
+            raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
+                             "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
-        exec_net.impl = move(self.impl.loadNetwork(network.impl, device_name.encode(), c_config, num_requests))
+        if isinstance(network, str):
+            exec_net.impl = move(self.impl.loadNetworkFromFile((<str>network).encode(), device_name.encode(), c_config, num_requests))
+        else:
+            exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, device_name.encode(), c_config, num_requests))
         return exec_net
 
     ## Creates an executable network from a previously exported network
@@ -341,8 +376,8 @@ cdef class IECore:
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                             "or zero for auto detection".format(num_requests))
+            raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
+                             "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
@@ -482,11 +517,13 @@ cdef class PreProcessChannel:
     property mean_value:
         def __get__(self):
             return deref(self._ptr).meanValue
+
         def __set__(self, float mean_value):
             deref(self._ptr).meanValue = mean_value
     property std_scale:
         def __get__(self):
             return deref(self._ptr).stdScale
+
         def __set__(self, float std_scale):
             deref(self._ptr).stdScale = std_scale
     property mean_data:
@@ -494,6 +531,7 @@ cdef class PreProcessChannel:
             blob = Blob()
             blob._ptr = deref(self._ptr).meanData
             return blob
+
         def __set__(self, Blob mean_data):
             deref(self._ptr).meanData = mean_data._ptr
 
@@ -501,7 +539,7 @@ cdef class PreProcessChannel:
 cdef class PreProcessInfo:
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
-        self._user_data  = True
+        self._user_data = True
 
     def __dealloc__(self):
         if self._user_data:
@@ -563,7 +601,7 @@ cdef class PreProcessInfo:
     #  ```
     @property
     def resize_algorithm(self):
-        return  ResizeAlgorithm(deref(self._ptr).getResizeAlgorithm())
+        return ResizeAlgorithm(deref(self._ptr).getResizeAlgorithm())
 
     @resize_algorithm.setter
     def resize_algorithm(self, alg : ResizeAlgorithm):
@@ -600,8 +638,7 @@ cdef class InputInfoPtr:
     @precision.setter
     def precision(self, precision : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         deref(self._ptr).setPrecision(C.Precision.FromStr(precision.encode()))
 
     ## Layout of this input
@@ -612,8 +649,8 @@ cdef class InputInfoPtr:
     @layout.setter
     def layout(self, layout : str):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         deref(self._ptr).setLayout(layout_str_to_enum[layout])
 
     ## Gets pre-process info for the input
@@ -708,8 +745,7 @@ cdef class DataPtr:
     @precision.setter
     def precision(self, precision):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         deref(self._ptr).setPrecision(C.Precision.FromStr(precision.encode()))
 
     ## Shape (dimensions) of the data object
@@ -725,8 +761,8 @@ cdef class DataPtr:
     @layout.setter
     def layout(self, layout):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         deref(self._ptr).setLayout(layout_str_to_enum[layout])
 
     ## Checks if the current data object is resolved
@@ -734,37 +770,6 @@ cdef class DataPtr:
     def initialized(self):
         return deref(self._ptr).isInitialized()
 
-    @property
-    def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr
-        cdef IENetLayer creator_layer
-
-        if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldRepresentation()
-        _l_ptr = C.getCreatorLayer(self._ptr)
-
-        creator_layer = IENetLayer()
-        if _l_ptr.lock() != NULL:
-            creator_layer._ptr = _l_ptr.lock()
-        else:
-            raise RuntimeError("Creator IENetLayer of DataPtr object with name {} already released!".format(self.name))
-        return creator_layer
-
-    @property
-    def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map
-        cdef IENetLayer input_to
-
-        if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldRepresentation()
-        _l_ptr_map = C.getInputTo(self._ptr)
-
-        input_to_list = []
-        for layer in _l_ptr_map:
-            input_to = IENetLayer()
-            input_to._ptr = layer.second
-            input_to_list.append(input_to)
-        return input_to_list
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
 cdef class CDataPtr:
@@ -772,18 +777,22 @@ cdef class CDataPtr:
     @property
     def name(self):
         return deref(self._ptr).getName().decode()
+
     ## Precision of the data object
     @property
     def precision(self):
         return deref(self._ptr).getPrecision().name().decode()
+
     ## Shape (dimensions) of the data object
     @property
     def shape(self):
         return deref(self._ptr).getDims()
+
     ## Layout of the data object
     @property
     def layout(self):
         return layout_int_to_str_map[deref(self._ptr).getLayout()]
+
     ## Checks if the current data object is resolved
     @property
     def initialized(self):
@@ -824,7 +833,6 @@ cdef class ExecutableNetwork:
         for name, value in current_request.output_blobs.items():
             res[name] = deepcopy(value.buffer)
         return res
-
 
     ## Starts asynchronous inference for specified infer request.
     #  Wraps `async_infer()` method of the `InferRequest` class.
@@ -892,6 +900,7 @@ cdef class ExecutableNetwork:
             data_ptr._ptr = in_.second
             inputs[in_.first.decode()] = data_ptr
         return inputs
+
     ## A dictionary that maps output layer names to CDataPtr objects
     @property
     def outputs(self):
@@ -903,6 +912,7 @@ cdef class ExecutableNetwork:
             data_ptr._ptr = in_.second
             outputs[in_.first.decode()] = data_ptr
         return outputs
+
     ## Gets executable graph information from a device
     #  @return An instance of `IENetwork`
     #
@@ -1010,7 +1020,7 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  callback = lambda status, py_data: print("Request with id {} finished with status {}".format(py_data, status))
+    #  callback = lambda status, py_data: print(f"Request with id {py_data} finished with status {status}")
     #  ie = IECore()
     #  net = ie.read_network(model="./model.xml", weights="./model.bin")
     #  exec_net = ie.load_network(net, "CPU", num_requests=4)
@@ -1195,12 +1205,12 @@ cdef class InferRequest:
     cpdef get_perf_counts(self):
         cdef map[string, C.ProfileInfo] c_profile = deref(self.impl).getPerformanceCounts()
         profile = {}
-        for l in c_profile:
-            info = l.second
+        for line in c_profile:
+            info = line.second
             # TODO: add execution index. Check if unsigned int is properly converted to int in python.
-            profile[l.first.decode()] = {"status": info.status.decode(), "exec_type": info.exec_type.decode(),
-                                         "layer_type": info.layer_type.decode(), "real_time": info.real_time,
-                                         "cpu_time": info.cpu_time, "execution_index": info.execution_index}
+            profile[line.first.decode()] = {"status": info.status.decode(), "exec_type": info.exec_type.decode(),
+                                            "layer_type": info.layer_type.decode(), "real_time": info.real_time,
+                                            "cpu_time": info.cpu_time, "execution_index": info.execution_index}
         return profile
 
     ## A dictionary that maps input layer names to `numpy.ndarray`
@@ -1251,124 +1261,16 @@ cdef class InferRequest:
     #  ```
     def set_batch(self, size):
         if size <= 0:
-            raise ValueError("Batch size should be positive integer number but {} specified".format(size))
+            raise ValueError(f"Batch size should be positive integer number but {size} specified")
         deref(self.impl).setBatch(size)
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
-            assert k in self._inputs_list, "No input with name {} found in network".format(k)
-            self.input_blobs[k].buffer[:] = v
-
-
-## This class represents a main layer information and providing setters allowing to modify layer properties
-#
-#  \note This class is deprecated: for working with layers, please, use nGraph Python API.
-#        This class is going to be removed in 2021.2
-#
-cdef class IENetLayer:
-    ## Name of the layer
-    @property
-    def name(self):
-        return deref(self._ptr).name.decode()
-
-    ## Layer type
-    @property
-    def type(self):
-        return deref(self._ptr).type.decode()
-
-
-    ## Layer affinity set by user or a default affinity may be setted using `IECore.query_network() method`
-    #  which returns dictionary {layer_name : device}.
-    #  The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
-    #  For example:\n
-    #  ```python
-    #  ie = IECore()
-    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
-    #  layers = net.layers
-    #  for layer, device in layers_map.items():
-    #      layers[layer].affinity = device
-    #  ```
-    @property
-    def affinity(self):
-        return deref(self._ptr).affinity.decode()
-    @affinity.setter
-    def affinity(self, target_affinity):
-        deref(self._ptr).affinity = target_affinity.encode()
-
-    ## Layer specific parameters. Provides getter and setter interfaces to get and modify layer parameters.
-    #  Please note that some modifications can be ignored and/or overwritten by target plugin (e.g. modification of
-    #  convolution kernel size will be reflected in layer parameters but finally the plugin will ignore it and will
-    #  use initial kernel size)
-    @property
-    def params(self):
-        return {k.decode(): v.decode() for k, v in deref(self._ptr).params}
-    @params.setter
-    def params(self, new_params):
-        deref(self._ptr).params = dict_to_c_map(new_params)
-
-    ## Returns a list, which contains names of layers preceding this layer
-    @property
-    def parents(self):
-        cdef vector[C.DataWeakPtr] c_inputs = deref(self._ptr).insData
-        parents = []
-        for l in c_inputs:
-            if l.lock() != NULL:
-                parents.append(deref(l.lock()).getName().decode())
+            assert k in self._inputs_list, f"No input with name {k} found in network"
+            if self.input_blobs[k].tensor_desc.precision == "FP16":
+                self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:
-                raise RuntimeError("Input Data of layer {} already released!".format(self.name))
-        return parents
-    ## Returns a list, which contains names of layers following this layer
-    @property
-    def children(self):
-        cdef vector[C.DataPtr] c_outs = deref(self._ptr).outData
-        children = []
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map
-        input_to_list = []
-        for l in c_outs:
-            _l_ptr_map = C.getInputTo(l)
-            for layer in _l_ptr_map:
-                input_to_list.append(deref(layer.second).name.decode())
-        return input_to_list
-
-    ## Returns a list of DataPtr objects representing the output data of the layer on corresponding port
-    @property
-    def out_data(self):
-        cdef vector[C.DataPtr] c_outputs = deref(self._ptr).outData
-        cdef DataPtr data_ptr
-        out_data = []
-        for output in c_outputs:
-            data_ptr = DataPtr()
-            data_ptr._ptr = output
-            out_data.append(data_ptr)
-        return out_data
-    ## Returns a list of DataPtr objects representing the input data of the layer on corresponding port
-    @property
-    def in_data(self):
-        cdef vector[C.DataWeakPtr] c_inputs = deref(self._ptr).insData
-        cdef DataPtr data_ptr
-        in_data = []
-        for input in c_inputs:
-            data_ptr = DataPtr()
-            if input.lock() != NULL:
-                data_ptr._ptr = input.lock()
-            else:
-                raise RuntimeError("Input Data of layer {} already released!".format(self.name))
-            in_data.append(data_ptr)
-        return in_data
-
-    ## Dictionary with layer arbitrary layer blobs including weights and biases as any.
-    @property
-    def blobs(self):
-        cdef map[string, CBlob.Ptr] c_blobs_map
-        c_blobs_map = deref(self._ptr).blobs
-        blobs_map = {}
-        cdef BlobBuffer weights_buffer
-        for blob in c_blobs_map:
-            weights_buffer = BlobBuffer()
-            weights_buffer.reset(blob.second)
-            blobs_map[blob.first.decode()] = weights_buffer.to_numpy()
-        return blobs_map
+                self.input_blobs[k].buffer[:] = v
 
 
 ## This class contains the information about the network model read from IR and allows you to manipulate with
@@ -1417,8 +1319,7 @@ cdef class IENetwork:
         cdef string weights_
         if init_from_buffer:
             warnings.warn("Reading network using constructor is deprecated. "
-                          "Please, use IECore.read_network() method instead",
-                          DeprecationWarning)
+                          "Please, use IECore.read_network() method instead", DeprecationWarning)
             memcpy(xml_buffer, <char*> model, len(model))
             memcpy(bin_buffer, <uint8_t *> weights, len(weights))
             xml_buffer[len(model)] = b'\0'
@@ -1427,12 +1328,11 @@ cdef class IENetwork:
         else:
             if model and weights:
                 warnings.warn("Reading network using constructor is deprecated. "
-                          "Please, use IECore.read_network() method instead",
-                          DeprecationWarning)
+                              "Please, use IECore.read_network() method instead", DeprecationWarning)
                 if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+                    raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
                 if not os.path.isfile(weights):
-                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                    raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
                 model_ = model.encode()
                 weights_ = weights.encode()
                 self.impl = C.IENetwork(model_, weights_)
@@ -1509,29 +1409,8 @@ cdef class IENetwork:
     @batch_size.setter
     def batch_size(self, batch: int):
         if batch <= 0:
-            raise AttributeError("Invalid batch size {}! Batch size should be positive integer value".format(batch))
+            raise AttributeError(f"Invalid batch size {batch}! Batch size should be positive integer value")
         self.impl.setBatch(batch)
-
-    ## \note The property is deprecated. Please use get_ops()/get_ordered_ops() methods
-    #  from nGraph Python API.
-    #  This property will be removed in 2021.2.
-    #
-    #  Return dictionary that maps network layer names in topological order to IENetLayer
-    #  objects containing layer properties
-    @property
-    def layers(self):
-        warnings.warn("'layers' property of IENetwork class is deprecated. "
-              "For iteration over network please use get_ops()/get_ordered_ops() methods "
-              "from nGraph Python API",
-              DeprecationWarning)
-        cdef vector[C.CNNLayerPtr] c_layers = self.impl.getLayers()
-        layers = OrderedDict()
-        cdef IENetLayer net_l
-        for l in c_layers:
-            net_l = IENetLayer()
-            net_l._ptr = l
-            layers[deref(l).name.decode()] = net_l
-        return layers
 
     ## Marks any intermediate layer as output layer to retrieve the inference results from the specified layers.
     #  @param outputs: List of layers to be set as model outputs. The list can contain strings with layer names to be set
@@ -1548,15 +1427,15 @@ cdef class IENetwork:
     def add_outputs(self, outputs):
         if not isinstance(outputs, list):
             outputs = [outputs]
-        for i, l in enumerate(outputs):
-            if isinstance(l, str):
-                self.impl.addOutput(l.encode(), 0)
-            elif isinstance(l, tuple) and len(l) == 2:
-                self.impl.addOutput(l[0].encode(), l[1])
+        for i, line in enumerate(outputs):
+            if isinstance(line, str):
+                self.impl.addOutput(line.encode(), 0)
+            elif isinstance(line, tuple) and len(line) == 2:
+                self.impl.addOutput(line[0].encode(), line[1])
             else:
-                raise TypeError("Incorrect type {type} for layer to add at index {ind}. "
+                raise TypeError(f"Incorrect type {type(line)} for layer to add at index {i}. "
                                 "Expected string with layer name or tuple with two elements: layer name as "
-                                "first element and port id as second".format(type=type(l), ind=i))
+                                "first element and port id as second")
 
     ## Serializes the network and stores it in files.
     #
@@ -1590,13 +1469,13 @@ cdef class IENetwork:
     #  net.reshape({input_layer: (n, c, h*2, w*2)})
     #  ```
     def reshape(self, input_shapes: dict):
-        cdef map[string, vector[size_t]] c_input_shapes;
+        cdef map[string, vector[size_t]] c_input_shapes
         cdef vector[size_t] c_shape
         net_inputs = self.input_info
         for input, shape in input_shapes.items():
             c_shape = []
             if input not in net_inputs:
-                raise AttributeError("Specified '{}' layer not in network inputs '{}'! ".format(input, net_inputs))
+                raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
                 c_shape.push_back(v)
             c_input_shapes[input.encode()] = c_shape
@@ -1604,6 +1483,10 @@ cdef class IENetwork:
 
     def _get_function_capsule(self):
         return self.impl.getFunction()
+
+    def get_ov_name_for_tensor(self, orig_name: str):
+        name = bytes(orig_name, 'utf-8')
+        return self.impl.getOVNameForTensor(name).decode('utf-8')
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
@@ -1614,6 +1497,8 @@ cdef class BlobBuffer:
         cdef SizeVector shape
         if len(representation_shape) == 0:
             shape = desc.getDims()
+            if layout_int_to_str_map[desc.getLayout()] == 'SCALAR':
+                shape = [1]
         else:
             shape = representation_shape
         cdef Py_ssize_t itemsize = deref(ptr).element_size()
@@ -1651,6 +1536,7 @@ cdef class BlobBuffer:
         # todo: half floats
         precision_to_format = {
             'FP32': 'f',  # float
+            'FP64': 'd',  # double
             'FP16': 'h',  # signed short
             'U8': 'B',  # unsigned char
             'U16': 'H',  # unsigned short
@@ -1660,11 +1546,19 @@ cdef class BlobBuffer:
             'U32': 'I',  # unsigned int
             'I64': 'q',  # signed long int
             'U64': 'Q',  # unsigned long int
+            'BOOL': 'B',  # unsigned char
+            'BF16': 'h',  # signed short
+            'BIN': 'b',  # signed char
         }
         if name not in precision_to_format:
-            raise ValueError("Unknown Blob precision: {}".format(name))
+            raise ValueError(f"Unknown Blob precision: {name}")
 
         return precision_to_format[name].encode()
 
     def to_numpy(self):
-        return np.asarray(self)
+        precision = deref(self.ptr).getTensorDesc().getPrecision()
+        name = bytes(precision.name()).decode()
+        if name == "FP16":
+            return np.asarray(self).view(dtype=np.float16)
+        else:
+            return np.asarray(self)

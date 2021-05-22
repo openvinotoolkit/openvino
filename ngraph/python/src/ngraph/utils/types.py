@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Functions related to converting between Python and numpy types and ngraph types."""
 
 import logging
@@ -21,7 +9,7 @@ from typing import List, Union
 import numpy as np
 
 from ngraph.exceptions import NgraphTypeError
-from ngraph.impl import Node, Shape
+from ngraph.impl import Node, Shape, Output
 from ngraph.impl import Type as NgraphType
 from ngraph.impl.op import Constant
 
@@ -46,11 +34,11 @@ ngraph_to_numpy_types_map = [
     (NgraphType.u16, np.uint16),
     (NgraphType.u32, np.uint32),
     (NgraphType.u64, np.uint64),
+    (NgraphType.bf16, np.uint16),
 ]
 
 ngraph_to_numpy_types_str_map = [
     ("boolean", np.bool),
-    # ('bf16', ???),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),
@@ -124,6 +112,15 @@ def get_ndarray(data: NumericData) -> np.ndarray:
     return np.array(data)
 
 
+def get_shape(data: NumericData) -> TensorShape:
+    """Return a shape of NumericData."""
+    if type(data) == np.ndarray:
+        return data.shape  # type: ignore
+    elif type(data) == list:
+        return [len(data)]  # type: ignore
+    return []
+
+
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
     """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
@@ -138,6 +135,8 @@ def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constan
 def as_node(input_value: NodeInput) -> Node:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
+        return input_value
+    if issubclass(type(input_value), Output):
         return input_value
     return make_constant_node(input_value)
 

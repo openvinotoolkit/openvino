@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 
 import numpy as np
@@ -142,10 +130,10 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
             ta.in_port(0).disconnect()
             ta.in_port(0).get_connection().set_source(mul_op.out_port(0))
 
-        if graph.graph['cmd_params'].keep_shape_ops:
+        if not graph.graph['cmd_params'].static_shape:
             log.error(
                 "Model can not be translated in a reshape-able way.\n"
-                "Model Optimizer key keep_shape_ops was turned off to prevent related errors.\n"
+                "Model Optimizer key static_shape was turned on to prevent related errors.\n"
                 "There will be no success changing input shapes of the model with the help of "
                 "InferenceEngine reshape method", extra={'is_warning': True})
-            graph.graph['cmd_params'].keep_shape_ops = False
+            graph.graph['cmd_params'].static_shape = True

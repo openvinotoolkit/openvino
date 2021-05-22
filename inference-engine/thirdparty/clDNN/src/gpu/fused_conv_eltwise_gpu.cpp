@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_gpu_base.h"
@@ -183,23 +171,13 @@ attach_fused_conv_eltwise_gpu::attach_fused_conv_eltwise_gpu() {
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    // MMAD
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32),
-        fused_conv_eltwise_gpu::create);
     // IMAD
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
-        fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(
-        std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
-        fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::image_2d_rgba),
-        fused_conv_eltwise_gpu::create);
+                                                fused_conv_eltwise_gpu::create);
 }
 
 }  // namespace detail

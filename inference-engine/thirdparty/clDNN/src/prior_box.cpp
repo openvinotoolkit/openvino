@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "prior_box_inst.h"
 #include "primitive_type_base.h"
@@ -355,7 +343,7 @@ void prior_box_node::calc_result() {
     result = get_program().get_engine().allocate_memory(get_output_layout(), 0, false);
 
     // perform calculations
-    if (input().get_output_layout().data_type == data_types::f16)
+    if (get_output_layout().data_type == data_types::f16)
         calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(*result,
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
@@ -366,8 +354,6 @@ void prior_box_node::calc_result() {
 }
 
 layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for prior_box_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
 
@@ -400,6 +386,8 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
     // Second feature stores the variance of each prior coordinate.
 
     auto output_data_type = input_layout.data_type == data_types::f16 ? data_types::f16 : data_types::f32;
+    if (node.get_primitive()->output_data_type)
+        output_data_type = *node.get_primitive()->output_data_type;
     return {output_data_type, cldnn::format::bfyx, cldnn::tensor(1, 2, 1, layer_width * layer_height * num_priors * 4)};
 }
 
