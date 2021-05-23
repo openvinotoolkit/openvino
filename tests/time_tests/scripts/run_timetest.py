@@ -61,7 +61,7 @@ def run_cmd(args: list, log=None, verbose=True):
 def parse_stats(stats: dict, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
     for element in stats:
-        if isinstance(element, int):
+        if isinstance(element, (int, float)):
             for k, v in res.items():
                 if v is None:
                     res.update({k: element})
