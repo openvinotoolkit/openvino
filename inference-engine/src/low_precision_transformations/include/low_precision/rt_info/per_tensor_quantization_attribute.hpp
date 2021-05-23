@@ -13,19 +13,21 @@
 #include "low_precision/layer_transformation.hpp"
 #include "attribute_parameters.hpp"
 
+namespace ngraph {
 class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute {
 };
 
 extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<PerTensorQuantizationAttribute>;
 
 template<>
-class LP_TRANSFORMATIONS_API ngraph::VariantWrapper<PerTensorQuantizationAttribute> : public ngraph::VariantImpl<PerTensorQuantizationAttribute> {
+class LP_TRANSFORMATIONS_API VariantWrapper<PerTensorQuantizationAttribute> : public VariantImpl<PerTensorQuantizationAttribute> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info { "LowPrecision::PerTensorQuantization", 0 };
+    static constexpr VariantTypeInfo type_info { "LowPrecision::PerTensorQuantization", 0 };
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    const ngraph::VariantTypeInfo& get_type_info() const override {
+    const VariantTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
+} // namespace ngraph

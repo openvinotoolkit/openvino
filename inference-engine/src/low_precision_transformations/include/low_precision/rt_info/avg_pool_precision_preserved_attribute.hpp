@@ -19,20 +19,21 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
+namespace ngraph {
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
 };
 
 using AvgPoolPrecisionPreservedAttributePtr = std::shared_ptr<AvgPoolPrecisionPreservedAttribute>;
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
+extern template class LP_TRANSFORMATIONS_API VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
 
 template<>
-class LP_TRANSFORMATIONS_API ngraph::VariantWrapper<AvgPoolPrecisionPreservedAttributePtr> : public ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr> {
+class LP_TRANSFORMATIONS_API VariantWrapper<AvgPoolPrecisionPreservedAttributePtr> : public VariantImpl<AvgPoolPrecisionPreservedAttributePtr> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::AvgPoolPrecisionPreserved", 0 };
+    static constexpr VariantTypeInfo type_info{ "LowPrecision::AvgPoolPrecisionPreserved", 0 };
 
-    const ngraph::VariantTypeInfo& get_type_info() const override {
+    const VariantTypeInfo& get_type_info() const override {
         return type_info;
     }
 
@@ -46,3 +47,4 @@ public:
     void merge(std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes);
     std::string get_string() override;
 };
+} // namespace ngraph

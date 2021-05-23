@@ -18,6 +18,8 @@
 #include "low_precision/layer_transformation.hpp"
 #include "attribute_parameters.hpp"
 
+namespace ngraph {
+
 class PrecisionsAttribute;
 
 class LP_TRANSFORMATIONS_API PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
@@ -36,19 +38,19 @@ public:
 extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
 template<>
-class LP_TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>> : public ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>> {
+class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<PrecisionsAttribute>> : public VariantImpl<std::shared_ptr<PrecisionsAttribute>> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info { "LowPrecision::Precisions", 0 };
+    static constexpr VariantTypeInfo type_info{ "LowPrecision::Precisions", 0 };
 
-    const ngraph::VariantTypeInfo& get_type_info() const override {
+    const VariantTypeInfo& get_type_info() const override {
         return type_info;
     }
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
+    std::shared_ptr<Variant> merge(const ngraph::NodeVector& nodes) override;
 
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
+    std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
     std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; }
 
@@ -62,3 +64,4 @@ public:
     // vizualize shared attributes details in VizualizeTree pass
     std::string get_string() override;
 };
+} // namespace ngraph
