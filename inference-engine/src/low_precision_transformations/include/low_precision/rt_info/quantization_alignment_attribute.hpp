@@ -17,6 +17,7 @@
 #include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
 
+namespace ngraph {
 class QuantizationAlignmentAttribute;
 
 class LP_TRANSFORMATIONS_API QuantizationAlignmentSharedValue : public SharedValue<QuantizationAlignmentAttribute> {
@@ -35,20 +36,20 @@ using QuantizationAlignmentAttributePtr = std::shared_ptr<QuantizationAlignmentA
 extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
 
 template<>
-class LP_TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>> :
-    public ngraph::VariantImpl<std::shared_ptr<QuantizationAlignmentAttribute>> {
+class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>> :
+    public VariantImpl<std::shared_ptr<QuantizationAlignmentAttribute>> {
 public:
-    static constexpr ngraph::VariantTypeInfo type_info{ "LowPrecision::QuantizationAlignment", 0 };
+    static constexpr VariantTypeInfo type_info{ "LowPrecision::QuantizationAlignment", 0 };
 
-    const ngraph::VariantTypeInfo& get_type_info() const override {
+    const VariantTypeInfo& get_type_info() const override {
         return type_info;
     }
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
+    std::shared_ptr<Variant> merge(const ngraph::NodeVector& nodes) override;
 
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
+    std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
     std::shared_ptr<QuantizationAlignmentAttribute> get() { return this->m_value; }
 
@@ -58,3 +59,4 @@ public:
     void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>>& attributes);
     std::string get_string() override;
 };
+} // namespace ngraph
