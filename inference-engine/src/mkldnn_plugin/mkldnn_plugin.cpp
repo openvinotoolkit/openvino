@@ -335,7 +335,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
-            })
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
         });
 
         auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
@@ -381,6 +385,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.run_passes(nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
+
+    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.legacy").run_on_function(nGraphFunc);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
