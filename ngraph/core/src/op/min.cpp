@@ -22,7 +22,7 @@ namespace minop
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::min(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
