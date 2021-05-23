@@ -51,11 +51,27 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
     }
 
-    const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
-    const auto precisions = precisionsAttribute == nullptr ?
-        PrecisionsAttribute::defaultPrecisions :
-        precisionsAttribute->get()->sharedValue->precisions;
-    const element::Type weightsPrecision = updatePrecisions ? precisions[0] : dequantization.data.get_element_type();
+    element::Type weightsPrecision = element::undefined;
+    if (updatePrecisions) {
+        // try to find restrictions on weights for GroupConvolution
+        if (restrictions.size() > 1ul) {
+            const auto& availablePreisions = restrictions[1].second;
+            if (!availablePreisions.empty()) {
+                weightsPrecision = availablePreisions[0];
+            }
+        }
+
+        // if restrictions are absent precisions attribute is used
+        if (weightsPrecision == element::undefined) {
+            const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
+            const auto precisions = precisionsAttribute == nullptr ?
+                PrecisionsAttribute::defaultPrecisions :
+                precisionsAttribute->get()->sharedValue->precisions;
+            weightsPrecision = precisions[0];
+        }
+    } else {
+        weightsPrecision = dequantization.data.get_element_type();
+    }
 
     const size_t inputChannelsCount = input->get_output_shape(0)[1];
     const size_t outputChannelsCount = multiply->get_output_shape(0)[1];
