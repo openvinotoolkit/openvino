@@ -31,7 +31,7 @@ namespace ngraph
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> tmp_buffer(shape_size(in_shape));
-                mean(arg, tmp_buffer.data(), in_shape, reduction_axes, true);
+                mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
                 subtract(arg,
                          tmp_buffer.data(),
                          out,
@@ -43,7 +43,7 @@ namespace ngraph
                 {
                     multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
                     std::vector<T> mean_value(shape_size(reduced_shape));
-                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes, true);
+                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
                     add(mean_value.data(),
                         std::vector<T>(shape_size(reduced_shape), eps).data(),
@@ -74,7 +74,7 @@ namespace ngraph
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> tmp_buffer(shape_size(in_shape));
-                mean(arg, tmp_buffer.data(), in_shape, reduction_axes, true);
+                mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
                 subtract(arg,
                          tmp_buffer.data(),
                          out,
@@ -86,7 +86,7 @@ namespace ngraph
                 {
                     multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
                     std::vector<T> mean_value(shape_size(reduced_shape));
-                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes, true);
+                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
                     if (eps_mode == op::MVNEpsMode::INSIDE_SQRT)
                     {
