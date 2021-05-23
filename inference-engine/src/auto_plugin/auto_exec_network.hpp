@@ -24,7 +24,7 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
 };
 
-class AutoExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class AutoExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
@@ -38,6 +38,7 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+
     ~AutoExecutableNetwork() override;
 
 private:
