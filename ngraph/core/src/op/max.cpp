@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/max.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -22,7 +23,7 @@ namespace maxop
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::max(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -67,5 +68,7 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceMax_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
@@ -20,32 +21,33 @@ namespace ngraph
             void max(const T* arg,
                      T* out,
                      const Shape& in_shape,
-                     const AxisSet& reduction_axes,
-                     bool keep_dims)
+                     const AxisSet& reduction_axes)
             {
                 T minval = std::numeric_limits<T>::has_infinity
                                ? T(-std::numeric_limits<T>::infinity())
                                : std::numeric_limits<T>::min();
 
-                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
-                CoordinateTransform output_transform(out_shape);
+                auto out_shape = reduce(in_shape, reduction_axes, false);
+                std::fill(out, out + shape_size(out_shape), minval);
 
-                for (const Coordinate& output_coord : output_transform)
-                {
-                    out[output_transform.index(output_coord)] = minval;
-                }
+                const auto in_strides = row_major_strides(in_shape);
+                const auto out_strides = row_major_strides(out_shape);
 
                 CoordinateTransform input_transform(in_shape);
-
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, false);
 
-                    T x = arg[input_transform.index(input_coord)];
-                    T max = out[output_transform.index(output_coord)];
+                    size_t in_idx = std::inner_product(
+                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
+                    size_t out_idx = std::inner_product(
+                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
+
+                    T x = arg[in_idx];
+                    T max = out[out_idx];
                     if (x > max)
                     {
-                        out[output_transform.index(output_coord)] = x;
+                        out[out_idx] = x;
                     }
                 }
             }
