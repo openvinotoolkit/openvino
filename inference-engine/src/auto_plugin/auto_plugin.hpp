@@ -72,6 +72,9 @@ private:
 
         return impl;
     }
+
+private:
+    static thread_local ConfigType _autoConfig;
 };
 
 }  // namespace AutoPlugin
