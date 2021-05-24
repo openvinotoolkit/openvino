@@ -6686,6 +6686,8 @@ struct permute_reorder_params {
 
 // permute_opt for blocked format => reorder to differnt dim
 #define CASE_PERMUTE_REORDER_TILED_F32_3 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_4 {2, 273, 19, 19}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_5 {2, 546, 2, 2}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
 
 // permute opt for blocked format => reorder to different dim/type
 #define CASE_PERMUTE_REORDER_TILED_I8_4 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
@@ -6753,6 +6755,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_4, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_I8_4, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 4},
