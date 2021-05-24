@@ -138,7 +138,7 @@ def openvino_ref(request, artifacts):
     build_dir = openvino_root_dir / "build_instrumented"
     openvino_ref_path = artifacts / "ref_pkg"
 
-    log.info("--openvino_ref is not specified. " "Preparing instrumented build at %s", build_dir)
+    log.info("--openvino_ref is not specified. Preparing instrumented build at %s", build_dir)
 
     return_code, output = make_build(
         openvino_root_dir,
