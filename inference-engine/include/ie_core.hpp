@@ -180,9 +180,6 @@ public:
      * @deprecated Use Core::ImportNetwork with explicit device name
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
-     * @param deviceName Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation*
      * @return An executable network reference
      */
     INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")

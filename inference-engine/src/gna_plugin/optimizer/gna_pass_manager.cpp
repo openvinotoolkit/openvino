@@ -237,7 +237,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        auto prevLayer = PrevFunctionalLayer(l, LayerInfo(l).isGemm() ? 1 : 0);
 
         // No need to instert identity activation
         // when activation was already there before pooling
@@ -899,6 +899,25 @@ void InsertCopyLayerPass::run() {
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
+    // Concat has multiple connections to the same input
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConcat()) continue;
+
+        // Insert copy layers after concat inputs with multiple connections to concat
+        std::set<DataPtr> parents;
+        for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
+            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            auto inputData = l->insData[input_idx].lock();
+            if (parents.find(inputData) != std::end(parents)) {
+                auto parent = getCreatorLayer(inputData);
+                IE_ASSERT(parent.lock() != nullptr);
+                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+            } else {
+                parents.insert(inputData);
+            }
+        }
+    }
+
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
 
@@ -975,7 +994,7 @@ void InsertCopyLayerPass::run() {
                 }
             }
             if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
-            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - (LayerInfo(l).isInput() ? 0 : 1);
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
                 if (currentCopyIdx < MemoryLayers.size()) {
@@ -1661,13 +1680,8 @@ void InsertIdentityToLSTMCellPass::run() {
                 for (auto& input : input_to) {
                     auto& next_layer = input.second;
                     activationInputTo[input.first] = next_layer;
-                    for (int i = next_layer->insData.size() -1; i>= 0; i--) {
-                        auto ins = next_layer->insData[i].lock();
-                        if (ins == output) {
-                            next_layer->insData.erase(next_layer->insData.begin() + i);
-                        }
-                    }
-                    next_layer->insData.push_back(dataPtr);
+                    std::replace_if(std::begin(next_layer->insData), std::end(next_layer->insData),
+                        [output](DataWeakPtr data) { return data.lock() == output; }, dataPtr);
                 }
                 input_to.clear();
                 input_to[activationName] = activationLayerWithQuant;
@@ -1896,7 +1910,9 @@ void FuseFQIntoWeightsPass::run() {
         }
 
         // check whether this FQ represents weights - it need to be at index 1 of weightable layer
-        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+        const size_t weightsIdx = 1;
+        const size_t biasesIdx = 2;
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, weightsIdx, isNonFunctional);
 
         if (prevLayerAt1 != fqLayer) {
             continue;
@@ -1908,11 +1924,11 @@ void FuseFQIntoWeightsPass::run() {
 
         GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
 
-        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx);
         auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
         // 1. broke existing connections - by detaching fq subgraph from rest of graph
-        auto prevData = weightableLayer->insData[1].lock();
+        auto prevData = weightableLayer->insData[weightsIdx].lock();
         auto prevLayer = getCreatorLayer(prevData).lock();
         auto weightDims = prevLayer->outData.front()->getDims();
         prevLayer->outData.clear();

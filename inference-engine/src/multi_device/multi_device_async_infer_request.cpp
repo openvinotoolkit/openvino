@@ -28,7 +28,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         void run(Task task) override {
             auto workerInferRequest = _this->_workerInferRequest;
             workerInferRequest->_task = std::move(task);
-            workerInferRequest->_inferRequest.StartAsync();
+            workerInferRequest->_inferRequest->StartAsync();
         };
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
@@ -69,18 +69,11 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-              auto status = _workerInferRequest->_status;
-              if (InferenceEngine::StatusCode::OK != status) {
-                  if (nullptr != InferenceEngine::CurrentException())
-                      std::rethrow_exception(InferenceEngine::CurrentException());
-                  else
-                      IE_EXCEPTION_SWITCH(status, ExceptionType,
-                        InferenceEngine::details::ThrowNow<ExceptionType>{}
-                            <<= std::stringstream{} << IE_LOCATION
-                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+              if (nullptr != _workerInferRequest->_exceptionPtr) {
+                  std::rethrow_exception(_workerInferRequest->_exceptionPtr);
               }
               if (_needPerfCounters)
-                  _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
+                  _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
         }}
     };
 }
