@@ -17,6 +17,7 @@ from mo.utils.error import Error
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 
+
 def restore_edges(graph: Graph, get_edges: callable):
     """
     Take a graph without edges and extract dependencies between nodes with the help of get_edges function.
