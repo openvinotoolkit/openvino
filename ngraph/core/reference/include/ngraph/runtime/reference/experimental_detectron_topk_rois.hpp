@@ -31,9 +31,9 @@ namespace ngraph
                 const size_t input_rois_num = input_rois_shape[0];
                 const size_t top_rois_num = std::min(max_rois, input_rois_num);
 
-                std::vector<int64_t> idx(input_rois_num);
-                std::iota(idx.begin(), idx.end(), int64_t{0});
-                std::sort(idx.begin(), idx.end(), [&input_probs](int64_t i1, int64_t i2) {
+                std::vector<size_t> idx(input_rois_num);
+                std::iota(idx.begin(), idx.end(), 0);
+                std::sort(idx.begin(), idx.end(), [&input_probs](size_t i1, size_t i2) {
                     return input_probs[i1] > input_probs[i2];
                 });
 
