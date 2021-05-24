@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    // without clip values increase rapidly, so use only seq_lenghts = 2
+    // without clip values increase rapidly, so use only seq_lengths = 2
     std::vector<bool> execute_first_iteration{true};
     std::vector<bool> is_body_condition_const{true/*, false*/};
     std::vector<bool> body_condition{true/*, false*/}; // works only if is_body_condition_const == true
@@ -50,6 +50,7 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop, StaticShapeLoopTest,
                             Combine(
+                                    ValuesIn(std::vector<bool>{true, false}),
                                     Values(true),
                                     ValuesIn(static_loop_types),
                                     Values<int64_t>(7),

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -69,10 +57,12 @@ namespace ngraph
             /// \brief Get the stale value of the tensor. A tensor is stale if its data is
             /// changed.
             /// \return true if there is new data in this tensor
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             bool get_stale() const;
 
             /// \brief Set the stale value of the tensor. A tensor is stale if its data is
             /// changed.
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             void set_stale(bool val);
 
             /// \brief Write bytes directly into the tensor
@@ -87,13 +77,16 @@ namespace ngraph
 
             /// \brief check tensor for new data, call may block.
             ///    backends may use this to ensure tensor is updated (eg: lazy eval).
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             virtual void wait_for_read_ready() {}
             /// \brief notify tensor of new data, call may block.
             ///    backends may use this as indication of new data in tensor.
+            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
             virtual void wait_for_write_ready() {}
+
         protected:
             std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
             bool m_stale;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ngraph

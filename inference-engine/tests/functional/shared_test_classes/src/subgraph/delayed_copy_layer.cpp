@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/delayed_copy_layer.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -63,6 +64,7 @@ namespace SubgraphTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

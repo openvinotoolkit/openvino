@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,9 @@ TEST(TransformationTests, ConvertMatMulTest2) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
 
-        auto reshape = ngraph::op::util::reshapeTo(input2, {1, 2, 1});
+        auto usnqueeze_input2 = std::make_shared<ngraph::opset1::Unsqueeze>(input2,
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
+        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input2, {1, 2, 1});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 
@@ -111,7 +113,9 @@ TEST(TransformationTests, ConvertMatMulTest3) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
         auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
 
-        auto reshape = ngraph::op::util::reshapeTo(input1, {1, 1, 2});
+        auto usnqueeze_input1 = std::make_shared<ngraph::opset1::Unsqueeze>(input1,
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input1, {1, 1, 2});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 

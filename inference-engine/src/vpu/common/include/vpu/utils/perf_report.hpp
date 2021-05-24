@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ struct StageMetaInfo final {
     std::vector<ie::Precision> inputPrecisions;
     std::vector<ie::SizeVector> inputDims;
 
-    size_t childsNum = 0;
+    size_t childrenNum = 0;
 
     int execOrder = -1;
     float execTime = 0;

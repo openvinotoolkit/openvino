@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 #include <sstream>
@@ -398,7 +386,7 @@ TEST(provenance, fused_copy_origin_tags)
 
     auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
-    auto g = make_shared<op::Gelu>(p1);
+    auto g = make_shared<op::MVN>(p1);
     g->add_provenance_tag("G");
     auto r = make_shared<op::Result>(g);
     auto f = make_shared<Function>(ResultVector{r}, ParameterVector{p1});
@@ -420,7 +408,7 @@ TEST(provenance, fused_copy_origin_tags)
         else
         {
             EXPECT_TRUE(tags.find("G") != tags.end());
-            EXPECT_TRUE(tags.find("<Decomposed from Gelu>") != tags.end());
+            EXPECT_TRUE(tags.find("<Decomposed from MVN>") != tags.end());
         }
     });
 }

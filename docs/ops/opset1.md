@@ -93,7 +93,7 @@ declared in `namespace opset1`.
 * [Result](infrastructure/Result_1.md)
 * [ReverseSequence](movement/ReverseSequence_1.md)
 * [Select](condition/Select_1.md)
-* [Selu](arithmetic/Selu_1.md)
+* [Selu](activation/Selu_1.md)
 * [ShapeOf](shape/ShapeOf_1.md)
 * [Sigmoid](activation/Sigmoid_1.md)
 * [Sign](arithmetic/Sign_1.md)

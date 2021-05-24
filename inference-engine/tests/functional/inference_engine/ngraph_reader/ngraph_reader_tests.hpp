@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/network_utils.hpp"
+#include "network_utils.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ ExecutableNetwork::ExecutableNetwork(
         defaultOutput(_config.compilerLogFilePath()));
 
     if (_device == nullptr)
-        THROW_IE_EXCEPTION << "No device was detected";
+        IE_THROW() << "No device was detected";
     auto compiledGraph = compileNetwork(
         network,
         static_cast<Platform>(_device->_platform),
@@ -181,14 +181,14 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         IE_SET_METRIC_RETURN(DEVICE_THERMAL, _executor->GetThermal(_device));
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 }
 
 InferenceEngine::CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
     if (_graphDesc._name == importedNetworkName)
-        THROW_IE_EXCEPTION <<
+        IE_THROW() <<
         "GetExecGraphInfo() can't be called for ExecutableNetwork that was imported from a compiled blob as far getting"
         " original stage names, types, and topological order from the compiled blob is not implemented for now.";
     return buildRuntimeGraph(_graphMetaData, perfInfo);

@@ -20,8 +20,8 @@
 
   * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped within [0,1].
   * **Range of values**:
-    * false - clipping is not performed
-    * true  - each value in the output tensor is within [0,1]
+    * false or 0 - clipping is not performed
+    * true or 1  - each value in the output tensor is within [0,1]
   * **Type**: boolean
   * **Default value**: true
   * **Required**: *no*

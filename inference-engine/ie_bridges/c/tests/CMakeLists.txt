@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "InferenceEngineCAPITests")
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is disabled")
     return()

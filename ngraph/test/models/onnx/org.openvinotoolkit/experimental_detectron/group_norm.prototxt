@@ -97,7 +97,3 @@ opset_import {
   domain: ""
   version: 10
 }
-opset_import {
-  domain: "org.openvinotoolkit"
-  version: 1
-}

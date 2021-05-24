@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,9 @@
 
 #include "system_allocator.hpp"
 
+using namespace InferenceEngine;
 class SystemAllocatorReleaseTests : public CommonTestUtils::TestsCommon {
 };
-
-TEST_F(SystemAllocatorReleaseTests, canRelease) {
-    SystemMemoryAllocator *allocator_ = new SystemMemoryAllocator();
-    allocator_->Release();
-}
 
 class SystemAllocatorTests : public CommonTestUtils::TestsCommon {
 protected:

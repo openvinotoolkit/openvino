@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2018-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import onnx
 import onnx.mapping
@@ -22,7 +10,6 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35930, xfail_issue_48100
 
 
 @pytest.mark.parametrize(
@@ -188,7 +175,7 @@ def test_hardmax(axis, dim1, dim2):
     data = np.random.rand(3, 4, 5).astype(np.float32)
     expected = hardmax_2d(data.reshape(dim1, dim2)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=axis)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
 
@@ -202,24 +189,24 @@ def test_hardmax_special_cases():
     # default axis=1
     expected = hardmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     expected = hardmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=-1)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     with pytest.raises(RuntimeError):
         node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=3)
-        ng_results = run_node(node, [data])
+        ng_results = run_node(node, [data], opset_version=12)
 
     # For multiple occurrences of the maximal values, the first occurrence is selected
     # for one-hot output
     data = np.array([[3, 3, 3, 1]]).astype(np.float32)
     expected = np.array([[1, 0, 0, 0]]).astype(np.float32)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
 
@@ -254,32 +241,32 @@ def test_logsoftmax():
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=0)
     expected = logsoftmax_2d(data.reshape(1, 60)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=1)
     expected = logsoftmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(ng_results, [expected])
+
+    # default axis is 1
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
     expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    # default axis is -1
-    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
+    ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
     with pytest.raises(RuntimeError):
         node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=3)
-        ng_results = run_node(node, [data])
+        ng_results = run_node(node, [data], opset_version=12)
 
 
 def test_softplus():
     def softplus(x):
-        return np.log(np.exp(x) + 1)
+        return np.where(x < 20, np.log(np.exp(x) + 1), x)
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)
@@ -390,8 +377,9 @@ def test_cast_to_uint(val_type):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35930
 def test_cast_errors():
+    from onnx.onnx_cpp2py_export.checker import ValidationError
+
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
 
@@ -408,7 +396,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported data type representation
@@ -424,7 +412,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
     # unsupported input tensor data type:
@@ -461,7 +449,7 @@ def test_cast_errors():
 
 
 @pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float64, marks=xfail_issue_48100),
+                         [pytest.param(np.float64),
                           pytest.param(np.float32)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)

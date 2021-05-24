@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,7 +30,7 @@ function(add_gtest_libraries)
             if(TARGET "${target_name}")
                 get_target_property(_target_cxx_flags ${target_name} COMPILE_FLAGS)
                 if(_target_cxx_flags)
-                    if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+")
+                    if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
                         string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
                         message(STATUS "Removing -Zi flag from target " ${target_name})
                         set_target_properties(${target_name} PROPERTIES COMPILE_FLAGS "${_target_cxx_flags}")
@@ -75,7 +75,16 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     ${PUGI}
                     ${NGRAPH_LIBRARIES}
+                    ${EXPORT_DEPENDENCIES}
+                    inference_engine_transformations
     )
+
+    # USE_STATIC_IE is passed
+    if(ARGN)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+    else()
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
+    endif()
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
@@ -102,18 +111,14 @@ function(add_common_utils ADD_TARGET_NAME)
         PUBLIC
             ${IE_TESTS_ROOT}/ie_test_utils
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        )
+            $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+            )
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
-
-    target_link_libraries(${ADD_TARGET_NAME}
-        PUBLIC
-            ${EXPORT_DEPENDENCIES}
-        )
 endfunction()
 
 add_common_utils(${TARGET_NAME})

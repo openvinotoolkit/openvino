@@ -1,6 +1,7 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <map>
@@ -8,7 +9,6 @@
 #include <vector>
 
 #include <debug.h>  // to allow putting vector into exception string stream
-#include "details/ie_exception.hpp"
 #include <legacy/ie_layers_property.hpp>
 #include "ie_blob.h"
 
@@ -97,10 +97,5 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimz,
                      int32_t &dimn);
 
-enum class OpType {
-    SCALAR,
-    VECTOR
-};
-std::ostream& operator<<(std::ostream & os, OpType type);
 
 }  // namespace CommonTestUtils

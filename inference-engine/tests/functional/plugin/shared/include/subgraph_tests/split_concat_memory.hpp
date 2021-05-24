@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto ie = PluginCache::get().ie();
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 

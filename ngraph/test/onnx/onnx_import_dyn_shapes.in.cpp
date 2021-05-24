@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -286,6 +274,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch)
     const auto expected_out_shape = Shape{1, 10, 6, 6};
     const std::vector<int64_t> expected_values(shape_size(expected_out_shape), 13);
     test_case.add_expected_output<int64_t>(expected_out_shape, expected_values);
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/conv_with_dynamic_bias.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    const auto data_shape = Shape{1, 3, 7, 7};
+    const auto filters_shape = Shape{10, 3, 2, 2};
+    const auto data_elems = shape_size(data_shape);
+    const auto filters_elems = shape_size(filters_shape);
+
+    test_case.add_input(data_shape, std::vector<int64_t>(data_elems, 1));
+    test_case.add_input(filters_shape, std::vector<int64_t>(filters_elems, 1));
+    test_case.add_input(Shape{10}, std::vector<int64_t>(10, 1));
+
+    const auto expected_out_shape = Shape{1, 10, 6, 6};
+    const std::vector<int64_t> expected_values(shape_size(expected_out_shape), 13);
+    test_case.add_expected_output(expected_out_shape, expected_values);
 
     test_case.run();
 }
@@ -1335,5 +1346,42 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
     std::iota(input.begin(), input.end(), 0);
     test_case.add_input<float>(input_shape, input);
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {5, 6, 7, 9, 10, 11, 13, 14, 15});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/depth_to_space.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input(Shape{1, 8, 2, 2}, input);
+    test_case.add_expected_output(Shape{1, 2, 4, 4}, expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/space_to_depth.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{
+        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
+        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
+    };
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input(Shape{1, 2, 4, 4}, input);
+    test_case.add_expected_output(Shape{1, 8, 2, 2}, expected_output);
     test_case.run();
 }

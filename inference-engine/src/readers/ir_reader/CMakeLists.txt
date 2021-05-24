@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,6 +33,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine_reader_api
                                              inference_engine_plugin_api
                                              inference_engine
+                                             inference_engine_transformations
                                              pugixml
                                              openvino::itt)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ const std::vector<Precision> precisionSet = {Precision::FP32, Precision::I16, Pr
 const std::vector<setType> typeSet = {setType::INPUT, setType::OUTPUT, setType::BOTH};
 
 const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
+                                       ::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(typeSet),
                                        ::testing::Values(CommonTestUtils::DEVICE_CPU));
 

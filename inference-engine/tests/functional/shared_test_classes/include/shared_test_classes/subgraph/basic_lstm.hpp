@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ protected:
     std::vector<float> hidden_memory_init;
     std::vector<float> cell_memory_init;
     void SetUp() override;
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
 };
 
 }  // namespace SubgraphTestsDefinitions

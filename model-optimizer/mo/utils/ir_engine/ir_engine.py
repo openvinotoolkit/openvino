@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import hashlib
 import logging as log
@@ -310,8 +297,11 @@ class IREngine(object):
             'I8': (1, np.int8),
             'U8': (1, np.uint8),
             'U1': (1, np.uint8),
+            'U4': (1, np.uint8),
+            'I4': (1, np.uint8),
             'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
+            'U64': (8, np.uint64)
         }
         type_size, dtype = precision_map[precision]
         layer_attrs[tag] = (int(offset), int(size) // type_size, in_port, dtype)
@@ -327,7 +317,7 @@ class IREngine(object):
         """
         normalized_attrs = {}
         for attr, value in attrs.items():
-            value = value.replace('\"', '')
+            value = value.replace('\"', '').replace(' ', '')
             value = value.split(',')
             n_value = []
             for val in value:

@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "op/loop.hpp"
 
 #include <iterator>
@@ -72,7 +61,7 @@ namespace ngraph
                         }
                         return false;
                     }
-                }
+                } // namespace
 
                 OutputVector loop(const Node& node)
                 {
@@ -81,7 +70,15 @@ namespace ngraph
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
 
-                    const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
+                    std::map<std::size_t, std::string> loop_carried_dependencies_map;
+                    for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++)
+                    {
+                        loop_carried_dependencies_map[i + 2] =
+                            loop_carried_dependencies[i].get_node()->get_friendly_name();
+                    }
+
+                    const Subgraph& body_graph{
+                        node.get_subgraph_from_attribute("body", loop_carried_dependencies_map)};
                     auto body_outputs = body_graph.get_ng_outputs();
                     const auto& body_inputs = body_graph.get_ng_parameters();
 
@@ -194,11 +191,12 @@ namespace ngraph
                     }
 
                     const auto& outputs_from_parent = body_graph.get_outputs_from_parent();
-                    CHECK_VALID_NODE(node,
-                                     std::distance(body_inputs_it, body_inputs.end()) ==
-                                         outputs_from_parent.size(),
-                                     "Expected number of invariant parameters is"
-                                     " not equal number of provided outputs from parent scope");
+                    CHECK_VALID_NODE(
+                        node,
+                        static_cast<size_t>(std::distance(body_inputs_it, body_inputs.end())) ==
+                            outputs_from_parent.size(),
+                        "Expected number of invariant parameters is"
+                        " not equal number of provided outputs from parent scope");
 
                     // Set-up parameters from parent graph which are not changed during Loop's
                     // iterations

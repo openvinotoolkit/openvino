@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <memory>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <common_test_utils/common_utils.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace testing;
 using namespace InferenceEngine;

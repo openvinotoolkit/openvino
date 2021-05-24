@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,6 +14,7 @@
 #include "program_dump_graph.h"
 #include "program_impl.h"
 #include "sliding_window_utils.h"
+#include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
@@ -375,7 +364,9 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    if (!is_internal)  transfer_memory_to_device();
+    if (!is_internal)
+        transfer_memory_to_device();
+
     cleanup();
 }
 
@@ -495,15 +486,14 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program_impl::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
-    if (node.is_type<prior_box>())
-        return;
+    }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->constant) {
+        if (!dep->is_constant()) {
             node.constant = false;
-            break;
+            return;
         }
     }
 }
@@ -531,12 +521,19 @@ void program_impl::transfer_memory_to_device() {
     for (auto& node : processing_order) {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
+            auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
+            auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+
+            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
+                throw std::invalid_argument(err_str);
+            }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(mem.get_layout(),
+                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout,
                                                                     allocation_type::usm_device,
                                                                     mem.get_net_id(),
                                                                     false);
@@ -897,7 +894,7 @@ bool program_impl::extract_and_remove(program_node& node) {
     return true;
 }
 
-void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node) {
+void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
     local_desc.node = get_node_ptr(peer_node.id());
@@ -914,6 +911,13 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
 
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
                                                  fused_node.get_output_layout().data_padding);
+
+    auto history_iter = fusing_history->find(peer_node.id());
+    if (history_iter != fusing_history->end()) {
+        for (auto& id : history_iter->second) {
+            local_desc.fused_deps.push_back(id);
+        }
+    }
 
     // Add new dependencies to the fused_node
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
@@ -954,6 +958,10 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
     }
     add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
 
+    for (auto& user : peer_node.users) {
+        (*fusing_history)[user->id()].push_back(peer_node.id());
+    }
+
     // Remove all edges connected with peer node
     while (peer_node.get_dependencies().size() > 0) {
         auto& dep = peer_node.get_dependency(peer_node.get_dependencies().size() - 1);
@@ -967,12 +975,14 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
     fused_node.recalc_output_layout(true);
 }
 
-void program_impl::remove_nodes(std::list<program_node*>& to_remove) {
+void program_impl::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {
             get_inputs().remove(node);
         } else {
-            for (auto& dep : node->dependencies) dep->users.remove(node);
+            for (auto& dep : node->dependencies) {
+                dep->users.remove(node);
+            }
         }
         for (auto& user : node->users) {
             user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
@@ -1149,6 +1159,9 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
+    size_t weighted_sum_feature_size = 0;
+    size_t weight_sum = 0;
+
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
@@ -1299,4 +1312,35 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+
+    // This is to avoid using fsv16 for shallow-feature networks.
+    // This may not be exactly same as real execution graph as layer fusing is not done yet,
+    // but it is a reasonable approximation.
+    // Check the expected network efficiency after setting layer optimization attributes.
+    // If network depth is shallow, it is faster with fsv4.
+    for (auto& node : get_processing_order()) {
+        auto &prim = *node;
+
+        if (prim.is_in_data_flow() && prim.type() == cldnn::convolution::type_id()) {
+            size_t num_feature = prim.get_output_layout().size.feature.vector()[0];
+            size_t num_spatial = 1;
+            for (auto s : prim.get_output_layout().size.spatial.vector())
+                num_spatial *= s;
+
+            if (lo.get_preferred_format(prim) != format::b_fs_yx_fsv4) {
+                weight_sum += num_spatial;
+                weighted_sum_feature_size += num_spatial * num_feature;
+            }
+        }
+    }
+
+    size_t weighted_average_feature_depth = weighted_sum_feature_size / std::max(weight_sum, static_cast<size_t>(1));
+
+    // Need to confirm that weighted_average_feature_depth > 1 to keep unittest behavior.
+    if (is_quantized_int8_model && weighted_average_feature_depth < 8 && weighted_average_feature_depth > 1) {
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::fs_b_yx_fsv32_network, 0);
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::b_fs_yx_fsv16_network, 0);
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 0);
+    }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,23 +9,30 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
+#include "utils/general_utils.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace InferenceEngine;
 
-MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode(layer, eng, w_cache) {
+MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
+        MKLDNNNode(op, eng, w_cache) {
+    IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
+MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
+        MKLDNNNode("Reorder", name, eng, w_cache) {
+}
 void MKLDNNReorderNode::getSupportedDescriptors() {
     if (outDims.empty() && output.getLayout() != InferenceEngine::Layout::ANY)
         outDims.push_back(MKLDNNDims(output.getDims()));
     if (inDims.empty() && input.getLayout() != InferenceEngine::Layout::ANY)
         inDims.push_back(MKLDNNDims(input.getDims()));
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
@@ -69,15 +76,36 @@ void MKLDNNReorderNode::createPrimitive() {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    if (!isOptimized)
-    createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
-            dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
+    if (!isOptimized) {
+        if (MKLDNNPlugin::one_of(getParentEdgeAt(0)->getDims().ndims(), 4, 5) &&
+                getParentEdgeAt(0)->getDims()[1] <= 64 &&
+                getParentEdgeAt(0)->getDims()[1] >= 16 &&
+                (getParentEdgeAt(0)->getMemory().GetElementsCount() / getParentEdgeAt(0)->getDims()[1]) >= 128 &&
+                getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
+                getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
+                getParentEdgeAt(0)->getMemory().GetDesc().getDataType() == memory::data_type::f32 &&
+                getChildEdgeAt(0)->getMemory().GetDesc().getDataType() == memory::data_type::f32) {
+            // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
+            canUseOptimizedNspc2Ncsp = true;
+        } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
+                   MKLDNNPlugin::one_of(getParentEdgeAt(0)->getDims().ndims(), 4, 5) &&
+                   getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
+                   getChildEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
+                   getParentEdgeAt(0)->getMemory().GetDataType() == getChildEdgeAt(0)->getMemory().GetDataType() &&
+                   MKLDNNExtensionUtils::sizeOfDataType(getParentEdgeAt(0)->getMemory().GetDataType()) == 1) {
+            // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
+            canUseOptimizedNcsp2Nspc = true;
+        } else {
+            createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
+                                   dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
+        }
+    }
 }
 
 void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
@@ -144,7 +172,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
     }
 
     if (!success) {
-        THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
+        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
@@ -161,14 +189,75 @@ bool MKLDNNReorderNode::created() const {
     return getType() == Reorder;
 }
 
+void MKLDNNReorderNode::optimizedNcsp2Nspc() {
+    auto parentEdge = getParentEdgeAt(0);
+    auto childEdge = getChildEdgeAt(0);
+    const int ndims = parentEdge->getDims().ndims();
+    const size_t DIM0 = parentEdge->getDims()[0];
+    const size_t DIM1 = parentEdge->getDims()[1];
+    const size_t DIM2 = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
+    const size_t DIM3 = parentEdge->getDims()[ndims - 2];
+    const size_t DIM4 = parentEdge->getDims()[ndims - 1];
+
+    auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetPtr());
+    auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
+
+    const size_t stride0 = DIM1 * DIM2 * DIM3 * DIM4;
+    const size_t stride1 = DIM2 * DIM3 * DIM4;
+    const size_t stride2 = DIM2 * DIM3;
+
+    parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
+        size_t src_off = dim0 * stride0 + j * DIM4 + dim1 * stride1;
+        size_t dst_off = dim0 * stride0 + j * DIM4 * DIM1 + dim1;
+
+        for (size_t dim4 = 0; dim4 < DIM4; ++dim4) {
+            dst_data[dst_off] = src_data[src_off];
+            src_off++;
+            dst_off += DIM1;
+        }
+    });
+}
+
+void MKLDNNReorderNode::optimizedNspc2Ncsp() {
+    auto parentEdge = getParentEdgeAt(0);
+    auto childEdge = getChildEdgeAt(0);
+    const int ndims = parentEdge->getDims().ndims();
+    const size_t DIM0 = parentEdge->getDims()[0];
+    const size_t DIM1 = parentEdge->getDims()[1];
+    const size_t DIM2 = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
+    const size_t DIM3 = parentEdge->getDims()[ndims - 2];
+    const size_t DIM4 = parentEdge->getDims()[ndims - 1];
+
+    auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());
+
+    const size_t stride1 = DIM2 * DIM3 * DIM4;
+    const size_t stride0 = stride1 * DIM1;
+    parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        auto src_off = b*stride0 + j*DIM1;
+        auto dst_off = b*stride0 + j;
+        for (size_t dim1 = 0; dim1 < DIM1; ++dim1) {
+            dst_data[dst_off] = src_data[src_off];
+            src_off++;
+            dst_off += stride1;
+        }
+    });
+}
+
 void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     if (isOptimized)
         return;
 
-    src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
-    dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+    if (canUseOptimizedNspc2Ncsp) {
+        optimizedNspc2Ncsp();
+    } else if (canUseOptimizedNcsp2Nspc) {
+        optimizedNcsp2Nspc();
+    } else {
+        src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+        dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
 
-    MKLDNNNode::execute(strm);
+        MKLDNNNode::execute(strm);
+    }
 }
 
 void MKLDNNReorderNode::setDynamicBatchLim(int lim) {

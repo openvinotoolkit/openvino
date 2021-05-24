@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,6 +78,7 @@ public:
             testValues.expected.dequantizationOnWeights,
             testValues.expected.dequantizationAfter);
     }
+
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj) {
         auto inputShape = std::get<0>(obj.param);
@@ -174,7 +175,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 100.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {1}}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {1, 1, 1, 1}}}
         }
     },
 
@@ -226,11 +227,11 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ -125.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
 
-    // Actual & Transformed:
+    // Actual:
     //
     // Parameter   Constant   Constant Constant
     //  |U8         |U8        |FP32    |I8
@@ -242,6 +243,22 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //      \FP32   /FP32      |FP32   /FP32
     //       \     /           |      /
     //       Multiply         Multiply
+    //         \FP32         /FP32
+    //          \           /
+    //           Convolution
+    //
+    // Transformed:
+    //
+    // Parameter   Constant
+    //  |U8         |U8
+    //  |           |
+    // Convert    Convert
+    //   \FP32    /FP32
+    //    \      /
+    //    Subtract  Constant
+    //      \FP32   /FP32
+    //       \     /
+    //       Multiply       Constant
     //         \FP32         /FP32
     //          \           /
     //           Convolution
@@ -261,8 +278,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
-            { std::vector<float>{ 2.f }, ngraph::element::f32},
+            {},
+            { std::vector<float>{ -3.75f }, ngraph::element::f32},
             {},
             ngraph::element::f32,
             {}
@@ -333,7 +350,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 2.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1 }}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
 
@@ -401,9 +418,81 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 2.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1 }}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
-    }
+    },
+    // incorrect zero point on activations [not transformed]
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {},
+            { std::vector<float>{ -3.75f }, ngraph::element::f32},
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    // incorrect zero point on weights [not transformed, weights folded]
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {},
+            { std::vector<float>{ -29.94f }, ngraph::element::f32},
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

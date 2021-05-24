@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
         break;
     case 0: constTensor = cldnn::tensor(1, 1, 1, 1);
         break;
-    default: THROW_IE_EXCEPTION << "Invalid constant blob dimensions";
+    default: IE_THROW() << "Invalid constant blob dimensions";
     }
     return constTensor;
 }
@@ -138,7 +138,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
     if (swap_oi) {
         size_t expected_min_rank = 2 + (prop.hasGroupDimension ? 1 : 0);
         if (expected_min_rank > constDims.size())
-            THROW_IE_EXCEPTION << "Invalid constant properties or shape";
+            IE_THROW() << "Invalid constant properties or shape";
 
         auto newDims = constDims;
         if (prop.hasGroupDimension) {
@@ -163,7 +163,8 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    auto bufIter = p.blobMemCache.find(data);
+
+    auto bufIter = p.blobMemCache.find(std::make_pair(data, constDims));
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
@@ -198,7 +199,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
             std::memcpy(&buf[0], &data[0], bufSize);
         }
         p.AddPrimitive(cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[data] = initialconstPrimID;
+        p.blobMemCache[std::make_pair(data, constDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 
@@ -53,7 +41,7 @@ namespace
 
         return pad_mode;
     }
-}
+} // namespace
 namespace ngraph
 {
     namespace onnx_import
@@ -131,14 +119,10 @@ namespace ngraph
                     }
                     else
                     {
-                        auto axis =
-                            default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
                         OutputVector padding = builder::opset1::split(pads, 2, 0);
 
-                        padding_begin =
-                            std::make_shared<default_opset::Convert>(padding.at(0), element::i64);
-                        padding_end =
-                            std::make_shared<default_opset::Convert>(padding.at(1), element::i64);
+                        padding_begin = padding.at(0);
+                        padding_end = padding.at(1);
                     }
 
                     const std::string mode =

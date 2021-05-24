@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -293,7 +281,9 @@ namespace ngraph
             float get_float() const { return m_attribute_proto->f(); }
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
-            Subgraph get_subgraph(const Graph& parent_graph) const;
+            Subgraph get_subgraph(
+                const Graph& parent_graph,
+                const std::map<std::size_t, std::string>& carried_dependencies_map) const;
 
             std::vector<Tensor> get_tensor_array() const
             {
@@ -317,8 +307,6 @@ namespace ngraph
                 return {std::begin(m_attribute_proto->strings()),
                         std::end(m_attribute_proto->strings())};
             }
-
-            std::vector<Graph> get_graph_array(Model&) const;
 
             /* explicit */ operator ONNX_NAMESPACE::AttributeProto_AttributeType() const
             {

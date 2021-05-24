@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
     case InferenceEngine::Precision::BF16:
         return std::make_shared<InferenceEngine::TBlob<short>>(desc);
     default:
-        THROW_IE_EXCEPTION << "precision is no set";
+        IE_THROW() << "precision is no set";
     }
 }
 

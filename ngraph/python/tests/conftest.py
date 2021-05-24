@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import pytest
 
@@ -29,7 +17,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--backend",
         default="CPU",
-        choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO"],
+        choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO", "TEMPLATE"],
         help="Select target device",
     )
     parser.addoption(
@@ -58,6 +46,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_hddl: Skip test on HDDL")
     config.addinivalue_line("markers", "skip_on_myriad: Skip test on MYRIAD")
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
+    config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
 
 
@@ -73,6 +62,7 @@ def pytest_collection_modifyitems(config, items):
         "HDDL": "skip_on_hddl",
         "MYRIAD": "skip_on_myriad",
         "HETERO": "skip_on_hetero",
+        "TEMPLATE": "skip_on_template",
     }
 
     skip_markers = {
@@ -82,6 +72,7 @@ def pytest_collection_modifyitems(config, items):
         "HDDL": pytest.mark.skip(reason="Skipping test on the HDDL backend."),
         "MYRIAD": pytest.mark.skip(reason="Skipping test on the MYRIAD backend."),
         "HETERO": pytest.mark.skip(reason="Skipping test on the HETERO backend."),
+        "TEMPLATE": pytest.mark.skip(reason="Skipping test on the TEMPLATE backend."),
     }
 
     for item in items:

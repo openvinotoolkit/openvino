@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -414,6 +414,7 @@ void MultipleLSTMCellTest::Run() {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
     switchToNgraphFriendlyModel();
     Validate();
@@ -464,6 +465,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
 
     // Calculate ref values for Unrolled TI

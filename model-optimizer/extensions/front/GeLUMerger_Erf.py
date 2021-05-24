@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2017-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -126,7 +113,7 @@ class GeLUMergerErf(FrontReplacementPattern):
             # check that the values match the approximation
             if fabs(div_param - sqrt2) < 1e-06 and mul_param == 0.5 and add_param == 1.0:
                 log.debug('Confirmed Erf-based GELU pattern after {} with name {}'.format(inp_node.op, inp_name))
-                gelu = GeLUOP(graph, dict(name=inp_name + '/GELU_')).create_node()
+                gelu = GeLUOP(graph, dict(name=inp_name + '/GELU_', approximation_mode='erf')).create_node()
                 div.in_port(0).get_connection().set_destination(gelu.in_port(0))
                 out_node.out_port(0).get_connection().set_source(gelu.out_port(0))
                 rename_nodes([(out_node, node_name + '/TBD'), (gelu, node_name)])

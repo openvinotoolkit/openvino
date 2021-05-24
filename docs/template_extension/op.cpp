@@ -1,13 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "op.hpp"
 
 using namespace TemplateExtension;
 
-constexpr ngraph::NodeTypeInfo Operation::type_info;
-
 //! [op:ctor]
+NGRAPH_RTTI_DEFINITION(TemplateExtension::Operation, "Template", 0);
+
 Operation::Operation(const ngraph::Output<ngraph::Node> &arg, int64_t add) : Op({arg}), add(add) {
     constructor_validate_and_infer_types();
 }
@@ -80,6 +81,25 @@ bool Operation::evaluate(const ngraph::HostTensorVector& outputs,
     case ngraph::element::Type_t::bf16: return evaluate_op<ngraph::element::Type_t::bf16>(inputs[0], outputs[0], getAddAttr());
     case ngraph::element::Type_t::f16: return evaluate_op<ngraph::element::Type_t::f16>(inputs[0], outputs[0], getAddAttr());
     case ngraph::element::Type_t::f32: return evaluate_op<ngraph::element::Type_t::f32>(inputs[0], outputs[0], getAddAttr());
+    default: break;
+    }
+    return false;
+}
+
+bool Operation::has_evaluate() const {
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::Type_t::i8:
+    case ngraph::element::Type_t::i16:
+    case ngraph::element::Type_t::i32:
+    case ngraph::element::Type_t::i64:
+    case ngraph::element::Type_t::u8:
+    case ngraph::element::Type_t::u16:
+    case ngraph::element::Type_t::u32:
+    case ngraph::element::Type_t::u64:
+    case ngraph::element::Type_t::bf16:
+    case ngraph::element::Type_t::f16:
+    case ngraph::element::Type_t::f32: return true;
     default: break;
     }
     return false;

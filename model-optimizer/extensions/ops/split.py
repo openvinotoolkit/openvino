@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -57,7 +44,8 @@ class VariadicSplitBase(Op):
 
         axis = node.in_port(1).data.get_value() if op == 'VariadicSplit' else node.soft_get('axis', None)
         assert axis is not None, '{} `axis` is unknown for node {}'.format(op, name)
-        assert axis.ndim == 0, '{} `axis` should be scalar, but it`s not for node {}'.format(op, name)
+        assert axis.ndim == 0 or (axis.ndim == 1 and axis.shape[0] == 1), \
+            '{} `axis` should be scalar or tensor with shape [1], but it`s not for node {}'.format(op, name)
 
         split_lengths = node.in_port(2).data.get_value() if op == 'VariadicSplit' else node.soft_get('split_lengths',
                                                                                                      None)

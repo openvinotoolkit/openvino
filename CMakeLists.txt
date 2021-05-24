@@ -30,7 +30,7 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
@@ -102,10 +102,9 @@ function(build_ngraph)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph)
+    ie_cpack_add_component(ngraph REQUIRED)
 
     set(SDL_cmake_included ON)
-    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
     set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
@@ -149,6 +148,7 @@ build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
+add_subdirectory(tools)
 
 #
 # Shellcheck
@@ -197,7 +197,7 @@ endif()
 
 # install files for demo
 
-ie_cpack_add_component(demo_scripts REQUIRED DEPENDS core)
+ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY scripts/demo/

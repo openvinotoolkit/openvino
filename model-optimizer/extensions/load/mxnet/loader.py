@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.utils.error import FrameworkError, Error
 from mo.utils.utils import refer_to_faq_msg
@@ -30,6 +17,7 @@ from mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_op_extractor
 from mo.front.mxnet.loader import symbol2nx, load_symbol_def
 from mo.front.mxnet.nd_to_params import save_params_file
 from mo.graph.graph import Graph
+from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 
 
 class MxNetLoader(Loader):
@@ -64,3 +52,5 @@ class MxNetLoader(Loader):
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
 
         extract_node_attrs(graph, mxnet_op_extractor)
+        send_op_names_info('mxnet', graph)
+        send_shapes_info('mxnet', graph)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,13 +19,11 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
-#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
-
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
 #define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
 #else
@@ -146,7 +144,7 @@ public:
 /**
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension) : public InferenceEngine::details::IRelease {
+class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
 public:
     /**
      * @brief Returns operation sets
@@ -187,6 +185,17 @@ public:
      * @param versionInfo Pointer to version info, will be set by plugin
      */
     virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
+
+    /**
+     * @brief Implements deprecated API
+     */
+    INFERENCE_ENGINE_DEPRECATED("Do not override or use this method. Use IE_DEFINE_EXTENSION_CREATE_FUNCTION to export extension")
+    virtual void Release() noexcept {
+        delete this;
+    }
+
+protected:
+    virtual ~IExtension() = default;
 };
 
 /**
@@ -198,9 +207,31 @@ using IExtensionPtr = std::shared_ptr<IExtension>;
  * @brief Creates the default instance of the extension
  *
  * @param ext Extension interface
- * @param resp Response description
- * @return Status code
  */
-INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
+INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
 
+/**
+ * @note: Deprecated API
+ * @brief Creates the default instance of the extension
+ * @param ext Extension interface
+ * @param resp Responce
+ * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
+ */
+#if defined(_WIN32)
+INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
+INFERENCE_EXTENSION_API(StatusCode)
+CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
+#else
+INFERENCE_EXTENSION_API(StatusCode)
+CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
+#endif
+
+/**
+ * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
+ * @brief Generates extension creation function
+ */
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                                  \
+INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionShared(std::shared_ptr<InferenceEngine::IExtension>& ext) {   \
+    ext = std::make_shared<Extension>();                                                                                    \
+}
 }  // namespace InferenceEngine

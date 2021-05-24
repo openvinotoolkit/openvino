@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,9 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
+    if (!support3DTensorOnActivations && (matMul->input(0).get_shape().size() == 3ul)) {
+        return false;
+    }
 
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
@@ -51,13 +54,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         dequantization2 = NetworkHelper::getDequantization(matMul, 1);
     }
 
-    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<op::TypeRelaxed<opset1::MatMul>>(
-        std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
-        op::TemporaryReplaceOutputType(dequantization1.data, element::f32).get(),
-        op::TemporaryReplaceOutputType(dequantization2.data, element::f32).get(),
+    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
+        std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
-    NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
     NetworkHelper::copyInfo(matMul, newMatMul);
 
     std::shared_ptr<Node> parent = newMatMul;
@@ -78,7 +80,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
             broadcastedConst,
-            fold<opset1::Convert>(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
@@ -124,8 +126,16 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(mulConst1, mulConst2));
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(parent, newMulConst);
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+            mulConst1,
+            foldConvert(mulConst2, element::f32)));
+
+    const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        std::vector<element::Type>{ deqPrecision, deqPrecision },
+        std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
+        ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
+
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
     replace_node(matMul, newMultiply);
@@ -153,7 +163,7 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpecialDimension(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
         return false;
     }
 
@@ -177,6 +187,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             if ((constantShape.size() == mulShape.size()) && (constantShape[columnsIdx] != 1)) {
                 return false;
             }
+        }
+
+        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
+            return false;
         }
     }
 

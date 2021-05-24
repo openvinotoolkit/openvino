@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #ifdef _WIN32
 #include <windows.h>
@@ -230,19 +218,20 @@ void file_util::iterate_files(const string& path,
         FindClose(hFind);
     }
 #else
-    iterate_files_worker(path,
-                         [&files, &dirs](const string& file, bool is_dir) {
-                             if (is_dir)
-                             {
-                                 dirs.push_back(file);
-                             }
-                             else
-                             {
-                                 files.push_back(file);
-                             }
-                         },
-                         recurse,
-                         include_links);
+    iterate_files_worker(
+        path,
+        [&files, &dirs](const string& file, bool is_dir) {
+            if (is_dir)
+            {
+                dirs.push_back(file);
+            }
+            else
+            {
+                files.push_back(file);
+            }
+        },
+        recurse,
+        include_links);
 #endif
 
     for (auto f : files)

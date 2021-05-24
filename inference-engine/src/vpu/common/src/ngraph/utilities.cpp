@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,4 +33,37 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
-}  // namespace vpu
+bool fuseTypeToStaticShapeNonMaxSuppression(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto nms = ngraph::as_type_ptr<ngraph::vpu::op::StaticShapeNonMaxSuppression>(node)) {
+        nms->set_output_type(to);
+        return true;
+    }
+    return false;
+}
+
+bool fuseTypeToStaticShapeNonZero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto nz = ngraph::as_type_ptr<ngraph::vpu::op::StaticShapeNonZero>(node)) {
+        nz->set_output_type(to);
+        return true;
+    }
+    return false;
+}
+
+bool fuseTypeToStaticShapeTopK(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto topk = ngraph::as_type_ptr<ngraph::vpu::op::StaticShapeTopK>(node)) {
+       if (idx == 1 && (to == ngraph::element::i32 || to == ngraph::element::i64)) {
+            topk->set_index_element_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuseTypeToOutShapeOfReshape(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto osr = ngraph::as_type_ptr<ngraph::vpu::op::OutShapeOfReshape>(node)) {
+        osr->set_output_type(to);
+        return true;
+    }
+    return false;
+}
+} // namespace vpu

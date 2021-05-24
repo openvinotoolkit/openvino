@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,25 +52,51 @@ protected:
  * Is a thread safe
  */
 class MKLDNNWeightsSharing {
+    struct MKLDNNMemoryInfo {
+        typedef std::shared_ptr<MKLDNNMemoryInfo> Ptr;
+
+        MKLDNNMemoryInfo(MKLDNNMemoryPtr memoryPtr, bool valid)
+            : sharedMemory(memoryPtr)
+            , valid(valid)
+        {}
+
+        std::mutex guard;
+        std::weak_ptr<MKLDNNMemory> sharedMemory;
+        bool valid;
+    };
+
 public:
     typedef std::shared_ptr<MKLDNNWeightsSharing> Ptr;
-    MKLDNNMemoryPtr findOrCreate(const std::string& name_hash,
-                             std::function<MKLDNNMemoryPtr(void)> create) {
-        std::unique_lock<std::mutex> lock(guard);
-        auto found = sharedWeights.find(name_hash);
 
-        MKLDNNMemoryPtr ptr;
-        if (found == sharedWeights.end() || !(ptr = found->second.lock())) {
-            ptr = create();
-            sharedWeights[name_hash] = ptr;
-        }
-        return ptr;
-    }
+    class MKLDNNSharedMemory {
+    public:
+        typedef std::shared_ptr<MKLDNNSharedMemory> Ptr;
+
+        MKLDNNSharedMemory(std::unique_lock<std::mutex> && lock,
+                           const MKLDNNMemoryInfo::Ptr & memory,
+                           MKLDNNMemoryPtr newPtr = nullptr);
+
+        operator MKLDNNMemoryPtr() const;
+        bool isValid() const;
+        void valid(bool b);
+
+    private:
+        std::unique_lock<std::mutex> lock;
+        MKLDNNMemoryInfo::Ptr memory;
+        MKLDNNMemoryPtr newPtr;
+    };
+
+    MKLDNNSharedMemory::Ptr findOrCreate(const std::string& key,
+                                         std::function<MKLDNNMemoryPtr(void)> create,
+                                         bool valid = true);
+
+    MKLDNNSharedMemory::Ptr get(const std::string& key) const;
+
     static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
 
 protected:
-    std::unordered_map<std::string, std::weak_ptr<MKLDNNMemory>> sharedWeights;
-    std::mutex guard;
+    mutable std::mutex guard;
+    std::unordered_map<std::string, MKLDNNMemoryInfo::Ptr> sharedWeights;
     static const SimpleDataHash simpleCRC;
 };
 

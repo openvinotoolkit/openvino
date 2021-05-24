@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,6 +26,9 @@ addIeTarget(
             inference_engine_transformations
             inference_engine_lp_transformations
             inference_engine
+        PRIVATE
+            # use this dependency as private in order to minimize
+            # its usage in 3rd party applications
             inference_engine_legacy
     INCLUDES
         PUBLIC
@@ -37,4 +40,3 @@ addIeTarget(
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
-

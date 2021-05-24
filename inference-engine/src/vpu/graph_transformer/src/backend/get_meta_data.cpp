@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ void BackEnd::getMetaData(
 
                 if (it != stageToMetaIndex.end()) {
                     StageMetaInfo& meta = stagesMeta[it->second];
-                    stagesMeta[prIndex].childsNum++;
+                    stagesMeta[prIndex].childrenNum++;
                     meta.parentIndices.push_back(prIndex);
                     meta.inputDims.push_back(dataMeta.desc.getDims());
                     meta.inputPrecisions.push_back(dataMeta.desc.getPrecision());

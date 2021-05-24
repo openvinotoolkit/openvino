@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -56,8 +44,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
         12, 0, 15, 0, 18, 0, 21, 0, 13, 0, 16, 0, 19, 0, 22, 0, 14, 0, 17, 0, 20, 0, 23, 0,
     };
 
-    std::vector<int> seq_lenghts{1, 2, 1, 2};
-    copy_data(b, seq_lenghts);
+    std::vector<int> seq_lengths{1, 2, 1, 2};
+    copy_data(b, seq_lengths);
 
     std::vector<int> expected{
         0,  0, 4,  0, 6,  0, 10, 0, 1,  0, 3,  0, 7,  0, 9,  0, 2,  0, 5,  0, 8,  0, 11, 0,
@@ -93,8 +81,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
 
     shared_ptr<runtime::Tensor> result = backend->create_tensor(element::i32, shape);
 
-    std::vector<int> seq_lenghts{1, 2, 3, 3};
-    copy_data(b, seq_lenghts);
+    std::vector<int> seq_lengths{1, 2, 3, 3};
+    copy_data(b, seq_lengths);
 
     std::vector<int> input{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -149,8 +137,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4d2c3h2w2)
 
     copy_data(a, input);
 
-    std::vector<int> seq_lenghts{1, 2, 1, 2};
-    copy_data(b, seq_lenghts);
+    std::vector<int> seq_lengths{1, 2, 1, 2};
+    copy_data(b, seq_lengths);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
@@ -183,8 +171,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_negative_axes)
         12, 0, 15, 0, 18, 0, 21, 0, 13, 0, 16, 0, 19, 0, 22, 0, 14, 0, 17, 0, 20, 0, 23, 0,
     };
 
-    std::vector<int> seq_lenghts{1, 2, 1, 2};
-    copy_data(b, seq_lenghts);
+    std::vector<int> seq_lengths{1, 2, 1, 2};
+    copy_data(b, seq_lengths);
 
     std::vector<int> expected{
         0,  0, 4,  0, 6,  0, 10, 0, 1,  0, 3,  0, 7,  0, 9,  0, 2,  0, 5,  0, 8,  0, 11, 0,

@@ -1,29 +1,15 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <cfenv>
 #include <cmath>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -32,32 +18,63 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T, typename U>
-            void transpose(const T* arg, T* out, Shape arg_size, const U* axes_order = nullptr)
+            void transpose(const char* data,
+                           char* out,
+                           const Shape& data_shape,
+                           size_t element_size,
+                           const int64_t* axes_order,
+                           Shape out_shape)
             {
-                std::vector<size_t> range_vector;
+                // To reuse opt_kernel::reshape axes order vector has to be converted to AxisVector
+                // Negative axes are not supported, it is validated by transpose evaluate method
+                std::vector<size_t> axis_vector(axes_order, axes_order + data_shape.size());
+                runtime::opt_kernel::reshape(
+                    data, out, data_shape, axis_vector, out_shape, element_size);
+            }
+
+            // Legacy function template to ensure backward compatibility
+            // Can be removed after ARM plugin start using evaluate or no template function
+            template <typename T, typename U>
+            NGRAPH_DEPRECATED(
+                "Traspose function with template types is deprecated, use function with char* "
+                "args.")
+            void transpose(const T* arg, T* out, Shape arg_shape, const U* axes_order = nullptr)
+            {
+                std::vector<std::int64_t> converted_axes_order(arg_shape.size());
                 if (axes_order == nullptr)
                 {
-                    range_vector.resize(arg_size.size());
-                    std::iota(range_vector.begin(), range_vector.end(), 0);
-                    std::reverse(range_vector.begin(), range_vector.end());
-                    axes_order = range_vector.data();
+                    std::iota(converted_axes_order.begin(), converted_axes_order.end(), 0);
+                    std::reverse(converted_axes_order.begin(), converted_axes_order.end());
                 }
-                size_t cnt = 0;
-                for (size_t i = 0; i < arg_size.size(); ++i)
+                else
                 {
-                    size_t axes = axes_order[i];
-                    size_t start = 0;
-                    for (size_t j = 0; j < axes; ++j)
+                    for (size_t i = 0; i < converted_axes_order.size(); ++i)
                     {
-                        start += shape_size(arg_size[j]);
-                    }
-                    for (size_t j = start; j < start + shape_size(arg_size[axes]); ++j)
-                    {
-                        out[cnt++] = arg[j];
+                        converted_axes_order[i] = static_cast<std::int64_t>(axes_order[i]);
                     }
                 }
+                Shape output_shape(arg_shape.size());
+                std::transform(
+                    converted_axes_order.begin(),
+                    converted_axes_order.end(),
+                    output_shape.begin(),
+                    [&](const int64_t& v) {
+                        NGRAPH_CHECK(v >= 0,
+                                     "Negative values for transpose axes order are not supported.");
+                        NGRAPH_CHECK(v < int64_t(arg_shape.size()),
+                                     "Transpose axis ",
+                                     v,
+                                     " is out of shape range.");
+                        return arg_shape[v];
+                    });
+
+                transpose(reinterpret_cast<const char*>(arg),
+                          reinterpret_cast<char*>(out),
+                          arg_shape,
+                          sizeof(T),
+                          converted_axes_order.data(),
+                          output_shape);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

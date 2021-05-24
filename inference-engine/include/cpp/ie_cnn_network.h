@@ -19,7 +19,6 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "details/ie_exception_conversion.hpp"
 #include "ie_extension.h"
 
 namespace ngraph {
@@ -191,31 +190,12 @@ public:
 
     /**
      * @brief Method maps framework tensor name to OpenVINO name
-     *
      * @param orig_name Framework tensor name
-     *
      * @return OpenVINO name
      */
-    std::string getOVNameForTensor(const std::string& orig_name) const {
-        std::string ov_name;
-        CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
-        return ov_name;
-    }
+    std::string getOVNameForTensor(const std::string& orig_name) const;
 
-    /**
-     * @brief Method maps framework operator name to OpenVINO name
-     *
-     * @param orig_name Framework operation name
-     *
-     * @return OpenVINO name
-     */
-    std::string getOVNameForOperation(const std::string& orig_name) const {
-        std::string ov_name;
-        CALL_STATUS_FNC(getOVNameForOperation, ov_name, orig_name);
-        return ov_name;
-    }
-
-protected:
+private:
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Network extra interface, might be nullptr
@@ -227,11 +207,6 @@ protected:
      */
     ICNNNetwork* actual = nullptr;
     IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @brief A pointer to output data
-     */
-    DataPtr output;
 };
 
 }  // namespace InferenceEngine
