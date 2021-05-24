@@ -5,7 +5,6 @@
 #include "flatten_contiguous_range.hpp"
 #include <ngraph/builder/reshape.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {

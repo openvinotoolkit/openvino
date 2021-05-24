@@ -15,8 +15,6 @@
 //*****************************************************************************
 
 #include "reshape2.hpp"
-#include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -40,7 +38,7 @@ namespace ngraph
                     }
                     else
                     {
-                        NOT_IMPLEMENTED("reshape2 with shape as input");
+                        FRONT_END_NOT_IMPLEMENTED("reshape2 with shape as input");
                     }
                 }
 

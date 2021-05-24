@@ -3,8 +3,6 @@
 //
 
 #include "fill_constant_batch_size_like.hpp"
-#include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -23,15 +21,18 @@ namespace ngraph
                     auto shapes = node.get_attribute<std::vector<int32_t>>("shape");
                     auto input = node.get_ng_input("Input");
                     auto partial_shape = input.get_partial_shape();
-                    PDPD_ASSERT(partial_shape.is_static(),
-                                "fill_constant_batch_size_like: must use static shape.");
+                    PDPD_OP_VALIDATION_CHECK(
+                        node,
+                        partial_shape.is_static(),
+                        "fill_constant_batch_size_like: must use static shape.");
                     auto static_shape = partial_shape.get_shape();
-                    PDPD_ASSERT(input_dim_idx < (int32_t)static_shape.size(),
-                                "fill_constant_batch_size_like: input_dim_idx should not exceed "
-                                "input dims.");
-                    PDPD_ASSERT(output_dim_idx < (int32_t)shapes.size(),
-                                "fill_constant_batch_size_like: output_dim_idx should not exceed "
-                                "shapes dims.");
+                    PDPD_OP_VALIDATION_CHECK(node,
+                                             input_dim_idx < (int32_t)static_shape.size(),
+                                             "fill_constant_batch_size_like: input_dim_idx "
+                                             "should not exceed input dims.");
+                    PDPD_OP_VALIDATION_CHECK(node,
+                                             "fill_constant_batch_size_like: output_dim_idx "
+                                             "should not exceed shapes dims.");
                     shapes[output_dim_idx] = static_shape[input_dim_idx];
                     auto dtype = node.get_attribute<element::Type>("dtype");
                     return node.default_single_output_mapping(

@@ -14,13 +14,14 @@
 
 #include "framework.pb.h"
 
+#include <paddlepaddle_frontend/frontend.hpp>
 #include <paddlepaddle_frontend/model.hpp>
 #include <paddlepaddle_frontend/place.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 #include "decoder.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -46,8 +47,10 @@ namespace ngraph
                 const auto& op = op_place->getDesc();
                 std::cout << "Making node: " << op->type() << std::endl;
 
-                PDPD_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
-                            "No creator found");
+                FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
+                                              "No creator found for ",
+                                              op->type(),
+                                              " node.");
                 pdpd::NamedInputs named_inputs;
                 const auto& input_ports = op_place->getInputPorts();
                 for (const auto& name_to_ports : input_ports)
@@ -124,10 +127,10 @@ namespace ngraph
                     for (const auto& name_to_outputs : named_outputs)
                     {
                         const auto& ports = out_ports.at(name_to_outputs.first);
-
-                        PDPD_ASSERT(ports.size() == name_to_outputs.second.size(),
-                                    "The number of output tensors must be equal to "
-                                    "the number of outputs of the ngraph node.");
+                        FRONT_END_OP_CONVERSION_CHECK(
+                            ports.size() == name_to_outputs.second.size(),
+                            "The number of output tensors must be equal to "
+                            "the number of outputs of the ngraph node.");
                         for (size_t idx = 0; idx < ports.size(); ++idx)
                         {
                             const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
@@ -170,13 +173,14 @@ namespace ngraph
             {
                 // The case when .pdmodel and .pdparams files are provided
                 std::ifstream model_stream(paths[0], std::ios::in | std::ifstream::binary);
-                PDPD_ASSERT(model_stream && model_stream.is_open(), "Cannot open model file.");
+                FRONT_END_INITIALIZATION_CHECK(model_stream && model_stream.is_open(),
+                                               "Cannot open model file.");
                 std::ifstream weights_stream(paths[1], std::ios::in | std::ifstream::binary);
-                PDPD_ASSERT(weights_stream && weights_stream.is_open(),
-                            "Cannot open weights file.");
+                FRONT_END_INITIALIZATION_CHECK(weights_stream && weights_stream.is_open(),
+                                               "Cannot open weights file.");
                 return load_from_streams({&model_stream, &weights_stream});
             }
-            PDPD_THROW("Model can be loaded either from 1 or 2 files");
+            FRONT_END_INITIALIZATION_CHECK(false, "Model can be loaded either from 1 or 2 files");
         }
 
         InputModel::Ptr FrontEndPDPD::load_from_stream(std::istream& model_stream) const

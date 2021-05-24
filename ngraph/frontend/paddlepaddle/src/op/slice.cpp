@@ -3,8 +3,6 @@
 //
 
 #include "slice.hpp"
-#include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -30,8 +28,9 @@ namespace ngraph
                     int n = 0;
                     for (auto i : axes)
                     {
-                        PDPD_ASSERT(i < (int32_t)shape_size,
-                                    "slice: axes must be less than the X rank.");
+                        PDPD_OP_VALIDATION_CHECK(node,
+                                                 i < (int32_t)shape_size,
+                                                 "slice: axes must be less than the X rank.");
                         fixedStarts[i] = starts[n];
                         fixedEnds[i] = ends[n];
                         n++;
