@@ -12,16 +12,16 @@ The *SpaceToBatch* operation is similar to the TensorFlow* operation [SpaceToBat
 
 The operation is equivalent to the following transformation of the input tensor `data` of shape `[batch, D_1, D_2 ... D_{N - 1}]` and `block_shape`, `pads_begin`, `pads_end` of shapes `[N]` to *Y* output tensor.
 
-    Zero-pad the start and end of dimensions [D_0, ..., D_{N - 1}] of the input according to `pads_begin` and `pads_end`:
-    note: P_0 for batch dimension is expected to be 0 (no-padding).
-    x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}], where P_i = pads_begin[i] + pads_end[i]
+Zero-pad the start and end of dimensions [D_0, \dots, D_{N - 1}] of the input according to `pads_begin` and `pads_end`:
+note: P_0 for batch dimension is expected to be 0 (no-padding).
+x = [batch + P_0, D_1 + P_1, D_2 + P_2, \dots, D_{N - 1} + P_{N - 1}], where P_i = pads_begin[i] + pads_end[i]
 
-    note: B_0 for batch is ignored.
-    x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ..., (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
+note: B_0 for batch is ignored.
+x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ..., (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
 
-    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
+x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
 
-    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ... , (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
+y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ... , (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
 
 **Attributes**
 
@@ -36,7 +36,7 @@ The operation is equivalent to the following transformation of the input tensor 
  
 **Outputs**
 
-*   **1**: N-D tensor with shape `[batch * block_shape[0] * block_shape[1] * ... * block_shape[N - 1], (pads_begin[1] + D_1 + pads_end[1]) / block_shape[1], (pads_begin[2] + D_2 + pads_end[2]) / block_shape[2], ..., (pads_begin[N - 1] + D_{N - 1} + pads_end[N - 1]) / block_shape[N - 1]` of the same type as `data` input. 
+*   **1**: N-D tensor with shape `[batch * block_shape[0] * block_shape[1] * ... * block_shape[N - 1], (D_1 + pads_begin[1] + pads_end[1]) / block_shape[1], (D_2 + pads_begin[2] + pads_end[2]) / block_shape[2], ..., (D_{N -1} + pads_begin[N - 1] + pads_end[N - 1]) / block_shape[N - 1]` of the same type as `data` input. 
 
 **Types**
 
