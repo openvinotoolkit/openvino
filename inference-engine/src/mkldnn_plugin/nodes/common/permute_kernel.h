@@ -60,6 +60,7 @@ public:
 
 private:
     void prepareParams();
+    bool isPermutationsByDstStrides() const;
 
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
     void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
@@ -67,7 +68,6 @@ private:
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
     PermuteParams params;
-    bool byDst = true;
 };
 
 }  // namespace MKLDNNPlugin
