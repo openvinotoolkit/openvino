@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*reusableCPUStreamsExecutor.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-51758
-        ".*PreprocessConversionTest.*oPRC=U8.*",
         ".*PreprocessConversionTest.*oLT=NHWC.*",
-        ".*PreprocessingPrecisionConvertTestsViaSetInput.*SetInput.*",
-        ".*PreprocessingPrecisionConvertTestsViaGetBlob.*GetBlob.*",
     };
 }
