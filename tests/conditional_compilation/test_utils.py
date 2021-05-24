@@ -22,7 +22,6 @@ infer_tool = str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.
 
 def validate_path_arg(path: Path, is_dir=False):
     """"Check if path argument is correct."""
-
     if not path.exists():
         raise ValueError(f"{path} does not exist.")
 
