@@ -274,7 +274,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ncsp);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, ncsp);
                 createDescriptor({in_candidate}, {out_candidate});
-            } else if (IC < 4 && getParentEdgeAt(0)->getParent()->getType() != Convolution) {
+            } else if (IC < 4) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ncsp);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nCsp16c);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -791,8 +791,10 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         }
 
         unsigned thresholdNumChannels = 128u; // for avx and below
-        if (mayiuse(impl::cpu::x64::avx512_common) || is1x1) {
+        if (is1x1) {
             thresholdNumChannels = 2048u;
+        } else if (mayiuse(impl::cpu::x64::avx512_common)) {
+            thresholdNumChannels = 512u;
         }
 
         size_t OC = outDims[1];
