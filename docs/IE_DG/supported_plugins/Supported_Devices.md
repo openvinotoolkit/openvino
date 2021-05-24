@@ -16,10 +16,12 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 |[Multi-Device plugin](MULTI.md) |Multi-Device plugin enables simultaneous inference of the same network on several Intel&reg; devices in parallel    |   
 |[Heterogeneous plugin](HETERO.md) |Heterogeneous plugin enables automatic inference splitting between several Intel&reg; devices (for example if a device doesn't [support certain layers](#supported-layers)).                                                           |
 
+Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+
 ## Supported Configurations
 
 The Inference Engine can inference models in different formats with various input and output formats.
-This chapter provides supported and optimal configurations for each plugin.
+This page shows supported and optimal configurations for each plugin.
 
 ### Terminology
 
@@ -34,17 +36,19 @@ This chapter provides supported and optimal configurations for each plugin.
 |   U16 format      | 2-byte unsigned integer format                |
 |   U8 format       | 1-byte unsigned integer format                |
 
-NHWC, NCHW - Image data layout. Refers to the representation of batches of images.
-NCDHW - Images sequence data layout.
+NHWC, NCHW, and NCDHW refer to the representation of batches of images.
+* NHWC and NCHW refer to image data layout.
+* NCDHW refers to image sequence data layout.
 
-* N - Number of images in a batch
-* D - Depth. Depend on model it could be spatial or time dimension
-* H - Number of pixels in the vertical dimension
-* W - Number of pixels in the horizontal dimension
-* C - Number of channels
+Abbreviations in the support tables are as follows:
+* N: Number of images in a batch
+* D: Depth. Depend on model it could be spatial or time dimension
+* H: Number of pixels in the vertical dimension
+* W: Number of pixels in the horizontal dimension
+* C: Number of channels
 
 CHW, NC, C  - Tensor memory layout.
-For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy
+For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy.
 
 ### Supported Model Formats
 
@@ -88,7 +92,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |:-------------|:------------:|:------------:|:------------:|:------------:|
 |CPU plugin    |Supported     |Supported     |Supported     |Supported     |
 |GPU plugin    |Supported     |Supported     |Supported     |Supported     |
-|VPU plugins   |Not supported |Supported     |Supported     |Supported     |
+|VPU plugins   |Supported     |Supported     |Supported     |Supported     |
 |GNA plugin    |Not supported |Supported     |Supported     |Supported     |
 
 ### Supported Output Layout
@@ -111,9 +115,9 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Acosh                          | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Activation-Clamp               | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-ELU                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
-| Activation-Exp                 | Supported     |Supported\*\*\*| Not Supported | Supported     | Supported     |
+| Activation-Exp                 | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
-| Activation-Not                 | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported     |
+| Activation-Not                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Activation-PReLU               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Activation-ReLU                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-ReLU6               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
@@ -127,7 +131,7 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | BatchNormalization             | Supported     | Supported     | Supported     | Not Supported | Supported     |
 | BinaryConvolution              | Supported     | Supported     | Not Supported | Not Supported | Supported     |
 | Broadcast                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
-| Ceil                           | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| Ceil                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Concat                         | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Const                          | Supported     | Supported     | Supported     | Supported     | Not Supported |
 | Convolution-Dilated            | Supported     | Supported     | Supported     | Not Supported | Supported     |
@@ -145,8 +149,8 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | DeformableConvolution          | Supported     | Supported     | Not Supported | Not Supported | Supported     |
 | DepthToSpace                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | DetectionOutput                | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported     |
-| Eltwise-And                    | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported     |
-| Eltwise-Add                    | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported     |
+| Eltwise-And                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
+| Eltwise-Add                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Eltwise-Div                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Eltwise-Equal                  | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Eltwise-FloorMod               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
@@ -166,12 +170,12 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Eltwise-SquaredDiff            | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
 | Eltwise-Sub                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
-| Erf                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| Exp                            | Supported     | Supported     | Not Supported | Supported     | Supported     |
+| Erf                            | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
+| Exp                            | Supported     | Supported     | Supported     | Supported     | Supported     |
 | FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported     |
 | Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Flatten                        | Supported     | Supported     | Supported     | Not Supported | Supported     |
-| Floor                          | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
@@ -191,9 +195,9 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Memory                         | Not Supported | Supported     | Not Supported | Supported     | Supported     |
 | MVN                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported     |
 | Neg                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| NonMaxSuppression              | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
+| NonMaxSuppression              | Not Supported | Supported\*\* | Supported     | Not Supported | Supported     |
 | Normalize                      | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported     |
-| OneHot                         | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| OneHot                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Pad                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported     |
 | Permute                        | Supported     | Supported     | Supported     | Supported\*   | Supported     |
 | Pooling(AVG,MAX)               | Supported     | Supported     | Supported     | Supported     | Supported     |
@@ -206,17 +210,17 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | PSROIPooling                   | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Range                          | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Reciprocal                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| ReduceAnd                      | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| ReduceAnd                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | ReduceL1                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | ReduceL2                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | ReduceLogSum                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | ReduceLogSumExp                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| ReduceMax                      | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| ReduceMean                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| ReduceMin                      | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| ReduceMax                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
+| ReduceMean                     | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
+| ReduceMin                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | ReduceOr                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | ReduceProd                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| ReduceSum                      | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| ReduceSum                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | ReduceSumSquare                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | RegionYolo                     | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | ReorgYolo                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
@@ -226,7 +230,7 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | RNN                            | Not Supported | Supported     | Supported     | Not Supported | Not Supported |
 | ROIPooling                     | Supported\*   | Supported     | Supported     | Not Supported | Supported     |
 | ScaleShift                     | Supported     |Supported\*\*\*| Supported\*   | Supported     | Supported     |
-| ScatterUpdate                  | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
+| ScatterUpdate                  | Not Supported | Supported\*\* | Supported     | Not Supported | Supported     |
 | Select                         | Supported     | Supported     | Supported     | Not Supported | Supported     |
 | Selu                           | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | ShuffleChannels                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
@@ -236,17 +240,17 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | SimplerNMS                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Slice                          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | SoftMax                        | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
-| Softplus                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| Softplus                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Softsign                       | Supported     | Supported\*\* | Not Supported | Supported     | Supported     |
 | SpaceToDepth                   | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
 | SpatialTransformer             | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Split                          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Squeeze                        | Supported     | Supported\*\* | Supported     | Supported     | Supported     |
-| StridedSlice                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| StridedSlice                   | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Tan                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | TensorIterator                 | Not Supported | Supported     | Supported     | Supported     | Not Supported |
 | Tile                           | Supported\*\* |Supported\*\*\*| Supported     | Not Supported | Supported     |
-| TopK                           | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
+| TopK                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported     |
 | Unpooling                      | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |
 | Unsqueeze                      | Supported     | Supported\*\* | Supported     | Supported     | Supported     |
 | Upsampling                     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/interpolate.hpp"
 #include <algorithm>
@@ -63,7 +51,7 @@ void op::v0::Interpolate::validate_and_infer_types()
     {
         for (auto axis : m_attrs.axes)
         {
-            NGRAPH_CHECK(axis < output_shape.rank().get_length());
+            NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
             output_shape[axis] = Dimension::dynamic();
         }
     }
@@ -175,6 +163,18 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
 
 static constexpr float epsilon = 1.0e-6f;
 
+namespace
+{
+    int64_t multiply_bound_and_scale(int64_t bound, float scale)
+    {
+        if (bound == -1)
+        {
+            return bound;
+        }
+        return static_cast<int64_t>(static_cast<float>(bound) * scale);
+    }
+} // namespace
+
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
@@ -183,12 +183,15 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
     size_t i = 0;
     for (auto axis : axes)
     {
-        if (padded_input_shape[axis].is_static())
-        {
-            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * (scales[i] + epsilon));
-            output_shape[axis] = Dimension(new_dim);
-        }
+        const auto& current_dim = padded_input_shape[axis];
+        float multiplier = scales[i] + epsilon;
+
+        int64_t new_lower_bound =
+            multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
+        int64_t new_upper_bound =
+            multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
+
+        output_shape[axis] = Dimension(new_lower_bound, new_upper_bound);
         ++i;
     }
 }
@@ -210,7 +213,7 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 
     PartialShape padded_input_shape = input_shape;
 
-    for (size_t i = 0; i < input_rank; ++i)
+    for (int64_t i = 0; i < input_rank; ++i)
     {
         if (input_shape[i].is_static())
         {
@@ -232,6 +235,27 @@ void op::v4::Interpolate::validate_and_infer_types()
                               input_et == element::i8 || input_et == element::bf16,
                           "Input element type must be f32, f16, bf16 or i8");
 
+    element::Type sizes_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          sizes_et == element::i32 || sizes_et == element::i64 ||
+                              sizes_et == element::u32 || sizes_et == element::u64,
+                          "Sizes element type must be i32, i64, u32 or u64");
+
+    element::Type scales_et = get_input_element_type(2);
+    NODE_VALIDATION_CHECK(this,
+                          scales_et == element::f32 || scales_et == element::f16 ||
+                              scales_et == element::bf16,
+                          "Scales element type must be f32, f16 or bf16");
+
+    if (input_values().size() == 4)
+    {
+        element::Type axes_et = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(this,
+                              axes_et == element::i64 || axes_et == element::i32 ||
+                                  sizes_et == element::u32 || sizes_et == element::u64,
+                              "Axes element type must be i32, i64, u32 or u64");
+    }
+
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
 
     if (!input_shape.rank().is_static())
@@ -240,10 +264,19 @@ void op::v4::Interpolate::validate_and_infer_types()
         return;
     }
 
+    const auto input_rank = input_shape.rank().get_length();
+
+    // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
+    // of the output shape. Hence, all components of the output shape should be dynamic.
+    if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3)))
+    {
+        PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    }
+
     auto axes = get_axes();
     correct_pads();
-
-    const auto input_rank = input_shape.rank().get_length();
 
     PartialShape padded_input_shape = get_padded_input_shape(input_shape);
     PartialShape output_shape = padded_input_shape;
@@ -257,7 +290,6 @@ void op::v4::Interpolate::validate_and_infer_types()
         }
     }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
         if (const auto& const_scales = get_constant_from_source(input_value(2)))
@@ -385,7 +417,7 @@ namespace
 
         return result;
     }
-}
+} // namespace
 
 void op::v4::Interpolate::correct_pads()
 {
@@ -549,7 +581,7 @@ namespace ngraph
     }
 
     template <>
-    EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
+    NGRAPH_API EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
         EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get()
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::CoordinateTransformMode>(
@@ -574,7 +606,8 @@ namespace ngraph
     }
 
     template <>
-    EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interpolate::NearestMode>::get()
+    NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>&
+        EnumNames<op::v4::Interpolate::NearestMode>::get()
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
             "op::v4::Interpolate::NearestMode",

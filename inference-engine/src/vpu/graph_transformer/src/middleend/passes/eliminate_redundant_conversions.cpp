@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,17 @@ void PassImpl::runForStage(const Model& model, const Stage& convert) {
 
     const auto input = convert->input(0);
     const auto output = convert->output(0);
+
+    //
+    // Check and remove the convert that was added to unused input
+    // In this case we will have the converted intermediate data object which is not consumed
+    //
+
+    if (output->usage() == DataUsage::Intermediate && !output->isConsumed()) {
+        model->removeStage(convert);
+        model->removeUnusedData(output);
+        return;
+    }
 
     //
     // We remove Convert stage if input and output data types are equal.

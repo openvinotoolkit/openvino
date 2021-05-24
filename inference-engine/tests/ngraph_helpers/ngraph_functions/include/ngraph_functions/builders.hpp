@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -26,7 +28,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
@@ -143,9 +145,16 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         const ngraph::Output<Node>& inputData,
+        const ngraph::Output<Node>& sequenceLength,
         int blankIndex,
         bool mergeRepeated,
-        const element::Type& idxPrec);
+        const element::Type& idxPrecision = element::i32);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
 
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
@@ -488,5 +497,21 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
 
+std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
+                                         const element::Type& depth_type,
+                                         const int64_t& depth_val,
+                                         const element::Type& set_type,
+                                         const float& on_val,
+                                         const float& off_val,
+                                         const int64_t& axis);
+
+std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
+                                       const ngraph::Output<Node>& shiftNode,
+                                       const ngraph::Output<Node>& axesNode);
+
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
 }  // namespace builder
 }  // namespace ngraph

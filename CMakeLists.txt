@@ -30,7 +30,7 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
@@ -97,17 +97,17 @@ function(build_ngraph)
     elseif(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
-    
+
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph)
+    ie_cpack_add_component(ngraph REQUIRED)
 
     set(SDL_cmake_included ON)
-    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)
@@ -148,6 +148,7 @@ build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
+add_subdirectory(tools)
 
 #
 # Shellcheck
@@ -156,6 +157,7 @@ add_subdirectory(docs)
 ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                       SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
                            "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
@@ -195,7 +197,7 @@ endif()
 
 # install files for demo
 
-ie_cpack_add_component(demo_scripts REQUIRED DEPENDS core)
+ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY scripts/demo/

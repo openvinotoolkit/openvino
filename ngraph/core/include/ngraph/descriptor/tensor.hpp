@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -71,8 +59,11 @@ namespace ngraph
             const element::Type& get_element_type() const { return m_element_type; }
             const Shape& get_shape() const;
             const PartialShape& get_partial_shape() const { return m_partial_shape; }
+            /// \brief gets lower bound value description
             HostTensorPtr get_lower_value() const { return m_lower_value; }
+            /// \brief gets upper bound value description
             HostTensorPtr get_upper_value() const { return m_upper_value; }
+            /// \brief checks if lower and upper bound are set and point to the same HostTensor
             bool has_and_set_bound() const
             {
                 return m_upper_value != nullptr && m_upper_value == m_lower_value;
@@ -98,5 +89,5 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream&, const ngraph::descriptor::Tensor&);
-    }
-}
+    } // namespace descriptor
+} // namespace ngraph

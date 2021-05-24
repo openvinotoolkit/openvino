@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 #include "ie_mkldnn.h"
 
 using namespace InferenceEngine;
@@ -28,7 +29,7 @@ namespace {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
         for (size_t i = 0; i < size; ++i) {
             if ((u32data[i] & (0xFF << 23)) == 0) {
-                u32data[i] = 0.0f;
+                u32data[i] = 0;
             }
         }
     }
@@ -88,10 +89,54 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
+void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
+    if (size != 0)
+        IE_ASSERT(size <= output.GetDescriptor().get_size());
+    if (input.GetDesc() == output.GetDesc()) {
+        auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
+        auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
+
+        auto copySize = size == 0 ? output.GetSize() : size;
+        cpu_memcpy(dstPtr, srcPtr, copySize);
+    } else {
+        std::unique_ptr<mkldnn::reorder> pReorder;
+        std::shared_ptr<memory> srcMemoryPtr;
+        std::vector<uint8_t> tmpBuff;
+
+        try {
+            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
+            srcMemoryPtr = input.prim;
+        }
+        catch (const mkldnn::error& err) {
+            if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType()) {
+                //we probably could not make the reorder because there is no one supporting this precision conversion
+                //lets try to convert data first using cpu_convert
+                auto data = static_cast<const uint8_t *>(input.GetPtr());
+                tmpBuff.resize(input.GetSize());
+
+                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                            MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType()), input.GetElementsCount());
+
+                MKLDNNMemory tmpMem(output.eng);
+                tmpMem.Create(input.GetDims(), output.GetDataType(), input.GetDesc().getFormat(), tmpBuff.data());
+
+                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
+                srcMemoryPtr = tmpMem.prim;
+            } else {
+                throw;
+            }
+        }
+        if (pReorder) {
+            mkldnn::stream loc_stream(output.eng, stream::flags::default_order);
+            pReorder->execute(loc_stream, *srcMemoryPtr, *output.prim);
+        } else {
+            IE_THROW() << "Could not make mkldnn reorder.";
+        }
+    }
+}
+
 // TODO: It should be done via wrap into Memory;
 void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format, const void* data, size_t size, bool ftz) const {
-    uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
-
     IE_ASSERT(!one_of(format, memory::format_tag::undef, memory::format_tag::any));
 
     auto dst_desc = GetDescriptor();
@@ -99,25 +144,21 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
 
     IE_ASSERT(size <= dst_desc.get_size());
 
-    if (dst_desc != src_desc) {
-        auto memData = GetDescriptor().data;
-        memory::dims dims{memData.dims, memData.dims + memData.ndims};
-
-        MKLDNNMemory src(eng);
-        src.Create(dims, dataType, format, data);
-
-        std::shared_ptr<mkldnn::reorder> pReorder =
-                std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
-
-        mkldnn::stream loc_stream(eng, stream::flags::default_flags);
-        pReorder->execute(loc_stream, *src.prim, *this->prim);
-    } else {
+    if (dst_desc == src_desc) {
+        uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_desc().data.offset0;
         cpu_memcpy(dataPtr, data, size);
-    }
+    } else {
+        auto memData = this->GetDescriptor().data;
+        memory::dims dims(memData.dims, memData.dims + memData.ndims);
 
+        MKLDNNMemory src(this->eng);
+        src.Create(dims, dataType, format, data);
+
+        reorderData(src, *this);
+    }
     if (ftz
         && dataType == memory::data_type::f32
         && prim->get_desc().data.format_kind != dnnl_format_kind_wino
@@ -130,21 +171,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
 }
 
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
-    if (size != 0)
-        IE_ASSERT(size <= GetDescriptor().get_size());
-
-    // TODO: Optimization. Reorder perfect is not good enough, so in triviale cases we
-    //       prefer use simple copy.
-    if (src.GetDesc() == this->GetDesc()) {
-        auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
-        auto dstPtr = static_cast<uint8_t*>(this->GetPtr());
-        auto copySize = size == 0 ? this->GetSize() : size;
-        cpu_memcpy(dstPtr, srcPtr, copySize);
-    } else {
-        mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
-        mkldnn::stream loc_stream(eng, stream::flags::default_order);
-        reorderPrim.execute(loc_stream, *src.prim, *this->prim);
-    }
+    reorderData(src, *this, size);
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32
@@ -290,7 +317,7 @@ size_t MKLDNNMemoryDesc::GetElementSize() const {
         case memory::data_type::bin :
             return 1;
         default:
-            THROW_IE_EXCEPTION << "Unknown data type";
+            IE_THROW() << "Unknown data type";
     }
 }
 
@@ -462,8 +489,8 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCde4c8b2c,
     }}, {6, {                                    // Popular
         mkldnn::memory::format_tag::abcdef,      // plain
-        mkldnn::memory::format_tag::acbdef,      // permuted
-        mkldnn::memory::format_tag::defcab,      // permuted
+        mkldnn::memory::format_tag::acbdef,      // permute
+        mkldnn::memory::format_tag::defcab,      // permute
         mkldnn::memory::format_tag::aBcdef16b,   // blocked 16c
 
         mkldnn::memory::format_tag::aBCdef16b16c,
@@ -519,7 +546,7 @@ bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
         return false;
 
     if (desc.data.format_kind != dnnl_blocked || refDesc.data.format_kind != dnnl_blocked)
-        THROW_IE_EXCEPTION << "MKLDNNMemoryDesc::isSame is not implemented for non blocked memory format";
+        IE_THROW() << "MKLDNNMemoryDesc::isSame is not implemented for non blocked memory format";
 
     auto actualBlkDesc = desc.data.format_desc.blocking;
     auto refBlkDesc = refDesc.data.format_desc.blocking;
@@ -538,18 +565,46 @@ bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     auto refStrides = refDesc.data.format_desc.blocking.strides;
 
     std::vector<size_t> actualOrder(desc.data.ndims);
-    std::iota(actualOrder.begin(), actualOrder.end(), 0);
-    std::sort(actualOrder.begin(), actualOrder.end(),
-              [&actualStrides] (size_t ind_l, size_t ind_r) {
-                  return actualStrides[ind_l] > actualStrides[ind_r];
-              });
+    {
+        const auto dims = desc.dims();
+        std::vector<size_t> total_block_per_dim(dims.size(), 1);
+        const auto &blk_desc = desc.data.format_desc.blocking;
+        for (int i = 0; i < blk_desc.inner_nblks; i++) {
+            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+        }
+        std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
+        for (size_t i = 0; i < outer_block_dims.size(); i++) {
+            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+        }
+
+        std::iota(actualOrder.begin(), actualOrder.end(), 0);
+        std::sort(actualOrder.begin(), actualOrder.end(),
+                  [&actualStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+                      return (actualStrides[ind_l] > actualStrides[ind_r]) ||
+                             (actualStrides[ind_l] == actualStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+                  });
+    }
 
     std::vector<size_t> refOrder(refDesc.data.ndims);
-    std::iota(refOrder.begin(), refOrder.end(), 0);
-    std::sort(refOrder.begin(), refOrder.end(),
-              [&refStrides] (size_t ind_l, size_t ind_r) {
-                  return refStrides[ind_l] > refStrides[ind_r];
-              });
+    {
+        const auto dims = refDesc.dims();
+        std::vector<size_t> total_block_per_dim(dims.size(), 1);
+        const auto &blk_desc = refDesc.data.format_desc.blocking;
+        for (int i = 0; i < blk_desc.inner_nblks; i++) {
+            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+        }
+        std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
+        for (size_t i = 0; i < outer_block_dims.size(); i++) {
+            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+        }
+
+        std::iota(refOrder.begin(), refOrder.end(), 0);
+        std::sort(refOrder.begin(), refOrder.end(),
+                  [&refStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+                      return (refStrides[ind_l] > refStrides[ind_r]) ||
+                             (refStrides[ind_l] == refStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+                  });
+    }
 
     if (actualOrder != refOrder) {
         return false;
@@ -647,21 +702,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
                 Layout::ANY};
 
     if (desc.data.format_kind != dnnl_blocked)
-        THROW_IE_EXCEPTION << "Conversion is not possible";
+        IE_THROW() << "Conversion is not possible";
 
     const auto &blk_desc = desc.data.format_desc.blocking;
 
     const size_t outer_ndims = dims.size();
     const size_t inner_ndims = blk_desc.inner_nblks;
     const size_t total_ndims = outer_ndims + inner_ndims;
-
-    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
-    std::vector<size_t> outer_order(outer_ndims);
-    std::iota(outer_order.begin(), outer_order.end(), 0);
-    std::sort(outer_order.begin(), outer_order.end(),
-              [&blk_desc] (size_t ind_l, size_t ind_r) {
-        return blk_desc.strides[ind_l] > blk_desc.strides[ind_r];
-    });
 
     // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
     std::vector<size_t> inner_strides(inner_ndims, 1);
@@ -674,6 +721,19 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     for (int i = 0; i < inner_ndims; i++) {
         total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
     }
+    std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + outer_ndims);
+    for (size_t i = 0; i < outer_block_dims.size(); i++) {
+        outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+    }
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    std::vector<size_t> outer_order(outer_ndims);
+    std::iota(outer_order.begin(), outer_order.end(), 0);
+    std::sort(outer_order.begin(), outer_order.end(),
+              [&blk_desc, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+        return (blk_desc.strides[ind_l] > blk_desc.strides[ind_r]) ||
+               (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+    });
 
     // IE blocked order
     // [new_outer_order] U [inner_idxs]
@@ -694,7 +754,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
               ie_blk_dims.end() - blk_desc.inner_nblks);
     std::transform(outer_order.begin(), outer_order.end(), ie_blk_dims.begin(),
-                   [&] (size_t i) { return div_up(dims[i], total_block_per_dim[i]); });
+                   [&] (size_t i) { return outer_block_dims[i]; });
 
     // IE offset padded to data. Same as for oneDNN
     SizeVector ie_blk_offset_to_data {desc.data.padded_offsets, desc.data.padded_offsets + desc.data.ndims};
@@ -715,7 +775,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         MKLDNNMemory::convertToIePrec(desc.data_type()),
         SizeVector {begin(dims), end(dims)},
         ie_blk_desc };
-    // TODO: BLOCKED is the most common layout which covers all other permuted layout like NHWC.
+    // TODO: BLOCKED is the most common layout which covers all other permute layout like NHWC.
     //       But for some cases we have to specify it more correctly.. may be.. or just keep
     //       auto detected layout in constructor of TensorDesc.
     return res;
@@ -752,6 +812,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         desc.data.ndims = 1;
         desc.data.dims[0] = 1;
         desc.data.padded_dims[0] = 1;
+        desc.data.format_desc.blocking.strides[0] = 1;
         desc.data.padded_offsets[0] = 0;
         desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
         return;
@@ -781,10 +842,10 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         is_descending_strides &= (ie_strides[i-1] >= ie_strides[i]);
     }
 
-    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to permute blocked dims
+    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
     //       and may be we can achieve correct "descending strides" form which allow conversion.
     if (!is_descending_strides)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     std::vector<size_t> outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
     for (size_t i = 0; i < outer_ndims; i++) {
@@ -794,7 +855,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
 
     if (!outer_is_correct_permutation_of_n)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     bool inner_block_are_dense = one_of(ie_strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
     for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
@@ -802,13 +863,13 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     }
 
     if (!inner_block_are_dense)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     bool inner_pad_offsets_is_zero = std::all_of(ie_offsetsToData.begin() + outer_ndims, ie_offsetsToData.end(),
                                                  [](size_t pad) { return  pad == 0; });
 
     if (!inner_pad_offsets_is_zero)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     // Fill general memory desc fields
     desc.data.format_kind = dnnl_blocked;
@@ -840,5 +901,4 @@ bool MKLDNNMemoryDesc::blocksExtended() const {
     }
     return false;
 }
-
 }  // namespace MKLDNNPlugin

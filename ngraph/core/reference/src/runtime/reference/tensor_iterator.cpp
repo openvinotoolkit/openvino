@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
@@ -34,7 +22,7 @@ namespace ngraph
                                  const custom_evaluate_function& evaluate)
             {
                 HostTensorVector inputs_to_body;
-                for (int64_t i = 0; i < input_descs.size(); ++i)
+                for (size_t i = 0; i < input_descs.size(); ++i)
                     inputs_to_body.push_back(
                         std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
 
@@ -83,7 +71,7 @@ namespace ngraph
                         auto shape = args[slice_desc->m_input_index]->get_shape();
                         shape.at(slice_desc->m_axis) = 1;
                         sliced_values.emplace_back(HostTensorVector());
-                        for (int i = 0; i < num_iterations; ++i)
+                        for (uint64_t i = 0; i < num_iterations; ++i)
                         {
                             sliced_values.back().emplace_back(std::make_shared<HostTensor>(
                                 args[slice_desc->m_input_index]->get_element_type(), shape));
@@ -110,13 +98,14 @@ namespace ngraph
                 std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
                 HostTensorVector body_outputs;
 
-                for (int64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter)
+                for (uint64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter)
                 {
                     // Copy new values for sliced inputs
                     for (size_t i = 0; i < slice_inputs.size(); ++i)
                     {
-                        inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
-                            sliced_values[i][cur_iter];
+                        if (sliced_values[i].size() > cur_iter)
+                            inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
+                                sliced_values[i][cur_iter];
                     }
 
                     // Evaluate body
@@ -160,6 +149,8 @@ namespace ngraph
                 for (size_t i = 0; i < concat_outputs.size(); ++i)
                 {
                     const auto& concat_desc = concat_outputs[i];
+                    if (!concat_desc)
+                        continue;
                     auto shape =
                         func->get_results().at(concat_desc->m_body_value_index)->get_shape();
                     std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
@@ -169,11 +160,11 @@ namespace ngraph
                     pointers_on_values.reserve(values_to_concat[i].size());
                     for (size_t j = 0; j < values_to_concat[i].size(); ++j)
                     {
-                        pointers_on_values.push_back(
-                            values_to_concat[i][concat_desc->m_stride > 0
-                                                    ? j
-                                                    : (values_to_concat[i].size() - j - 1)]
-                                ->get_data_ptr<char>());
+                        size_t idx =
+                            concat_desc->m_stride > 0 ? j : (values_to_concat[i].size() - j - 1);
+                        if (values_to_concat[i].size() > idx && values_to_concat[i][idx])
+                            pointers_on_values.push_back(
+                                values_to_concat[i][idx]->get_data_ptr<char>());
                     }
                     reference::concat(pointers_on_values,
                                       out[concat_desc->m_output_index]->get_data_ptr<char>(),
@@ -183,6 +174,6 @@ namespace ngraph
                                       out[concat_desc->m_output_index]->get_element_type().size());
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

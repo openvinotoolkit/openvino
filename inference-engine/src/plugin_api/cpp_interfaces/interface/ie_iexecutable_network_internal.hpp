@@ -1,26 +1,30 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <ie_iinfer_request.hpp>
-#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <ie_parameter.hpp>
+#include <ie_remote_context.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include <details/ie_so_pointer.hpp>
+
 namespace InferenceEngine {
+
+class IInferRequestInternal;
 
 /**
  * @interface IExecutableNetworkInternal
  * @brief An internal API of executable network to be implemented by plugin,
- * which is used in ExecutableNetworkBase forwarding mechanism.
  * @ingroup ie_dev_api_exec_network_api
  */
-class IExecutableNetworkInternal {
+class IExecutableNetworkInternal : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
      * @brief A shared pointer to IExecutableNetworkInternal interface
@@ -53,7 +57,7 @@ public:
      *  Note: the returned request will have allocated input and output blobs (that can be changed later)
      * @return shared_ptr for the created request
      */
-    virtual IInferRequest::Ptr CreateInferRequest() = 0;
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequest() = 0;
 
     /**
      * @deprecated Use IExecutableNetworkInternal::Export(std::ostream& networkModel)
@@ -107,5 +111,10 @@ public:
      */
     virtual RemoteContext::Ptr GetContext() const = 0;
 };
+
+/**
+ * @brief SOPointer to IExecutableNetworkInternal.
+ */
+using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "deconvolution_inst.h"
 #include "primitive_gpu_base.h"
@@ -88,9 +76,12 @@ public:
 
         deconv_params.split = split;
         deconv_params.groups = groups;
-        deconv_params.filterSize = {(uint32_t)weights_size.spatial[0],
-                                    (uint32_t)weights_size.spatial[1],
-                                    (uint32_t)weights_size.spatial[2]};
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        deconv_params.filterSize = { kx, ky, kz };
 
         deconv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                  (uint32_t)std::max(-input_offset.spatial[1], 0),

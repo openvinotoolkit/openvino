@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,6 @@ if (ENABLE_SAME_BRANCH_FOR_MODELS)
 else()
     set(MODELS_BRANCH "master")
 endif()
-
 
 if (ENABLE_DATA)
     add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
@@ -38,62 +37,6 @@ include(CMakeParseArguments)
 if (ENABLE_MYRIAD)
     include(cmake/vpu_dependencies.cmake)
 endif()
-
-## enable cblas_gemm from OpenBLAS package
-if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
-    if(AARCH64)
-        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        elseif(DEFINED THIRDPARTY_SERVER_PATH)
-            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        else()
-            message(WARNING "OpenBLAS is not found!")
-        endif()
-
-        if(DEFINED IE_PATH_TO_DEPS)
-            reset_deps_cache(OpenBLAS_DIR)
-
-            RESOLVE_DEPENDENCY(OpenBLAS
-                    ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
-                    TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
-                    ENVIRONMENT "OpenBLAS_DIR"
-                    SHA256 "c75aac901d5297d6d60a4b1f941f0335d8fd7f52e0dff8c445f644e2e45e6fba")
-
-            update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
-
-            find_package(OpenBLAS QUIET)
-
-            if(OpenBLAS_FOUND)
-                set(BLAS_FOUND TRUE)
-                set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
-                set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
-            endif()
-
-            unset(IE_PATH_TO_DEPS)
-        endif()
-    endif()
-
-    if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)
-        find_package(BLAS REQUIRED)
-
-        if(BLAS_FOUND)
-            find_path(BLAS_INCLUDE_DIRS cblas.h)
-        else()
-            message(ERROR "OpenBLAS not found: install OpenBLAS or set -DBLAS_INCLUDE_DIRS=<path to dir with cblas.h> and -DBLAS_LIBRARIES=<path to libopenblas.so or openblas.lib>")
-        endif()
-    endif()
-
-    debug_message(STATUS "openblas=" ${BLAS_LIBRARIES})
-endif ()
-
-## MKL-ML package
-if (GEMM STREQUAL "MKL")
-    if(NOT MKLROOT)
-        message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
-    endif()
-    set(MKL ${MKLROOT})
-    debug_message(STATUS "mkl_ml=" ${MKLROOT})
-endif ()
 
 ## Intel OMP package
 if (THREADING STREQUAL "OMP")
@@ -126,7 +69,7 @@ if (THREADING STREQUAL "OMP")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
     
-    ie_cpack_add_component(omp)
+    ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
             DESTINATION "deployment_tools/inference_engine/external/omp/lib"
@@ -145,6 +88,11 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
+                SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -155,7 +103,13 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
+                SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -175,6 +129,8 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
+    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
+
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
     else ()
@@ -186,9 +142,9 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.1")
-    set(OPENCV_BUILD "044")
-    set(OPENCV_BUILD_YOCTO "337")
+    set(OPENCV_VERSION "4.5.2")
+    set(OPENCV_BUILD "076")
+    set(OPENCV_BUILD_YOCTO "772")
 
     if (AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -208,7 +164,7 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "b5239e0e50b9009f95a29cb11f0840ec085fa07f6c4d3349adf090f1e51b0787")
+                    SHA256 "23c250796ad5fc9db810e1680ccdb32c45dc0e50cace5e0f02b30faf652fe343")
 
             unset(IE_PATH_TO_DEPS)
         endif()
@@ -219,37 +175,37 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "5250bfe5860c15eb1b31963c78804ee9b301a19d8d6e920c06ef41de681cb99e")
+                    SHA256 "a14f872e6b63b6ac12c7ff47fa49e578d14c14433b57f5d85ab5dd48a079938c")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "f3ebc5cc72c86106c30cc711ac689e02281556bb43c09a89cd45cb99b6bef9a8")
+                    SHA256 "3e162f96e86cba8836618134831d9cf76df0438778b3e27e261dedad9254c514")
         elseif(LINUX)
             if (AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
+                set(OPENCV_HASH "4274f8c40b17215f4049096b524e4a330519f3e76813c5a3639b69c48633d34e")
             elseif ((LINUX_OS_NAME STREQUAL "CentOS 7" OR
                      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
-                set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
+                set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8" AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04" AND X86_64)
+                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
+            elseif ((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
+                set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
@@ -283,8 +239,6 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-# TODO: remove global CMAKE_MODULE_PATH
-list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)
@@ -307,13 +261,22 @@ if (ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1047.1")
-            set(GNA_HASH "20820e07392a1e876cf5577430c1c4c74b924d8f34cc17bfa3e36e641555e05d")
+            set(GNA_VERSION "02.00.00.1226")
+            set(GNA_HASH "d5450af15c993e264c25ac4591a7dab44722e10d15fca4f222a1b84429d4e5b6")
         endif()
+
+        set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
+        if (WIN32)
+            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/win64)
+        else()
+            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
+        endif()
+     
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+                FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")

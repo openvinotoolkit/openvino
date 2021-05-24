@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include <vpu/model/data_contents/hw_const_data_content.hpp>
 
 #include <precision_utils.h>
-#include <ie_parallel.hpp>
 
 #include <utility>
 #include <memory>

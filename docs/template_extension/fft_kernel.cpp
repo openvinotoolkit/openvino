@@ -1,11 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 //! [fft_kernel:implementation]
 #include "fft_kernel.hpp"
 #include "fft_op.hpp"
-#include <details/ie_exception.hpp>
 #include <ie_layouts.h>
 
 #include <opencv2/opencv.hpp>
@@ -15,13 +14,13 @@ using namespace TemplateExtension;
 FFTImpl::FFTImpl(const std::shared_ptr<ngraph::Node> &node) {
     auto castedNode = std::dynamic_pointer_cast<FFTOp>(node);
     if (!castedNode)
-        THROW_IE_EXCEPTION << "Cannot create implementation for unknown operation!";
+        IE_THROW() << "Cannot create implementation for unknown operation!";
     if (castedNode->inputs().size() != 1 || castedNode->outputs().size() != 1)
-        THROW_IE_EXCEPTION << "Cannot create implementation for operation with incorrect number of inputs or outputs!";
+        IE_THROW() << "Cannot create implementation for operation with incorrect number of inputs or outputs!";
     if (castedNode->get_input_partial_shape(0).is_dynamic() || castedNode->get_output_partial_shape(0).is_dynamic())
-        THROW_IE_EXCEPTION << "Cannot create implementation for op with dynamic shapes!";
+        IE_THROW() << "Cannot create implementation for op with dynamic shapes!";
     if (castedNode->get_input_element_type(0) != ngraph::element::f32 || castedNode->get_output_element_type(0) != ngraph::element::f32)
-        THROW_IE_EXCEPTION << "Operation supports only FP32 tensors.";
+        IE_THROW() << "Operation supports only FP32 tensors.";
     inpShape = castedNode->get_input_shape(0);
     outShape = castedNode->get_output_shape(0);
     inverse = castedNode->inverse;
@@ -58,14 +57,14 @@ InferenceEngine::StatusCode FFTImpl::getSupportedConfigurations(std::vector<Infe
 InferenceEngine::StatusCode FFTImpl::init(InferenceEngine::LayerConfig &config, InferenceEngine::ResponseDesc *resp) noexcept {
     try {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
-            THROW_IE_EXCEPTION << "Operation cannot be initialized with incorrect number of inputs/outputs!";
+            IE_THROW() << "Operation cannot be initialized with incorrect number of inputs/outputs!";
         }
 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
             config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32)  {
-            THROW_IE_EXCEPTION << "Operation supports only FP32 precisions!";
+            IE_THROW() << "Operation supports only FP32 precisions!";
         }
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+    } catch (InferenceEngine::Exception& ex) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
             resp->msg[sizeof(resp->msg)-1] = 0;

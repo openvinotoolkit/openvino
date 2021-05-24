@@ -11,6 +11,7 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 - Ubuntu\* 18.04 long-term support (LTS), 64-bit
 - Ubuntu\* 20.04 long-term support (LTS), 64-bit
 - CentOS\* 7.6
+- Red Hat* Enterprise Linux* 8.2 (64 bit)
 
 **Host Operating Systems**
 
@@ -18,7 +19,10 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 ## Prebuilt images
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
+Prebuilt images are available on: 
+- [Docker Hub](https://hub.docker.com/u/openvino)
+- [Red Hat* Quay.io](https://quay.io/organization/openvino)
+- [Red Hat* Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
 ## Use Docker* Image for CPU
 
@@ -44,14 +48,16 @@ docker run -it --rm <image_name>
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
 - Intel® OpenCL™ runtime package must be included into the container.
-- In the container, user must be in the `video` group.
+- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+
 
 Before building a Docker* image on GPU, add the following commands to a Dockerfile:
 
 **Ubuntu 18.04/20.04**:
 ```sh
 WORKDIR /tmp/opencl
-RUN usermod -aG video openvino
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
     rm -rf /var/lib/apt/lists/* && \
@@ -64,12 +70,14 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
-**CentOS 7.6**:
+**CentOS 7/RHEL 8**:
 ```sh
 WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
 RUN groupmod -g 44 video
 
-RUN yum update -y && yum install -y epel-release && \
+RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     yum update -y && yum install -y ocl-icd ocl-icd-devel && \ 
     yum clean all && rm -rf /var/cache/yum && \
     curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download -o intel-gmmlib-19.3.2-1.el7.x86_64.rpm && \
@@ -90,6 +98,7 @@ To make GPU available in the container, attach the GPU to the container using `-
 ```sh
 docker run -it --rm --device /dev/dri <image_name>
 ```
+> **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 ## Use a Docker* Image for Intel® Neural Compute Stick 2
 
@@ -117,8 +126,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ${BUILD_DEPENDENCIES} && \
     rm -rf /var/lib/apt/lists/*
 
-RUN usermod -aG users openvino
-
 WORKDIR /opt
 RUN curl -L https://github.com/libusb/libusb/archive/v1.0.22.zip --output v1.0.22.zip && \
     unzip v1.0.22.zip
@@ -137,10 +144,10 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
-   - **CentOS 7.6**:
+   - **CentOS 7**:
 ```sh
 ARG BUILD_DEPENDENCIES="autoconf \
                         automake \
@@ -168,11 +175,11 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
     /bin/mkdir -p '/usr/local/include/libusb-1.0' && \
     /usr/bin/install -c -m 644 libusb.h '/usr/local/include/libusb-1.0' && \
     /bin/mkdir -p '/usr/local/lib/pkgconfig' && \
-    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino/bin/setupvars.sh
+    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2021/bin/setupvars.sh
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:
@@ -219,7 +226,7 @@ RUN apt-get update && \
         libxxf86vm-dev && \
     rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
 ```
-   - **CentOS 7.6**:
+   - **CentOS 7**:
 ```sh
 WORKDIR /tmp
 RUN yum update -y && yum install -y \

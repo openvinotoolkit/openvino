@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/concat_quantization_during_memory_requantization.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -115,6 +116,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

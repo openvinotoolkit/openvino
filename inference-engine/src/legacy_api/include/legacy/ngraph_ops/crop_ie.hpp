@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,8 @@ public:
            std::vector<int64_t> axes,
            std::vector<int64_t> dim,
            std::vector<int64_t> offset);
+
+    bool visit_attributes(AttributeVisitor &visitor) override;
 
     void validate_and_infer_types() override;
 

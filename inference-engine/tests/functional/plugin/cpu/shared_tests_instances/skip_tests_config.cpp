@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // TODO: Issue 26264
-        R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=ceil.*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
@@ -21,26 +19,16 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 33886
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
-        // TODO: failed to downgrade to opset v0 in interpreter backend
-        R"(.*Gather.*axis=-1.*)",
-        // TODO: Issue 33151
-        R"(.*Reduce.*axes=\(1\.-1\).*)",
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
-        // TODO: Issue: 34083
-#if (defined(_WIN32) || defined(_WIN64))
-        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
-#endif
         // TODO: Issue: 43793
         R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
         R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
-        // TODO: Issue: 40957
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
@@ -52,21 +40,57 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
-        // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
-        // TODO: Issue 47556. [NGraph] CTCGreedyDecoderSeqLen. Invalid type transformation i64 to i32.
-        R"(.*(CTCGreedyDecoderSeqLenLayerTest).*(idxPRC=I64).*)",
-    };
+        // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
+        R"(.*BF16.*(jit_avx(?!5)|jit_sse|ref).*)",
+        // TODO: Incorrect blob sizes for node BinaryConvolution_X
+        R"(.*BinaryConvolutionLayerTest.*)",
+        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
+        R"(.*ClampLayerTest.*netPrc=U64.*)",
+        // TODO: 42538. Unexpected application crush
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
 
+        // incorrect reference implementation
+        R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
+        // lpt transformation produce the same names for MatMul and Multiply
+        R"(.*MatMulTransformation.*)",
+        // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
+        R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
+
+        // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
+        R"(.*BF16NetworkRestore1.*)",
+        R"(.*MobileNet_ssd_with_branching.*)",
+
+        // AUTO plugin and QueryNetwork
+        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
+        // TODO: 54718 Accuracy mismatch
+        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
+        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
+        // reference doesn't cover I8, U8 cases. Issue: 55842
+        R"(.*Gather7LayerTest.*netPRC=I8.*)",
+    };
+        // TODO: 54718 Accuracy mismatch
+#ifdef _WIN32
+        retVector.insert(retVector.end(), {
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
+        });
+#endif
+#ifdef __APPLE__
+        // TODO: Issue 55717
+        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+#endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
        retVector.emplace_back(R"(.*BF16.*)");
+       retVector.emplace_back(R"(.*bfloat16.*)");
     }
 
     return retVector;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
+        R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
@@ -48,14 +49,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
-        // TODO: Issue: 40960
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
         R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
         //TODO: Issue: 46416
         R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
+        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
+        R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
+        // TODO: Issue 51528
+        R"(.*CachingSupport.*_(u8|i16)_.*)",
+        // TODO: Issue 51527
+        R"(.*CachingSupport.*_batch2_.*)",
+        // TODO: Issue 51525
+        R"(.*CachingSupport.*KSOFunction.*)",
     };
 }

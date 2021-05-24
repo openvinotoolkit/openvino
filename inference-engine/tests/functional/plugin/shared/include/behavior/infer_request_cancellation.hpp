@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,31 +41,13 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    bool cancelled = false;
-    req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
-                if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-                    cancelled = (status == InferenceEngine::StatusCode::INFER_CANCELLED);
-                }
-            });
-
     req.StartAsync();
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_EQ(true, cancelStatus == InferenceEngine::StatusCode::OK ||
-                        cancelStatus == InferenceEngine::StatusCode::INFER_NOT_STARTED);
-        if (cancelStatus == InferenceEngine::StatusCode::OK) {
-            ASSERT_EQ(true, cancelled);
-            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), waitStatus);
-        } else {
-            ASSERT_EQ(false, cancelled);
-            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
-        }
-    } else {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
+    ASSERT_NO_THROW(req.Cancel());
+    try {
+        req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    } catch (const InferenceEngine::InferCancelled&) {
+        SUCCEED();
     }
 }
 
@@ -79,14 +61,16 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
-    req.StartAsync();
-    req.Cancel();
-    req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_NO_THROW(req.Cancel());
+    try {
+        req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    } catch (const InferenceEngine::InferCancelled&) {
+        SUCCEED();
+    }
 
-    req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 
 TEST_P(CancellationTests, canCancelBeforeAsyncRequest) {
@@ -99,13 +83,7 @@ TEST_P(CancellationTests, canCancelBeforeAsyncRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
-
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_NOT_STARTED), cancelStatus);
-    } else {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
-    }
+    ASSERT_NO_THROW(req.Cancel());
 }
 
 TEST_P(CancellationTests, canCancelInferRequest) {
@@ -122,28 +100,15 @@ TEST_P(CancellationTests, canCancelInferRequest) {
 
     auto infer = std::async(std::launch::async, [&req]{ req.Infer(); });
 
-    const auto statusOnly = InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY;
+    const auto statusOnly = InferenceEngine::InferRequest::WaitMode::STATUS_ONLY;
     while (req.Wait(statusOnly) == InferenceEngine::StatusCode::INFER_NOT_STARTED) {
     }
 
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
-    InferenceEngine::StatusCode inferStatus = InferenceEngine::StatusCode::OK;
-
+    ASSERT_NO_THROW(req.Cancel());
     try {
         infer.get();
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
-        inferStatus = ex.getStatus();
-    }
-
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        if (cancelStatus == InferenceEngine::StatusCode::OK) {
-            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), inferStatus);
-        } else {
-            ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), inferStatus);
-        }
-    } else {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), inferStatus);
+    } catch (const InferenceEngine::InferCancelled&) {
+        SUCCEED();
     }
 }
 }  // namespace BehaviorTestsDefinitions

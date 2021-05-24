@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import copy
 import logging as log
@@ -340,6 +327,8 @@ class PermuteAttrs:
     Attr = namedtuple('Attr', ['name', 'port', 'func'])
 
     common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
+    slice_permutation = lambda node, permutation, attr: node[attr][  # doesn't depend from permutation variable
+        PermuteAttrs.get_nhwc_to_nchw_permutation(len(node[attr])).perm]
     common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
 
     # List of default permutations
@@ -354,9 +343,11 @@ class PermuteAttrs:
             'dilation': common_permutation,
             'kernel_shape': common_permutation,
             'output_shape': common_permutation,
-            'slices': common_permutation,
-            'shrink_axis_mask': common_permutation,
-            'new_axis_mask': common_permutation,
+            'begin_mask': slice_permutation,
+            'end_mask': slice_permutation,
+            'shrink_axis_mask': slice_permutation,
+            'new_axis_mask': slice_permutation,
+            'ellipsis_mask': slice_permutation,
             'axes': common_permutation_inv,
             'axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,

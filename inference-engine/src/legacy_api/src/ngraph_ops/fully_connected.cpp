@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,4 +33,9 @@ void op::FullyConnected::validate_and_infer_types() {
         0,
         m_output_type == element::undefined ? input_value(0).get_element_type() : m_output_type,
         m_output_shape);
+}
+
+bool op::FullyConnected::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("out-size", m_output_size);
+    return true;
 }

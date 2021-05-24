@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,26 +32,33 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
 
-    auto outputLowConst = fakeQuantize->get_input_node_shared_ptr(3);
-    auto outputHighConst = fakeQuantize->get_input_node_shared_ptr(4);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
 
-    const auto value = multiplyConstant->get_output_element_type(0) == outputLowConst->get_output_element_type(0) ?
+    const auto value = multiplyConstant->get_output_element_type(0) == element::f32 ?
         multiplyConstant :
-        fold<opset1::Convert>(multiplyConstant, outputLowConst->get_output_element_type(0));
+        foldConvert(multiplyConstant, deqPrecision);
 
-    outputLowConst = fold<opset1::Multiply>(outputLowConst, value);
-    outputHighConst = fold<opset1::Multiply>(outputHighConst, value);
+    outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32, value);
 
     const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
     const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
+    const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
+    const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantizeParent->output(parentIndex),
-            fakeQuantize->input_value(1),
-            fakeQuantize->input_value(2),
-            outputLowConst,
-            outputHighConst,
+            inputLow,
+            inputHigh,
+            outputLowConst_f32,
+            outputHighConst_f32,
             fakeQuantize->get_levels()),
         multiply->get_output_element_type(0));
 

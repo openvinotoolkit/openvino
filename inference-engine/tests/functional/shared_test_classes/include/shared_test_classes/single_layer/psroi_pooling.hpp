@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +31,10 @@ class PSROIPoolingLayerTest : public testing::WithParamInterface<psroiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
         public:
             static std::string getTestCaseName(testing::TestParamInfo<psroiParams> obj);
-            void Infer() override;
+            void GenerateInputs() override;
+    static void fillROITensor(float* buffer, int numROIs, int batchSize,
+                              int height, int width, int groupSize,
+                              float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode);
 
         protected:
             void SetUp() override;

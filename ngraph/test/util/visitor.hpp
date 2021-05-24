@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -77,6 +65,7 @@ namespace ngraph
             }
             virtual operator HostTensorPtr&() { NGRAPH_CHECK(false, "Invalid type access"); }
             uint64_t get_index() { return m_index; }
+
         protected:
             uint64_t m_index{0};
         };
@@ -91,6 +80,7 @@ namespace ngraph
                 m_index = index;
             }
             operator T&() override { return m_value; }
+
         protected:
             T m_value;
         };
@@ -138,6 +128,12 @@ namespace ngraph
                     std::cerr << "]" << std::endl;
                 }
             }
+
+            std::size_t get_value_map_size() const
+            {
+                return m_values.size();
+            }
+
             template <typename T>
             T& get(const std::string& name)
             {
@@ -162,7 +158,16 @@ namespace ngraph
             }
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    auto& data = m_values.get<HostTensorPtr>(name);
+                    data->read(a->get()->get_ptr(), a->get()->size());
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
@@ -257,7 +262,18 @@ namespace ngraph
 
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    HostTensorPtr data =
+                        std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
+                    data->write(a->get()->get_ptr(), a->get()->size());
+                    m_values.insert(name, data);
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override

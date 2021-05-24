@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,7 +134,7 @@ void VpuNoRawResultsRegression::readInputForLPR(const Ctx & ctx) {
         auto seq_ind = ctx.currentInputs();
         generateSeqIndLPR(seq_ind);
     } else {
-        THROW_IE_EXCEPTION << "incorrect input index for LPRNET: " << ctx.getInputIdx();
+        IE_THROW() << "incorrect input index for LPRNET: " << ctx.getInputIdx();
     }
 }
 

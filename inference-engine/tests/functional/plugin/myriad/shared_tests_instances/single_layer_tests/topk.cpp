@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,9 @@ const std::vector<int64_t> axes = {
         0,
         1,
         2,
+        -1,
+        -2,
+        -3,
 };
 
 const std::vector<int64_t> k = {

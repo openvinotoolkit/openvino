@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,13 @@ namespace MultiDevicePlugin {
 class MultiDeviceInferencePlugin : public InferenceEngine::InferencePluginInternal {
 public:
     MultiDeviceInferencePlugin();
-    ~MultiDeviceInferencePlugin() override = default;
+    ~MultiDeviceInferencePlugin() = default;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+                                                                 const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
@@ -36,6 +39,11 @@ public:
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
+
+private:
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
+                                                                       InferenceEngine::CNNNetwork network,
+                                                                       const std::map<std::string, std::string>& config);
 };
 
 }  // namespace MultiDevicePlugin

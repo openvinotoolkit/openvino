@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,7 @@ class MKLDNNMemoryNode {
     std::string _id;
  public:
     explicit MKLDNNMemoryNode(std::string id) : _id(id) {}
-    explicit MKLDNNMemoryNode(InferenceEngine::CNNLayerPtr lp) {
-        if (lp->params.find("id") != lp->params.end()) {
-            _id = lp->GetParamAsString("id");
-        }
-    }
+    explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op);
     virtual ~MKLDNNMemoryNode() = default;
     std::string getId() {
         return _id;
@@ -30,9 +26,7 @@ class MKLDNNMemoryNode {
     virtual void setInputNode(MKLDNNNode *) = 0;
 };
 class MKLDNNMemoryOutputNode;
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode;
-#endif
 
 /**
  * @brief
@@ -56,17 +50,16 @@ class MKLDNNMemoryNodeVirtualEdge {
     }
 
     static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
     static Holder* registerInput(MKLDNNMemoryInputNode * node);
-#endif
     static void remove(MKLDNNMemoryNode * node, Holder* holder);
     static std::mutex holderMutex;
 };
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
  public:
-    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryOutputNode() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
@@ -87,12 +80,12 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
-    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryInputNode() override;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool created() const override {
         return getType() == MemoryInput;
     }
@@ -107,7 +100,6 @@ public:
     MKLDNNMemoryPtr dataStore;
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
-#endif
 
 }  // namespace MKLDNNPlugin
 

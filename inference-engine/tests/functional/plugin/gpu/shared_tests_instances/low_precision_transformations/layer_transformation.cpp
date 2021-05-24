@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,13 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include "generic_ie.hpp"
 
-#include <legacy/net_pass.h>
-#include <legacy/graph_transformer.h>
-#include <legacy/convert_function_to_cnn_network.hpp>
+
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/net_pass.h>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>
@@ -112,8 +110,6 @@ InferenceEngine::CNNNetwork convert(std::shared_ptr<ngraph::Function> function) 
                 std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
         };
         auto nGraphFunc = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;

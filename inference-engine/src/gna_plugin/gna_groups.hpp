@@ -1,10 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <legacy/graph_tools.hpp>
+#include "gna_graph_tools.hpp"
 #include "gna_plugin_log.hpp"
 #include "layers/gna_layer_info.hpp"
 
@@ -31,11 +32,13 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
         }
     }
 
-    InferenceEngine::SizeVector newDims(dims.size(), 1);
+    size_t newDimsSize = (dims.size() > 1) ? dims.size() : 2;
+    InferenceEngine::Layout new_layout = (dims.size() > 1) ? input->getLayout() : InferenceEngine::Layout::NC;
+    InferenceEngine::SizeVector newDims(newDimsSize, 1);
     newDims[0] = numColumnsIn;
     newDims[1] = numRowsIn;
     return std::make_shared<InferenceEngine::Data>(input->getName(),
-        InferenceEngine::TensorDesc(input->getPrecision(), newDims, input->getLayout()));
+        InferenceEngine::TensorDesc(input->getPrecision(), newDims, new_layout));
 }
 
 /**
@@ -51,6 +54,14 @@ inline bool HasTo2DReshapeData(InferenceEngine::CNNLayerPtr layer) {
 
     // Don't reshape user-defined ScaleShift layers
     if (layer->name.rfind("SyntheticScaleShift", 0) == std::string::npos)
+        return false;
+
+    // Don't reshape the first dnn layer since it breaks groups recognition
+    auto prevLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonValuesChangable();
+    });
+    IE_ASSERT(prevLayer != nullptr);
+    if (LayerInfo(prevLayer).isInput())
         return false;
 
     // Don't reshape diagonallayers with bias connection

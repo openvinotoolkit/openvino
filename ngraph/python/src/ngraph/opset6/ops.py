@@ -1,18 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
@@ -97,7 +84,7 @@ def gather_elements(
     axis: Optional[int] = 0,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs GatherND.
+    """Return a node which performs GatherElements.
 
     @param data:       N-D tensor with data for gathering
     @param indices:    N-D tensor with indices by which data is gathered
@@ -142,3 +129,35 @@ def mvn(
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param new_value:    Node producing a value to be assigned to a variable.
+    @param variable_id:  Id of a variable to be updated.
+    @param name:         Optional name for output node.
+    @return Assign node
+    """
+    return _get_node_factory_opset6().create(
+        "Assign",
+        [as_node(new_value)],
+        {"variable_id": variable_id}
+    )
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    @param variable_id:  Id of a variable to be read.
+    @param name:         Optional name for output node.
+    @return ReadValue node
+    """
+    return _get_node_factory_opset6().create(
+        "ReadValue",
+        [as_node(init_value)],
+        {"variable_id": variable_id}
+    )

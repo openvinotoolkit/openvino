@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,9 @@
 using namespace LayerTestsDefinitions;
 
 const std::vector<std::vector<size_t>> inputShapes = {
+    {8},
+    {1, 16},
+    {3, 19},
     {1, 32, 17},
     {1, 37, 9},
     {1, 16, 5, 8},
@@ -75,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_5D, Mvn6LayerTest,
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 7, 8}, {1, 3, 8, 9, 49}}),
                             ::testing::ValuesIn(dataPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3, 4}, {2, 3, 4}}),
+                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3, 4}, {2, 3, 4}, {-3, -2, -1}, {-1, -4, -2, -3}}),
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
@@ -87,7 +90,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_4D, Mvn6LayerTest,
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}, {1, 3, 8, 9}}),
                             ::testing::ValuesIn(dataPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3}, {2, 3}}),
+                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3}, {2, 3}, {-2, -1}, {-2, -1, -3}}),
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
@@ -99,7 +102,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_3D, Mvn6LayerTest,
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 32, 17}, {1, 37, 9}}),
                             ::testing::ValuesIn(dataPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2}, {2}}),
+                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2}, {2}, {-1}, {-1, -2}}),
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
@@ -124,18 +127,6 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_1D, Mvn6LayerTest,
                             ::testing::ValuesIn(dataPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<int>>{{0}}),
-                            ::testing::ValuesIn(normalizeVariance),
-                            ::testing::ValuesIn(epsilonF),
-                            ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        Mvn6LayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_1D, Mvn6LayerTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3}, {9}, {55}}),
-                            ::testing::ValuesIn(dataPrecisions),
-                            ::testing::ValuesIn(idxPrecisions),
-                            ::testing::ValuesIn(std::vector<std::vector<int>>{{}}),
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),

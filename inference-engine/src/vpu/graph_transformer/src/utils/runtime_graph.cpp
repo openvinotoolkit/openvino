@@ -1,15 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/utils/runtime_graph.hpp"
 
-#include "generic_ie.hpp"
-
 #include <legacy/ie_util_internal.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <exec_graph_info.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include <vector>
 #include <map>
@@ -81,7 +80,7 @@ InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, cons
         if (stageMeta.stageType == "Input") {
             params.emplace_back(std::make_shared<ngraph::op::Parameter>());
             node = params.back();
-        } else if (stageMeta.childsNum == 0) {
+        } else if (stageMeta.childrenNum == 0) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(inputs.back()));
             node = results.back();
         } else {

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_roi_pooling_node.h"
 
-#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -12,6 +11,7 @@
 #include <mkldnn_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset2.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -46,7 +46,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         mov(reg_bin_area, ptr[this->param1 + GET_OFF(bin_area)]);
         mov(reg_c_blocks, ptr[this->param1 + GET_OFF(c_blocks)]);
 
-        if (jpp_.alg == ROIPoolingOpType::Max) {
+        if (jpp_.alg == Algorithm::ROIPoolingMax) {
             mov(reg_kh, ptr[this->param1 + GET_OFF(kh)]);
             mov(reg_kw, ptr[this->param1 + GET_OFF(kw)]);
         } else {
@@ -220,7 +220,7 @@ private:
         cmp(reg_bin_area, 0);
         je(empty_roi_label, T_NEAR);
 
-        if (jpp_.alg == ROIPoolingOpType::Max)
+        if (jpp_.alg == Algorithm::ROIPoolingMax)
             roi_pool_max(c_blocks);
         else
             roi_pool_bilinear(c_blocks);
@@ -229,7 +229,7 @@ private:
             add(reg_input, 4 * sizeof(float));
             add(reg_output, 4 * sizeof(float));
 
-            if (jpp_.alg == ROIPoolingOpType::Max)
+            if (jpp_.alg == Algorithm::ROIPoolingMax)
                 roi_pool_max(c_blocks);
             else
                 roi_pool_bilinear(c_blocks);
@@ -247,52 +247,69 @@ private:
     }
 };
 
-MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto roiPooling = std::dynamic_pointer_cast<const ngraph::opset2::ROIPooling>(op);
+        if (!roiPooling) {
+            errorMessage = "Only opset2 ROIPooling operation is supported";
+            return false;
+        }
+        const std::string mode = roiPooling->get_method();
+        if (mode != "max" && mode != "bilinear") {
+            errorMessage = "Doesn't support method: " + mode;
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
+
+        const auto roiPooling = std::dynamic_pointer_cast<const ngraph::opset2::ROIPooling>(op);
+        pooled_h = roiPooling->get_output_size()[0];
+        pooled_w = roiPooling->get_output_size()[1];
+        spatial_scale = roiPooling->get_spatial_scale();
+        std::string m = roiPooling->get_method();
+        if (m == "max") {
+            algorithm = Algorithm::ROIPoolingMax;
+        } else if (m == "bilinear") {
+            algorithm = Algorithm::ROIPoolingBilinear;
+        }
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    GenericLayer* genericLayer = getCnnLayer().get();
-    if (genericLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert ROIPooling layer.";
-
-    std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
-
     if (getParentEdges().size() != 2)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims()[1] != 5) {
-        THROW_IE_EXCEPTION << errorPrefix << "has invalid shape on 1st input: ["
+        IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
                                           << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
-    }
-
-    pooled_h = genericLayer->GetParamAsInt("pooled_h");
-    pooled_w = genericLayer->GetParamAsInt("pooled_w");
-    spatial_scale = genericLayer->GetParamAsFloat("spatial_scale");
-    std::string m = genericLayer->GetParamAsString("method", "max");
-    if (m == "max") {
-        opType = ROIPoolingOpType::Max;
-    } else if (m == "bilinear") {
-        opType = ROIPoolingOpType::Bilinear;
-    } else {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support roi pooling method: " << m;
     }
 }
 
@@ -332,7 +349,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
@@ -355,7 +375,7 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
     jpp.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
 
-    jpp.alg = opType;
+    jpp.alg = getAlgorithm();
 
     if (mayiuse(cpu::x64::avx512_common)) {
         roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
@@ -378,7 +398,10 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
     const auto *src_roi = reinterpret_cast<const float *>(srcMemory1.GetPtr());
     float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
     auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
@@ -424,7 +447,7 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
 
             int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
-            if (jpp.alg == ROIPoolingOpType::Max) {
+            if (jpp.alg == Algorithm::ROIPoolingMax) {
                 int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
                 int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
                 int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
@@ -526,8 +549,8 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
                         arg.xf = in_x - left_x_index;
                         arg.yf = in_y - top_y_index;
 
-                        arg.xoff = (size_t) ((right_x_index - left_x_index) * jpp.c_block * sizeof(float));
-                        arg.yoff = (size_t) ((bottom_y_index - top_y_index) * jpp.iw * jpp.c_block * sizeof(float));
+                        arg.xoff = sizeof(float) * (right_x_index - left_x_index) * jpp.c_block;
+                        arg.yoff = sizeof(float) * (bottom_y_index - top_y_index) * jpp.iw * jpp.c_block;
 
                         arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                             top_y_index * src_strides[2] + left_x_index * src_strides[3]];

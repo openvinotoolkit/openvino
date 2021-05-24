@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
+#include <ngraph/validation_util.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -125,7 +114,7 @@ namespace shape_of
             }
             auto dimensions = OutputVector{};
             auto output_dimensions = vector<Dimension>(partial_shape);
-            for (int64_t i = 0; i < output_dimensions.size(); ++i)
+            for (size_t i = 0; i < output_dimensions.size(); ++i)
             {
                 if (output_dimensions[i].is_static())
                 {
@@ -134,17 +123,17 @@ namespace shape_of
                         Shape{1},
                         std::vector<int64_t>{output_dimensions[i].get_length()});
                     temp->set_friendly_name("ConstDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
                 else
                 {
                     auto index = std::make_shared<op::v0::Constant>(
-                        output_type, Shape{1}, std::vector<int64_t>{i});
+                        output_type, Shape{1}, std::vector<int64_t>{static_cast<int64_t>(i)});
                     auto axis = std::make_shared<op::v0::Constant>(
                         element::i64, Shape{}, std::vector<int64_t>{0});
                     auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
                     temp->set_friendly_name("DynDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
             }
 
@@ -158,6 +147,7 @@ namespace shape_of
                               const HostTensorVector& output_values,
                               bool is_upper)
     {
+        NGRAPH_CHECK(shape_of_node, validate_host_tensor_vector(output_values, 1));
         const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
         if (input_partial_shape.rank().is_dynamic())
             return false;
@@ -220,12 +210,14 @@ namespace shape_of
         }
         return true;
     }
-}
+} // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -288,6 +280,8 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

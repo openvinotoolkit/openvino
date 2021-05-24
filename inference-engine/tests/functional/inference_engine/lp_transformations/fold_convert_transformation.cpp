@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,6 +119,47 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
         {
             {ngraph::element::f32},
             { {7.f}, ngraph::element::f32, {}, false, 1 },
+            { 10.f }
+        }
+    },
+
+    // Actual:
+    //
+    // Constant Parameter
+    //  |U8      |U8
+    //  |        |
+    // Convert  Convert
+    //  \FP32   /FP32
+    //   \     /
+    //  Subtract   Constant
+    //     \FP32    /FP32
+    //      \      /
+    //      Multiply
+    //
+    // Transformed:
+    //
+    //           Parameter
+    //            |U8
+    //            |
+    // Constant  Convert
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //       Multiply
+    {
+        LayerTransformation::createParamsU8I8(),
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        {
+            {ngraph::element::f32},
+            { {7.f}, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true },
+            { 10.f }
+        },
+        {
+            {ngraph::element::f32},
+            { {7.f}, ngraph::element::f32, {}, false, 0 },
             { 10.f }
         }
     }

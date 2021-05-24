@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,10 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
+};
+
+const std::vector<InferenceEngine::Precision> intPrecisions = {
+        InferenceEngine::Precision::I32,
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
@@ -52,7 +56,16 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {SoftPlus,              {}},
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
-        {RoundHalfAwayFromZero, {}}
+        {RoundHalfAwayFromZero, {}},
+        {Erf,                   {}},
+        {GeluErf,               {}},
+        {GeluTanh,              {}}
+};
+
+// List of operations that should be tested also with integer precision
+const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
+        {Sqrt,                  {}},
+        {Tanh,                  {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -68,6 +81,16 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 50}, {{1}, {50}}},
         {{1, 128}, {{1}, {128}}},
+        {{20, 128}, {{128}}},
+        {{1, 20, 128}, {{1}, {20}}},
+        {{1, 20, 128, 128}, {{1}, {20}}},
+        {{1, 20, 20, 128, 128}, {{1}, {20}}}
+        // according to spec second input for PRelu must be 1D and must be broadcastabe per channel
+        // at this moment these cases unsupported
+        // {{20, 128}, {{20}, {20, 128}}},
+        // {{1, 20, 128}, {{128}, {20, 128}}},
+        // {{1, 20, 128, 128}, {{128}, {128, 128}, {20, 128, 128}}},
+        // {{1, 20, 20, 128, 128}, {{128}, {128, 128}, {20, 128, 128}, {20, 20, 128, 128}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -92,10 +115,23 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto basicIntegerOperations = ::testing::Combine(
+            ::testing::ValuesIn(CommonTestUtils::combineParams(intActivationTypes)),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Integer_Activation_Basic, ActivationLayerTest, basicIntegerOperations, ActivationLayerTest::getTestCaseName);
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

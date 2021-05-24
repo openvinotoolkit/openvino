@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/multioutput_eltwise_squeeze_eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -31,8 +32,8 @@ namespace SubgraphTestsDefinitions {
                                                     ngraph::Shape{input[0]->get_shape()},
                                                      std::vector<float>{-1.0f});
         auto eltwise = std::make_shared<ngraph::opset1::Multiply>(input[0], eltwise_const);
-        auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngPrc, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-        auto unsqueeze = ngraph::builder::makeSqueezeUnsqueeze(squeeze, ngPrc, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+        auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+        auto unsqueeze = ngraph::builder::makeSqueezeUnsqueeze(squeeze, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
         auto eltwise_const2 = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
         auto eltwise_const3 = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
         auto eltwise2 = std::make_shared<ngraph::opset1::Multiply>(eltwise, eltwise_const2);

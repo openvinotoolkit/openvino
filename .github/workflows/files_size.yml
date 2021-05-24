@@ -2,7 +2,7 @@ name: Files Size
 on: [push, pull_request]
 
 jobs:
-  Check-Files-Size:
+  Check_Files_Size:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -14,4 +14,4 @@ jobs:
       - name: git lfs ls-files
         run: |
           git lfs ls-files --size
-          
+

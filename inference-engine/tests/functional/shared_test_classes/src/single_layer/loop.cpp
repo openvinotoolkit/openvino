@@ -1,8 +1,9 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/loop.hpp"
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -143,6 +144,7 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
         std::tie(
+            unrolling,
             static_continue_cond,
             args_papck,
             start_value,
@@ -212,6 +214,11 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector {loop},
                 params);
+        if (unrolling) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            manager.run_passes(function);
+        }
     }
 
     InferenceEngine::Blob::Ptr StaticShapeLoopTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -239,7 +246,7 @@ namespace LayerTestsDefinitions {
     }
 
     // Predefined ref output
-    std::vector<std::vector<std::uint8_t>> StaticShapeLoopTest::PredefinedRefs() {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> StaticShapeLoopTest::PredefinedRefs() {
         bool auto_concat_out = (axis != -1);
         const auto n_iter = actual_n_iter();
 
@@ -249,8 +256,10 @@ namespace LayerTestsDefinitions {
 
         using namespace CommonTestUtils;
         InferenceEngine::TensorDesc tdesc {data_prc, ref_shape, InferenceEngine::TensorDesc::getLayoutByDims(ref_shape)};
-        std::vector<uint8_t> res(byte_size(tdesc));
-        auto out = make_blob_with_precision(tdesc, res.data());
+        std::pair<ngraph::element::Type, std::vector<uint8_t>> res;
+        res.first = function->get_result()->get_element_type();
+        res.second = std::vector<uint8_t>(byte_size(tdesc));
+        auto out = make_blob_with_precision(tdesc, res.second.data());
 
         std::vector<float> vals(n_iter);
         float val = start_value;

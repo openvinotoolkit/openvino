@@ -1,5 +1,4 @@
-# Copyright (C) 2019-2021 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,6 +15,9 @@ set(LINK_LIBRARIES
     openvino::itt
     openvino::conditional_compilation
     sharedTestClasses
+    inference_engine_snippets
+    offline_transformations
+    inference_engine
 )
 
 set(DEPENDENCIES
@@ -43,6 +45,8 @@ addIeTargetTest(
         IE
 )
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
@@ -53,6 +57,21 @@ endif()
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
+
+# CVS-55343
+
+file(GLOB_RECURSE legacy_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
+    "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
+    "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
+    "${CMAKE_CURRENT_SOURCE_DIR}/core_threading_tests.cpp" # CVS-55257
+    "${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp" # CVS-55257
+    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
+    )
+
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 include(CMakeParseArguments)
 
@@ -86,7 +105,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__IOCL_ICD_INCDIRS)
+        if(NOT CLDNN__OCL_ICD_INCDIRS)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -139,8 +158,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__IOCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+        if(CLDNN__OCL_ICD_INCDIRS)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
         endif()
     endif()
 
@@ -150,9 +169,9 @@ function(ie_headers_compilation_with_custom_flags)
     # To avoid further TBB find_package action in next call of this function. Some version of TBB
     # has an issue with cmake config which lead to fail in case of multiple call of find_package
     # from one cmake script file.
-    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+    set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+    set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
@@ -206,13 +225,11 @@ endif()
 #
 
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
-                                         HEADERS_TO_SKIP "generic_ie.hpp"
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  FLAGS "-Werror-all -Werror -Wall"
                                                  PLUGIN_API)
     else()

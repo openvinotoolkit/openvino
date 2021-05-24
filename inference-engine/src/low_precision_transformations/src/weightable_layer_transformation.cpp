@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,47 @@ namespace pass {
 namespace low_precision {
 
 WeightableLayerTransformation::WeightableLayerTransformation(const Params& params) : LayerTransformation(params) {}
+
+bool WeightableLayerTransformation::canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    if (!canSubtractBeHandled(layer, dequantization)) {
+        return false;
+    }
+
+    if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+        return false;
+    }
+
+    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+        return false;
+    }
+
+    std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->get_input_node_shared_ptr(1));
+    dequantization = reshapeFromWeights == nullptr ?
+                     NetworkHelper::getDequantization(layer, 1ul) :
+                     NetworkHelper::getDequantization(reshapeFromWeights);
+
+    if (dequantization.empty()) {
+        const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
+        const auto dataPrecision = getDataPrecisionOnWeights(layer);
+        if ((!supportAsymmetricQuantization) && dataPrecision.hasZeroPoint) {
+            return false;
+        }
+        if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
+            return false;
+        }
+    } else {
+        if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 bool WeightableLayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
@@ -115,9 +156,11 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        if ( // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-            (shape_size(constOutputShape) != constOutputShape[0]) ||
-            ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if ( // Check if all dimensions of scale except the output channels are all ones
+            (shape_size(constOutputShape) != constOutputShape[outChannelsShapeIndex]) ||
+            ((constOutputShape[outChannelsShapeIndex] != 1ul) &&
+                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex]))) {
             return false;
         }
     } else {
@@ -201,7 +244,7 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> node) const {
+void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& node, const size_t outChannelsShapeIndex) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     if (fq == nullptr) {
         return;
@@ -215,7 +258,9 @@ void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::sha
         dataPrecision.min,
         dataPrecision.max,
         dataPrecision.hasZeroPoint,
-        updatePrecisions);
+        updatePrecisions,
+        element::f32,
+        outChannelsShapeIndex);
 
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
