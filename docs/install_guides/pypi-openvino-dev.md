@@ -92,7 +92,7 @@ To install and configure components of the development package for working with 
 |   [TensorFlow 2.x*](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
 |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
 |   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Caffe 2*](https://caffe2.ai/)                                                 | caffe2                          |
+|   [Caffe2*](https://caffe2.ai/)                                                 | caffe2                          |
 |   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
 |   [PyTorch*](https://pytorch.org/)                                               | pytorch                         |
 |   [Kaldi*](https://kaldi-asr.org/)                                               | kaldi                           |
