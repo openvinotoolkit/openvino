@@ -82,7 +82,7 @@ def pytest_generate_tests(metafunc):
     metafunc.parametrize("test_id, model", params, ids=ids)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def sea_runtool(request):
     """Fixture function for command-line option."""
     sea_runtool = request.config.getoption("sea_runtool", skip=True)
@@ -91,7 +91,7 @@ def sea_runtool(request):
     return sea_runtool
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def collector_dir(request):
     """Fixture function for command-line option."""
     collector_dir = request.config.getoption("collector_dir", skip=True)
