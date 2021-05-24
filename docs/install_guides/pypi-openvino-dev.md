@@ -4,16 +4,22 @@ Copyright © 2018-2021 Intel Corporation
 “Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf) for the Software Package, which may also include notices, disclaimers, or
 license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
 
+>Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.
+
+
 ## Introduction
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
 **The Developer Package Includes the Following Components Installed by Default:**
 
-| Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
-|-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                               |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html), [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)                                    |
+| Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
+|------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                               |
+| [Benchmark Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_tools_benchmark_tool_README.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
+| [Accuracy Checker](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker.html) and <br> [Annotation Converter](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_annotation_converters.html) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool which allows you collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and an impressive set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility for offline conversion dataset to suitable for metric evaluation format used in Accuracy Checker.                                            |
+| [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to re-train or fine-tune models.                                             |
+| [Model Downloader and other OMZ tools](https://docs.openvinotoolkit.org/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to collection of high quality and extremely fast pre-trained deep learning [public](https://docs.openvinotoolkit.org/latest/omz_models_group_public.html) and [intel](https://docs.openvinotoolkit.org/latest/omz_models_group_intel.html)-trained models. These free pre-trained models can be used instead of training your own models to speed-up the development and production deployment process.  The principle of the tool is as follows: it downloads model files from online sources and, if necessary, patch them to make them more usable with Model Optimizer. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for conversion the models that are stored not in the Inference Engine IR format into that format using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization full-precision models in the IR format into low-precision versions using Post-Training Optimization Tool. <br> **Model Information Dumper** is helper utility for dumping information about the models in a stable machine-readable format.|
 
 **The Runtime Package Includes the Following Components Installed by Dependency:**
 
@@ -78,20 +84,32 @@ python -m pip install --upgrade pip
 
 ### Step 4. Install the Package
 
-Run the command below: <br>
+To install and configure components of the development package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
 
+| DL Framework                                                                     | Extras                          |
+| :------------------------------------------------------------------------------- | :-------------------------------|
+|   [TensorFlow 1.x*](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
+|   [TensorFlow 2.x*](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
+|   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
+|   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
+|   [Caffe 2*](https://caffe2.ai/)                                                 | caffe2                          |
+|   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
+|   [PyTorch*](https://pytorch.org/)                                               | pytorch                         |
+|   [Kaldi*](https://kaldi-asr.org/)                                               | kaldi                           |
+
+For example, to install and configure components for working with TensorFlow 2.x, MXNet and Caffe, use the folowing command:  
    ```sh
-   pip install openvino-dev
-   ```
+   pip install openvino-dev[tensorflow2,mxnet,caffe]
+   ``` 
 
 ### Step 5. Verify that the Package is Installed
 
 Run the command below (this may take a few seconds):
 ```sh
-pot -h
+mo -h
 ```
 
-You will see the help message for Post-Training Optimization Tool if installation finished successfully.
+You will see the help message for Model Optimizer if installation finished successfully.
 
 ## Troubleshooting
 
@@ -108,5 +126,6 @@ sudo apt-get install libpython3.7
 
 ## Additional Resources
 
-- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
+- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
+- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks).
