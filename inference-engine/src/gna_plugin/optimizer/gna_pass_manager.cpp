@@ -1608,8 +1608,8 @@ void SubstituteScaleShiftBroadCastPass::run() {
     }
 }
 
-static void BroadcastConstLayer(const std::vector<InferenceEngine::CNNLayerPtr>& layers, bool withFakeQuantize) {
-    for (auto constLayer : layers) {
+void BroadcastConstPass::run() {
+    for (auto constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
         }
@@ -1619,13 +1619,13 @@ static void BroadcastConstLayer(const std::vector<InferenceEngine::CNNLayerPtr>&
         };
 
         auto nextLayer = CNNNetCheckNextLayerSkipCertain(constLayer, 0, 0, true, isNonFunctional).first;
-        if (!nextLayer || !withFakeQuantize && !LayerInfo(nextLayer).isEltwise()) {
+        if (!nextLayer || !LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize()) {
             continue;
         }
 
         auto prevLayer = nextLayer;
-        if (withFakeQuantize) {
-            if (!LayerInfo(nextLayer).isFakeQuantize() || CNNNetPrevLayer(nextLayer, 0) != constLayer) {
+        if (LayerInfo(nextLayer).isFakeQuantize()) {
+            if (CNNNetPrevLayer(nextLayer, 0) != constLayer) {
                 continue;
             }
 
@@ -1658,14 +1658,6 @@ static void BroadcastConstLayer(const std::vector<InferenceEngine::CNNLayerPtr>&
         }
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
-}
-
-void BroadcastConstPass::run() {
-    BroadcastConstLayer(*pLayers, false);
-}
-
-void BroadcastConstWithFakeQuantizePass::run() {
-    BroadcastConstLayer(*pLayers, true);
 }
 
 void InsertIdentityToLSTMCellPass::run() {

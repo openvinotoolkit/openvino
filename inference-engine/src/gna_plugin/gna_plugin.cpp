@@ -764,7 +764,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
-        passes->registerPass<BroadcastConstWithFakeQuantizePass>();
+        passes->registerPass<BroadcastConstPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
@@ -772,7 +772,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
-        passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
 

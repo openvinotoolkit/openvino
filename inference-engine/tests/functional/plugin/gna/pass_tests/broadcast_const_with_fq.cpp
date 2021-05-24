@@ -58,9 +58,9 @@ protected:
         std::tie(netPrecision, inputShape1, inputShape2, level, configuration, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape1});
-        auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {});
+        auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
         auto constant = ngraph::builder::makeConstant<float>(ngPrc, inputShape2, {}, true);
-        auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(constant, ngPrc, level, {});
+        auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(constant, ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
         auto add = std::make_shared<ngraph::opset1::Add>(fakeQuantize1, fakeQuantize2);
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add)};
         function = std::make_shared<ngraph::Function>(results, params, "BroadcastConstWithFq");
@@ -76,11 +76,9 @@ std::vector<std::vector<size_t>> inputShapes2 = { {1, 1, 1, 160} };
 const std::vector<size_t> level = { 65535 };
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-    }
+    { {"GNA_DEVICE_MODE", "GNA_SW_FP32"} },
+    { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"} }
 };
-
 
 INSTANTIATE_TEST_CASE_P(smoke_broadcast_const_with_fq, BroadcastConstWithFq,
                         ::testing::Combine(
