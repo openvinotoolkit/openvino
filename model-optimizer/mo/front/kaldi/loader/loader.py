@@ -210,7 +210,6 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
 def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     file_descr.read(1)
     component_layer_map = load_topology_map(file_descr, graph)
-
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph

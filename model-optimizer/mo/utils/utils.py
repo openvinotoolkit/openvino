@@ -133,4 +133,3 @@ def unique_by(xs: list, predicate: Callable) -> list:
     """
     groups = group_by_with_binary_predicate(xs, predicate)
     return [group[0] for group in groups]
-
