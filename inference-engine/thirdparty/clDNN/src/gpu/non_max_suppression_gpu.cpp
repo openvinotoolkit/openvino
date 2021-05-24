@@ -116,11 +116,8 @@ public:
 
 namespace detail {
 
-attach_non_max_suppression_gpu::attach_non_max_suppression_gpu() {
-    implementation_map<non_max_suppression>::add({
-        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), non_max_suppression_gpu::create},
-        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), non_max_suppression_gpu::create}
-    });
+primitive_impl* create_nms_gpu(const non_max_suppression_node& node) {
+    return non_max_suppression_gpu::create(node);
 }
 
 }  // namespace detail
