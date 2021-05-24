@@ -68,8 +68,8 @@ namespace
                 const float pred_ctr_x = dx * ww + ctr_x;
                 const float pred_ctr_y = dy * hh + ctr_y;
                 // new width & height according to deltas d(log w), d(log h)
-                const float pred_w = std::exp((std::min)(d_log_w, max_delta_log_wh)) * ww;
-                const float pred_h = std::exp((std::min)(d_log_h, max_delta_log_wh)) * hh;
+                const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
+                const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
 
                 // update upper-left corner location
                 float x0_new = pred_ctr_x - 0.5f * pred_w;
