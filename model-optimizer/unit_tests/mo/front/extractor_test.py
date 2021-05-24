@@ -427,8 +427,6 @@ class TestInputAddition(unittest.TestCase):
         new_input = 'conv_1/placeholder_out_port_0'
 
         self.assertTrue(graph.node[new_input]['is_input'])
-        self.assertTrue((new_input, 'conv_data') in graph.edges())
-        self.assertTrue(('conv_1', 'conv_data') not in graph.edges())
 
 
 @generator
@@ -674,3 +672,24 @@ class TestBoolToSrtFunction(unittest.TestCase):
         for attr in attrs:
             pool_1_node.bool_attr = attr[0]
             self.assertEqual(attr[1], bool_to_str(pool_1_node, 'bool_attr'))
+
+"""
+class TestAddInputOpFunction(unittest.TestCase):
+    nodes = {
+        'old_input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+        'inp_data': {'kind': 'data', 'shape': shape + 1},
+        'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
+        'conv_data': {'kind': 'data', 'shape': shape, 'value': None},
+        'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
+    }
+    edges = [
+        ('old_input', 'inp_data'),
+        ('inp_data', 'conv_1'),
+        ('conv_1', 'conv_data'),
+        ('conv_data', 'relu_1'),
+    ]
+
+    def test_add_input_op_input_port_with_data(self):
+        graph = build_graph(self.nodes, self.edges)
+        pass
+"""

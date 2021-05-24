@@ -159,7 +159,6 @@ def node_defs_to_str(node: Node):
 
 
 def update_ie_fields(attrs: dict, ir_version = None):
-    from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
     ir_v10_attrs = {
         'IE': [(
             'layer',
@@ -312,8 +311,6 @@ def update_ie_fields(attrs: dict, ir_version = None):
                         'coeff',
                         ('ratio', lambda node: attr_getter(node, 'ratio')),
                         'size',
-                        ('shape', lambda node: ','.join([str(i) for i in node.shape]) if node.has_valid('shape') else None),
-                        ('element_type', lambda node: np_data_type_to_destination_type(node.data_type) if node.has_valid('data_type') else None),
                     ],
                     []),
                 '@ports',
@@ -807,10 +804,14 @@ def add_input_op_input_port_without_data(graph: Graph, node_id: str, input_op, e
 
 
 def add_input_op_input_port_with_data(graph: Graph, node_id: str, input_op, edge_attrs: dict):
-    input_data_node = input_op.create_node_with_data()
-    input_node = input_data_node.in_node()
-    graph.add_edge(input_data_node.id, node_id, **edge_attrs)
-    update_ie_fields(graph.node[input_node.id])
+    input_node = input_op.create_node(edge_attrs=edge_attrs)
+    node = Node(graph, node_id)
+
+    out_port = input_node.out_port(edge_attrs['out'])
+    out_port.connect(node.in_port(edge_attrs['in']))
+    out_port.data.set_shape(input_node.soft_get('shape', None))
+    input_data_node = input_node.out_node(0)
+
     log.debug('Input: {} for node {}'.format(input_node.id, node_id))
     log.debug("Add edge from {} to {}".format(input_node.id, input_data_node.id))
     log.debug("Add edge from {} to {}".format(input_data_node.id, node_id))
@@ -835,9 +836,8 @@ def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, por
     # we assume that after op always data node
     data_node = Node(graph, node_id).out_node(port)
     assert data_node.has_valid('kind') and data_node.kind == 'data'
-    input_op.create_node_with_data(data_nodes=data_node)
-    input_node = data_node.in_node()
-    update_ie_fields(graph.node[input_node.id])
+    input_node = input_op.create_node()
+    Node(graph, node_id).out_port(port).get_connection().set_source(input_node.out_port(0))
     log.debug('Input: {} for node {}'.format(input_node.id, node_id))
     log.debug("Add edge from {} to {}".format(input_node.id, node_id))
     return input_node.id
