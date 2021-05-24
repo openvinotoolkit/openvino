@@ -86,7 +86,7 @@ python -m pip install --upgrade pip
 
 To install and configure components of the development package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
 
-| DL Framework                                                                     | Extras                          |
+| DL Framework                                                                     | Extra                          |
 | :------------------------------------------------------------------------------- | :-------------------------------|
 |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
 |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
