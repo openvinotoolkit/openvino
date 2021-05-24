@@ -90,7 +90,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
-    checkFuncQuantized(subgraph);
+    isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
+                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
@@ -187,7 +188,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
-    checkFuncQuantized(func);
+    isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
+                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -1236,9 +1238,4 @@ void MKLDNNGraph::printGraphInfo() const {
         }
         std::cout << " ]"  << std::endl;
     }
-}
-
-void MKLDNNGraph::checkFuncQuantized(std::shared_ptr<const ngraph::Function> func) {
-    isQuantizedFlag = (config.lpTransformsMode == Config::LPTransformsMode::On) &&
-            ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
 }

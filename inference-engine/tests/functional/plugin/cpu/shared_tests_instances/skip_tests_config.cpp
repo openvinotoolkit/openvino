@@ -53,7 +53,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 42538. Unexpected application crash
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
-            // TODO: 53618. BF16 gemm ncsp convolution crash
+        // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
         R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)",

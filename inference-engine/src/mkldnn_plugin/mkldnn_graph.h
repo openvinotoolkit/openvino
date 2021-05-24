@@ -212,7 +212,6 @@ protected:
 private:
     void EnforceBF16();
     void printGraphInfo() const;
-    void checkFuncQuantized(std::shared_ptr<const ngraph::Function> func);
 };
 
 }  // namespace MKLDNNPlugin
