@@ -65,7 +65,7 @@ public:
             testValues.actual.inputPrecision,
             shape,
             addFakeQuantize,
-            additionalLayer,
+            { additionalLayer },
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
@@ -78,9 +78,10 @@ public:
             testValues.expected.inputPrecision,
             shape,
             addFakeQuantize,
-            additionalLayer,
+            { additionalLayer },
             testValues.expected.dequantizationBefore,
             testValues.expected.preicsionAfterOperation,
+            {},
             testValues.expected.dequantizationAfter);
     }
 

@@ -192,44 +192,44 @@ public:
             standaloneCleanupManager.run_passes(actualFunction);
         }
 #else
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.actual.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.actual.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager1;
         manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
         manager1.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming1.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming1.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager12;
         manager12.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
         manager12.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming1_2.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1_2").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming2.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager2;
         manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
         manager2.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming2.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming3.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager3;
         manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
         manager3.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming3.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming4.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager4;
         manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
         manager4.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming4.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager5;
         manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
         manager4.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming6.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming6").run_on_function(actualFunction);
 
         {
             ngraph::pass::Manager manager;
@@ -251,8 +251,8 @@ public:
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transformed.svg").run_on_function(actualFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transformed.svg").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 #endif
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
@@ -286,8 +286,8 @@ public:
             testValues.addNotPrecisionPreservedOperation);
 
 #ifdef VISUALIZE_TREE
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.reference.svg").run_on_function(referenceFunction);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.reference.svg").run_on_function(referenceFunction);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
 #endif
     }
 

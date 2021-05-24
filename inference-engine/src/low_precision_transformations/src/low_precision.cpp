@@ -199,8 +199,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 //        #include <low_precision/markup_precisions.hpp>
 //        #include <low_precision/propagate_precisions.hpp>
 
-        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.actual.svg").run_on_function(f);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.actual").run_on_function(f);
+        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.actual.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.actual").run_on_function(f);
 
         {
             ngraph::pass::Manager tmp(passConfig);
