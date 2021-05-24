@@ -398,8 +398,8 @@ namespace ngraph
                       typename INPUT,
                       typename ACCUMULATION = typename widen<INPUT>::type>
             NGRAPH_DEPRECATED(
-                "convolution_backprop_in function with 4 template types is deprecated, use function "
-                "with 1 template and output_padding parameter.")
+                "convolution_backprop_in function with 4 template types is deprecated, use "
+                "function with 1 template and output_padding parameter.")
             void convolution_backprop_in(const INPUT* delta_in,
                                          const FILTER* filter,
                                          OUTPUT* delta_out,
