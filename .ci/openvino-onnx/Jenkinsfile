@@ -154,7 +154,7 @@ def getConfigurationsMap() {
 }
 
 CONFIGURATION_WORKFLOW = { configuration ->
-    node("OpenVINO") {
+    node("OpenVINO-test") {
         try {
             PROJECT_NAME = "openvino"
             String workdir = "${HOME}/workspace/${BUILD_NUMBER}_${env.CHANGE_ID}_${configuration.name}"
@@ -185,9 +185,10 @@ CONFIGURATION_WORKFLOW = { configuration ->
         }
         finally {
             stage("Cleanup") {
-                deleteDir()
+
                 String docker_container_name = get_docker_container_name(configuration)
                 sh """
+                    rm -rf ${workdir}
                     docker rm -f ${docker_container_name}
                 """
             }
