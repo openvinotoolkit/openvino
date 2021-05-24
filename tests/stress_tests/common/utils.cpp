@@ -25,18 +25,15 @@ std::string fileNameNoExt(const std::string &filepath) {
 
 
 /// Parses number from provided string
-static size_t parseLine(char* line) {
-    size_t len = strlen(line);
-    const char* p = line;
-    while ((p < line + len) && (*p < '0' || *p > '9')) p++;
-    if (p == line + len)
+static int parseLine(std::string line) {
+    std::string res = "";
+    for (auto c: line)
+        if (isdigit(c))
+            res += c;
+    if (res.empty())
         // If number wasn't found return -1
         return -1;
-    if (len > 2 && line[len-2] == 'K' && line[len-1] == 'b')
-        // If line ends in " Kb" remove suffix
-        line[len-3] = '\0';
-    size_t res = (size_t)atoi(p);
-    return res;
+    return std::stoi(res);
 }
 
 #ifdef _WIN32
