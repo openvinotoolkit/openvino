@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/reduce_l2.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -44,7 +45,7 @@ namespace reduce_l2
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::reduce_l2(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -69,6 +70,8 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return reduce_l2::evaluate_reduce_l2(
         inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
