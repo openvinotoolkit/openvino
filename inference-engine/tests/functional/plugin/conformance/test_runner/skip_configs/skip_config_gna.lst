@@ -19,6 +19,7 @@
 .*Convolution_1301186.*
 .*Convolution_1761288.*
 .*GroupConvolution_1761341.*
+.*GroupConvolution_1763142.*
 .*Interpolate_475913.*
 .*MVN_1761313.*
 .*ROIAlign_1016430.*
