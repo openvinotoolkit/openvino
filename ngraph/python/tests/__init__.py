@@ -107,7 +107,6 @@ xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
-xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
 xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
