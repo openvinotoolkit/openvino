@@ -56,11 +56,9 @@ namespace ngraph
                         for (size_t batch = 0; batch < input_shape[0]; ++batch)
                         {
                             const auto offset_batch = batch * input_size * input_shape[1];
-
                             for (size_t channel = 0; channel < input_shape[1]; ++channel)
                             {
                                 const auto offset_channel = offset_batch + channel * input_size;
-
                                 for (int i_z = 0; i_z < input_3d[0]; ++i_z)
                                 {
                                     const auto offset_i_z = i_z * input_3d[2] * input_3d[1];
@@ -399,6 +397,9 @@ namespace ngraph
                       typename FILTER,
                       typename INPUT,
                       typename ACCUMULATION = typename widen<INPUT>::type>
+            NGRAPH_DEPRECATED(
+                "convolution_backprop_in function with 4 template types is deprecated, use function "
+                "with 1 template and output_padding parameter.")
             void convolution_backprop_in(const INPUT* delta_in,
                                          const FILTER* filter,
                                          OUTPUT* delta_out,
