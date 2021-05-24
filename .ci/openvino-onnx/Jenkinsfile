@@ -187,6 +187,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
             stage("Cleanup") {
 
                 String docker_container_name = get_docker_container_name(configuration)
+                echo "Workdir : ${workdir}"
                 sh """
                     rm -rf ${workdir}
                     docker rm -f ${docker_container_name}
