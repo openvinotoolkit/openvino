@@ -7,7 +7,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/eval_helpers.hpp"
-#include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "ngraph/runtime/reference/reduce_logical_or.hpp"
 
 using namespace ngraph;
 using namespace std;

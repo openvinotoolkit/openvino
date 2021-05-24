@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,31 +16,6 @@ namespace ngraph
     {
         namespace reference
         {
-            static inline void reduce_logical_and(const char* arg,
-                                                  char* out,
-                                                  const Shape& in_shape,
-                                                  const AxisSet& reduction_axes)
-            {
-                auto out_shape = reduce(in_shape, reduction_axes, false);
-                std::fill(out, out + shape_size(out_shape), 1);
-
-                const auto in_strides = row_major_strides(in_shape);
-                const auto out_strides = row_major_strides(out_shape);
-
-                CoordinateTransform input_transform(in_shape);
-                for (const Coordinate& input_coord : input_transform)
-                {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, false);
-
-                    size_t in_idx = std::inner_product(
-                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    size_t out_idx = std::inner_product(
-                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
-
-                    out[out_idx] = out[out_idx] && arg[in_idx];
-                }
-            }
-
             static inline void reduce_logical_or(const char* arg,
                                                  char* out,
                                                  const Shape& input_shape,

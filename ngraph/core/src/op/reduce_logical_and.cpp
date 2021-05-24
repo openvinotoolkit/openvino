@@ -3,11 +3,10 @@
 //
 
 #include "ngraph/op/reduce_logical_and.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/eval_helpers.hpp"
-#include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "ngraph/runtime/reference/reduce_logical_and.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -34,33 +33,15 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
 
 namespace
 {
-    bool evaluate_reduce_logical_and(const HostTensorPtr& data,
-                                     const HostTensorPtr& axes,
+    bool evaluate_reduce_logical_and(const HostTensorPtr& arg,
                                      const HostTensorPtr& out,
+                                     const AxisSet& axes,
                                      bool keep_dims)
     {
-        if (data->get_element_type() != element::boolean ||
-            !axes->get_element_type().is_integral_number())
-        {
-            return false;
-        }
-        try
-        {
-            const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalAnd");
-
-            runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
-                                                   out->get_data_ptr<char>(),
-                                                   data->get_shape(),
-                                                   reduction_axes,
-                                                   keep_dims);
-
-            return true;
-        }
-        catch (const ngraph_error& e)
-        {
-            NGRAPH_WARN << e.what();
-            return false;
-        }
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+        runtime::reference::reduce_logical_and(
+            arg->get_data_ptr<char>(), out->get_data_ptr<char>(), arg->get_shape(), axes);
+        return true;
     }
 } // namespace
 
@@ -68,8 +49,8 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_evaluate);
-    const auto& data = inputs[0];
-    const auto& axes = inputs[1];
-    const auto& out = outputs[0];
-    return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return evaluate_reduce_logical_and(
+        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
