@@ -413,6 +413,7 @@ set(MULTI_TEST_SRC
     backend/scatter_nd_update.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
+    backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
     backend/sign.in.cpp
     backend/sin.in.cpp
