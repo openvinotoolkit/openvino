@@ -2067,12 +2067,17 @@ namespace
             using TF = typename element_type_traits<T1>::value_type;
             using TI = typename element_type_traits<T2>::value_type;
             using TIND1 = typename element_type_traits<TOUT>::value_type;
+            TI blank_index_val = inputs[0]->get_shape().back() - 1;
+            const TI *blank_index = &blank_index_val;
+            if (inputs.size() == 3) {
+                blank_index = inputs[2]->get_data_ptr<const TI>();
+            }
             if (op->get_sequence_length_type() == element::i32)
             {
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int32_t>(),
                     inputs[0]->get_shape(),
@@ -2084,7 +2089,7 @@ namespace
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int64_t>(),
                     inputs[0]->get_shape(),
