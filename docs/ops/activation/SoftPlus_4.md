@@ -28,7 +28,7 @@ The `threshold` can be calculated with the following formula where `alpha` is th
 -log(e^{10^{-\alpha}} - 1.0) < threshold < log(\beta)
 \f]
 
-For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `12`.
+For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `11`.
 
 **Attributes**: *SoftPlus* operation has no attributes.
 

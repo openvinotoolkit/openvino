@@ -142,6 +142,9 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
     clDNN_OpenCL
