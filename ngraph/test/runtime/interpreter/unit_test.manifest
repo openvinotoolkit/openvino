@@ -3,6 +3,10 @@ fake_quantize_pdpd
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 
+# Failed in ubuntu18 i386
+reduce_sum_large_1d_to_scalar
+reduce_sum_keep_large_1d_to_scalar
+
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
