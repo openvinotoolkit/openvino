@@ -665,7 +665,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             { ngraph::element::f32, {}, {{ 0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f }} }
-        }
+        },
+        false,
+        false
     },
     // U8: concat multi channels with subtract
     {
