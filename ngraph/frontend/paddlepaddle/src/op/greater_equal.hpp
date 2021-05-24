@@ -13,7 +13,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs scale(const NodeContext& node);
+                NamedOutputs greater_equal(const NodeContext& node);
             }
         } // namespace pdpd
     }     // namespace frontend
