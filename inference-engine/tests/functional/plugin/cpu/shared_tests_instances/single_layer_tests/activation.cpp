@@ -22,6 +22,10 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
+const std::vector<InferenceEngine::Precision> intPrecisions = {
+        InferenceEngine::Precision::I32,
+};
+
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
         {Tanh,                  {}},
@@ -56,6 +60,12 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Erf,                   {}},
         {GeluErf,               {}},
         {GeluTanh,              {}}
+};
+
+// List of operations that should be tested also with integer precision
+const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
+        {Sqrt,                  {}},
+        {Tanh,                  {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -105,8 +115,19 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto basicIntegerOperations = ::testing::Combine(
+            ::testing::ValuesIn(CommonTestUtils::combineParams(intActivationTypes)),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::ValuesIn(intPrecisions),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Integer_Activation_Basic, ActivationLayerTest, basicIntegerOperations, ActivationLayerTest::getTestCaseName);
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);

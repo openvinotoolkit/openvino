@@ -96,7 +96,7 @@ inline PreProcessDataPtr CreatePreprocDataHelper() {
             << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }
-    return PreProcessDataPtr(preprocLibraryPath);
+    return {preprocLibraryPath};
 }
 
 }  // namespace InferenceEngine

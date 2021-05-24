@@ -104,7 +104,7 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
-    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
+    void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
     void validateFunctionNames() const;
 };
 }  // namespace details
