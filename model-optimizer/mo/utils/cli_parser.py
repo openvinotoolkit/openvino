@@ -86,12 +86,12 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
 
 def readable_file(path: str):
     """
-    Check that specified path is a readable file.
+    Check that specified path is a readable file or directory.
     :param path: path to check
-    :return: path if the file is readable
+    :return: path if the file/directory is readable
     """
-    if not os.path.exists(path):
-        raise Error('The "{}" doesn\'t exist'.format(path))
+    if not os.path.isfile(path) and not os.path.exists(path):
+        raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
