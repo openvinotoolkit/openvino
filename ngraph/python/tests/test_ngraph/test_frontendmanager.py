@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from ngraph import FrontEndManager
-from ngraph import InitializationFailure
+
+from ngraph.frontend import FrontEndManager
+from ngraph.frontend import InitializationFailure
 
 
 def test_frontendmanager():

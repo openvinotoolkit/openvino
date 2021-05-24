@@ -19,7 +19,7 @@ namespace ngraph
                            const std::string& context,
                            const std::string& explanation)
                 : CheckFailure(check_loc_info,
-                               "FrontEnd API failed with GeneralFailure" + context,
+                               "FrontEnd API failed with GeneralFailure: " + context,
                                explanation)
             {
             }
@@ -32,7 +32,7 @@ namespace ngraph
                                   const std::string& context,
                                   const std::string& explanation)
                 : CheckFailure(check_loc_info,
-                               "FrontEnd API failed with InitializationFailure" + context,
+                               "FrontEnd API failed with InitializationFailure: " + context,
                                explanation)
             {
             }
@@ -45,7 +45,7 @@ namespace ngraph
                                 const std::string& context,
                                 const std::string& explanation)
                 : CheckFailure(check_loc_info,
-                               "FrontEnd API failed with OpValidationFailure" + context,
+                               "FrontEnd API failed with OpValidationFailure: " + context,
                                explanation)
             {
             }
@@ -58,7 +58,7 @@ namespace ngraph
                                 const std::string& context,
                                 const std::string& explanation)
                 : CheckFailure(check_loc_info,
-                               "FrontEnd API failed with OpConversionFailure" + context,
+                               "FrontEnd API failed with OpConversionFailure: " + context,
                                explanation)
             {
             }
@@ -71,7 +71,7 @@ namespace ngraph
                                   const std::string& context,
                                   const std::string& explanation)
                 : CheckFailure(check_loc_info,
-                               "FrontEnd API failed with NotImplementedFailure" + context,
+                               "FrontEnd API failed with NotImplementedFailure: " + context,
                                explanation)
             {
             }

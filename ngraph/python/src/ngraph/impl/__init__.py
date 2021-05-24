@@ -35,17 +35,7 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 from _pyngraph import Dimension
-from _pyngraph import NotImplementedFailure
-from _pyngraph import InitializationFailure
-from _pyngraph import OpConversionFailure
-from _pyngraph import OpValidationFailure
-from _pyngraph import GeneralFailure
 from _pyngraph import Function
-from _pyngraph import FrontEndManager
-from _pyngraph import FrontEnd
-from _pyngraph import FrontEndCapabilities
-from _pyngraph import InputModel
-from _pyngraph import Place
 from _pyngraph import Input
 from _pyngraph import Output
 from _pyngraph import Node

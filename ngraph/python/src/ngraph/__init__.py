@@ -15,16 +15,18 @@ from ngraph.impl import Node
 from ngraph.impl import PartialShape
 from ngraph.impl import Dimension
 from ngraph.impl import Function
-from ngraph.impl import FrontEndManager
-from ngraph.impl import FrontEndCapabilities
-from ngraph.impl import FrontEnd
-from ngraph.impl import InputModel
-from ngraph.impl import Place
-from ngraph.impl import NotImplementedFailure
-from ngraph.impl import InitializationFailure
-from ngraph.impl import OpConversionFailure
-from ngraph.impl import OpValidationFailure
-from ngraph.impl import GeneralFailure
+
+from ngraph.frontend import NotImplementedFailure
+from ngraph.frontend import InitializationFailure
+from ngraph.frontend import OpConversionFailure
+from ngraph.frontend import OpValidationFailure
+from ngraph.frontend import GeneralFailure
+from ngraph.frontend import FrontEndManager
+from ngraph.frontend import FrontEndCapabilities
+from ngraph.frontend import FrontEnd
+from ngraph.frontend import InputModel
+from ngraph.frontend import Place
+
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
 
