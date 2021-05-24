@@ -17,10 +17,7 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void product(const T* arg,
-                         T* out,
-                         const Shape& in_shape,
-                         const AxisSet& reduction_axes)
+            void product(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
             {
                 auto out_shape = reduce(in_shape, reduction_axes, false);
                 std::fill(out, out + shape_size(out_shape), 1);
@@ -33,10 +30,10 @@ namespace ngraph
                 {
                     Coordinate output_coord = reduce(input_coord, reduction_axes, false);
 
-                    size_t in_idx = std::inner_product(input_coord.begin(),
-                                                       input_coord.end(), in_strides.begin(), 0);
-                    size_t out_idx = std::inner_product(output_coord.begin(),
-                                                        output_coord.end(), out_strides.begin(), 0);
+                    size_t in_idx = std::inner_product(
+                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
+                    size_t out_idx = std::inner_product(
+                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
                     out[out_idx] = out[out_idx] * arg[in_idx];
                 }
