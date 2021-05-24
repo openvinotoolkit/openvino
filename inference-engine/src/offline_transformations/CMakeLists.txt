@@ -26,7 +26,3 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-# developer package
-
-ie_developer_export_targets(${TARGET_NAME})
