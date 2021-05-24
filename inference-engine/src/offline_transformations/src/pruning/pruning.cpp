@@ -51,7 +51,6 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
 #endif
 
     manager.register_pass<ShrinkWeights>();
-    manager.register_pass<ConstantFolding>();
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // Uncomment following line and change path to resulting svg file
