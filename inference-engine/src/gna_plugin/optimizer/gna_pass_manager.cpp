@@ -237,7 +237,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        auto prevLayer = PrevFunctionalLayer(l, LayerInfo(l).isGemm() ? 1 : 0);
 
         // No need to instert identity activation
         // when activation was already there before pooling
@@ -777,7 +777,39 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
 void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    auto createIdentityLayer = [quantized, this](const TensorDesc& tensorDesc) {
+        int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
+        auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
+        CNNLayerPtr activationLayer =
+            std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
+        CNNLayerPtr activationLayerWithQuant = quantized ?
+                                        InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
+                                        activationLayer;
+        auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), tensorDesc);
+        getCreatorLayer(dataPtr) = activationLayerWithQuant;
+        activationLayerWithQuant->outData.push_back(dataPtr);
+        return activationLayerWithQuant;
+    };
+
     for (auto & l : *pLayers) {
+        if (LayerInfo(l).isPooling()) {
+            // Identity should be inserted after 1D pooling if it's the last functional layer.
+            auto pooling = LayerInfo(l).as<PoolingLayer*>();
+            IE_ASSERT(pooling != nullptr);
+            if (is2D(pooling->_kernel)) continue;
+
+            auto hasNextFuncLayer = CNNNetHasNextLayerSkipCertain(l, 0, 0, [](CNNLayerPtr layer) {
+                return LayerInfo(layer).isNonFunctional();
+            });
+            if (hasNextFuncLayer) continue;
+
+            auto identityLayer = createIdentityLayer(l->outData[0]->getTensorDesc());
+            gnalog() << "Inserted "<< identityLayer->name << " after " << l->name << std::endl;
+
+            auto nextLayer = CNNNetCheckNextLayerSkipCertain(l, 0, 0, true, [](CNNLayerPtr layer) { return false; }).first;
+            CNNNetworkInsertLayer(l, nextLayer, identityLayer);
+        }
+
         for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
@@ -817,15 +849,6 @@ void InsertIdentityLayerPass::run() {
             if (reconnected)
                 continue;
 
-            int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
-            // actual insertion
-            auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
-
-            gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
-
-            CNNLayerPtr activationLayer =
-                std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
-
             // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
             // detecting ins-data-idx
             size_t insDataIdx = std::numeric_limits<size_t>::max();
@@ -840,13 +863,10 @@ void InsertIdentityLayerPass::run() {
             }
 
             auto inputData = true_layer->insData[insDataIdx].lock();
+            auto identityLayer = createIdentityLayer(inputData->getTensorDesc());
 
-            auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
-            auto activationLayerWithQuant = quantized ?
-                                            InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
-                                            activationLayer;
-            getCreatorLayer(dataPtr) = activationLayerWithQuant;
-            activationLayerWithQuant->outData.push_back(dataPtr);
+            gnalog() << "Inserted "<< identityLayer->name << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
+
             // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
@@ -860,14 +880,14 @@ void InsertIdentityLayerPass::run() {
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("output_offset") != prev->params.end()) {
-                activationLayerWithQuant->params["output_offset"] = prev->params["output_offset"];
+                identityLayer->params["output_offset"] = prev->params["output_offset"];
             }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("original_num_rows") != prev->params.end()) {
-                activationLayerWithQuant->params["original_num_rows"] = prev->params["original_num_rows"];
+                identityLayer->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
+            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), identityLayer);
         }
     }
 }
@@ -879,6 +899,25 @@ void InsertCopyLayerPass::run() {
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
+    // Concat has multiple connections to the same input
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConcat()) continue;
+
+        // Insert copy layers after concat inputs with multiple connections to concat
+        std::set<DataPtr> parents;
+        for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
+            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            auto inputData = l->insData[input_idx].lock();
+            if (parents.find(inputData) != std::end(parents)) {
+                auto parent = getCreatorLayer(inputData);
+                IE_ASSERT(parent.lock() != nullptr);
+                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+            } else {
+                parents.insert(inputData);
+            }
+        }
+    }
+
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
 
@@ -955,7 +994,7 @@ void InsertCopyLayerPass::run() {
                 }
             }
             if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
-            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - (LayerInfo(l).isInput() ? 0 : 1);
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
                 if (currentCopyIdx < MemoryLayers.size()) {
@@ -1169,7 +1208,7 @@ void InsertConcatAligningFilterPass::run() {
                 getCreatorLayer(outData) = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
 
-                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+                CNNNetworkInsertLayer(prevLayer, l, filterWithQuant, invalid_data_idx, input_idx);
             }
             offset += outputSize;
         }
@@ -1662,6 +1701,10 @@ void BreakFusingOfOutputLayersPass::run() {
 #endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
+        /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
+         * since scaleshift layers will be inserted between the pooling and activations
+         */
+        if (LayerInfo(layer).isPooling()) continue;
         for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
@@ -1874,7 +1917,9 @@ void FuseFQIntoWeightsPass::run() {
         }
 
         // check whether this FQ represents weights - it need to be at index 1 of weightable layer
-        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+        const size_t weightsIdx = 1;
+        const size_t biasesIdx = 2;
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, weightsIdx, isNonFunctional);
 
         if (prevLayerAt1 != fqLayer) {
             continue;
@@ -1886,11 +1931,11 @@ void FuseFQIntoWeightsPass::run() {
 
         GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
 
-        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx);
         auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
         // 1. broke existing connections - by detaching fq subgraph from rest of graph
-        auto prevData = weightableLayer->insData[1].lock();
+        auto prevData = weightableLayer->insData[weightsIdx].lock();
         auto prevLayer = getCreatorLayer(prevData).lock();
         auto weightDims = prevLayer->outData.front()->getDims();
         prevLayer->outData.clear();

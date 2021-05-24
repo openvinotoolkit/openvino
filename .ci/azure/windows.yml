@@ -167,17 +167,6 @@ jobs:
     displayName: 'CPU FuncTests - IB'
     continueOnError: false
 
-    # Add for gtest-parallel, it hangs now (CVS-33386)
-    #python $(WORK_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
-      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
-      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: false
-
   - script: |
       set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)

@@ -6,6 +6,7 @@
 
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
+#include "ie_plugin_config.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {
@@ -68,6 +69,11 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     // Check for unsigned int
     else if (param.is<unsigned int>()) {
         auto val = param.as<unsigned int>();
+        return PyLong_FromLong((unsigned long)val);
+    }
+    // Check for uint64_t
+    else if (param.is<uint64_t>()) {
+        auto val = param.as<uint64_t>();
         return PyLong_FromLong((unsigned long)val);
     }
     // Check for float
@@ -151,10 +157,48 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
         return dict;
+    } else if (param.is<std::map<InferenceEngine::Precision, float>>()) {
+        auto val = param.as<std::map<InferenceEngine::Precision, float>>();
+        PyObject* dict = PyDict_New();
+        for (const auto& it : val) {
+            std::stringstream s;
+            s << it.first;
+            PyDict_SetItemString(dict, s.str().c_str(), PyFloat_FromDouble((double)it.second));
+        }
+        return dict;
+    } else if (param.is<InferenceEngine::Metrics::DeviceType>()) {
+        auto val = param.as<InferenceEngine::Metrics::DeviceType>();
+        using namespace InferenceEngine;
+        std::stringstream s;
+        s << val;
+        return PyUnicode_FromString(s.str().c_str());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return (PyObject*)NULL;
     }
+}
+
+/* FrameworkNodeExtension is a temporary extension that is needed to enable FrameworkNode usage
+ * in IRReader for all unknown opsets and operations. To have a connection between Extension and
+ * IRReader we register extensions with specific version equal to "framework_node_ext" which
+ * triggers FrameworkNode usage
+ */
+class FrameworkNodeExtension : public InferenceEngine::IExtension {
+public:
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
+        static InferenceEngine::Version ExtensionDescription = {{1, 0}, "1.0", "framework_node_ext"};
+
+        versionInfo = &ExtensionDescription;
+    }
+
+    void Unload() noexcept override {}
+};
+
+InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string path_to_xml, std::string path_to_bin) {
+    InferenceEngine::Core core;
+    core.AddExtension(std::make_shared<FrameworkNodeExtension>());
+    auto net = core.ReadNetwork(path_to_xml, path_to_bin);
+    return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::string& model, const std::string& weights) {
@@ -433,10 +477,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 std::string InferenceEnginePython::get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
-    version_str += version->buildNumber;
-    return version_str;
+    return version->buildNumber;
 }
 
 InferenceEnginePython::IECore::IECore(const std::string& xmlConfigFile) {

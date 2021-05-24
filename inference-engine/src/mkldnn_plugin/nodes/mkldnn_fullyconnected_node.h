@@ -14,8 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
-    MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNFullyConnectedNode() override = default;
+    MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
     void getSupportedDescriptors() override;
@@ -32,16 +31,17 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(baseInputsNumber);
+        return static_cast<size_t>(getOriginalInputsNumber());
     }
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    const mkldnn::memory& getWeights() const;
-    const mkldnn::memory& getBias() const;
-
     InferenceEngine::Precision getRuntimePrecision() const override;
+
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
@@ -53,9 +53,12 @@ private:
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
-    bool withBiases;
-    int baseInputsNumber;
+    bool withBiases = false;
+
+    std::string errorPrefix;
+    static const size_t DATA_ID = 0;
+    static const size_t WEIGHTS_ID = 1;
+    static const size_t BIAS_ID = 2;
 };
 
 }  // namespace MKLDNNPlugin
-

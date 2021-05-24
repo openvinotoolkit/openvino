@@ -99,13 +99,13 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
-        InferenceEngine::InferRequest   _inferRequest;
-        InferenceEngine::Task           _task;
-        InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
+        InferenceEngine::SoIInferRequestInternal  _inferRequest;
+        InferenceEngine::Task                     _task;
+        std::exception_ptr                        _exceptionPtr = nullptr;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
-    explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                  networksPerDevice,
+    explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&                  networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
@@ -130,7 +130,7 @@ public:
     mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
     const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
-    DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
+    DeviceMap<InferenceEngine::SoExecutableNetworkInternal>     _networksPerDevice;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
     DeviceMap<std::unique_ptr<ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
