@@ -4,7 +4,6 @@
 
 #include "clip.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -19,7 +18,9 @@ namespace ngraph
                     auto data = node.get_ng_input("X");
                     auto min = node.get_attribute<float>("min");
                     auto max = node.get_attribute<float>("max");
-                    PDPD_ASSERT(max >= min, "clip: max value must greater than min value!");
+                    PDPD_OP_VALIDATION_CHECK(
+                        node, max >= min, "clip: max value must greater than min value!");
+
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Clamp>(data, min, max)}, {"Out"});
                 }

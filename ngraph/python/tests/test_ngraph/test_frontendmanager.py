@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from ngraph import FrontEndManager, FrontEndCapabilities, PartialShape
+from ngraph.frontend import FrontEndManager, FrontEndCapabilities, InitializationFailure
+from ngraph import PartialShape
 from ngraph.utils.types import get_element_type
 
 from pybind_mock_frontend import get_fe_stat, get_mdl_stat, get_place_stat
@@ -29,6 +30,17 @@ def test_load_by_framework_caps():
     for i in range(len(caps) - 1):
         for j in range(i+1, len(caps)):
             assert caps[i] != caps[j]
+
+
+def test_load_by_unknown_framework():
+    frontEnds = fem.get_available_front_ends()
+    assert not("UnknownFramework" in frontEnds)
+    try:
+        fem.load_by_framework("UnknownFramework")
+    except InitializationFailure as exc:
+        print(exc)
+    else:
+        assert False
 
 
 def test_load_from_file():

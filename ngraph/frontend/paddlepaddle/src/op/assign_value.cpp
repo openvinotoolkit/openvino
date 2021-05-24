@@ -51,8 +51,8 @@ namespace ngraph
                     }
                     default:
                     {
-                        PDPD_ASSERT(false,
-                                    "assign_value only supports int32, int64, float32, bool");
+                        PDPD_OP_VALIDATION_CHECK(
+                            node, false, "assign_value only supports int32, int64, float32, bool");
                         break;
                     }
                     }

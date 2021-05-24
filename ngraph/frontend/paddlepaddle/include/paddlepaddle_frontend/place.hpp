@@ -5,7 +5,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+#include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace paddle
 {

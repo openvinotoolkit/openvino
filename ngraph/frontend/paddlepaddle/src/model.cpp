@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/model.hpp>
 #include <paddlepaddle_frontend/place.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
 
 #include <fstream>
 #include <ngraph/opsets/opset7.hpp>
@@ -177,8 +177,8 @@ namespace ngraph
                 if (!var_desc->persistable())
                     continue;
 
-                PDPD_ASSERT(var_desc->type().type() ==
-                            paddle::framework::proto::VarType::LOD_TENSOR);
+                FRONT_END_GENERAL_CHECK(var_desc->type().type() ==
+                                        paddle::framework::proto::VarType::LOD_TENSOR);
                 const auto& tensor = var_desc->type().lod_tensor().tensor();
                 Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
                 const auto& type = TYPE_MAP[tensor.data_type()];
@@ -194,12 +194,14 @@ namespace ngraph
                 {
                     std::ifstream is(folder_with_weights + "/" + name,
                                      std::ios::in | std::ifstream::binary);
-                    PDPD_ASSERT(is && is.is_open(), "Cannot open file for constant value.");
+                    FRONT_END_GENERAL_CHECK(is && is.is_open(),
+                                            "Cannot open file for constant value.");
                     pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else
                 {
-                    PDPD_THROW("Either folder with weights or stream must be provided.");
+                    FRONT_END_GENERAL_CHECK(
+                        false, "Either folder with weights or stream must be provided.");
                 }
 
                 auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
@@ -236,7 +238,8 @@ namespace ngraph
             }
 
             std::ifstream pb_stream(model_file, std::ios::binary);
-            PDPD_ASSERT(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+            FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream),
+                                    "Model can't be parsed");
 
             std::cout << "Loading places" << std::endl;
             loadPlaces();
@@ -255,10 +258,12 @@ namespace ngraph
             }
             else
             {
-                PDPD_ASSERT(streams.size() == 2,
-                            "Two streams are needed to load a model: model and weights streams");
+                FRONT_END_GENERAL_CHECK(
+                    streams.size() == 2,
+                    "Two streams are needed to load a model: model and weights streams");
             }
-            PDPD_ASSERT(m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
+            FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(streams[0]),
+                                    "Model can't be parsed");
 
             loadPlaces();
             if (streams.size() > 1)
@@ -299,7 +304,7 @@ namespace ngraph
                 {
                     return out_port_place->getTargetTensorPDPD();
                 }
-                PDPD_THROW("Cannot cast this Place to TensorPlacePDPD.");
+                FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
             }
 
         } // namespace pdpd
@@ -334,7 +339,7 @@ namespace ngraph
         void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place,
                                                                  const ngraph::Shape& shape)
         {
-            NOT_IMPLEMENTED("setDefaultShape");
+            FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
         }
 
         void

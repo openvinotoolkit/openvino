@@ -13,3 +13,9 @@ void regclass_pyngraph_FrontEnd(py::module m);
 void regclass_pyngraph_InputModel(py::module m);
 void regclass_pyngraph_FEC(py::module m);
 void regclass_pyngraph_Place(py::module m);
+void regclass_pyngraph_NotImplementedFailureFrontEnd(py::module m);
+void regclass_pyngraph_InitializationFailureFrontEnd(py::module m);
+void regclass_pyngraph_OpConversionFailureFrontEnd(py::module m);
+void regclass_pyngraph_OpValidationFailureFrontEnd(py::module m);
+void regclass_pyngraph_GeneralFailureFrontEnd(py::module m);
+

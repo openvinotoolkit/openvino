@@ -6,6 +6,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "frontend_manager.hpp"
+#include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "pyngraph/function.hpp"
 
@@ -193,4 +195,88 @@ void regclass_pyngraph_FEC(py::module m)
         "__eq__",
         [](const FeCaps& a, const FeCaps& b) { return a.get_caps() == b.get_caps(); },
         py::is_operator());
+}
+
+void regclass_pyngraph_GeneralFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::GeneralFailure> exc(std::move(m), "GeneralFailure");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::GeneralFailure& e)
+        {
+            exc(e.what());
+        }
+    });
+}
+
+void regclass_pyngraph_OpValidationFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::OpValidationFailure> exc(std::move(m),
+                                                                    "OpValidationFailure");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::OpValidationFailure& e)
+        {
+            exc(e.what());
+        }
+    });
+}
+
+void regclass_pyngraph_OpConversionFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::OpConversionFailure> exc(std::move(m),
+                                                                    "OpConversionFailure");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::OpConversionFailure& e)
+        {
+            exc(e.what());
+        }
+    });
+}
+
+void regclass_pyngraph_InitializationFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::InitializationFailure> exc(std::move(m),
+                                                                      "InitializationFailure");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::InitializationFailure& e)
+        {
+            exc(e.what());
+        }
+    });
+}
+
+void regclass_pyngraph_NotImplementedFailureFrontEnd(py::module m)
+{
+    static py::exception<ngraph::frontend::NotImplementedFailure> exc(std::move(m),
+                                                                      "NotImplementedFailure");
+    py::register_exception_translator([](std::exception_ptr p) {
+        try
+        {
+            if (p)
+                std::rethrow_exception(p);
+        }
+        catch (const ngraph::frontend::NotImplementedFailure& e)
+        {
+            exc(e.what());
+        }
+    });
 }

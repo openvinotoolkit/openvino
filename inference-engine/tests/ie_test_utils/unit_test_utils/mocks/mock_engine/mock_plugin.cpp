@@ -49,6 +49,16 @@ MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, s
     }
 }
 
+InferenceEngine::IExecutableNetworkInternal::Ptr
+MockPlugin::LoadNetwork(const std::string &modelPath,
+                        const std::map<std::string, std::string> &config) {
+    if (_target) {
+        return _target->LoadNetwork(modelPath, config);
+    } else {
+        return InferenceEngine::InferencePluginInternal::LoadNetwork(modelPath, config);
+    }
+}
+
 ExecutableNetworkInternal::Ptr
 MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
@@ -92,6 +102,27 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     } else {
         IE_THROW(NotImplemented);
     }
+}
+
+void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+    if (_target) {
+        _target->SetCore(core);
+    }
+    InferenceEngine::InferencePluginInternal::SetCore(core);
+}
+
+void MockPlugin::SetName(const std::string& name) noexcept {
+    if (_target) {
+        _target->SetName(name);
+    }
+    InferenceEngine::InferencePluginInternal::SetName(name);
+}
+
+std::string MockPlugin::GetName() const noexcept {
+    if (_target) {
+        return _target->GetName();
+    }
+    return InferenceEngine::InferencePluginInternal::GetName();
 }
 
 
