@@ -303,7 +303,7 @@ endif()
 if (USE_PROTOBUF)
     message("Add PROTOBUF dependency")
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS ON)
+    set(BUILD_SHARED_LIBS OFF)  # TODO: it was ON for ONNX_IMPORT, but should be fixed
 
     if (MSVC)
         # When we build dll libraries. These flags make sure protobuf build with /MD, not /MT.
