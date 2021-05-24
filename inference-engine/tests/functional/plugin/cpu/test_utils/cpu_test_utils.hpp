@@ -148,6 +148,10 @@ protected:
 
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 
+const auto conv_sse42_1D = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
+const auto conv_avx2_1D = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
+const auto conv_avx512_1D = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
+
 const auto conv_ref_2D = CPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any"};
 const auto conv_ref_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any"};
 
