@@ -119,7 +119,7 @@ Engine::~Engine() {
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
     //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.original.svg").run_on_function(nGraphFunc);
-    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.original").run_on_function(nGraphFunc);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.original").run_on_function(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -315,7 +315,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.run_passes(nGraphFunc);
 
     //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.common.svg").run_on_function(nGraphFunc);
-    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
@@ -353,7 +353,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         lptManager.run_passes(nGraphFunc);
 
         //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.transformed.svg").run_on_function(nGraphFunc);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
     }
 
     ngraph::pass::Manager postLPTPassManager;
@@ -386,7 +386,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     ConvertToCPUSpecificOpset(nGraphFunc);
 
-    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.legacy").run_on_function(nGraphFunc);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.legacy").run_on_function(nGraphFunc);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr

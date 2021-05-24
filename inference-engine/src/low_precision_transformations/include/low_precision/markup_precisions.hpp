@@ -46,7 +46,7 @@ public:
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);
-    static bool isQuantized(const std::shared_ptr<Node>& node);
+    static bool isSupported(const std::shared_ptr<Node>& node);
 
     std::unordered_map<std::string, Restriction> restrictionsByOperation;
 };

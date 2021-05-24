@@ -50,6 +50,19 @@ public:
 
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "UpdateSharedPrecisionPreserved");
+
+                // TODO: check if node can be quantized, if not, then doesn't update
+                for (auto input : node->inputs()) {
+                    auto precisionsAttributeWrapper = getAttribute<PrecisionsAttributePtr>(input);
+                    if (precisionsAttributeWrapper != nullptr) {
+                        const auto precisionsAttribute = precisionsAttributeWrapper->get();
+                        assert(precisionsAttribute != nullptr);
+                        if (precisionsAttribute->sharedValue->precisions.empty()) {
+                            return false;
+                        }
+                    }
+                }
+
                 for (auto input : node->inputs()) {
                     if (needToCheckExpectedAttributeType) {
                         if (getAttribute<ExpectedAttributeType>(input) == nullptr) {
