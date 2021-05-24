@@ -74,7 +74,12 @@ struct Version {
             major = _major;
             minor = _minor;
         }
-    } apiVersion;
+    };
+
+    /**
+     * @brief An API version reflects the set of supported features
+     */
+    ApiVersion apiVersion;
     IE_SUPPRESS_DEPRECATED_END
 
     /**
