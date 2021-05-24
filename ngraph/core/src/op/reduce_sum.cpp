@@ -58,10 +58,13 @@ namespace reduce_sum
         bool rc = true;
         switch (arg->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_reduce_sum, i8, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, i32, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, i64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reduce_sum, u8, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, u32, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, u64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reduce_sum, bf16, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, f16, arg, out, axes, keep_dims);
             NGRAPH_TYPE_CASE(evaluate_reduce_sum, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
