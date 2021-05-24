@@ -142,7 +142,7 @@ private:
     reg64_t reg_xoff = r12;
 
     Xbyak::Reg64 reg_load_table = r15;
-    Xbyak::Reg64 reg_load_store_mask = rcx;
+    Xbyak::Reg64 reg_load_store_mask = abi_param1;
 
     void roi_pool_max(int c_blocks) {
         Label h_loop_label;
