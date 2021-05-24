@@ -28,9 +28,8 @@ namespace ngraph
                                                   size_t max_rois,
                                                   T* output_rois)
             {
-                const int64_t input_rois_num = static_cast<int64_t>(input_rois_shape[0]);
-                const int64_t top_rois_num =
-                    std::min(static_cast<int64_t>(max_rois), input_rois_num);
+                const size_t input_rois_num = input_rois_shape[0];
+                const size_t top_rois_num = std::min(max_rois, input_rois_num);
 
                 std::vector<int64_t> idx(input_rois_num);
                 std::iota(idx.begin(), idx.end(), int64_t{0});
@@ -38,7 +37,7 @@ namespace ngraph
                     return input_probs[i1] > input_probs[i2];
                 });
 
-                for (int64_t i = 0; i < top_rois_num; ++i)
+                for (size_t i = 0; i < top_rois_num; ++i)
                 {
                     output_rois[0] = input_rois[4 * idx[i] + 0];
                     output_rois[1] = input_rois[4 * idx[i] + 1];
