@@ -34,68 +34,6 @@ namespace MKLDNNPlugin {
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-// TODO [NM]: move into separate header
-enum Type {
-    Unknown,
-    Generic,
-    Reorder,
-    Input,
-    Output,
-    Convolution,
-    Deconvolution,
-    Lrn,
-    Pooling,
-    FullyConnected,
-    Softmax,
-    Split,
-    Concatenation,
-    Eltwise,
-    MatMul,
-    Reshape,
-    Tile,
-    ROIAlign,
-    ROIPooling,
-    PSROIPooling,
-    BatchToSpace,
-    DepthToSpace,
-    Pad,
-    Transpose,
-    SpaceToBatch,
-    SpaceToDepth,
-    StridedSlice,
-    MemoryOutput,
-    MemoryInput,
-    RNNCell,
-    RNNSeq,
-    FakeQuantize,
-    BinaryConvolution,
-    DeformableConvolution,
-    TensorIterator,
-    Convert,
-    MVN,
-    NormalizeL2,
-    ScatterUpdate,
-    ScatterElementsUpdate,
-    ScatterNDUpdate,
-    Interpolate,
-    Reduce,
-    Broadcast,
-    EmbeddingSegmentsSum,
-    EmbeddingBagPackedSum,
-    EmbeddingBagOffsetsSum,
-    Gather,
-    GatherElements,
-    GatherND,
-    OneHot,
-    RegionYolo,
-    Select,
-    Roll,
-    Reference,
-    ShuffleChannels,
-    DFT,
-    Math,
-};
-
 Type TypeFromName(const std::string type);
 
 static std::string NameFromType(Type type) {
@@ -651,6 +589,8 @@ public:
 protected:
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
+    // TODO [mandrono]: place outside of the node API
+    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
     void setType(Type type) {
         this->type = type;

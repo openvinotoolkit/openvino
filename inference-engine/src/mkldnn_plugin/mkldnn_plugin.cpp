@@ -85,8 +85,6 @@
 
 #include <ie_algorithm.hpp>
 
-#include <ngraph/pass/visualize_tree.hpp>
-
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"

@@ -1685,81 +1685,12 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();
 }
 
-void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
-    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
-        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
-        auto constBlob = constInputNode->getConstBlob();
-        auto srtPtr = constBlob->cbuffer().as<int8_t *>();
-        buffer.resize(constBlob->size());
-        cpu_convert(srtPtr, &buffer[0], constBlob->getTensorDesc().getPrecision(), Precision::FP32, constBlob->size());
-    };
-
-    const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
-
-    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
-    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
-        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
-        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
-        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
-        if (!power) {
-            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
-        }
-        scales.push_back(power->getBeta());
-        shifts.push_back(power->getGamma());
-    }
-
-    const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].ndims() > 1 ? 1 : 0]);
-    const size_t bufferSizeAligned = rnd_up(bufferSize, 16);
-
-    size_t initSize = scales.size();
-    if (initSize > 0) {
-        scales.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
-            std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
-        }
-    }
-
-    initSize = shifts.size();
-    if (initSize > 0) {
-        shifts.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
-            std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
-        }
-    }
-
-    switch (getAlgorithm()) {
-        case EltwiseAdd: {
-            scales.resize(bufferSizeAligned, 1.0f);
-            break;
-        }
-        case EltwiseSubtract: {
-            scales.resize(bufferSizeAligned, 1.0f);
-            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
-            break;
-        }
-        case EltwiseMultiply: {
-            shifts.resize(bufferSizeAligned, 0.0f);
-            break;
-        }
-        case EltwiseDivide: {
-            shifts.resize(bufferSizeAligned, 0.0f);
-            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
-            break;
-        }
-        default: break;
-    }
-}
-
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
     specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
             getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
-        fillScalesAndShifts(parentNode.get());
+        fillScalesAndShifts(parentNode.get(), scales, shifts, 16);
     }
     MKLDNNNode::fuseInto(parentNode);
 }

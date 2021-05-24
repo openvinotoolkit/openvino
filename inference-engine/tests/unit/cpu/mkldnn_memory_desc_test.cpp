@@ -149,3 +149,18 @@ TEST(MemDescTest, BlockedConversion) {
 TEST(MemDescTest, ComaptibleWithFormat) {
     SKIP();
 }
+
+TEST(isSameMethodTest, CheckTensorWithSameStrides) {
+    auto isSameDataFormat = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
+        dnnl::memory::desc oneDnnDesc {dims, dnnl::memory::data_type::u8, fmt};
+        MKLDNNMemoryDesc pluginDesc {oneDnnDesc};
+        return pluginDesc.getFormat() == fmt;
+    };
+
+    std::pair<dnnl::memory::format_tag, dnnl::memory::dims> testCases[] {
+        { dnnl::memory::format_tag::ntc, {1, 10, 10} },
+    };
+
+    for (const auto &tc : testCases)
+        ASSERT_TRUE(isSameDataFormat(tc.first, tc.second));
+}
