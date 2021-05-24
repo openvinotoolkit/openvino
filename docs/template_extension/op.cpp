@@ -85,4 +85,23 @@ bool Operation::evaluate(const ngraph::HostTensorVector& outputs,
     }
     return false;
 }
+
+bool Operation::has_evaluate() const {
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::Type_t::i8:
+    case ngraph::element::Type_t::i16:
+    case ngraph::element::Type_t::i32:
+    case ngraph::element::Type_t::i64:
+    case ngraph::element::Type_t::u8:
+    case ngraph::element::Type_t::u16:
+    case ngraph::element::Type_t::u32:
+    case ngraph::element::Type_t::u64:
+    case ngraph::element::Type_t::bf16:
+    case ngraph::element::Type_t::f16:
+    case ngraph::element::Type_t::f32: return true;
+    default: break;
+    }
+    return false;
+}
 //! [op:evaluate]
