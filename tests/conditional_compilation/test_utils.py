@@ -20,10 +20,8 @@ SESSION_INFO_FILE = "cc_tests.json"
 infer_tool = str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve())
 
 
-def validate_path_arg(path: Path, name, is_dir=False):
+def validate_path_arg(path: Path, is_dir=False):
     """"Check if path argument is correct."""
-    if path is None:
-        raise ValueError(f"--{name} is not specified.")
 
     if not path.exists():
         raise ValueError(f"{path} does not exist.")

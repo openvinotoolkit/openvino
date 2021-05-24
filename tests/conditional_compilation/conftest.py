@@ -36,13 +36,11 @@ def pytest_addoption(parser):
     parser.addoption(
         "--sea_runtool",
         type=Path,
-        default=None,
         help="Path to sea_runtool.py"
     )
     parser.addoption(
         "--collector_dir",
         type=Path,
-        default=None,
         help="Path to a directory with a collector binary",
     )
     parser.addoption(
@@ -55,13 +53,11 @@ def pytest_addoption(parser):
     parser.addoption(
         "--openvino_ref",
         type=Path,
-        default=None,
         help="Path to root directory with installed OpenVINO",
     )
     parser.addoption(
         "--openvino_root_dir",
         type=Path,
-        default=None,
         help="Path to OpenVINO repository root directory",
     )
 
@@ -86,20 +82,20 @@ def pytest_generate_tests(metafunc):
     metafunc.parametrize("test_id, model", params, ids=ids)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def sea_runtool(request):
     """Fixture function for command-line option."""
-    sea_runtool = request.config.getoption("sea_runtool")
-    validate_path_arg(sea_runtool, "sea_runtool")
+    sea_runtool = request.config.getvalueorskip("sea_runtool")
+    validate_path_arg(sea_runtool)
 
     return sea_runtool
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def collector_dir(request):
     """Fixture function for command-line option."""
-    collector_dir = request.config.getoption("collector_dir")
-    validate_path_arg(collector_dir, "collector_dir", is_dir=True)
+    collector_dir = request.config.getvalueorskip("collector_dir")
+    validate_path_arg(collector_dir, is_dir=True)
 
     return collector_dir
 
@@ -113,8 +109,8 @@ def artifacts(request):
 @pytest.fixture(scope="session")
 def openvino_root_dir(request):
     """Fixture function for command-line option."""
-    openvino_root_dir = request.config.getoption("openvino_root_dir")
-    validate_path_arg(openvino_root_dir, "openvino_root_dir", is_dir=True)
+    openvino_root_dir = request.config.getvalueorskip("openvino_root_dir")
+    validate_path_arg(openvino_root_dir, is_dir=True)
 
     return openvino_root_dir
 
@@ -128,12 +124,12 @@ def openvino_ref(request, artifacts):
     """
     openvino_ref = request.config.getoption("openvino_ref")
     if openvino_ref:
-        validate_path_arg(openvino_ref, "openvino_ref", is_dir=True)
+        validate_path_arg(openvino_ref, is_dir=True)
 
         return openvino_ref
 
-    openvino_root_dir = request.config.getoption("openvino_root_dir")
-    validate_path_arg(openvino_root_dir, "openvino_root_dir", is_dir=True)
+    openvino_root_dir = request.config.getvalueorskip("openvino_root_dir")
+    validate_path_arg(openvino_root_dir, is_dir=True)
 
     build_dir = openvino_root_dir / "build_instrumented"
     openvino_ref_path = artifacts / "ref_pkg"
