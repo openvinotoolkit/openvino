@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "conv2d.hpp"
+#include "rnn.hpp"
 #include <ngraph/opsets/opset6.hpp>
-#include "conv2d_utils.hpp"
+#include "lstm.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
 
 namespace ngraph
 {
@@ -14,9 +15,11 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs conv2d(const NodeContext& node)
+                NamedOutputs rnn(const NodeContext& node)
                 {
-                    return conv2d_base<opset6::GroupConvolution, opset6::Convolution>(node);
+                    auto mode = node.get_attribute<std::string>("mode");
+                    PDPD_ASSERT(mode == "LSTM", "RNN only support LSTM now");
+                    return lstm(node);
                 }
 
             } // namespace op
