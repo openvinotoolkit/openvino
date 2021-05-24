@@ -39,6 +39,10 @@ else()
 endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_OLD ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_OLD ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
+    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_PDB_OUTPUT_DIRECTORY})
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
     else()
@@ -78,7 +82,7 @@ file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/generic/include")
+target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/frontend_manager/include")
 if (NGRAPH_TF_FRONTEND_ENABLE)
     target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::tensorflow_frontend)
 endif()
@@ -91,6 +95,23 @@ target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_m
 
 if (TARGET ngraph::onnx_importer)
     add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+endif()
+
+if(NGRAPH_UNIT_TEST_ENABLE)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_OLD})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_OLD})
+    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_OLD})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY ${CMAKE_PDB_OUTPUT_DIRECTORY_OLD})
+    add_subdirectory(mock_py_frontend/mock_py_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
+
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    add_subdirectory(mock_py_frontend/pyngraph_fe_mock_api)
+    add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
+
 endif()
 
 # perform copy
