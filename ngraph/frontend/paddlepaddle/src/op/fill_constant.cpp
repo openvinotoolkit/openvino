@@ -21,13 +21,22 @@ namespace ngraph
                     Output<Node> value_node;
                     if (dtype == element::i32)
                     {
-                        int32_t value = node.get_attribute<int32_t>("value");
+                        int32_t value = static_cast<int32_t>(node.get_attribute<float>("value"));
                         value_node = opset6::Constant::create(dtype, {1}, {value});
                     }
                     else if (dtype == element::f32)
                     {
                         float value = node.get_attribute<float>("value");
                         value_node = opset6::Constant::create(dtype, {1}, {value});
+                    }
+                    else if (dtype == element::i64)
+                    {
+                        int64_t value = static_cast<int64_t>(node.get_attribute<float>("value"));
+                        value_node = opset6::Constant::create(dtype, {1}, {value});
+                    }
+                    else
+                    {
+                        PDPD_ASSERT(false, "fill_constant only supports i32, f32, i64");
                     }
 
                     auto shape_node = opset6::Constant::create(element::i64, {shape.size()}, shape);

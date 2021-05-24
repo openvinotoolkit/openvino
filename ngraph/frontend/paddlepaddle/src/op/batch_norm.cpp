@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "batch_norm.hpp"
 #include <ngraph/opsets/opset6.hpp>
@@ -32,15 +20,42 @@ namespace ngraph
                     auto beta = node.get_ng_input("Bias");
                     auto mean = node.get_ng_input("Mean");
                     auto variance = node.get_ng_input("Variance");
-                    return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::BatchNormInference>(
-                            data,
+                    auto data_layout = node.get_attribute<std::string>("data_layout");
+
+                    PDPD_ASSERT((data_layout == "NCHW" || data_layout == "NHWC"),
+                                "Not supported input data layout!");
+                    if (data_layout == "NCHW")
+                    {
+                        return node.default_single_output_mapping(
+                            {std::make_shared<ngraph::opset6::BatchNormInference>(
+                                data,
+                                gamma,
+                                beta,
+                                mean,
+                                variance,
+                                node.get_attribute<float>("epsilon"))},
+                            {"Y"});
+                    }
+                    else
+                    {
+                        auto input_order = ngraph::opset6::Constant::create(
+                            ngraph::element::i64, {4}, {0, 3, 1, 2});
+                        auto data_nchw =
+                            std::make_shared<ngraph::opset6::Transpose>(data, input_order);
+                        auto node_batch_norm = std::make_shared<ngraph::opset6::BatchNormInference>(
+                            data_nchw,
                             gamma,
                             beta,
                             mean,
                             variance,
-                            node.get_attribute<float>("epsilon"))},
-                        {"Y"});
+                            node.get_attribute<float>("epsilon"));
+                        auto output_order = ngraph::opset6::Constant::create(
+                            ngraph::element::i64, {4}, {0, 2, 3, 1});
+                        return node.default_single_output_mapping(
+                            {std::make_shared<ngraph::opset6::Transpose>(node_batch_norm,
+                                                                         output_order)},
+                            {"Y"});
+                    }
                 }
 
             } // namespace op

@@ -3,6 +3,7 @@
 //
 
 #pragma once
+
 #include "node_context.hpp"
 
 namespace ngraph
@@ -13,7 +14,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs batch_norm(const NodeContext& node);
+                NamedOutputs rnn(const NodeContext& node);
 
             }
         } // namespace pdpd

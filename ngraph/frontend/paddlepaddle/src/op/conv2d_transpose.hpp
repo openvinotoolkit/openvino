@@ -13,7 +13,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs batch_norm(const NodeContext& node);
+                NamedOutputs conv2d_transpose(const NodeContext& node_context);
 
             }
         } // namespace pdpd

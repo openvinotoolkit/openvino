@@ -13,7 +13,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs batch_norm(const NodeContext& node);
+                NamedOutputs dropout(const NodeContext& node);
 
             }
         } // namespace pdpd
