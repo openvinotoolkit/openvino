@@ -1489,72 +1489,6 @@ namespace
         return true;
     }
 
-    namespace convert_v0
-    {
-        template <element::Type_t ti, element::Type_t to>
-        inline void evaluate(const shared_ptr<op::v0::Convert>& op,
-                             const HostTensorVector& outputs,
-                             const HostTensorVector& inputs)
-        {
-            using TI = typename element_type_traits<ti>::value_type;
-            using TO = typename element_type_traits<to>::value_type;
-            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
-                                                outputs[0]->get_data_ptr<TO>(),
-                                                shape_size(inputs[0]->get_shape()));
-        }
-    } // namespace convert_v0
-
-    template <element::Type_t OUT_ET>
-    bool evaluate(const shared_ptr<op::v0::Convert>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::boolean:
-            convert_v0::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i8:
-            convert_v0::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i16:
-            convert_v0::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i32:
-            convert_v0::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i64:
-            convert_v0::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u8:
-            convert_v0::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u16:
-            convert_v0::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u32:
-            convert_v0::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u64:
-            convert_v0::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f16:
-            convert_v0::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f32:
-            convert_v0::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f64:
-            convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::bf16:
-            convert_v0::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
-            break;
-        default: return false;
-        }
-        return true;
-    }
-
     namespace convert_like_v1
     {
         template <element::Type_t ti, element::Type_t to>
@@ -2067,12 +2001,17 @@ namespace
             using TF = typename element_type_traits<T1>::value_type;
             using TI = typename element_type_traits<T2>::value_type;
             using TIND1 = typename element_type_traits<TOUT>::value_type;
+            TI blank_index_val = inputs[0]->get_shape().back() - 1;
+            const TI *blank_index = &blank_index_val;
+            if (inputs.size() == 3) {
+                blank_index = inputs[2]->get_data_ptr<const TI>();
+            }
             if (op->get_sequence_length_type() == element::i32)
             {
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int32_t>(),
                     inputs[0]->get_shape(),
@@ -2084,7 +2023,7 @@ namespace
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int64_t>(),
                     inputs[0]->get_shape(),

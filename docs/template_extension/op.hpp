@@ -22,6 +22,7 @@ public:
         return add;
     }
     bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
 private:
     int64_t add;
