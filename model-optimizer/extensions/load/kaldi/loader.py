@@ -8,7 +8,7 @@ from mo.front.kaldi.extractor import kaldi_extractor, kaldi_type_extractors
 from mo.front.kaldi.loader.loader import load_kaldi_model
 from mo.graph.graph import Graph
 from mo.utils.error import Error
-from mo.utils.graph import send_shapes_info, send_op_names_info
+from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 

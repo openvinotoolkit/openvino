@@ -25,8 +25,8 @@ from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
-from mo.utils.graph import send_op_names_info, send_shapes_info
-from mo.utils.utils import refer_to_faq_msg, send_framework_info
+from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
+from mo.utils.utils import refer_to_faq_msg
 
 
 class TFLoader(Loader):

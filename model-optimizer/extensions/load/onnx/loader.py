@@ -15,7 +15,7 @@ from mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
 from mo.front.onnx.loader import load_onnx_model, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils.error import Error
-from mo.utils.graph import send_shapes_info, send_op_names_info
+from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 

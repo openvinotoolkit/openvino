@@ -2,21 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-from collections import deque, Counter
+from collections import deque
 from re import match, compile
 
 import networkx as nx
-import numpy as np
 
 from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-
-try:
-    import openvino_telemetry as tm
-except ImportError:
-    import mo.utils.telemetry_stub as tm
 
 
 def backward_bfs_for_operation(start_node: Node, op_names: list):
@@ -111,7 +104,7 @@ def is_connected_component(graph: Graph, node_names: list):
     return set(node_names).issubset(visited)
 
 
-def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable = None,
+def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
                             include_control_flow=True, allow_non_reachable_end_nodes=False):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
@@ -143,7 +136,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
 
         for src_node_name, _, attrs in graph.in_edges(cur_node_id, data=True):
             # add input nodes for the non-start_nodes
-            if cur_node_id not in start_nodes and src_node_name not in visited and \
+            if cur_node_id not in start_nodes and src_node_name not in visited and\
                     (include_control_flow or not attrs.get('control_flow_edge', False)):
                 if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_id)):
                     extra_start_nodes.append(cur_node_id)
@@ -178,8 +171,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
         return sub_graph_nodes, extra_start_nodes
 
 
-def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list,
-                                   detect_extra_start_node: callable = None):
+def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. But doing it from start_nodes stepping
     backward by in edges.
@@ -273,7 +265,7 @@ def node_outcoming_neighbourhood(graph: Graph, node_name: str, depth: int):
     return node_neighbourhood(node_name, depth, lambda node_name: [v for u, v in graph.out_edges([node_name])])
 
 
-def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str = '/'):
+def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
     """
     The function returns nodes producing output of the sub-graph defined by scope (name prefix). The node is considered
     output of the scope if it is in this scope and it's output is outside of the scope.
@@ -314,47 +306,3 @@ def clear_tensor_names_info(nodes: list):
                     new_fw_info.append((fw_info[0], fw_info[1], None))
             set_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info', new_fw_info)
 
-
-def send_op_names_info(framework: str, graph: Graph):
-    """
-    This function sends information about operations in model.
-    :param framework: framework name.
-    :param graph: model graph.
-    """
-    op_counter = Counter()
-
-    def gather_op_statistics(g: Graph, op_c: Counter = op_counter):
-        op_c += g.op_names_statistic
-
-    for_graph_and_each_sub_graph_recursively(graph, gather_op_statistics)
-
-    t = tm.Telemetry()
-    for op_name in op_counter:
-        t.send_event('mo', 'op_count', "{}_{}".format(framework, op_name), op_counter[op_name])
-
-
-def send_shapes_info(framework: str, graph: Graph):
-    """
-    This function sends information about model input shapes.
-    :param framework: framework name.
-    :param graph: model graph.
-    """
-    shapes = []
-    for node in graph.get_op_nodes():
-        op_type = node.soft_get('type', None)
-        if op_type == 'Parameter':
-            if 'shape' in node:
-                shapes.append(node['shape'])
-    t = tm.Telemetry()
-
-    if shapes:
-        shape_str = ""
-        is_partially_defined = "0"
-        for shape in shapes:
-            shape_str += np.array2string(shape) + ","
-            if not all(shape > 0):
-                is_partially_defined = "1"
-        message_str = "{fw:" + framework + ",shape:\"" + shape_str[:-1] + "\"}"
-        t.send_event('mo', 'input_shapes', message_str)
-        t.send_event('mo', 'partially_defined_shape',
-                     "{partially_defined_shape:" + is_partially_defined + ",fw:" + framework + "}")

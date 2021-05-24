@@ -8,7 +8,7 @@ from mo.front.common.register_custom_ops import update_extractors_with_extension
 from mo.front.extractor import extract_node_attrs
 from mo.graph.graph import Graph
 from mo.utils.error import Error
-from mo.utils.graph import send_op_names_info, send_shapes_info
+from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
 from mo.utils.utils import refer_to_faq_msg
 
 
