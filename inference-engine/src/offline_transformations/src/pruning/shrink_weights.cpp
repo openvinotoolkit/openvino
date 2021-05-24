@@ -71,7 +71,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
                 NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_partial_shape();
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
-                    reduced_weights_count += shape_size(prev_shape) - shape_size(last_output.get_shape());
+                    reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
                 } else {
                     NGRAPH_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
                 }
