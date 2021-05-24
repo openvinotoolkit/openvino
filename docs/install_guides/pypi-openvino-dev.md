@@ -88,8 +88,8 @@ To install and configure components of the development package for working with 
 
 | DL Framework                                                                     | Extras                          |
 | :------------------------------------------------------------------------------- | :-------------------------------|
-|   [TensorFlow 1.x*](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
-|   [TensorFlow 2.x*](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
+|   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
+|   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
 |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
 |   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
 |   [Caffe2*](https://caffe2.ai/)                                                 | caffe2                          |
