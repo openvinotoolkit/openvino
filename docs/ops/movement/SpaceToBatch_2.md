@@ -15,22 +15,21 @@ The operation is equivalent to the following transformation of the input tensor 
 Zero-pad the start and end of dimensions [D_0, ..., D_{N - 1}] of the input according to `pads_begin` and `pads_end`
 
 note: P_0 for batch dimension is expected to be 0 (no-padding).
-\f[
-x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}],
-\f]
-where \f$P_i = pads_begin[i] + pads_end\f$
+\f[x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}]\f],
+where
+- \f$P_i = pads_begin[i] + pads_end\f$
 
 note: B_0 for batch is ignored.
 
 \f[
-x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, \dots, (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]),
+x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, \dots, (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}])\f],
 
-where B_i = block_shape[i]
+where
+- \f$B_i = block_shape[i]\f$
 
-x'' = transpose(x',  [2, 4, \dots, (N - 1) + (N - 1), 0, 1, 3, \dots, N + (N - 1)])
+\f[x'' = transpose(x',  [2, 4, \dots, (N - 1) + (N - 1), 0, 1, 3, \dots, N + (N - 1)])\f]
 
-y = reshape(x'', [batch * B_1 * \dots * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, \dots , (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
-\f]
+\f[y = reshape(x'', [batch * B_1 * \dots * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, \dots , (D_{N - 1} + P_{N - 1}) / B_{N - 1}])\f]
 
 **Attributes**
 
