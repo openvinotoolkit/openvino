@@ -12,9 +12,11 @@ The *SpaceToBatch* operation is similar to the TensorFlow* operation [SpaceToBat
 
 The operation is equivalent to the following transformation of the input tensor `data` of shape `[batch, D_1, D_2 ... D_{N - 1}]` and `block_shape`, `pads_begin`, `pads_end` of shapes `[N]` to *Y* output tensor.
 
-Zero-pad the start and end of dimensions [D_0, \dots, D_{N - 1}] of the input according to `pads_begin` and `pads_end`:
-note: P_0 for batch dimension is expected to be 0 (no-padding).
-x = [batch + P_0, D_1 + P_1, D_2 + P_2, \dots, D_{N - 1} + P_{N - 1}], where P_i = pads_begin[i] + pads_end[i]
+Zero-pad the start and end of dimensions [D_0, \dots, D_{N - 1}] of the input according to `pads_begin` and `pads_end`  
+
+note: P_0 for batch dimension is expected to be 0 (no-padding).  
+x = [batch + P_0, D_1 + P_1, D_2 + P_2, \dots, D_{N - 1} + P_{N - 1}], 
+where P_i = pads_begin[i] + pads_end[i]
 
 note: B_0 for batch is ignored.
 x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ..., (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
