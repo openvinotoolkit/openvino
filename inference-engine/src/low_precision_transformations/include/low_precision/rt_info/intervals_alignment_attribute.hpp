@@ -21,17 +21,16 @@ class IntervalsAlignmentAttribute;
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue : public SharedValue<IntervalsAlignmentAttribute> {
 public:
     IntervalsAlignmentSharedValue() = default;
-    IntervalsAlignmentSharedValue(const float intervalLow, const float intervalHigh, const bool isValid = true) :
-            intervalLow(intervalLow), intervalHigh(intervalHigh), isValid(isValid) {}
+    IntervalsAlignmentSharedValue(const float intervalLow, const float intervalHigh) :
+            intervalLow(intervalLow), intervalHigh(intervalHigh) {}
     float intervalLow;
     float intervalHigh;
-    bool isValid;
 };
 
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedValueAttribute<IntervalsAlignmentSharedValue> {
 public:
     IntervalsAlignmentAttribute() = default;
-    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const bool isValid = true);
+    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh);
 };
 
 using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;
