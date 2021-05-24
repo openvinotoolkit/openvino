@@ -237,7 +237,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        auto prevLayer = PrevFunctionalLayer(l, LayerInfo(l).isGemm() ? 1 : 0);
 
         // No need to instert identity activation
         // when activation was already there before pooling
@@ -899,6 +899,25 @@ void InsertCopyLayerPass::run() {
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
+    // Concat has multiple connections to the same input
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConcat()) continue;
+
+        // Insert copy layers after concat inputs with multiple connections to concat
+        std::set<DataPtr> parents;
+        for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
+            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            auto inputData = l->insData[input_idx].lock();
+            if (parents.find(inputData) != std::end(parents)) {
+                auto parent = getCreatorLayer(inputData);
+                IE_ASSERT(parent.lock() != nullptr);
+                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+            } else {
+                parents.insert(inputData);
+            }
+        }
+    }
+
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
 
@@ -975,7 +994,7 @@ void InsertCopyLayerPass::run() {
                 }
             }
             if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
-            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - (LayerInfo(l).isInput() ? 0 : 1);
             size_t currentCopyIdx = 0;
             while (currentCopyIdx < toCopyCount) {
                 if (currentCopyIdx < MemoryLayers.size()) {
@@ -1896,7 +1915,9 @@ void FuseFQIntoWeightsPass::run() {
         }
 
         // check whether this FQ represents weights - it need to be at index 1 of weightable layer
-        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+        const size_t weightsIdx = 1;
+        const size_t biasesIdx = 2;
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, weightsIdx, isNonFunctional);
 
         if (prevLayerAt1 != fqLayer) {
             continue;
@@ -1908,11 +1929,11 @@ void FuseFQIntoWeightsPass::run() {
 
         GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
 
-        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx);
         auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
         // 1. broke existing connections - by detaching fq subgraph from rest of graph
-        auto prevData = weightableLayer->insData[1].lock();
+        auto prevData = weightableLayer->insData[weightsIdx].lock();
         auto prevLayer = getCreatorLayer(prevData).lock();
         auto weightDims = prevLayer->outData.front()->getDims();
         prevLayer->outData.clear();

@@ -53,8 +53,6 @@ xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results m
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
-xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
-                               "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
