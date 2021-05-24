@@ -90,7 +90,7 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         if (postOpMgrPtr)
-            isBias = postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)";
+            isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
 
         convSpecificParams convParams;
         std::vector<size_t> inputShape;
