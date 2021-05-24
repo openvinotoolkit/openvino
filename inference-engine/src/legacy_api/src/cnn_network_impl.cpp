@@ -229,7 +229,7 @@ void CNNNetworkImpl::validate(int version) {
     }
 
     bool res = CNNNetForestDFS(
-        CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())),
+        CNNNetGetAllInputLayers(this),
         [&](CNNLayerPtr layer) {
             std::string layerName = layer->name;
 
@@ -422,7 +422,9 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
+        IE_SUPPRESS_DEPRECATED_START
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(CNNNetwork(shared_from_this()));
+        IE_SUPPRESS_DEPRECATED_END
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
             CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();

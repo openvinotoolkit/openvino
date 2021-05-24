@@ -22,6 +22,10 @@ if(ENABLE_V7_SERIALIZE)
         PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
 endif()
 
+# function(disable_deprecated_warnings)
+
+# endfunction()
+
 # Create object library
 
 file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)

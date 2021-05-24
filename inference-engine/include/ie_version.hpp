@@ -38,10 +38,13 @@ namespace InferenceEngine {
 #pragma pack(push, 1)
 struct Version {
     /**
+     * @deprecated Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property
      * @brief An API version reflects the set of supported features
      */
     struct {
+        INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
         int major; //!< A major version
+        INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
         int minor; //!< A minor version
     } apiVersion;
     /**
