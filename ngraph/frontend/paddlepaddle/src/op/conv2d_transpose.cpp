@@ -3,7 +3,6 @@
 //
 
 #include "conv2d_transpose.hpp"
-#include <ngraph/builder/reshape.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include "conv2d_utils.hpp"
 
