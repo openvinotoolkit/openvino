@@ -88,8 +88,7 @@ bool Operation::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::
 }
 
 bool Operation::has_evaluate() const {
-    switch (get_input_element_type(0))
-    {
+    switch (get_input_element_type(0)) {
     case ngraph::element::Type_t::i8:
     case ngraph::element::Type_t::i16:
     case ngraph::element::Type_t::i32:
@@ -100,8 +99,10 @@ bool Operation::has_evaluate() const {
     case ngraph::element::Type_t::u64:
     case ngraph::element::Type_t::bf16:
     case ngraph::element::Type_t::f16:
-    case ngraph::element::Type_t::f32: return true;
-    default: break;
+    case ngraph::element::Type_t::f32:
+        return true;
+    default:
+        break;
     }
     return false;
 }
