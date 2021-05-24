@@ -181,16 +181,16 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() cons
     // FIXME: workaround to get devicelist.
     std::unordered_set<std::string> capabilities;
     std::vector<std::string> queryDeviceLists{"CPU", "GPU"};
+    auto deviceListConfig = _config.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    if (deviceListConfig != _config.end()) {
+        queryDeviceLists = IE::DeviceIDParser::getHeteroDevices(deviceListConfig->second);
+    }
+
     for (auto &item : queryDeviceLists) {
         try {
             std::vector<std::string> device_cap =
                 GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
             for (auto &cap : device_cap) {
-                // For CPU test SetBlobOfKindTest::CompareWithRefs which checks BATCHED_BLOB capability,
-                // and AUTO select CPU but not GPU (GPU has this capability).
-                if (cap == METRIC_VALUE(BATCHED_BLOB)) {
-                    continue;
-                }
                 capabilities.insert(cap);
             }
         } catch (...) {
