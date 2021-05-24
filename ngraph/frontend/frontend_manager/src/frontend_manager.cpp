@@ -25,7 +25,8 @@ public:
 
     FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapFlags fec)
     {
-        FRONT_END_INITIALIZATION_CHECK(m_factories.count(framework));
+        FRONT_END_INITIALIZATION_CHECK(
+            m_factories.count(framework), "FrontEnd for Framework ", framework, " is not found");
         return m_factories[framework](fec);
     }
 
