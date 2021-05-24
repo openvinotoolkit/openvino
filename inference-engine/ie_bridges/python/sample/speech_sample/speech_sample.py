@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import logging as log
+import re
 import sys
 from io import BufferedReader
 from timeit import default_timer
@@ -36,11 +37,13 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
-    args.add_argument('-we', '--export_embedded_gna_model', type=str,
-                      help='Optional. Write GNA embedded model to file using path/filename provided.')
-    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str,
-                      help='Optional. GNA generation configuration string for embedded export. '
-                      'Can be GNA1 (default) or GNA3.')
+    # TODO: Find a model that applicable for this option
+    args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
+    # TODO: Find a model that applicable for this option
+    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
+    args.add_argument('-oname', '--output_layers', type=str,
+                      help='Optional. Layer names for output blobs. The names are separated with ",". '
+                      'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
 
     return parser.parse_args()
 
@@ -123,10 +126,13 @@ def write_ark_file(file_name: str, utterances: dict):
             file.write(matrix.tobytes())
 
 
-def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: str, out_blob: str) -> np.ndarray:
+def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
     """Do a synchronous matrix inference"""
-    batch_size, num_of_dims = exec_net.outputs[out_blob].shape
-    result = np.ndarray((matrix.shape[0], num_of_dims))
+    result = {}
+
+    for blob_name in output_blobs:
+        batch_size, num_of_dims = exec_net.outputs[blob_name].shape
+        result[blob_name] = np.ndarray((matrix.shape[0], num_of_dims))
 
     slice_begin = 0
     slice_end = batch_size
@@ -136,12 +142,20 @@ def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blob: st
 
         if vectors.shape[0] < batch_size:
             for vector in vectors:
-                vector_result = exec_net.infer({input_blob: vector})
-                result[slice_begin] = vector_result[out_blob][0]
+                input_data = {blob_name: vector for blob_name in input_blobs}
+                vector_result = exec_net.infer(input_data)
+
+                for blob_name in output_blobs:
+                    result[blob_name][slice_begin] = vector_result[blob_name][0]
+
                 slice_begin += 1
         else:
-            vector_results = exec_net.infer({input_blob: vectors})
-            result[slice_begin:slice_end] = vector_results[out_blob]
+            input_data = {blob_name: vectors for blob_name in input_blobs}
+            vector_results = exec_net.infer(input_data)
+
+            for blob_name in output_blobs:
+                result[blob_name][slice_begin:slice_end] = vector_results[blob_name]
+
             slice_begin += batch_size
             slice_end += batch_size
 
@@ -208,12 +222,39 @@ def main():
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
         log.info('Configuring input and output blobs')
         # Get names of input and output blobs
-        input_blob = next(iter(net.input_info))
-        out_blob = next(iter(net.outputs))
+        input_blobs = [next(iter(net.input_info))]
+
+        if args.output_layers:
+            output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
+            output_name_port = [(blob_name, int(port)) for blob_name, port in output_name_port]
+
+            net.add_outputs(output_name_port)
+
+            output_blobs = [blob_name for blob_name, port in output_name_port]
+        else:
+            output_blobs = [next(iter(net.outputs))]
+
+        if args.reference:
+            reference_files = re.split(', |,', args.reference)
+
+            if len(output_blobs) != len(reference_files):
+                log.error('The number of reference files is not equal to the number of network outputs.')
+                sys.exit(-5)
+
+        if args.output:
+            output_files = re.split(', |,', args.output)
+
+            if len(output_blobs) != len(output_files):
+                log.error('The number of output files is not equal to the number of network outputs.')
+                sys.exit(-6)
 
         # Set input and output precision manually
-        net.input_info[input_blob].precision = 'FP32'
-        net.outputs[out_blob].precision = 'FP32'
+        for blob_name in input_blobs:
+            net.input_info[blob_name].precision = 'FP32'
+
+        for blob_name in output_blobs:
+            net.outputs[blob_name].precision = 'FP32'
+
         net.batch_size = args.batch_size
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
@@ -249,8 +290,8 @@ def main():
         exec_net = ie.load_network(net, device_str, plugin_config)
     else:
         exec_net = ie.import_network(args.import_gna_model, device_str, plugin_config)
-        input_blob = next(iter(exec_net.input_info))
-        out_blob = next(iter(exec_net.outputs))
+        input_blobs = [next(iter(exec_net.input_info))]
+        output_blobs = [next(iter(exec_net.outputs))]
 
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
@@ -270,34 +311,41 @@ def main():
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     utterances = read_utterance_file(args.input)
     if args.reference:
-        references = read_utterance_file(args.reference)
+        references = {output_blobs[i]: read_utterance_file(reference_files[i]) for i in range(len(output_blobs))}
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    results = {}
+    results = {blob_name: {} for blob_name in output_blobs}
     infer_times = []
 
     for key, matrix in sorted(utterances.items()):
         start_infer_time = default_timer()
-        results[key] = infer_matrix(matrix, exec_net, input_blob, out_blob)
+        result = infer_matrix(matrix, exec_net, input_blobs, output_blobs)
+
+        for blob_name in result.keys():
+            results[blob_name][key] = result[blob_name]
+
         infer_times.append(default_timer() - start_infer_time)
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
-    for i, key in enumerate(sorted(results)):
-        log.info(f'Utterance {i} ({key})')
-        log.info(f'Frames in utterance: {results[key].shape[0]}')
-        log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
+    for blob_name in output_blobs:
+        for i, key in enumerate(sorted(results[blob_name])):
+            log.info(f'Utterance {i} ({key})')
+            log.info(f'Output blob name: {blob_name}')
+            log.info(f'Frames in utterance: {results[blob_name][key].shape[0]}')
+            log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
 
-        if args.reference:
-            compare_with_reference(results[key], references[key])
+            if args.reference:
+                compare_with_reference(results[blob_name][key], references[blob_name][key])
 
-        log.info('')
+            log.info('')
 
     log.info(f'Total sample time: {sum(infer_times) * 1000:.2f}ms')
 
     if args.output:
-        write_utterance_file(args.output, results)
-        log.info(f'File {args.output} was created!')
+        for i, blob_name in enumerate(results):
+            write_utterance_file(output_files[i], results[blob_name])
+            log.info(f'File {output_files[i]} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '

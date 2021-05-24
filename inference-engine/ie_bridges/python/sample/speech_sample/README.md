@@ -8,7 +8,7 @@ The following Inference Engine Python API is used in the application:
 | Feature             | API                                                                                                   | Description                                                           |
 | :------------------ | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
 | Import/Export Model | [IECore.import_network], [ExecutableNetwork.export]                                                   | The GNA plugin supports loading and saving of the GNA-optimized model |
-| Network Operations  | [IENetwork.batch_size], [CDataPtr.shape], [ExecutableNetwork.input_info], [ExecutableNetwork.outputs] | Managing of network: configure input and output blobs                 |
+| Network Operations  | [IENetwork.batch_size], [IENetwork.add_outputs], [CDataPtr.shape], [ExecutableNetwork.input_info], [ExecutableNetwork.outputs] | Managing of network: configure input and output blobs                 |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
@@ -79,8 +79,7 @@ Usage message:
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
                         [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
                         [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
-                        [-wg EXPORT_GNA_MODEL] [-we EXPORT_EMBEDDED_GNA_MODEL]
-                        [-we_gen EMBEDDED_GNA_CONFIGURATION]
+                        [-wg EXPORT_GNA_MODEL] [-oname OUTPUT_LAYERS]
 
 optional arguments:
   -m MODEL, --model MODEL
@@ -101,10 +100,10 @@ Options:
                         scores.
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, MYRIAD, HDDL, GNA_AUTO, GNA_HW, GNA_SW_FP32,
-                        GNA_SW_EXACT or HETERO: is acceptable. The sample will
-                        look for a suitable plugin for device specified.
-                        Default value is CPU.
+                        GPU, MYRIAD, HDDL, GNA_AUTO, GNA_HW, GNA_SW,
+                        GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable.
+                        The sample will look for a suitable plugin for device
+                        specified. Default value is CPU.
   -bs BATCH_SIZE, --batch_size BATCH_SIZE
                         Optional. Batch size 1-8 (default 1).
   -qb QUANTIZATION_BITS, --quantization_bits QUANTIZATION_BITS
@@ -113,12 +112,11 @@ Options:
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
-  -we EXPORT_EMBEDDED_GNA_MODEL, --export_embedded_gna_model EXPORT_EMBEDDED_GNA_MODEL
-                        Optional. Write GNA embedded model to file using
-                        path/filename provided.
-  -we_gen EMBEDDED_GNA_CONFIGURATION, --embedded_gna_configuration EMBEDDED_GNA_CONFIGURATION
-                        Optional. GNA generation configuration string for
-                        embedded export. Can be GNA1 (default) or GNA3.
+  -oname OUTPUT_LAYERS, --output_layers OUTPUT_LAYERS
+                        Optional. Layer names for output blobs. The names are
+                        separated with ",". Allows to change the order of
+                        output layers for -o flag. Example:
+                        Output1:port,Output2:port.
 ```
 
 > **NOTES**:
@@ -255,6 +253,7 @@ The sample application logs each step in a standard output stream.
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e
+[IENetwork.add_outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#ae8024b07f3301d6d5de5c0d153e2e6e6
 [CDataPtr.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1CDataPtr.html#aa6fd459edb323d1c6215dc7a970ebf7f
 [ExecutableNetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#ac76a04c2918607874018d2e15a2f274f
 [ExecutableNetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#a4a631776df195004b1523e6ae91a65c1
