@@ -105,35 +105,6 @@ shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& 
     return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
 }
 
-Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const
-{
-    const Shape& ds = data_shape;
-
-    // in general the resulting shape should contain the following values:
-    // [0]: ds[0] * ds[1] * ... * ds[m_axis-1] (or 1 if m_axis == 0)
-    // [1]: m_group
-    // [2]: ds[axis] / m_group
-    // [3]: ds[axis+1] * ds[axis+2] * ... * ds[ds.size()-1] (or 1 if m_axis points to the last elem
-    //                                                       of ds)
-    Shape res(4, 1);
-
-    size_t axis_zb = get_zero_based_axis();
-    for (size_t i = 0; i < axis_zb; ++i)
-    {
-        res[0] *= ds[i];
-    }
-
-    res[1] = m_group;
-    res[2] = ds[axis_zb] / m_group;
-
-    for (size_t i = axis_zb + 1; i < ds.size(); ++i)
-    {
-        res[3] *= ds[i];
-    }
-
-    return res;
-}
-
 bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outputs,
                                                     const HostTensorVector& inputs) const
 {
