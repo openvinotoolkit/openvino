@@ -75,11 +75,11 @@ The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you d
    By default, the package file is saved as `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`.
 3. Create an installation folder.
    ```sh
-   sudo mkdir -p /opt/intel/openvino
+   sudo mkdir -p /opt/intel/openvino_2021
    ```
 4. Unpack the archive:
    ```sh
-   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino
+   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2021
    ```
 
 Now the OpenVINO toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
@@ -154,7 +154,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```
 4. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian* OS:
    ```sh
-   ./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
+   ./armv7l/Release/object_detection_sample_ssd -m <path_to_model>/face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
    ```
    The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
 
