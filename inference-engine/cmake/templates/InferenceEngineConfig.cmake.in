@@ -16,6 +16,12 @@
 #   IE::inference_engine            - The Inference Engine library
 #   IE::inference_engine_c_api      - The Inference Engine C API library
 #
+# Inference Engine version variables:
+#
+#   InferenceEngine_VERSION_MAJOR - major version component
+#   InferenceEngine_VERSION_MINOR - minor version component
+#   InferenceEngine_VERSION_PATCH - patch version component
+#
 
 @PACKAGE_INIT@
 

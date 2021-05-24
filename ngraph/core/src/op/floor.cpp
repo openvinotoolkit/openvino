@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Floor::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Floor, "Floor", 0, util::UnaryElementwiseArithmetic);
 
 op::Floor::Floor(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)

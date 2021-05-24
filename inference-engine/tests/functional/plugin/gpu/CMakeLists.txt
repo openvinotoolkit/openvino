@@ -14,6 +14,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             clDNNPlugin
+            AutoPlugin
         LINK_LIBRARIES
             funcSharedTests
             ${CLDNN__OCL_ICD_LIBPATH}

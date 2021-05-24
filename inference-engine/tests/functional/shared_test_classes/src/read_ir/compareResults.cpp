@@ -11,14 +11,16 @@ namespace LayerTestsDefinitions {
 
 namespace {
 void compare(const std::shared_ptr<ngraph::Node> node,
-             const std::vector<std::vector<std::uint8_t>>& expected,
+             const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
              float threshold) {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> types(expected.size());
+    auto outputs = node->outputs();
     LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
 }
 
 void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
-             const std::vector<std::uint8_t>& expected,
+             const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
              float threshold) {
     ASSERT_EQ(expected.size(), actual.front()->byteSize());
@@ -84,82 +86,48 @@ void Compare(const T *expected, const T *actual, std::size_t size,
 } // namespace Proposal
 
 void compare(const std::shared_ptr<ngraph::op::v4::Proposal> node,
-             const std::vector<std::vector<std::uint8_t>>& expectedOutputs,
+             const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
              const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
              float threshold) {
-    size_t num_selected_boxes = 0;
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
-        const auto &actual = actualOutputs[outputIndex];
-        ASSERT_EQ(expected.size(), actual->byteSize());
-        const auto &expectedBuffer = expected.data();
-
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->rmap();
-        const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
-
-        const auto &precision = actual->getTensorDesc().getPrecision();
-        auto size = actual->size();
-
-        // verifying the first output if there was less proposals than space
-        // provided,
-        // num_selected_boxes was set, take this into consideration while verifying the 2nd
-        // output
-        if (outputIndex == 1 && num_selected_boxes) {
-            size = num_selected_boxes;
-        }
-
-        switch (precision) {
-            case InferenceEngine::Precision::BF16:
-                Proposal::Compare(
-                        reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                        reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size,
-                        ngraph::bfloat16(threshold), outputIndex, num_selected_boxes);
-                break;
-            case InferenceEngine::Precision::FP16:
-                Proposal::Compare(
-                        reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
-                        reinterpret_cast<const ngraph::float16 *>(actualBuffer), size,
-                        ngraph::float16(threshold), outputIndex, num_selected_boxes);
-                break;
-            case InferenceEngine::Precision::FP32:
-                Proposal::Compare<float>(
-                        reinterpret_cast<const float *>(expectedBuffer),
-                        reinterpret_cast<const float *>(actualBuffer), size,
-                        threshold, outputIndex, num_selected_boxes);
-                break;
-            default:
-                FAIL() << "Comparator for " << precision << " precision isn't supported";
-        }
-    }
-}
-
-void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
-             const std::vector<std::vector<std::uint8_t>>& expectedOutputs,
-             const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
-             float threshold) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
+    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
 
-        const auto &expectedBuffer = expected.data();
+        const auto &expectedBuffer = expected.second.data();
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
         IE_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto actualBuffer = lockedMemory.as<const uint8_t *>();
 
+        auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
+        // W/A for int4, uint4
+        if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
+            k /= 2;
+        }
         if (outputIndex == 2) {
-            if (expected.size() != actual->byteSize())
+            if (expected.second.size() != k * actual->byteSize())
                 throw std::runtime_error("Expected and actual size 3rd output have different size");
         }
 
         const auto &precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
+        size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
         switch (precision) {
             case InferenceEngine::Precision::FP32: {
-                LayerTestsUtils::LayerTestsCommon::Compare(
-                        reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+                switch (expected.first) {
+                    case ngraph::element::Type_t::f32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const float *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::f64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const double *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
+
                 const auto fBuffer = lockedMemory.as<const float *>();
                 for (int i = size; i < actual->size(); i++) {
                     ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
@@ -167,8 +135,86 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
                 break;
             }
             case InferenceEngine::Precision::I32: {
-                LayerTestsUtils::LayerTestsCommon::Compare(
-                        reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                switch (expected.first) {
+                    case ngraph::element::Type_t::i32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int32_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::i64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int64_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
+                const auto iBuffer = lockedMemory.as<const int *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                }
+                break;
+            }
+            default:
+                FAIL() << "Comparator for " << precision << " precision isn't supported";
+        }
+    }
+}
+
+void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
+             const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+             const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
+             float threshold) {
+    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
+        const auto& expected = expectedOutputs[outputIndex];
+        const auto& actual = actualOutputs[outputIndex];
+
+        const auto &expectedBuffer = expected.second.data();
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto actualBuffer = lockedMemory.as<const uint8_t *>();
+
+        const auto &precision = actual->getTensorDesc().getPrecision();
+        size_t size = expected.second.size() / (actual->getTensorDesc().getPrecision().size());
+        switch (precision) {
+            case InferenceEngine::Precision::FP32: {
+                switch (expected.first) {
+                    case ngraph::element::Type_t::f32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const float *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::f64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const double *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
+
+                const auto fBuffer = lockedMemory.as<const float *>();
+                for (int i = size; i < actual->size(); i++) {
+                    ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                }
+                break;
+            }
+            case InferenceEngine::Precision::I32: {
+                switch (expected.first) {
+                    case ngraph::element::Type_t::i32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int32_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::i64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int64_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
                 const auto iBuffer = lockedMemory.as<const int *>();
                 for (int i = size; i < actual->size(); i++) {
                     ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
@@ -183,7 +229,7 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
 
 template<typename T>
 void compareResults(const std::shared_ptr<ngraph::Node> node,
-             const std::vector<std::vector<std::uint8_t>>& expected,
+             const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
              float threshold) {
     return compare(ngraph::as_type_ptr<T>(node), expected, actual, threshold);

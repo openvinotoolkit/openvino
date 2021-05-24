@@ -54,10 +54,6 @@ public:
 
     IExecutableNetworkInternal::Ptr LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                                                 RemoteContext::Ptr context) override {
-        InputsDataMap networkInputs = network.getInputsInfo(), networkInputsCloned;
-        OutputsDataMap networkOutputs = network.getOutputsInfo(), networkOutputsCloned;
-        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
-
         ExecutableNetworkInternal::Ptr impl;
         if (nullptr == context) {
             impl = LoadExeNetworkImpl(network, config);
@@ -65,15 +61,17 @@ public:
             impl = LoadExeNetworkImpl(network, context, config);
         }
 
-        impl->setNetworkInputs(networkInputsCloned);
-        impl->setNetworkOutputs(networkOutputsCloned);
-        impl->SetPointerToPlugin(shared_from_this());
+        SetExeNetworkInfo(impl, network.getInputsInfo(), network.getOutputsInfo());
 
         return impl;
     }
 
-    ExecutableNetwork LoadNetwork(const std::string& modelPath,
-                                  const std::map<std::string, std::string>& config) override {
+    // NOTE:
+    // In case of overloading this method, make sure that executable network
+    // has correctly setNetworkInputs/setNetworkOutputs/SetPointerToPlugin
+    // Base implementation does this via GetCore()->LoadNetwork(cnnNet)
+    IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+                                                const std::map<std::string, std::string>& config) override {
         auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
         return GetCore()->LoadNetwork(cnnNet, GetName(), config);
     }
@@ -210,6 +208,20 @@ protected:
         (void)context;
         (void)config;
         IE_THROW(NotImplemented);
+    }
+
+    template <typename Tinput, typename Toutput>
+    void SetExeNetworkInfo(const InferenceEngine::ExecutableNetworkInternal::Ptr& exeNetwork,
+                           const std::map<std::string, std::shared_ptr<Tinput> >& inputs,
+                           const std::map<std::string, std::shared_ptr<Toutput> >& outputs) {
+        // Set inputs/outputs and pointer to plugin manually here
+        InferenceEngine::InputsDataMap clonedInputs;
+        InferenceEngine::OutputsDataMap clonedOutputs;
+        copyInputOutputInfo(inputs, outputs, clonedInputs, clonedOutputs);
+
+        exeNetwork->setNetworkInputs(clonedInputs);
+        exeNetwork->setNetworkOutputs(clonedOutputs);
+        exeNetwork->SetPointerToPlugin(shared_from_this());
     }
 
     std::string _pluginName;  //!< A device name that plugins enables
