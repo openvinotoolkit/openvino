@@ -81,11 +81,17 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
         }
     }
 
+    const auto outLow = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(3));
+    const auto outHigh = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(4));
+    if (!NetworkHelper::isScalarLike(outLow) || !NetworkHelper::isScalarLike(outHigh)) {
+        return nullptr;
+    }
+
     if (dequantization.empty()) {
-        const std::vector<float> lowIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(3))->cast_vector<float>();
+        const std::vector<float> lowIntervals = outLow->cast_vector<float>();
         lowInterval = *std::min_element(lowIntervals.begin(), lowIntervals.end());
 
-        const std::vector<float> highIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(4))->cast_vector<float>();
+        const std::vector<float> highIntervals = outHigh->cast_vector<float>();
         highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
     } else {
         {
