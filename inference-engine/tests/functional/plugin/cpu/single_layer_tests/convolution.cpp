@@ -148,40 +148,31 @@ namespace {
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
-        // activations
+        // eltwise
         fusingRelu,
-        fusingElu,
-        fusingSigmoid,
-        fusingClamp,
-        fusingPReluPerChannel,
-        fusingSwish,
-        fusingHSwish,
-        fusingMish,
-        fusingSoftPlus,
-        // other patterns
-        fusingReluAdd,
+        fusingPRelu1D,
+        // depthwise
         fusingReluScaleShift,
+        // fake quantize
         fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
+        // sum
         fusingSumEluFQ,
-        fusingSum,
-        fusingPRelu1D,
-        fusingAddPerChannel // bias
+        fusingSum
+        // bias
+        fusingAddPerChannel
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         emptyFusingSpec,
-        // activations
+        // eltwise
         fusingRelu,
-        fusingElu,
-        fusingSigmoid,
-        fusingClamp,
-        fusingPReluPerChannel,
-        fusingSwish,
-        // other patterns
-        fusingReluAdd,
+        // depthwise
         fusingReluScaleShift,
+        // sum
         fusingSum
+        // bias
+        fusingAddPerChannel
 };
 
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
