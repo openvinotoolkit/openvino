@@ -202,6 +202,11 @@ DECL_PASS(FuseMultipleIdentities);
 DECL_PASS(BroadcastConst);
 
 /**
+* @brief Brodcast data in Const layer with FakeQuantize layer
+*/
+DECL_PASS(BroadcastConstWithFakeQuantize);
+
+/**
 * @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
 */
 DECL_PASS(FuseFQIntoWeights);
