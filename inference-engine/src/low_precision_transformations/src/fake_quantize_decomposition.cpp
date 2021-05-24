@@ -200,10 +200,6 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     }
 
     if (intervalsAlignment != nullptr) {
-        if (!intervalsAlignment->sharedValue->isValid) {
-            // TODO: LPT: not implemented: move to top
-            return false;
-        }
         const float maxOutputInterval = intervalsAlignment->sharedValue->intervalHigh - intervalsAlignment->sharedValue->intervalLow;
         // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
         const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;

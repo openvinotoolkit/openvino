@@ -15,8 +15,8 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const bool isValid) {
-    sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(intervalLow, intervalHigh, isValid);
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh) {
+    sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(intervalLow, intervalHigh);
 }
 
 template class ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
@@ -52,8 +52,6 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
         if (resultAttribute->sharedValue->intervalHigh < attribute->sharedValue->intervalHigh) {
             resultAttribute->sharedValue->intervalHigh = attribute->sharedValue->intervalHigh;
         }
-
-        resultAttribute->sharedValue->isValid = resultAttribute->sharedValue->isValid && attribute->sharedValue->isValid;
     }
 
     return resultAttributeWrapper;
@@ -140,8 +138,6 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
         if (resultAttribute->sharedValue->intervalHigh < attribute->sharedValue->intervalHigh) {
             resultAttribute->sharedValue->intervalHigh = attribute->sharedValue->intervalHigh;
         }
-
-        resultAttribute->sharedValue->isValid = resultAttribute->sharedValue->isValid && attribute->sharedValue->isValid;
     }
 }
 
