@@ -1680,13 +1680,8 @@ void InsertIdentityToLSTMCellPass::run() {
                 for (auto& input : input_to) {
                     auto& next_layer = input.second;
                     activationInputTo[input.first] = next_layer;
-                    for (int i = next_layer->insData.size() -1; i>= 0; i--) {
-                        auto ins = next_layer->insData[i].lock();
-                        if (ins == output) {
-                            next_layer->insData.erase(next_layer->insData.begin() + i);
-                        }
-                    }
-                    next_layer->insData.push_back(dataPtr);
+                    std::replace_if(std::begin(next_layer->insData), std::end(next_layer->insData),
+                        [output](DataWeakPtr data) { return data.lock() == output; }, dataPtr);
                 }
                 input_to.clear();
                 input_to[activationName] = activationLayerWithQuant;
