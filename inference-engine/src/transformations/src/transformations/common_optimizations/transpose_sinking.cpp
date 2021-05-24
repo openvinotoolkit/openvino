@@ -18,6 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeSinking, "TransposeSinking", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeOptimization, "TransposeOptimization", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReduction, "TransposeReduction", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFQReduction, "TransposeFQReduction", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFuse, "TransposeFuse", 0);
 
 using namespace ngraph;
 
@@ -269,5 +270,55 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_or_squeeze_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ngraph::pass::TransposeFuse::TransposeFuse() {
+    MATCHER_SCOPE(TransposeFuse);
+
+    auto transpose_1 = pattern::wrap_type<opset6::Transpose>({ pattern::any_input(), pattern::wrap_type<opset6::Constant>() });
+    auto transpose_2 = pattern::wrap_type<opset6::Transpose>({ transpose_1, pattern::wrap_type<opset6::Constant>() });
+
+    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+
+        auto transpose1 = pattern_to_output.at(transpose_1).get_node_shared_ptr();
+        auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
+        if (!transpose1 || !transpose2)
+            return false;
+
+        auto input = transpose1->input_value(0);
+
+        auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose2->get_input_node_shared_ptr(1));
+        if (!transpose1_order || !transpose2_order)
+            return false;
+
+        auto order1 = transpose1_order->cast_vector<int32_t>();
+        auto order2 = transpose2_order->cast_vector<int32_t>();
+        if (order1.size() != order2.size())
+            return false;
+
+        bool is_ordered = true;
+        for (size_t i = 0; i < order1.size(); i++) {
+            order2[i] = order1[order2[i]];
+            if (order2[i] != i)
+                is_ordered = false;
+        }
+
+        if (is_ordered) {
+            return ngraph::replace_output_update_name(transpose2->output(0), input);
+        } else {
+            auto new_order = ngraph::opset6::Constant::create(element::i32, {order2.size()}, order2);
+            auto new_transpose = std::make_shared<ngraph::opset6::Transpose>(input, new_order);
+
+            ngraph::copy_runtime_info({ transpose1, transpose2 }, new_transpose);
+            ngraph::replace_node(transpose2, new_transpose);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_2, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

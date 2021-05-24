@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API TransposeSinking;
 class TRANSFORMATIONS_API TransposeOptimization;
 class TRANSFORMATIONS_API TransposeReduction;
 class TRANSFORMATIONS_API TransposeFQReduction;
+class TRANSFORMATIONS_API TransposeFuse;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -56,14 +57,30 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeSinking transformation sinks Transposes through known operations
+ * @brief TransposeSqueezeSinking transformation sinks Transpose through Squeeze operations
  */
-class ngraph::pass::TransposeSinking: public ngraph::pass::GraphRewrite {
+class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TransposeSinking() {
-        add_matcher<ngraph::pass::TransposeFQReduction>();
-        add_matcher<ngraph::pass::TransposeReduction>();
-        add_matcher<ngraph::pass::TransposeOptimization>();
+    TransposeFuse();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinking transformation sinks Transposes through known operations
+ */
+class ngraph::pass::TransposeSinking: public ngraph::pass::FunctionPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+        pass::Manager manager(get_pass_config());
+        auto sinking = manager.register_pass<pass::GraphRewrite>();
+        sinking->add_matcher<ngraph::pass::TransposeFQReduction>();
+        sinking->add_matcher<ngraph::pass::TransposeReduction>();
+        manager.register_pass<ngraph::pass::TransposeFuse>();
+        manager.register_pass<ngraph::pass::TransposeOptimization>();
+        manager.run_passes(f);
+
+        return false;
     }
 };
