@@ -1447,3 +1447,18 @@ NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape)
     EXPECT_TRUE(
         find_input(graph_inputs, "conv1/7x7_s2_1")->get_partial_shape().same_scheme(new_shape));
 }
+
+NGRAPH_TEST(onnx_editor, cut_operator_with_no_schema)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/unknown_input_value_info.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge(1, "X")}}, {});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/unknown_input_value_info.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
