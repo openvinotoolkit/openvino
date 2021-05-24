@@ -127,7 +127,7 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
 
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
-    if ((inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
+    if (!inFmts.empty() && (inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
         auto inpChannels = function->get_parameters().front()->get_shape()[1];
         auto outChannels = function->get_output_shape(0)[1];
         if ((inpChannels % 8) || (outChannels % 8)) {
@@ -158,7 +158,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         fusingFakeQuantizePerChannelRelu,
         // sum
         fusingSumEluFQ,
-        fusingSum
+        fusingSum,
         // bias
         fusingAddPerChannel
 };
@@ -170,7 +170,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         // depthwise
         fusingReluScaleShift,
         // sum
-        fusingSum
+        fusingSum,
         // bias
         fusingAddPerChannel
 };
@@ -625,7 +625,7 @@ const auto convParams_1D = ::testing::Combine(
     ::testing::ValuesIn(padBegins1d),
     ::testing::ValuesIn(padEnds1d),
     ::testing::ValuesIn(dilations1d),
-    ::testing::ValuesIn(numOutChannels_Blocked),
+    ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
