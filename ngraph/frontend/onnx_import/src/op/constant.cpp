@@ -210,6 +210,9 @@ namespace ngraph
                         return {default_opset::Constant::create(
                             element::i64, ngraph::Shape{values.size()}, values)};
                     }
+                    else if (attribute.is_sparse_tensor())
+                    {
+                    }
                     return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
                 }
 

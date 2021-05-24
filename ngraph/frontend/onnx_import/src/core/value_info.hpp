@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
+#include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
@@ -86,6 +87,19 @@ namespace ngraph
                 return parameters.back();
             }
 
+            std::shared_ptr<ngraph::Node>
+                get_ng_node(ParameterVector& parameters,
+                            const std::map<std::string, SparseTensor>& initializers) const
+            {
+                const auto it = initializers.find(get_name());
+                if (it != std::end(initializers))
+                {
+                    return get_ng_constant(it->second);
+                }
+                parameters.push_back(get_ng_parameter());
+                return parameters.back();
+            }
+
         protected:
             std::shared_ptr<ngraph::op::Parameter> get_ng_parameter() const
             {
@@ -99,6 +113,12 @@ namespace ngraph
             std::shared_ptr<ngraph::op::Constant> get_ng_constant(const Tensor& tensor) const
             {
                 return tensor.get_ng_constant();
+            }
+
+            std::shared_ptr<ngraph::op::Constant>
+                get_ng_constant(const SparseTensor& sparse_tensor) const
+            {
+                return sparse_tensor.get_ng_constant();
             }
 
             PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape) const

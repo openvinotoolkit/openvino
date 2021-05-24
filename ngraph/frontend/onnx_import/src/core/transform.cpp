@@ -94,6 +94,30 @@ void ngraph::onnx_import::transform::update_external_data_paths(
                 ->set_value(external_data_full_path);
         }
     }
+
+    for (auto& initializer_sparse_tensor : *graph_proto->mutable_sparse_initializer())
+    {
+        const auto location_key_value_index = 0;
+        if (initializer_sparse_tensor.has_data_location() &&
+            initializer_sparse_tensor.data_location() ==
+                ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL)
+        {
+            const auto external_data_relative_path =
+                initializer_tensor.external_data(location_key_value_index).value();
+            const auto santized_external_data_relative_path =
+                file_util::sanitize_path(external_data_relative_path);
+            auto external_data_full_path =
+                file_util::path_join(model_dir_path, santized_external_data_relative_path);
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            file_util::convert_path_win_style(external_data_full_path);
+#endif
+
+            // Set full paths to the external file
+            initializer_tensor.mutable_external_data(location_key_value_index)
+                ->set_value(external_data_full_path);
+        }
+    }
 }
 
 void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto)
