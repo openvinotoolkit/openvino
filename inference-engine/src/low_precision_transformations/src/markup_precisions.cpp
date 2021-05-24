@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
@@ -76,7 +77,12 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
             continue;
         }
 
-        // TODO: move outside
+        const bool supported = is_type<opset1::Result>(node) || isSupported(node);
+        if (!supported) {
+            setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
+            continue;
+        }
+
         const bool precisionPreserved = isPrecisionPreserved(node);
         if (precisionPreserved) {
             auto& rt = node->get_rt_info();
@@ -161,6 +167,45 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     return false;
 }
 
-bool ngraph::pass::low_precision::MarkupPrecisions::isQuantized(const std::shared_ptr<Node>& node) {
-    return true;
+bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
+    static std::unordered_set<std::string> supportedOps = {
+        { name<opset1::Add>() },
+        { name<opset1::AvgPool>() },
+        { name<opset1::Clamp>() },
+        { name<opset1::Concat>() },
+        // ?
+        { name<opset1::Convert>() },
+        { name<opset1::Convolution>() },
+        { name<opset1::ConvolutionBackpropData>() },
+        { name<opset1::DepthToSpace>() },
+        { name<opset1::FakeQuantize>() },
+        { name<opset1::Interpolate>() },
+        { name<opset4::Interpolate>() },
+        { name<opset1::GroupConvolution>() },
+        { name<opset1::MatMul>() },
+        { name<opset1::MaxPool>() },
+        { name<opset1::Multiply>() },
+        { name<ngraph::op::MVN>() },
+        { name<opset6::MVN>() },
+        { name<opset1::NormalizeL2>() },
+        { name<opset1::PRelu>() },
+        { name<opset1::ReduceMax>() },
+        { name<opset1::ReduceMean>() },
+        { name<opset1::ReduceMin>() },
+        { name<opset1::ReduceSum>() },
+        { name<opset1::Relu>() },
+        // TODO: there are conditions
+        { name<opset1::Reshape>() },
+        { name<opset1::Squeeze>() },
+        { name<opset1::ShuffleChannels>() },
+        { name<opset1::Split>() },
+        { name<opset1::StridedSlice>() },
+        // ?
+        { name<opset1::Subtract>() },
+        { name<opset1::Transpose>() },
+        { name<opset1::Unsqueeze>() },
+        { name<opset1::VariadicSplit>() }
+    };
+
+    return supportedOps.find(node->get_type_name()) != supportedOps.end();
 }
