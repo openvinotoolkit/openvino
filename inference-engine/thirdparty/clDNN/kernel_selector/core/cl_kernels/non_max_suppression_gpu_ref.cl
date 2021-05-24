@@ -23,6 +23,7 @@
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            20 bytes * NUM_BOXES
 
+/* XXX: Add assert to check lws[batch] == 1 */
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define NUM_BATCHES     INPUT0_BATCH_NUM
@@ -129,7 +130,8 @@ inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
 inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
 {
     // Create an auxiliary stack
-    int stack[NUM_BOXES];
+    // int stack[NUM_BOXES];
+    int stack[200];    /* FIXME: what is the proper maximum size of the stack? */
 
     // initialize top of stack
     int top = -1;
@@ -143,7 +145,7 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
         // Pop h and l
         h = stack[top--];
         l = stack[top--];
-  
+
         // Set pivot element at its correct position
         // in sorted array
         const int p = FUNC_CALL(partition)(arr, l, h);
@@ -341,20 +343,26 @@ KERNEL (non_max_suppression_ref_stage_1)(
     const int classId = get_global_id(1);
     const int workItemId = get_global_id(2);
     const int localClassId = get_local_id(1);
-    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 4];
+    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 2];
 
     const int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
+    if (sortedBoxNum < 2)
+        return;
+
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
-    if (workItemId == 0 && sortedBoxNum > 1) {
+    if (workItemId == 0) {
         __range[localClassId][0] = 0;
         __range[localClassId][1] = sortedBoxNum - 1;
+    } else {
+        __range[localClassId][workItemId * 2] = 0;
+        __range[localClassId][workItemId * 2 + 1] = 0;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
     int range_step = 2;
     const int first_id = workItemId * 2;
     for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
-        if (sortedBoxNum > 1 && workItemId <= i) {
+        if (workItemId <= i) {
             const int begin_id = __range[localClassId][first_id];
             const int end_id = __range[localClassId][first_id + 1];
             const int second_id = first_id + range_step;
@@ -365,21 +373,16 @@ KERNEL (non_max_suppression_ref_stage_1)(
                 __range[localClassId][first_id + 1 ] = max(pivot - 1, begin_id);
                 __range[localClassId][second_id    ] = min(pivot + 1, end_id);
                 __range[localClassId][second_id + 1] = end_id;
-            } else {
-                __range[localClassId][second_id    ] = 0;
-                __range[localClassId][second_id + 1] = 0;
             }
         }
 
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
     }
 
-    if (sortedBoxNum > 1) {
-        const int begin_id = __range[localClassId][first_id];
-        const int end_id = __range[localClassId][first_id + 1];
-        if (begin_id < end_id) {
-            FUNC_CALL(quickSortIterative)(sortedBoxList, begin_id, end_id);
-        }
+    const int begin_id = __range[localClassId][first_id];
+    const int end_id = __range[localClassId][first_id + 1];
+    if (begin_id < end_id) {
+        FUNC_CALL(quickSortIterative)(sortedBoxList, begin_id, end_id);
     }
 }
 #endif /* IS_STAGE_1 */
