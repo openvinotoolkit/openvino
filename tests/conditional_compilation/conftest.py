@@ -85,7 +85,7 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope="function")
 def sea_runtool(request):
     """Fixture function for command-line option."""
-    sea_runtool = request.config.getvalueorskip("sea_runtool")
+    sea_runtool = request.config.getoption("sea_runtool", skip=True)
     validate_path_arg(sea_runtool)
 
     return sea_runtool
@@ -94,7 +94,7 @@ def sea_runtool(request):
 @pytest.fixture(scope="function")
 def collector_dir(request):
     """Fixture function for command-line option."""
-    collector_dir = request.config.getvalueorskip("collector_dir")
+    collector_dir = request.config.getoption("collector_dir", skip=True)
     validate_path_arg(collector_dir, is_dir=True)
 
     return collector_dir
@@ -109,7 +109,7 @@ def artifacts(request):
 @pytest.fixture(scope="session")
 def openvino_root_dir(request):
     """Fixture function for command-line option."""
-    openvino_root_dir = request.config.getvalueorskip("openvino_root_dir")
+    openvino_root_dir = request.config.getoption("openvino_root_dir", skip=True)
     validate_path_arg(openvino_root_dir, is_dir=True)
 
     return openvino_root_dir
@@ -128,7 +128,7 @@ def openvino_ref(request, artifacts):
 
         return openvino_ref
 
-    openvino_root_dir = request.config.getvalueorskip("openvino_root_dir")
+    openvino_root_dir = request.config.getoption("openvino_root_dir", skip=True)
     validate_path_arg(openvino_root_dir, is_dir=True)
 
     build_dir = openvino_root_dir / "build_instrumented"
