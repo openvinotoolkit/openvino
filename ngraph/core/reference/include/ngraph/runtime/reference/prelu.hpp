@@ -21,8 +21,9 @@ namespace ngraph
                 {
                     return false;
                 }
-                const auto matching_size = [](size_t in_size, size_t out_size)
-                { return in_size == out_size || in_size == 1; };
+                const auto matching_size = [](size_t in_size, size_t out_size) {
+                    return in_size == out_size || in_size == 1;
+                };
                 return std::equal(input.rbegin(), input.rend(), output.rbegin(), matching_size);
             }
 
