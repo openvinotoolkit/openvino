@@ -3429,7 +3429,7 @@ struct mvn_test_params {
     tensor elwise_size;
     data_types input_type;
     format input_format;
-    bool accross_channels;
+    bool across_channels;
     bool normalize_variance;
     data_types default_type;
     format default_format;

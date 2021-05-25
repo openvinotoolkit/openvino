@@ -6,7 +6,7 @@
 #include "include/data_types.cl"
 
 
-KERNEL (mvn_gpu_ref_accross_channels)(
+KERNEL (mvn_gpu_ref_across_channels)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output
 #if HAS_FUSED_OPS_DECLS

@@ -53,7 +53,7 @@ JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchDat
 
 std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {
     if (params.mvnMode == MVNMode::ACROSS_CHANNELS)
-        return kernelName + "_accross_channels";
+        return kernelName + "_across_channels";
     else
         return kernelName + "_within_channels";
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "execution_graph_tests/keep_assing.hpp"
+#include "execution_graph_tests/keep_assign.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ngraph/ngraph.hpp>
