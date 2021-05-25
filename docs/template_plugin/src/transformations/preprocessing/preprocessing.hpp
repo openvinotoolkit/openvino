@@ -26,10 +26,11 @@ class AddPreprocessing;
  *      (x - mean) * stdScale
  */
 class ngraph::pass::AddPreprocessing : public ngraph::pass::FunctionPass {
-    const InferenceEngine::InputsDataMap & m_inputInfoMap;
+    const InferenceEngine::InputsDataMap& m_inputInfoMap;
+
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit AddPreprocessing(const InferenceEngine::InputsDataMap & inputInfoMap);
+    explicit AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap);
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

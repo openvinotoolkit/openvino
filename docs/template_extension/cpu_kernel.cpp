@@ -3,13 +3,15 @@
 //
 
 #include "cpu_kernel.hpp"
-#include "op.hpp"
+
 #include <ie_layouts.h>
+
+#include "op.hpp"
 
 using namespace TemplateExtension;
 
 //! [cpu_implementation:ctor]
-OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node> &node) {
+OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node>& node) {
     try {
         auto castedNode = std::dynamic_pointer_cast<Operation>(node);
         if (!castedNode)
@@ -32,8 +34,8 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node> &node) {
 //! [cpu_implementation:ctor]
 
 //! [cpu_implementation:getSupportedConfigurations]
-InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig> &conf,
-                                                                         InferenceEngine::ResponseDesc *resp) noexcept {
+InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
+                                                                         InferenceEngine::ResponseDesc* resp) noexcept {
     auto createConfig = [](const InferenceEngine::SizeVector inShape, const InferenceEngine::SizeVector& outShape, bool planar) {
         InferenceEngine::LayerConfig config;
         config.dynBatchSupport = false;
@@ -72,7 +74,7 @@ InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(std::ve
     if (!error.empty()) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
-            resp->msg[sizeof(resp->msg)-1] = 0;
+            resp->msg[sizeof(resp->msg) - 1] = 0;
         }
         return InferenceEngine::GENERAL_ERROR;
     }
@@ -85,25 +87,24 @@ InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(std::ve
 //! [cpu_implementation:getSupportedConfigurations]
 
 //! [cpu_implementation:init]
-InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig &config, InferenceEngine::ResponseDesc *resp) noexcept {
+InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc* resp) noexcept {
     try {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
             IE_THROW() << "Operation cannot be initialized with incorrect number of inputs/outputs!";
         }
 
         if (config.inConfs[0].desc.getDims().size() != 4 || config.outConfs[0].desc.getDims().size() != 4) {
-            IE_THROW()
-             << "Operation can be initialized only with 4d input/output tensors!";
+            IE_THROW() << "Operation can be initialized only with 4d input/output tensors!";
         }
 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
-                config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32)  {
+            config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32) {
             IE_THROW() << "Operation supports only FP32 precisions!";
         }
     } catch (InferenceEngine::Exception& ex) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
-            resp->msg[sizeof(resp->msg)-1] = 0;
+            resp->msg[sizeof(resp->msg) - 1] = 0;
         }
         return InferenceEngine::GENERAL_ERROR;
     }
@@ -113,11 +114,10 @@ InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig 
 //! [cpu_implementation:init]
 
 //! [cpu_implementation:execute]
-InferenceEngine::StatusCode OpImplementation::execute(std::vector<InferenceEngine::Blob::Ptr> &inputs,
-                                                      std::vector<InferenceEngine::Blob::Ptr> &outputs,
-                                                      InferenceEngine::ResponseDesc *resp) noexcept {
-    const float* src_data = inputs[0]->cbuffer().as<const float *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    float *dst_data = outputs[0]->buffer().as<float *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+InferenceEngine::StatusCode OpImplementation::execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                                                      InferenceEngine::ResponseDesc* resp) noexcept {
+    const float* src_data = inputs[0]->cbuffer().as<const float*>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    float* dst_data = outputs[0]->buffer().as<float*>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
     for (size_t i = 0; i < inputs[0]->size(); i++) {
         dst_data[i] = src_data[i] + add;

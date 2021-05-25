@@ -4,5 +4,4 @@
 
 #include "functional_test_utils/core_config.hpp"
 
-void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
-}
+void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {}
