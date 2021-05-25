@@ -80,4 +80,6 @@ squeeze,
 squeeze_null_axes,
 unsqueeze,
 yolo_box_clip_box,
-yolo_box_test1
+yolo_box_default,
+yolo_box_scale_xy,
+yolo_box_uneven_wh
