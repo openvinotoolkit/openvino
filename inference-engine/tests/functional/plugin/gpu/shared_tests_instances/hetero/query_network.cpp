@@ -18,7 +18,6 @@ auto BranchSplitConvConcat = ngraph::builder::subgraph::makeSplitConvConcatNeste
 INSTANTIATE_TEST_CASE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values("GPU", "HETERO:GPU,CPU", "MULTI:GPU,CPU"),
-                                ::testing::Values(QueryNetworkTest::generateParams(ConvBias), QueryNetworkTest::generateParams(SplitConvConcat),
-                                                  QueryNetworkTest::generateParams(BranchSplitConvConcat))),
+                                ::testing::Values(ConvBias, SplitConvConcat, BranchSplitConvConcat)),
                         QueryNetworkTest::getTestCaseName);
 }  // namespace

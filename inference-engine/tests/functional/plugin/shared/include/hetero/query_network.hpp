@@ -14,7 +14,7 @@ namespace HeteroTests {
 
 using QueryNetworkTestParameters = std::tuple<
     std::string,
-    std::pair<std::set<std::string>, std::shared_ptr<ngraph::Function>>
+    std::shared_ptr<ngraph::Function>
 >;
 
 struct QueryNetworkTest : public testing::WithParamInterface<QueryNetworkTestParameters>,
@@ -26,8 +26,5 @@ struct QueryNetworkTest : public testing::WithParamInterface<QueryNetworkTestPar
     std::string targetDevice;
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::CNNNetwork cnnNetwork;
-    std::set<std::string> expectedLayers;
-    static std::pair<std::set<std::string>, std::shared_ptr<ngraph::Function>> generateParams(std::shared_ptr<ngraph::Function> graph);
 };
-
 }  //  namespace HeteroTests
