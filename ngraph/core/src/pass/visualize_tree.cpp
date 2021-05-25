@@ -16,6 +16,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -537,6 +538,11 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
         rc += "\\n" + (nvtmn ? string("name: ") : "") + node->get_name();
     }
     rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(node->get_type_name());
+
+    if (is_type<opset1::FakeQuantize>(node))
+    {
+        rc += "\\nlevels: " + std::to_string(as_type_ptr<opset1::FakeQuantize>(node)->get_levels());
+    }
 
     static const bool nvtrti = getenv_bool("NGRAPH_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti)
