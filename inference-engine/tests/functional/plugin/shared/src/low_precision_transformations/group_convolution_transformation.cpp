@@ -25,7 +25,8 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = obj.param;
+    bool addPrecisionPreserved;
+    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = obj.param;
 
     std::ostringstream result;
     result <<
@@ -34,6 +35,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
         param.outputShape << "_" <<
         param.group << "_" <<
         param.fakeQuantizeOnData << "_" <<
+        (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
 }
@@ -44,7 +46,8 @@ void GroupConvolutionTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
+    bool addPrecisionPreserved;
+    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = this->GetParam();
 
     function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
@@ -52,7 +55,8 @@ void GroupConvolutionTransformation::SetUp() {
         param.outputShape,
         param.group,
         param.fakeQuantizeOnData,
-        param.fakeQuantizeOnWeights);
+        param.fakeQuantizeOnWeights,
+        addPrecisionPreserved);
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
