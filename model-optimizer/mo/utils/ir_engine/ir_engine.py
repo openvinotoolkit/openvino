@@ -17,12 +17,11 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
-# To reduce a risk of xml.etree.ElementTree objects to be used to parse XML in future development
-# defusedxml.defuse_stdlib() is called to patch xml library with safe methods.
-defuse_stdlib()
-
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ElementTree = defuse_stdlib()[ET].ElementTree
 
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
@@ -240,11 +239,9 @@ class IREngine(object):
                 xml_body_child = list(layer.iterfind('body'))
                 assert len(xml_body_child) == 1
 
-                ET_defused = defuse_stdlib()[ET]
-
                 body_ir = IREngine(path_to_xml=None,
                                    path_to_bin=self.path_to_bin,
-                                   xml_tree=ET_defused.ElementTree(xml_body_child[0]))
+                                   xml_tree=ElementTree(xml_body_child[0]))
                 self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
 
                 # Find port_map section and take an input_port_map & output_port_map

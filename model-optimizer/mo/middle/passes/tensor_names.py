@@ -7,6 +7,13 @@ import defusedxml.ElementTree as ET
 
 from mo.graph.graph import Node, Graph
 
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
+tostring = ET_defused.tostring
+
 
 def propagate_op_name_to_tensor(graph: Graph):
     for node in graph.nodes():
@@ -20,10 +27,7 @@ def propagate_op_name_to_tensor(graph: Graph):
 
 
 def output_tensor_names_map(graph: Graph, xml_file_name: str):
-    defused = defuse_stdlib()
-    ET_defused = defused[ET]
-
-    mapping = ET_defused.Element('mapping')
+    mapping = Element('mapping')
     for node in graph:
         node = Node(graph, node)
         if node.has_valid('fw_tensor_debug_info') and node.has_valid('ie_tensor_name'):
@@ -31,9 +35,9 @@ def output_tensor_names_map(graph: Graph, xml_file_name: str):
                 # Check that debug info has valid fw attrs
                 if not all(attr is not None for attr in fw_tensor_debug_info):
                     continue
-                map = ET_defused.SubElement(mapping, 'map')
-                fw = ET_defused.SubElement(map, 'framework')
-                ie = ET_defused.SubElement(map, 'IR')
+                map = SubElement(mapping, 'map')
+                fw = SubElement(map, 'framework')
+                ie = SubElement(map, 'IR')
 
                 fw.set('name', fw_tensor_debug_info[0])
                 fw.set('out_port_id', str(fw_tensor_debug_info[1]))
@@ -45,4 +49,4 @@ def output_tensor_names_map(graph: Graph, xml_file_name: str):
                 if node.has_valid('ie_tensor_id'):
                     ie.set('id', str(node.ie_tensor_id))
     with open(xml_file_name, 'w') as file:
-        file.write(parseString(ET_defused.tostring(mapping)).toprettyxml())
+        file.write(parseString(tostring(mapping)).toprettyxml())
