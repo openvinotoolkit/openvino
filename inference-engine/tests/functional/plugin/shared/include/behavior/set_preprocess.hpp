@@ -628,6 +628,24 @@ public:
         return result.str();
     }
 
+    static InferenceEngine::Layout getOppositeLayout(InferenceEngine::Layout l) {
+        if (InferenceEngine::Layout::NCHW == l) {
+            return InferenceEngine::Layout::NHWC;
+        } else if (InferenceEngine::Layout::NHWC == l) {
+            return InferenceEngine::Layout::NCHW;
+        }
+        return InferenceEngine::Layout::ANY;
+    }
+
+    static InferenceEngine::Precision getOppositePrecision(InferenceEngine::Precision p) {
+        if (InferenceEngine::Precision::U8 == p) {
+            return InferenceEngine::Precision::FP32;
+        } else if (InferenceEngine::Precision::FP32 == p) {
+            return InferenceEngine::Precision::U8;
+        }
+        return InferenceEngine::Precision::UNSPECIFIED;
+    }
+
     void SetUp()  override {
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
@@ -708,9 +726,9 @@ TEST_P(PreprocessConversionTest, Infer) {
     if (setOutputBlob) {
         outBlob = make_blob_with_precision(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
         outBlob->allocate();
-        req.SetBlob(cnnNet.getOutputsInfo().begin()->first, outBlob);
+        req.SetBlob("relu", outBlob);
     } else {
-        outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+        outBlob = req.GetBlob("relu");
     }
 
     // Fill input
@@ -752,6 +770,85 @@ TEST_P(PreprocessConversionTest, Infer) {
             ASSERT_TRUE(false);
         }
     }
+}
+
+TEST_P(PreprocessConversionTest, FailedToChangeBlobFormatAfterNetworkCompilation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    unsigned int shape_size = 9, channels = 3, batch = 1;
+    {
+        ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    cnnNet.getInputsInfo().begin()->second->setPrecision(iPrecision);
+    cnnNet.getInputsInfo().begin()->second->setLayout(iLayout);
+    cnnNet.getOutputsInfo().begin()->second->setPrecision(oPrecision);
+    cnnNet.getOutputsInfo().begin()->second->setLayout(oLayout);
+
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto req = execNet.CreateInferRequest();
+    InferenceEngine::Blob::Ptr inBlob = nullptr, outBlob = nullptr;
+
+    // create input blob
+
+    auto recreateInputBlob = [&] (InferenceEngine::Blob::Ptr & _inBlob) {
+        auto desc = cnnNet.getInputsInfo().begin()->second->getTensorDesc();
+        desc = InferenceEngine::TensorDesc(getOppositePrecision(desc.getPrecision()),
+            desc.getDims(), getOppositeLayout(desc.getLayout()));
+        auto tempBlob = make_blob_with_precision(desc);
+        tempBlob->allocate();
+
+        _inBlob = std::move(tempBlob);
+    };
+
+    if (setInputBlob) {
+        recreateInputBlob(inBlob);
+        EXPECT_THROW(req.SetBlob("param", inBlob), InferenceEngine::ParameterMismatch);
+    } else {
+        inBlob = req.GetBlob("param");
+        recreateInputBlob(inBlob);
+    }
+
+    // create output blob
+
+    auto recreateOutputBlob = [&] (InferenceEngine::Blob::Ptr & _outBlob) {
+        auto desc = cnnNet.getOutputsInfo().begin()->second->getTensorDesc();
+        desc = InferenceEngine::TensorDesc(getOppositePrecision(desc.getPrecision()),
+            desc.getDims(), getOppositeLayout(desc.getLayout()));
+        auto tempBlob = make_blob_with_precision(desc);
+        tempBlob->allocate();
+
+        _outBlob = std::move(tempBlob);
+    };
+
+    if (setOutputBlob) {
+        recreateOutputBlob(outBlob);
+        EXPECT_THROW(req.SetBlob("relu", outBlob), InferenceEngine::ParameterMismatch);
+    } else {
+        outBlob = req.GetBlob("relu");
+        recreateOutputBlob(outBlob);
+    }
+
+    // TODO: if blob from GetBlob is re-created, no checks are performed
+    // should be "GetBlob re-creation error mismatch"
+    EXPECT_NO_THROW(req.Infer() /*, InferenceEngine::Exception */);
 }
 
 }  // namespace BehaviorTestsDefinitions

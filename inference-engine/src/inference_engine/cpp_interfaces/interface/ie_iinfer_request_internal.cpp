@@ -22,7 +22,7 @@ namespace InferenceEngine {
 IInferRequestInternal::~IInferRequestInternal() {}
 
 IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) {
-    // // We should copy maps since they can be overriden in SetBlob with preprocess
+    // We should copy maps since they can be overriden in SetBlob with preprocess
     copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
 }
 
