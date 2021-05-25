@@ -29,8 +29,10 @@ TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
         std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(targetDevice);
         ASSERT_EQ(versions.size(), 1);
         auto version = versions.begin()->second;
+        IE_SUPPRESS_DEPRECATED_START
         ASSERT_EQ(version.apiVersion.major, 2);
         ASSERT_EQ(version.apiVersion.minor, 1);
+        IE_SUPPRESS_DEPRECATED_END
     }
 }
 }  // namespace BehaviorTestsDefinitions

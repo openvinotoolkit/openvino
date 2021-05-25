@@ -18,11 +18,11 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use VariableState C++ wrapper instead
+ * @deprecated Use InferenceEngine::VariableState C++ wrapper instead
  * @interface IVariableState
  * @brief Manages data for reset operations
  */
-class IVariableState {
+class INFERENCE_ENGINE_DEPRECATED("InferenceEngine::") IVariableState {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**

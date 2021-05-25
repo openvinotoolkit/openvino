@@ -34,7 +34,7 @@ class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
     virtual ~IParser() = default;
-    virtual std::shared_ptr<ICNNNetwork> parse(
+    virtual CNNNetwork parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
 };
 
@@ -42,7 +42,7 @@ class IRParser {
 public:
     explicit IRParser(size_t version);
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
+    CNNNetwork parse(const pugi::xml_node& root, const Blob::CPtr& weights);
     virtual ~IRParser() = default;
 
 private:
@@ -52,7 +52,7 @@ private:
 class CNNParser : public IParser {
 public:
     CNNParser() = default;
-    std::shared_ptr<ICNNNetwork> parse(
+    CNNNetwork parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
 
@@ -61,7 +61,7 @@ class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
 
-    std::shared_ptr<ICNNNetwork> parse(
+    CNNNetwork parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
     struct GenericLayerParams {

@@ -1758,7 +1758,9 @@ void UnrollTIPass::run() {
 
 void RemoveConstPass::run() {
     auto network = getPassManager()->getNetwork();
+    IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork &>(network);
+    IE_SUPPRESS_DEPRECATED_END
     auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
     if (!implNetwork) {
         THROW_GNA_EXCEPTION << "Remove const layers pass can only work on cnnnetworkimpl type";

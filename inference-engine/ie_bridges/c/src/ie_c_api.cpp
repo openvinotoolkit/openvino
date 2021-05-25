@@ -275,8 +275,10 @@ IEStatusCode ie_core_get_versions(const ie_core_t *core, const char *device_name
             char *_deviceName = deviceName.release();
             memcpy(_deviceName, iter->first.c_str(), iter->first.length() + 1);
             vers_ptrs[i].device_name = _deviceName;
+            IE_SUPPRESS_DEPRECATED_START
             vers_ptrs[i].major = iter->second.apiVersion.major;
             vers_ptrs[i].minor = iter->second.apiVersion.minor;
+            IE_SUPPRESS_DEPRECATED_END
             vers_ptrs[i].build_number = iter->second.buildNumber;
             vers_ptrs[i].description = iter->second.description;
         }
