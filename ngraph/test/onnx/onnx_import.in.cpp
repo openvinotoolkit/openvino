@@ -4360,3 +4360,49 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_array)
     test_case.add_expected_output<std::int64_t>(Shape{3}, {0, 1, 2});
     test_case.run();
 }
+
+template <typename T>
+static void check_vector_range(std::vector<T>&& result, float low, float high)
+{
+    for (auto x : result)
+        ASSERT_TRUE(x >= low && x <= high);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_random_uniform_float_custom_attrs)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_float_custom_attrs.prototxt"));
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    Shape out_shape{1, 3, 100, 100};
+    auto result = backend->create_tensor(element::f32, out_shape);
+    auto c = backend->compile(function);
+    c->call_with_validate({result}, {});
+    check_vector_range(read_vector<float>(result), 2, 5);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_random_uniform_float_default_attrs)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_float_default_attrs.prototxt"));
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    Shape out_shape{1, 3, 100, 100};
+    auto result = backend->create_tensor(element::f32, out_shape);
+    auto c = backend->compile(function);
+    c->call_with_validate({result}, {});
+    check_vector_range(read_vector<float>(result), 0, 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_random_uniform_int32)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_int32.prototxt"));
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    Shape out_shape{1, 3, 200, 50};
+    auto result = backend->create_tensor(element::i32, out_shape);
+    auto c = backend->compile(function);
+    c->call_with_validate({result}, {});
+    check_vector_range(read_vector<int32_t>(result), 20, 100);
+}

@@ -1,0 +1,62 @@
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    output: "random"
+    op_type: "RandomUniform"
+    attribute {
+      name: "dtype"
+      i: 6
+      type: INT
+    }
+    attribute {
+      name: "low"
+      f: 20
+      type: FLOAT
+    }
+    attribute {
+      name: "high"
+      f: 100
+      type: FLOAT
+    }
+    attribute {
+      name: "seed"
+      f: 21
+      type: FLOAT
+    }
+    attribute {
+      name: "shape"
+      ints: 1
+      ints: 3
+      ints: 200
+      ints: 50
+      type: INTS
+    }
+  }
+  name: "test_graph"
+  output {
+    name: "random"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 200
+          }
+          dim {
+            dim_value: 50
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}
