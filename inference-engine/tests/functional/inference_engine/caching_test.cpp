@@ -420,16 +420,16 @@ TEST_P(CachingTest, TestLoad) {
 }
 
 TEST_P(CachingTest, TestLoadCustomImportExport) {
-    const int customNumber = 1234;
+    const char customData[] = {1, 2, 3, 4, 5};
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
     ON_CALL(*mockPlugin, ImportNetwork(_, _, _)).
             WillByDefault(Invoke([&](std::istream& s, RemoteContext::Ptr,
                                      const std::map<std::string, std::string> &) {
-        int a;
-        s >> a;
-        EXPECT_EQ(customNumber, a);
+        char a[sizeof(customData)];
+        s.read(a, sizeof(customData));
+        EXPECT_EQ(memcmp(a, customData, sizeof(customData)), 0);
         auto mock = std::make_shared<MockExecutableNetwork>();
         EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
@@ -438,9 +438,9 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
 
     ON_CALL(*mockPlugin, ImportNetwork(_, _)).
             WillByDefault(Invoke([&](std::istream &s, const std::map<std::string, std::string> &) {
-        int a;
-        s >> a;
-        EXPECT_EQ(customNumber, a);
+        char a[sizeof(customData)];
+        s.read(a, sizeof(customData));
+        EXPECT_EQ(memcmp(a, customData, sizeof(customData)), 0);
         auto mock = std::make_shared<MockExecutableNetwork>();
         EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
@@ -448,7 +448,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
     }));
 
     ON_CALL(*net, Export(_)).WillByDefault(Invoke([&] (std::ostream& s) {
-        s << customNumber << " ";
+        s.write(customData, sizeof(customData));
     }));
 
     {
@@ -1107,12 +1107,12 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
 
 TEST_P(CachingTest, LoadHetero_MultiArchs) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
-    int customNumber = 1234;
+    const char customData[] = {1, 2, 3, 4, 5};
     ON_CALL(*mockPlugin, ImportNetwork(_, _)).
             WillByDefault(Invoke([&](std::istream &s, const std::map<std::string, std::string> &) {
-        int a;
-        s >> a;
-        EXPECT_EQ(customNumber, a);
+        char a[sizeof(customData)];
+        s.read(a, sizeof(customData));
+        EXPECT_EQ(memcmp(a, customData, sizeof(customData)), 0);
         auto mock = std::make_shared<MockExecutableNetwork>();
         EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
@@ -1120,7 +1120,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
     }));
 
     ON_CALL(*net, Export(_)).WillByDefault(Invoke([&] (std::ostream& s) {
-        s << customNumber << " ";
+        s.write(customData, sizeof(customData));
     }));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber()).WillRepeatedly(
             Invoke([&](const CNNNetwork &network, const std::map<std::string, std::string> &config) {
