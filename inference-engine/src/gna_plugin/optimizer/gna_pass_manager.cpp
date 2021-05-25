@@ -1609,46 +1609,53 @@ void SubstituteScaleShiftBroadCastPass::run() {
 }
 
 void BroadcastConstPass::run() {
-    for (auto& constLayer : *pLayers) {
+    for (auto constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
         }
-        auto isNonFunctional = [](CNNLayerPtr l) {
-            return LayerInfo(l).isNonFunctional();
+
+        auto isNonFunctional = [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
         };
-        if (!CNNNetHasNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional)) {
+
+        auto nextLayer = CNNNetCheckNextLayerSkipCertain(constLayer, 0, 0, true, isNonFunctional).first;
+        if (!nextLayer || !LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize()) {
             continue;
         }
 
-        auto nextLayer = CNNNetGetNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional).first;
+        auto prevLayer = nextLayer;
+        if (LayerInfo(nextLayer).isFakeQuantize()) {
+            if (CNNNetPrevLayer(nextLayer, 0) != constLayer) {
+                continue;
+            }
 
-        if (!LayerInfo(nextLayer).isEltwise()) {
-            continue;
+            nextLayer = CNNNetCheckNextLayerSkipCertain(nextLayer, 0, 0, true, isNonFunctional).first;
+            if (!nextLayer || !LayerInfo(nextLayer).isEltwise()) {
+                continue;
+            }
         }
 
         auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
         auto constDimsSize = product(constDims.begin(), constDims.end());
         auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
         auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
-
-        if (constDimsSize == eltwiseDimsSize) {
+        if (constDimsSize == eltwiseDimsSize || eltwiseDimsSize % constDimsSize) {
             continue;
         }
 
-        if (eltwiseDimsSize % constDimsSize) {
-            continue;
-        }
-
-        if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+        auto blobsIter = constLayer->blobs.find("custom");
+        if (blobsIter == constLayer->blobs.end()) {
             THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " is missing 'custom' parameter";
         }
 
-        auto currentConstBlob = constLayer->blobs.find("custom")->second;
-
-        constLayer->blobs.find("custom")->second = tileBlob(currentConstBlob, eltwiseDimsSize);
-
+        auto currentConstBlob = blobsIter->second;
+        blobsIter->second = tileBlob(currentConstBlob, eltwiseDimsSize);
         constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         constLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        if (prevLayer != nextLayer) {
+            prevLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+            prevLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        }
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
 }
