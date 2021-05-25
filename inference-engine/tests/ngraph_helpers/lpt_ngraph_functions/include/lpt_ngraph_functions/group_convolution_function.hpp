@@ -32,7 +32,8 @@ public:
         const ngraph::Shape& outputShape,
         const size_t groupCount,
         const FakeQuantizeOnData& fakeQuantizeOnData,
-        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const bool addPrecisionPreserved = false);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
