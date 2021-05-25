@@ -56,10 +56,10 @@ namespace ngraph
                     {
                         for (int64_t s = 0; s < num_priors; ++s)
                         {
-                            output_rois[0] = priors[4 * s + 0] + T{step_w * (w + 0.5f)};
-                            output_rois[1] = priors[4 * s + 1] + T{step_h * (h + 0.5f)};
-                            output_rois[2] = priors[4 * s + 2] + T{step_w * (w + 0.5f)};
-                            output_rois[3] = priors[4 * s + 3] + T{step_h * (h + 0.5f)};
+                            output_rois[0] = priors[4 * s + 0] + step_w * (w + 0.5f);
+                            output_rois[1] = priors[4 * s + 1] + step_h * (h + 0.5f);
+                            output_rois[2] = priors[4 * s + 2] + step_w * (w + 0.5f);
+                            output_rois[3] = priors[4 * s + 3] + step_h * (h + 0.5f);
                             output_rois += 4;
                         }
                     }
