@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include "auto_exec_network.hpp"
+
 namespace AutoPlugin {
 
 class AutoInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -24,7 +26,8 @@ public:
     using Ptr = std::shared_ptr<AutoInferRequest>;
     explicit AutoInferRequest(const InferenceEngine::InputsDataMap&             networkInputs,
                               const InferenceEngine::OutputsDataMap&            networkOutputs,
-                              const InferenceEngine::SoIInferRequestInternal&   inferRequest);
+                              const InferenceEngine::SoIInferRequestInternal&   inferRequest,
+                              AutoPlugin::NetworkSharedFuture f);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -36,7 +39,15 @@ public:
     void SetCallback(Callback callback) override;
 
 private:
-    InferenceEngine::SoIInferRequestInternal _inferRequest;
+    InferenceEngine::SoIInferRequestInternal _inferRequest; // from the first network
+    // actual network
+    NetworkSharedFuture _sharedFutureForActualNetwork;
+    Callback _callback; // need to save the callback for hot-swap of the requests
+
+    std::mutex _hotswapMutex;
+    bool _hotswapDone = false;
+    void HotSwapRequests();
+    void SetBlobsToDeviceRequest();
 };
 
 }  // namespace AutoPlugin

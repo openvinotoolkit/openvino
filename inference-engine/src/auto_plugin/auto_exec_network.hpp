@@ -24,11 +24,17 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
 };
 
+typedef std::promise<InferenceEngine::SoExecutableNetworkInternal> NetworkPromise;
+typedef std::future<InferenceEngine::SoExecutableNetworkInternal> NetworkFuture;
+typedef std::shared_future<InferenceEngine::SoExecutableNetworkInternal> NetworkSharedFuture;
+typedef std::shared_ptr<NetworkPromise> NetworkPromiseSharedPtr;
+
 class AutoExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& network);
+    explicit AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr networkFirstReady,
+                                   AutoPlugin::NetworkPromiseSharedPtr networkActualNeeded);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -42,7 +48,16 @@ public:
     ~AutoExecutableNetwork() override;
 
 private:
-    InferenceEngine::SoExecutableNetworkInternal _network;
+    InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
+
+    InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
+    AutoPlugin::NetworkPromiseSharedPtr _networkPromiseActualNeeded;
+    AutoPlugin::NetworkFuture futureActualNetwork; // for requests
+    void wait_for_actual_device() const {
+        // _networkActualNeeded = _networkPromiseActualNeeded->get_future().get();
+        // todo : catch the st std::future_error / std::future_errc::promise_already_satisfied
+        // todo: make the two members above volatile to keep this method const
+    }
 };
 
 }  // namespace AutoPlugin
