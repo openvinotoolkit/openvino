@@ -1650,11 +1650,12 @@ void BroadcastConstPass::run() {
 
         auto currentConstBlob = blobsIter->second;
         blobsIter->second = tileBlob(currentConstBlob, eltwiseDimsSize);
-        constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         constLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
         if (prevLayer != nextLayer) {
             prevLayer->insData.front().lock()->setDims(nextLayer->outData.front()->getDims());
             prevLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+        } else {
+            constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         }
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
