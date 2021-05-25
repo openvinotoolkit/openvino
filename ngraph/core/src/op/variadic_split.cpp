@@ -212,5 +212,6 @@ bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
 bool op::v1::VariadicSplit::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_has_evaluate);
-    return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
+    return get_input_element_type(1).is_integral_number() &&
+           get_input_element_type(2).is_integral_number();
 }

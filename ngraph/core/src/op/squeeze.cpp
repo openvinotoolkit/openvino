@@ -268,7 +268,8 @@ bool op::v0::Squeeze::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_has_evaluate);
 
-    if (get_input_size() == 2) {
+    if (get_input_size() == 2)
+    {
         switch (get_input_element_type(1))
         {
         case ngraph::element::i8:
@@ -282,9 +283,13 @@ bool op::v0::Squeeze::has_evaluate() const
         default: break;
         }
         return false;
-    } else if (get_input_size() == 1) {
+    }
+    else if (get_input_size() == 1)
+    {
         return true;
-    } else {
+    }
+    else
+    {
         return false;
     }
 }
