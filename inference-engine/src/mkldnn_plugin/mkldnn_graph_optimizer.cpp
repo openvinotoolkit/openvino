@@ -524,9 +524,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
             IE_THROW() << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convNode->getGroupNum();
-        ptrdiff_t OC = weightsConstant->outDims[0][0] / G;
-        ptrdiff_t IC = weightsConstant->outDims[0][1];
-        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == 5 ? weightsConstant->outDims[0][2] : 1;
+        const int groupOffset = convNode->getAlgorithm() == ConvolutionGrouped ? 1 : 0;
+        ptrdiff_t OC = weightsConstant->outDims[0][0 + groupOffset];
+        ptrdiff_t IC = weightsConstant->outDims[0][1 + groupOffset];
+        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == (5 + groupOffset) ? weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 3] : 1;
         ptrdiff_t KH = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 2];
         ptrdiff_t KW = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 1];
 
