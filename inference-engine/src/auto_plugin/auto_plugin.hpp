@@ -21,7 +21,11 @@ using ConfigType = std::map<std::string, std::string>;
 class AutoInferencePlugin : public IE::IInferencePlugin {
 public:
     AutoInferencePlugin();
-    ~AutoInferencePlugin() = default;
+    ~AutoInferencePlugin() {
+        // will discuss cancelable LoadNEtwork in the Arch Forum, but now have to wait
+        for (auto& t : async_load_threads)
+            t.join();
+    }
     IE::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& fileName, const ConfigType& config) override;
     IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;
@@ -36,7 +40,7 @@ private:
     ConfigType GetSupportedConfig(const ConfigType& config, const DeviceName & deviceName) const;
     void CheckConfig(const ConfigType& config);
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
-
+    std::vector<std::thread> async_load_threads;
     template <typename T>
     std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
         if (GetCore() == nullptr) {
@@ -47,35 +51,65 @@ private:
 
         auto fullConfig = mergeConfigs(_config, config);
         auto metaDevices = GetDeviceList(fullConfig);
-        DeviceName selectedDevice;
-        IE::SoExecutableNetworkInternal executableNetwork;
-        while (!metaDevices.empty()) {
-            selectedDevice = SelectDevice(metaDevices, networkPrecision);
+        NetworkPromiseSharedPtr promiseFirstDevice = std::make_shared<NetworkPromise>();
+        NetworkPromiseSharedPtr promiseActualDevice = std::make_shared<NetworkPromise>();
+        auto LoadNetworkAsync = [=](bool bIsAccel, const std::string& device) {
+            std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
+            auto executableNetwork = GetCore()->LoadNetwork(param, device, {});
             try {
-                executableNetwork = GetCore()->LoadNetwork(param, selectedDevice, {});
-                break;
-            } catch (...) {
-                auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
-                    [=](const DeviceName& d)->bool{return d == selectedDevice;});
-                if (eraseDevice == metaDevices.end()) {
-                    IE_THROW() << "Didn't find the selected device name";
-                }
-                metaDevices.erase(eraseDevice);
-                executableNetwork = {};
+                promiseFirstDevice->set_value(executableNetwork);
+                std::cout << "!!! DEBUG: " << device <<  " was loaded first !!!" << std::endl;
             }
-        }
-        if (!executableNetwork) {
-            IE_THROW() << "Failed to load network by AUTO plugin";
-        }
+            catch (const std::future_error &e) {
+//                if (e.code() == std::future_errc::promise_already_satisfied) {
+//                    std::cout << "!!! DEBUG: " << (bIsAccel? "Accelerator" : "CPU") <<
+//                        " was already loaded to the promiseFirstDevice !!!" << std::endl;
+//                }
+            }
+            if (bIsAccel) {
+                promiseActualDevice->set_value(executableNetwork);
+                std::cout << "!!! DEBUG: Accelerator" << device <<  " was loaded !!!" << std::endl;
+            }
+        };
 
-        bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
+        const auto accelerator = SelectDevice(metaDevices, networkPrecision);
+        // start loading of the netwrok to the accel
+        bool isAccelerator = accelerator != "CPU";
+        // FIXME: change to the default task-executor as in MULTI (but add an async Run() to that)
+        async_load_threads.push_back(std::thread([=] {LoadNetworkAsync(isAccelerator, accelerator);}));
+        // loading to the CPU in parallel, if it is not already an accelrator
+        if (isAccelerator)
+            async_load_threads.push_back(std::thread([=] { LoadNetworkAsync(false, "CPU"); }));
 
-        auto impl = std::make_shared<AutoExecutableNetwork>(executableNetwork, enablePerfCount);
+        // FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
+        // DeviceInformation selectedDevice;
+        // IE::SoExecutableNetworkInternal executableNetwork;
+//            while (!metaDevices.empty()) {
+//            selectedDevice = SelectDevice(metaDevices, networkPrecision);
+//              try {
+//                executableNetwork = GetCore()->LoadNetwork(param, selectedDevice.deviceName,
+//                                                                    selectedDevice.config);
+//                break;
+//            } catch (...) {
+//                auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
+//                    [=](const DeviceInformation& d)->bool{return d.deviceName == selectedDevice.deviceName;});
+//                if (eraseDevice == metaDevices.end()) {
+//                    IE_THROW() << "Didn't find the selected device name";
+//                }
+//                metaDevices.erase(eraseDevice);
+//                executableNetwork = {};
+//            }
+//        }
+//        if (!executableNetwork) {
+//            IE_THROW() << "Failed to load network by AUTO plugin";
+//        }
+        // AutoExecutableNetwork constructor blocks until any network is ready
+        auto impl = std::make_shared<AutoExecutableNetwork>(promiseFirstDevice, promiseActualDevice);
 
-        if (std::is_same<std::string, T>::value) {
-            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),
-                                    executableNetwork->GetOutputsInfo());
-        }
+//        if (std::is_same<std::string, T>::value) {
+//            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),
+//                                    executableNetwork->GetOutputsInfo());
+//        }
 
         return impl;
     }

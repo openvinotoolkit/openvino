@@ -13,40 +13,49 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network, bool enablePerfCount) :
-    _network(network), _enablePerfCount(enablePerfCount) {
+AutoExecutableNetwork::AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr networkPromiseFirstReady,
+                                             AutoPlugin::NetworkPromiseSharedPtr networkPromiseActualNeeded) {
+    // we wait for any network to become ready (maybe this will already an actual device)
+    _networkFirstReady = networkPromiseFirstReady->get_future().get();
+    _networkPromiseActualNeeded = networkPromiseActualNeeded;
+    futureActualNetwork = _networkPromiseActualNeeded->get_future();
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
-    SoIInferRequestInternal inferRequest = {_network, _network->CreateInferRequest()};
-    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest, _enablePerfCount);
+    SoIInferRequestInternal inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
+    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest, futureActualNetwork.share());
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
-    _network->Export(networkModel);
+    wait_for_actual_device();
+    _networkActualNeeded->Export(networkModel);
 }
 
 RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
-  return _network->GetContext();
+   wait_for_actual_device();
+   return _networkActualNeeded->GetContext();
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
-    return _network->GetExecGraphInfo();
+    wait_for_actual_device();
+    return _networkFirstReady->GetExecGraphInfo();
 }
 
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
-    return _network->GetMetric(name);
+    return _networkFirstReady->GetMetric(name);
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-    _network->SetConfig(config);
+    // this seems to be Not GOOD, why should we have SetConfig for the AUTO? AUTO has no config options
+    // _networkFirstReady->SetConfig(config);
 }
 
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    return _network->GetConfig(name);
+    // fixme: also change to the FirstLoaded vs ActuallyNeeeded
+    return {};//  _networkFirstReady->GetConfig(name);
 }
 
 }  // namespace AutoPlugin
