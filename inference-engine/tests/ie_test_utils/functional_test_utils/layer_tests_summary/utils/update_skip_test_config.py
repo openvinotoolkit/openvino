@@ -61,10 +61,12 @@ def get_conformance_hung_test(test_log_dirs: list):
                 if not (is_hung_test(content) and is_conformance(content)):
                     continue
                 device = get_device_name(content)
-                if 'arm' in content:
+                if 'arm' in content or 'arm' in log_file:
                     device = 'arm'
                 if not device in regexp.keys():
                     regexp.update({device: []})
+                if get_regex(content) in regexp[device]:
+                    continue
                 regexp[device].append(get_regex(content))
     for device, re_list in regexp.items():
         re_list.sort()

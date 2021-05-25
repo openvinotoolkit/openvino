@@ -86,5 +86,8 @@
 .*Reshape_1763071.*
 .*Reshape_2134296.*
 .*ScatterNDUpdate_3475452.*
+.*TensorIterator_150981.*
+.*TensorIterator_2463047.*
+.*TensorIterator_2463116.*
 .*TensorIterator_36100.*
 .*TensorIterator_36244.*
