@@ -19,6 +19,7 @@ auto BranchSplitConvConcat = ngraph::builder::subgraph::makeSplitConvConcatNeste
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values("MYRIAD", "HETERO:MYRIAD,CPU", "MULTI:MYRIAD,CPU"),
-                                ::testing::Values(ConvBias, TIwithLSTMcell, SplitConvConcat, BranchSplitConvConcat)),
+                                ::testing::Values(QueryNetworkTest::generateParams(ConvBias), QueryNetworkTest::generateParams(TIwithLSTMcell),
+                                                  QueryNetworkTest::generateParams(SplitConvConcat), QueryNetworkTest::generateParams(BranchSplitConvConcat))),
                         QueryNetworkTest::getTestCaseName);
 }  // namespace
