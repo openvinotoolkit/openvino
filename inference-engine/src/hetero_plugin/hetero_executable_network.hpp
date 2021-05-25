@@ -50,7 +50,7 @@ public:
     ~HeteroExecutableNetwork() override = default;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
+                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
@@ -63,18 +63,17 @@ public:
 private:
     void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
     void InitNgraph(const InferenceEngine::CNNNetwork&     network);
-    bool ImportExportSupported(const std::string& deviceName) const;
 
     struct NetworkDesc {
-        std::string                                 _device;
-        InferenceEngine::CNNNetwork                 _clonedNetwork;
-        InferenceEngine::ExecutableNetwork          _network;
+        std::string                                   _device;
+        InferenceEngine::CNNNetwork                   _clonedNetwork;
+        InferenceEngine::SoExecutableNetworkInternal  _network;
     };
-    std::vector<NetworkDesc> networks;
 
-    Engine*                             _heteroPlugin;
-    std::string                         _name;
-    std::map<std::string, std::string>  _config;
+    std::vector<NetworkDesc>                     _networks;
+    Engine*                                      _heteroPlugin;
+    std::string                                  _name;
+    std::map<std::string, std::string>           _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 

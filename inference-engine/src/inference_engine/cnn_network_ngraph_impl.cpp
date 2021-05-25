@@ -120,7 +120,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
     : _ngraph_function(nGraph), _ie_extensions(exts) {
-    // Restore usual attributes for ICNNNetwork
+    // Restore usual attributes for CNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
@@ -166,6 +166,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     IE_SUPPRESS_DEPRECATED_START
     const ICNNNetwork& iNetwork = network;
+    IE_SUPPRESS_DEPRECATED_END
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
@@ -195,7 +196,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
@@ -325,29 +325,43 @@ void CNNNetworkNGraphImpl::reshape() {
 StatusCode
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                               ResponseDesc* responseDesc) noexcept {
+    if (inputShapes.empty()) return OK;
+
+    const auto & params = _ngraph_function->get_parameters();
+
+    // Check that we need to do reshape only if input shapes will be changed
+    bool needReshape = false;
+    for (const auto & param : params) {
+        const auto it = inputShapes.find(param->get_friendly_name());
+        if (it == inputShapes.end()) {
+            continue;
+        }
+        if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
+            needReshape = true;
+            break;
+        }
+    }
+
+    if (!needReshape) return OK;
+
+    // save original parameters shape
+    std::map<std::string, ngraph::PartialShape> originalInputShapes;
+    for (const auto & param : params) {
+        originalInputShapes[param->get_friendly_name()] = param->get_partial_shape();
+    }
+
     try {
-        auto params = _ngraph_function->get_parameters();
+        ngraph::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.run_passes(_ngraph_function);
 
-        // Check that we need to do reshape only if input shapes will be changed
-        bool needReshape = false;
-        for (size_t i = 0; i < params.size() && !inputShapes.empty(); i++) {
-            const auto& param = params[i];
-            auto it = inputShapes.find(param->get_friendly_name());
-            if (it == inputShapes.end())
-                continue;
-            if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
-                needReshape = true;
-                break;
-            }
+        std::map<std::string, ngraph::PartialShape> reshapeShapes;
+        for (const auto & item : inputShapes) {
+            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
         }
-        if (needReshape) {
-            ngraph::pass::Manager ssr_manager;
-            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-            ssr_manager.run_passes(_ngraph_function);
-
-            reshape(inputShapes);
-        }
+        reshape(reshapeShapes);
     } catch (std::exception& ex) {
+        reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
 
@@ -355,7 +369,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 }
 
 void
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes) {
+CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();

@@ -40,6 +40,7 @@ std::string gather_inst::to_string(gather_node const& node) {
     json_composite gather_info;
     gather_info.add("input id", input.id());
     gather_info.add("axis", desc->axis);
+    gather_info.add("batch_dim", desc->batch_dim);
     gather_info.add("output shape", desc->output_shape.to_string());
 
     node_info->add("gather info", gather_info);

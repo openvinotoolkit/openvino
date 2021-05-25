@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     return {
@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*reusableCPUStreamsExecutor.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-51758
-        ".*PreprocessConversionTest.*oPRC=U8.*",
         ".*PreprocessConversionTest.*oLT=NHWC.*",
-        ".*PreprocessingPrecisionConvertTestsViaSetInput.*SetInput.*",
-        ".*PreprocessingPrecisionConvertTestsViaGetBlob.*GetBlob.*",
     };
 }

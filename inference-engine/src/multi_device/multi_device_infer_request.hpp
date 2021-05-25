@@ -15,8 +15,6 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp/ie_executable_network.hpp>
-#include <cpp/ie_infer_request.hpp>
 
 namespace MultiDevicePlugin {
 
@@ -25,11 +23,11 @@ public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     InferenceEngine::InferRequest request_to_share_blobs_with);
+                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
+    void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
 };
 
 }  // namespace MultiDevicePlugin
