@@ -137,6 +137,14 @@ namespace ngraph
                 return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
             }
 
+            /// \brief Function that handles following ONNX operators: Add, Div, Mul, Sub
+            ///        from opset 6.
+            ///
+            /// \param node ONNX node
+            ///
+            /// \return     OutputVector with binary op
+            template <typename T>
+            OutputVector handle_opset6_binary_op(const Node& node);
         } // namespace  common
     }     // namespace onnx_import
 } // namespace ngraph
