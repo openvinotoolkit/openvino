@@ -56,7 +56,7 @@ public:
     void SetUp() override {
         ngraph::element::Type precision;
         ngraph::Shape shape;
-        bool addFakeQuantize;
+        // bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolWithHandledChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
@@ -88,7 +88,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithHandledChildTransformationParams> obj) {
         ngraph::element::Type precision;
         ngraph::Shape shape;
-        bool addFakeQuantize;
+        // bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolWithHandledChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
@@ -136,7 +136,7 @@ const std::vector<AvgPoolWithHandledChildTransformationTestValues> testValues = 
             {},
             ngraph::element::u8,
             {},
-            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {1,6,1,1}}}
+            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {1, 6, 1, 1}}}
         }
     },
     // U8 per tensor quantization
