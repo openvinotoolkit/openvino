@@ -116,6 +116,7 @@ class TestAddInputOp(unittest.TestCase):
 
     def test_in_port_with_data(self):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges)
+        graph.stage = 'middle'
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges[1:],
                                            new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',
@@ -155,6 +156,7 @@ class TestAddInputOp(unittest.TestCase):
                                        new_nodes_with_attrs=[('input_data', {'kind': 'data', 'shape': None, 'value': None})],
                                        new_edges_with_attrs=[('op_node', 'input_data', {'out': 1, 'in': 0}),
                                                              ('input_data', 'future_input', {'in': 0, 'out': 0})])
+        graph.stage = 'middle'
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes_out, edges_with_attrs=self.edges_out[1:],
                                            new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',

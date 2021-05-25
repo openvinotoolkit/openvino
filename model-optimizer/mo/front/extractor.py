@@ -805,6 +805,8 @@ def add_input_op_input_port_without_data(graph: Graph, node_id: str, input_op, e
 
 
 def add_input_op_input_port_with_data(graph: Graph, node_id: str, input_op, edge_attrs: dict):
+    assert graph.stage == 'middle', 'add_input_op_input_port_with_data() function can be used only for graph after ' \
+                                    'shape inference!'
     input_node = input_op.create_node(edge_attrs=edge_attrs)
     node = Node(graph, node_id)
 
@@ -835,6 +837,8 @@ def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, 
 
 def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, port: int):
     # we assume that after op always data node
+    assert graph.stage == 'middle', 'add_input_op_input_port_with_data() function can be used only for graph after ' \
+                                    'shape inference!'
     data_node = Node(graph, node_id).out_node(port)
     assert data_node.has_valid('kind') and data_node.kind == 'data'
     input_node = input_op.create_node()
