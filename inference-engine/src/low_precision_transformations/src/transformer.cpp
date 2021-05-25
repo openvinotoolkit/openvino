@@ -56,6 +56,7 @@
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/tile.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
@@ -244,6 +245,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<SqueezeTransformation, opset1::Squeeze>(params).
         add<SplitTransformation, opset1::Split>(params).
         add<StridedSliceTransformation, opset1::StridedSlice>(params).
+        add<TileTransformation, opset1::Tile>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
         add<VariadicSplitTransformation, opset1::VariadicSplit>(params).

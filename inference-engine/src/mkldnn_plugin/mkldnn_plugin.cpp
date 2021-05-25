@@ -114,6 +114,7 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.original").run_on_function(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -308,6 +309,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     manager.run_passes(nGraphFunc);
 
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
+
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
@@ -336,6 +339,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                     LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
 
         transformer.transform(nGraphFunc);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
     }
 
     ngraph::pass::Manager postLPTPassManager;
@@ -367,6 +371,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.run_passes(nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.legacy").run_on_function(nGraphFunc);
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
