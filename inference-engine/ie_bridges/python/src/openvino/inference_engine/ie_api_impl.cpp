@@ -393,7 +393,7 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
 std::vector<InferenceEnginePython::CVariableState> InferenceEnginePython::InferRequestWrap::queryState() {
     auto queryStateVec = request_ptr.QueryState();
     std::vector<InferenceEnginePython::CVariableState> memoryStates;
-    for(const auto& state : queryStateVec) {
+    for (const auto& state : queryStateVec) {
         InferenceEnginePython::CVariableState st;
         st.variableState = state;
         memoryStates.push_back(st);

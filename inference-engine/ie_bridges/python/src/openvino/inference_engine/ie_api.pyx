@@ -615,7 +615,7 @@ cdef class PreProcessInfo:
     @mean_variant.setter
     def mean_variant(self, variant : MeanVariant):
         if not self._ptr:
-            raise TypeError(f"Cannot set mean image when called from constant")
+            raise TypeError("Cannot set mean image when called from constant")
         deref(self._ptr).setVariant(variant.value)
 
     ## Resize Algorithm to be applied for input before inference if needed.
@@ -640,7 +640,7 @@ cdef class PreProcessInfo:
     @resize_algorithm.setter
     def resize_algorithm(self, alg : ResizeAlgorithm):
         if not self._ptr:
-            raise TypeError(f"Cannot set resize algorithm when called from constant")
+            raise TypeError("Cannot set resize algorithm when called from constant")
         deref(self._ptr).setResizeAlgorithm(alg.value)
 
     ## Color format to be used in on-demand color conversions applied to input before inference
@@ -657,7 +657,7 @@ cdef class PreProcessInfo:
     @color_format.setter
     def color_format(self, fmt : ColorFormat):
         if not self._ptr:
-            raise TypeError(f"Cannot set color format when called from constant")
+            raise TypeError("Cannot set color format when called from constant")
         deref(self._ptr).setColorFormat(fmt.value)
 
 

@@ -131,10 +131,10 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass CVariableState:
-        void reset()
-        string getName()
-        CBlob.Ptr getState()
-        void setState(CBlob.Ptr state)
+        void reset() except +
+        string getName() except +
+        CBlob.Ptr getState() except +
+        void setState(CBlob.Ptr state) except +
 
     cdef cppclass ProfileInfo:
         string status
