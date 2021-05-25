@@ -1,0 +1,2 @@
+-r ../requirements.txt
+networkx>=1.11

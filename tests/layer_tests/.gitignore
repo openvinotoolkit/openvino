@@ -1,0 +1,9 @@
+#IDE FILES
+.pytest_cache
+
+#TESTS TEMP DIRECTORY
+caffe_models/
+ir/
+out/
+tf_models/
+

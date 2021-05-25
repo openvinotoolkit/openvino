@@ -1,0 +1,2 @@
+-r ../requirements_tf2.txt
+networkx>=1.11
