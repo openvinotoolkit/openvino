@@ -60,13 +60,19 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
             if node.soft_get('type') in shape_input_ops_map:
                 nodes_with_shape_inputs.append(node)
 
+        condition = lambda node: node.soft_get('type') != 'ShapeOf'
         start_nodes = []
         for node in nodes_with_shape_inputs:
-            start_nodes.extend(
-                [node.in_port(port_idx).get_source().node for port_idx in shape_input_ops_map[node.type] if
-                 node.is_in_port_connected(port_idx)])
+            for port_idx in shape_input_ops_map[node.soft_get('type')]:
+                if not node.is_in_port_connected(port_idx):
+                    continue
 
-        condition = lambda node: node.soft_get('type') != 'ShapeOf'
+                source_node = node.in_port(port_idx).get_source().node
+                if not condition(source_node):
+                    continue
+
+                start_nodes.append(source_node)
+
         nodes_with_shape_values = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, set(), condition, forward=False)
         for node in nodes_with_shape_values:
             node['returns_shape_value'] = True
