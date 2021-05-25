@@ -73,14 +73,14 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
 
 NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet_2)
 {
-    const size_t num = 3;
+    const size_t num = 1;
     const size_t coords = 4;
-    const size_t classes = 20;
+    const size_t classes = 1;
     const size_t batch = 1;
-    const size_t channels = 303;
-    const size_t width = 28;
-    const size_t height = 28;
-    const std::vector<int64_t> mask{0, 1, 2};
+    const size_t channels = 8;
+    const size_t width = 2;
+    const size_t height = 2;
+    const std::vector<int64_t> mask{0};
     const int axis = 1;
     const int end_axis = 3;
 
@@ -94,9 +94,20 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet_2)
     EXPECT_EQ(R->get_output_shape(0), output_shape);
 
     auto test_case = test::TestCase<TestEngine>(f);
+    std::vector<float> input {
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f
+    };
 
-    test_case.add_input_from_file<float>(input_shape, TEST_FILES, "region_in_yolov3_mxnet_2.data");
-    test_case.add_expected_output_from_file<float>(
-        output_shape, TEST_FILES, "region_out_yolov3_mxnet_2.data");
+    std::vector<float> output {
+        0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
+        0.1f,     0.2f,     0.3f,     0.4f,     0.5f,     0.6f,     0.7f,     0.8f,
+        0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
+    };
+
+    test_case.add_input<float>(input);
+    test_case.add_expected_output<float>(output);
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
