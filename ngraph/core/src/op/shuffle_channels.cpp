@@ -17,8 +17,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
