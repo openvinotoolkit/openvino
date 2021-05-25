@@ -8,33 +8,31 @@
 
 using namespace LayerTestsDefinitions;
 
+namespace {
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {
-    {3, 4, 9, 5}, {2, 16, 24, 15}, {1, 32, 12, 25}
-};
+const std::vector<int> axes = {-4, -3, -2, -1, 0, 1, 2, 3};
+const std::vector<int> groups = {1, 2, 3, 6};
 
-const std::vector<std::tuple<int, int>> shuffleParameters = {
-    std::make_tuple(1, 2), std::make_tuple(-3, 2),
-    std::make_tuple(2, 3), std::make_tuple(-2, 3),
-    std::make_tuple(3, 5), std::make_tuple(-1, 5)
-};
+const auto shuffleChannelsParams4D = ::testing::Combine(
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(groups)
+);
 
-const auto testCases = ::testing::Combine(::testing::ValuesIn(shuffleParameters),
-                                          ::testing::ValuesIn(netPrecisions),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Layout::ANY),
-                                          ::testing::Values(InferenceEngine::Layout::ANY),
-                                          ::testing::ValuesIn(inputShapes),
-                                          ::testing::Values(CommonTestUtils::DEVICE_GPU));
-
-
-INSTANTIATE_TEST_CASE_P(smoke_GPU_ShuffleChannels, ShuffleChannelsLayerTest, testCases, ShuffleChannelsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
+        ::testing::Combine(
+                shuffleChannelsParams4D,
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t >({12, 18, 30, 36})),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        ShuffleChannelsLayerTest::getTestCaseName);
 
 // ND support tests
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
@@ -46,7 +44,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({24, 6, 12, 18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
@@ -58,7 +56,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({6, 12, 18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
@@ -70,7 +68,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
@@ -82,7 +80,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({18, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
@@ -94,5 +92,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({30})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         ShuffleChannelsLayerTest::getTestCaseName);
+
+}  // namespace
