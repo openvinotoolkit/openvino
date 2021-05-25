@@ -24,7 +24,7 @@ const std::vector<std::vector<size_t >> kernels2D = {
     {3, 3},
 };
 
-const std::vector<std::vector<size_t >> InvalidKernels2D = {
+const std::vector<std::vector<size_t >> kernels2DInvalid = {
     {1, 4},
     {2, 3},
     {3, 2},
@@ -50,8 +50,8 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
 const std::vector<std::vector<size_t >> dilations2DInvalid = { {2, 2},
 };
-const std::vector<size_t> numOutCannels2D = { 32 };
-const std::vector<size_t> numOutCannels2DInvalid = { 1, 7, 9, 400 };
+const std::vector<size_t> numOutChannels2D = { 32 };
+const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 400 };
 
 const std::vector<std::vector<size_t>> input2DNCHWFine = { { 1, 8, 20, 16 } };
 
@@ -68,16 +68,16 @@ const auto conv2DParametersFine = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::ValuesIn(numOutChannels2D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidKernel = ::testing::Combine(
-    ::testing::ValuesIn(InvalidKernels2D),
+    ::testing::ValuesIn(kernels2DInvalid),
     ::testing::ValuesIn(strides2D),
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::ValuesIn(numOutChannels2D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidFilterNumber = ::testing::Combine(
@@ -86,7 +86,7 @@ const auto conv2DParametersInvalidFilterNumber = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2DInvalid),
+    ::testing::ValuesIn(numOutChannels2DInvalid),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidPadding = ::testing::Combine(
@@ -95,7 +95,7 @@ const auto conv2DParametersInvalidPadding = ::testing::Combine(
     ::testing::ValuesIn(padBegins2DInvalid),
     ::testing::ValuesIn(padEnds2DInvalid),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::ValuesIn(numOutChannels2D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidStride = ::testing::Combine(
@@ -104,7 +104,7 @@ const auto conv2DParametersInvalidStride = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::ValuesIn(numOutChannels2D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidDilation = ::testing::Combine(
@@ -113,7 +113,7 @@ const auto conv2DParametersInvalidDilation = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2DInvalid),
-    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::ValuesIn(numOutChannels2D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
@@ -142,7 +142,7 @@ protected:
     }
 };
 
-#define GNA_NEG_INSTANTIATE(whats_wrong, sufix_params, sufix_input, error_message)                              \
+#define GNA_NEG_INSTANTIATE(whats_wrong, suffix_params, suffix_input, error_message)                            \
 struct GnaConv2DNegativeTest##whats_wrong : GnaConv2DNegativeTest {                                             \
     std::string expectedSubstring() override {                                                                  \
         return error_message;                                                                                   \
@@ -153,13 +153,13 @@ TEST_P(GnaConv2DNegativeTest##whats_wrong, ThrowAsNotSupported) {               
 }                                                                                                               \
 INSTANTIATE_TEST_CASE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,    \
 ::testing::Combine(                                                                                             \
-    conv2DParameters##sufix_params,                                                                             \
+    conv2DParameters##suffix_params,                                                                            \
     ::testing::ValuesIn(netPrecisions),                                                                         \
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),                                                 \
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),                                                 \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
-    ::testing::ValuesIn(input2DNCHW##sufix_input),                                                              \
+    ::testing::ValuesIn(input2DNCHW##suffix_input),                                                             \
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);
 
