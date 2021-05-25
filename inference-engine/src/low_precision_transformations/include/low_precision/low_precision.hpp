@@ -49,7 +49,7 @@ public:
         const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    static bool isFunctionQuantized(const std::shared_ptr<ngraph::Function>& function);
+    static bool isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function);
 
 protected:
     std::vector<OperationPrecisionRestriction> precisionRestrictions;

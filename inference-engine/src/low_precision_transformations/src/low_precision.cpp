@@ -339,7 +339,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     return true;
 }
 
-bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<ngraph::Function>& function) {
+bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
     std::set<std::shared_ptr<ngraph::Node>> handledNodes;
     std::deque<std::shared_ptr<ngraph::Node>> nodes;
     for (auto result : function->get_results()) {
