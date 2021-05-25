@@ -27,7 +27,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
-    test_case.run();
+    EXPECT_THROW(test_case.run(), std::exception);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
@@ -64,8 +64,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
     test_case.run();
 }
 
-////////////////////////////
-
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d)
 {
     Shape shape_a{2, 6};
@@ -74,12 +72,13 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d)
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     auto f = make_shared<Function>(make_shared<op::PRelu>(A, B), ParameterVector{A, B});
 
-    std::vector<float> a{1, 2, -3, -4, 5, 6, 1, 2, -3, -4, 5, 6};
-    std::vector<float> b{2, 2, 2, 2, 2, 2};
+    std::vector<float> a{1, 2, -3, -4, 5, 6, -1, -2, -3, -4, 5, 6};
+    std::vector<float> b{2.1, 2.2, 2.3, 2.4, 2.5, 2.6};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_a, {1, 2, -6, -8, 5, 6, 1, 2, -6, -8, 5, 6});
+    test_case.add_expected_output<float>(shape_a,
+                                         {1, 2, -6.9, -9.6, 5, 6, -2.1, -4.4, -6.9, -9.6, 5, 6});
     test_case.run();
 }
 
@@ -206,10 +205,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_slope)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_a, {-1, 0, -3, -4, -5});
-    test_case.run();
+    EXPECT_THROW(test_case.run(), std::exception);
 }
-
-///// ADDIDIONAL TESTS
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise)
 {
@@ -314,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, slope});
     test_case.add_expected_output<float>(shape_a, expected_output);
-    test_case.run();
+    EXPECT_THROW(test_case.run(), std::exception);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_1_slope)
