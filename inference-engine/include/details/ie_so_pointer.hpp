@@ -128,22 +128,6 @@ public:
     }
 
 protected:
-#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
-#define CATCH_IE_EXCEPTIONS                     \
-        CATCH_IE_EXCEPTION(GeneralError)        \
-        CATCH_IE_EXCEPTION(NotImplemented)      \
-        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION(ParameterMismatch)   \
-        CATCH_IE_EXCEPTION(NotFound)            \
-        CATCH_IE_EXCEPTION(OutOfBounds)         \
-        CATCH_IE_EXCEPTION(Unexpected)          \
-        CATCH_IE_EXCEPTION(RequestBusy)         \
-        CATCH_IE_EXCEPTION(ResultNotReady)      \
-        CATCH_IE_EXCEPTION(NotAllocated)        \
-        CATCH_IE_EXCEPTION(InferNotStarted)     \
-        CATCH_IE_EXCEPTION(NetworkNotRead)      \
-        CATCH_IE_EXCEPTION(InferCancelled)
-
     /**
      * @brief Implements load of object from library if Release method is presented
      */
@@ -170,11 +154,7 @@ protected:
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_ptr);
             }
-        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            IE_THROW() << ex.what();
-        } catch(...) {
-            IE_THROW(Unexpected);
-        }
+        } catch(...) {details::Rethrow();}
     }
 
     /**
@@ -184,14 +164,8 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
-        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            IE_THROW() << ex.what();
-        } catch(...) {
-            IE_THROW(Unexpected);
-        }
+        } catch(...) {details::Rethrow();}
     }
-    #undef CATCH_IE_EXCEPTION
-    #undef CATCH_IE_EXCEPTIONS
 
     /**
      * @brief The DLL

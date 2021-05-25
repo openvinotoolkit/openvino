@@ -12,14 +12,10 @@
 namespace InferenceEngine {
 
 #define EXEC_NET_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                   \
+    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        IE_THROW() << ex.what();                                                                   \
-    } catch (...) {                                                                                \
-        IE_THROW(Unexpected);                                                                      \
-    }
+    } catch(...) {details::Rethrow();}
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader&      so,
                                      const IExecutableNetworkInternal::Ptr&  impl)

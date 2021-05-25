@@ -371,6 +371,12 @@ INFERENCE_ENGINE_DECLARE_EXCEPTION(InferCancelled, INFER_CANCELLED)
 
 // TODO: Move this section out of public API
 namespace details {
+
+/**
+ * @brief Rethrow a copy of exception. UShould be used in catch blocks
+ */
+[[noreturn]] INFERENCE_ENGINE_API_CPP(void) Rethrow();
+
 /**
  * @brief Tag struct used to throw exception
  */
