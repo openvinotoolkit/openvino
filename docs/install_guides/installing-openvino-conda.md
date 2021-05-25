@@ -20,7 +20,10 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 ## Install the runtime package using the Anaconda* Package Manager
 
 1. Set up the Anaconda* environment. 
-
+   ```sh
+   conda create --name py37 python=3.7
+   conda activate py37
+   ```
 2. Updated conda to the latest version:
    ```sh
    conda update --all
