@@ -56,11 +56,13 @@ void NmsLayerTest::GenerateInputs() {
     }
 }
 
-void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<Blob::Ptr> &actualOutputs) {
+void NmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                           const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
 
-void NmsLayerTest::CompareBuffer(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+void NmsLayerTest::CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
@@ -166,7 +168,8 @@ public:
  *    [batch_index, class_index, box_score].
  * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
  */
-void NmsLayerTest::CompareBBoxes(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+void NmsLayerTest::CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
 
@@ -225,10 +228,10 @@ void NmsLayerTest::CompareBBoxes(const std::vector<std::vector<std::uint8_t>> &e
     // Get expected bboxes' index/score
     std::vector<Box> expectedList;
     {
-        size_t selected_indices_size = expectedOutputs[0].size() / sizeof(float);
-        auto selected_indices_data = reinterpret_cast<const int32_t *>(expectedOutputs[0].data());
-        size_t selected_scores_size = expectedOutputs[1].size() / sizeof(float);
-        auto selected_scores_data = reinterpret_cast<const float *>(expectedOutputs[1].data());
+        size_t selected_indices_size = expectedOutputs[0].second.size() / sizeof(float);
+        auto selected_indices_data = reinterpret_cast<const int32_t *>(expectedOutputs[0].second.data());
+        size_t selected_scores_size = expectedOutputs[1].second.size() / sizeof(float);
+        auto selected_scores_data = reinterpret_cast<const float *>(expectedOutputs[1].second.data());
         ASSERT_TRUE(selected_indices_size == selected_scores_size);
 
         for (size_t i = 0; i < selected_indices_size; i += 3) {
