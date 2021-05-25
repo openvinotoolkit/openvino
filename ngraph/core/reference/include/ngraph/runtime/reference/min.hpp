@@ -22,10 +22,7 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void min(const T* arg,
-                     T* out,
-                     const Shape& in_shape,
-                     const AxisSet& reduction_axes)
+            void min(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
             {
                 T minval = std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity()
                                                                 : std::numeric_limits<T>::max();
