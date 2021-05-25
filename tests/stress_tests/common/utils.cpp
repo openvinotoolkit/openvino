@@ -24,14 +24,16 @@ std::string fileNameNoExt(const std::string &filepath) {
 }
 
 
-static size_t parseLine(char* line) {
-    // This assumes that a digit will be found and the line ends in " Kb".
-    size_t i = strlen(line);
-    const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
-    i = (size_t)atoi(p);
-    return i;
+/// Parses number from provided string
+static int parseLine(std::string line) {
+    std::string res = "";
+    for (auto c: line)
+        if (isdigit(c))
+            res += c;
+    if (res.empty())
+        // If number wasn't found return -1
+        return -1;
+    return std::stoi(res);
 }
 
 #ifdef _WIN32
