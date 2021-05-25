@@ -121,7 +121,7 @@ class Computation(object):
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
         out_blob = output_blobs[out_name]
 
-        if out_blob.tensor_desc.layout == 'SCALAR':
+        if out_blob.tensor_desc.layout == "SCALAR":
             return out_blob.buffer[0]
         else:
             return out_blob.buffer
