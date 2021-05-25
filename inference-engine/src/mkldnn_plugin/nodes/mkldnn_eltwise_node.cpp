@@ -1210,6 +1210,11 @@ void MKLDNNEltwiseNode::createPrimitive() {
             size_t startOff = outOrder.size() != config.outConfs[0].desc.getDims().size() &&
                               outOrder[outOrder.size() - 1] != inOrder[inOrder.size() - 1] ? 1 : 0;
 
+            // WA to handle nspc layout with 1D tensors
+            if (1 == inRank) {
+                if (outRank > 2 && 1 == outOrder.back()) startOff = 1;
+            }
+
             for (int j = 0; j < inRank; j++) {
                 dims_in[i][dims_in[i].size() - 1 - j - startOff] = config.inConfs[i].desc.getBlockingDesc().getBlockDims()[inRank - 1 - j];
             }
