@@ -150,15 +150,18 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IELegacy_LT, "cloneNetwork");
 
+    IE_SUPPRESS_DEPRECATED_START
     if (network.getFunction()) {
         return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
     }
 
     return CNNNetwork(cloneNet(network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 details::CNNNetworkImplPtr cloneNet(const CNNNetwork& origin_network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(CNNNetwork)");
+    IE_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ICNNNetwork> clonedNetwork;
     // Call conversion only on the copy of nGraph function
     if (origin_network.getFunction()) {
@@ -166,6 +169,7 @@ details::CNNNetworkImplPtr cloneNet(const CNNNetwork& origin_network) {
         clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cloneNetwork(origin_network));
     }
     const CNNNetwork network = clonedNetwork ? CNNNetwork(clonedNetwork) : origin_network;
+    IE_SUPPRESS_DEPRECATED_END
 
     std::vector<CNNLayerPtr> layers;
     details::CNNNetworkIterator i(network);
