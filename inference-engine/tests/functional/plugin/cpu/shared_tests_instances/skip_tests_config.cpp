@@ -40,9 +40,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
-        // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -53,8 +50,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
-        // TODO: 42538. Unexpected application crush
+        // TODO: 42538. Unexpected application crash
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
+        // TODO: 53618. BF16 gemm ncsp convolution crash
+        R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
+        // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
+        R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)",
+        // TODO: 56143. Enable nspc convolutions for bf16 precision
+        R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
 
         // incorrect reference implementation
         R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
@@ -69,16 +73,9 @@ std::vector<std::string> disabledTestPatterns() {
 
         // AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // incorrect reference implementation. Issues: 55384, 54528, 54529
-        R"(.*DFTLayerTest.*)",
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
-        // TODO: iefode: fix BF16 tests (PR5624)
-        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
-        R"(.*smoke_PSROIPoolingAverageLayoutTest.*BF16.*)",
-        R"(.*smoke_PSROIPoolingBilinearLayoutTest.*BF16.*)",
-        R"(.*smoke_ROIAlignLayoutTest.*BF16.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
     };

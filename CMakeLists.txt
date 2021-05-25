@@ -103,6 +103,7 @@ function(build_ngraph)
     endif()
 
     ie_cpack_add_component(ngraph REQUIRED)
+    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     set(SDL_cmake_included ON)
     add_subdirectory(ngraph)
