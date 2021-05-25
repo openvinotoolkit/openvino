@@ -29,20 +29,20 @@
 .*ScatterNDUpdate_3475452.*
 
 # Crashed + Hang
-.*CTCGreedyDecoderSeqLen_2965332.*
-.*CTCGreedyDecoderSeqLen_3294082.*
+.*Abs_220198.*
+.*Abs_2673435.*
+.*Abs_3009423.*
+.*Abs_3464504.*
+.*ConvolutionBackpropData_1046455.*
+.*ConvolutionBackpropData_2489069.*
 .*Convolution_1301086.*
 .*Convolution_1301186.*
 .*Convolution_1761288.*
-.*Gelu_142692.*
-.*Gelu_15728.*
-.*Gelu_33711.*
-.*Gelu_50115.*
-.*Gelu_549985.*
-.*Gelu_8507.*
+.*Convolution_1761388.*
 .*GroupConvolution_1303013.*
 .*GroupConvolution_1761341.*
 .*Interpolate_475913.*
+.*MVN_1301111.*
 .*MVN_1761313.*
 .*ROIAlign_1016430.*
 .*ROIAlign_1016460.*
@@ -59,3 +59,6 @@
 .*Reshape_1763071.*
 .*Reshape_2134296.*
 .*ScatterNDUpdate_3475452.*
+.*Transpose_1060948.*
+.*Transpose_1521092.*
+
