@@ -9,6 +9,7 @@
 #include <string>
 #include <tuple>
 #include <algorithm>
+#include <cmath>
 #include <utils/general_utils.h>
 #include <ngraph/ops.hpp>
 #include <ie_parallel.hpp>
@@ -30,8 +31,8 @@ using namespace Xbyak;
 
 namespace {
 
-struct jit_has_subnormals : public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals)
+struct jit_has_subnormals_base : public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
 
     typedef struct {
         const float* src;
@@ -41,7 +42,7 @@ struct jit_has_subnormals : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_has_subnormals() {
+    jit_has_subnormals_base() {
         jit_ker_ = nullptr;
     }
 
@@ -85,10 +86,6 @@ protected:
         pop(r15);
         pop(rsi);
     }
-};
-
-struct jit_has_subnormals_avx2 : public jit_has_subnormals {
-    static const uint32_t vlen = 8u;    // floats vector length for AVX2 instructions
 
     void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Ymm &mask, const Xbyak::Ymm &zero) {
         auto a = ymm1;
@@ -101,80 +98,6 @@ struct jit_has_subnormals_avx2 : public jit_has_subnormals {
         vpcmpeqd(c, c, zero);           // if (c == 0) c = 1 else c = 0
         vptest(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
     }
-
-    void generate() final {
-        Label exit, has_subnormals, no_subnormals;
-
-        auto reg_src = rax;
-        auto reg_dst = rbx;
-        auto reg_sz = rdx;
-        auto reg_mask_addr = r15;
-        auto zero = ymm4;
-        auto mask = ymm5;
-
-        preamble();
-
-        // Initialize necessary consts
-        vpxor(zero, zero, zero);
-
-        static const uint32_t mask_data[8] = {
-            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23,
-            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
-        };
-
-        mov(reg_mask_addr, (size_t)mask_data);
-        vmovdqu(mask, yword[reg_mask_addr]);
-
-        // Get arguments addresses
-        mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
-        lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
-        mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
-
-        // Main loop
-        xor_(rsi, rsi);
-        mov(r8, reg_sz);
-        shr(r8, 3);
-
-        foreach(rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
-            check_subnormals(reg_src, mask, zero);
-            jnc(has_subnormals);
-            add(reg_src, sizeof(float) * vlen);
-        });
-
-        // Tail
-        shl(rsi, 3);
-        sub(reg_sz, rsi);
-        test(reg_sz, reg_sz);
-        jz(exit);
-
-        // use space on stack for 8 floats
-        sub(rsp, vlen * sizeof(float));
-        mov(r8, rsp);
-
-        vmovups(yword[r8], zero);
-
-        copy_floats(r8, reg_src, reg_sz);
-        check_subnormals(r8, mask, zero);
-        jc(no_subnormals);
-        add(rsp, vlen * sizeof(float));
-
-        L(has_subnormals);
-
-        mov(rax, 1);
-        mov(byte[reg_dst], al);
-        jmp(exit);
-
-        L(no_subnormals);
-        add(rsp, vlen * sizeof(float));
-
-        L(exit);
-
-        postamble();
-    }
-};
-
-struct jit_has_subnormals_sse41 : public jit_has_subnormals {
-    static const uint32_t vlen = 4u;    // floats vector length for SSE41 instructions
 
     void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Xmm &mask, const Xbyak::Xmm &zero) {
         auto a = xmm1;
@@ -190,55 +113,83 @@ struct jit_has_subnormals_sse41 : public jit_has_subnormals {
         ptest(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
     }
 
-    void generate() final {
-        Label exit, has_subnormals, no_subnormals;
+    template<cpu_isa_t isa>
+    struct reg;
 
-        auto reg_src = rax;
-        auto reg_dst = rbx;
-        auto reg_sz = rdx;
-        auto reg_mask_addr = r15;
-        auto zero = xmm4;
-        auto mask = xmm5;
+protected:
+    Label exit, has_subnormals, no_subnormals;
+
+    const Reg64 &reg_src = rax;
+    const Reg64 &reg_dst = rbx;
+    const Reg64 &reg_sz = rdx;
+    const Reg64 &reg_idx = rsi;
+    const Reg64 &reg_mask_addr = r15;
+
+    static const uint32_t mask_data[8];
+};
+
+const uint32_t jit_has_subnormals_base::mask_data[8] = {
+    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23,
+    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
+};
+
+template<>
+struct jit_has_subnormals_base::reg<cpu_isa_t::avx2> {
+    constexpr static uint32_t length = 8;
+    constexpr static const Xbyak::Ymm & rmm4 = Xbyak::util::ymm4;
+    constexpr static const Xbyak::Ymm & rmm5 = Xbyak::util::ymm5;
+};
+
+template<>
+struct jit_has_subnormals_base::reg<cpu_isa_t::sse41> {
+    constexpr static uint32_t length = 4;
+    constexpr static const Xbyak::Xmm & rmm4 = Xbyak::util::xmm4;
+    constexpr static const Xbyak::Xmm & rmm5 = Xbyak::util::xmm5;
+};
+
+template<cpu_isa_t isa>
+struct jit_has_subnormals : public jit_has_subnormals_base {
+    void generate() final {
+        size_t const vlen = reg<isa>::length;
+        const int sh_bits = std::ilogb(vlen);
+
+        auto zero = reg<isa>::rmm4;
+        auto mask = reg<isa>::rmm5;
 
         preamble();
-
-        // Initialize necessary consts
-        pxor(zero, zero);
-
-        static const uint32_t mask_data[4] = {
-            0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
-        };
-
-        mov(reg_mask_addr, (size_t)mask_data);
-        movdqu(mask, xword[reg_mask_addr]);
 
         // Get arguments addresses
         mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
         lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
         mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
+        mov(reg_mask_addr, (size_t)mask_data);
+
+        // Initialize necessary consts
+        uni_vpxor(zero, zero, zero);
+        uni_vmovdqu(mask, ptr[reg_mask_addr]);
 
         // Main loop
-        xor_(rsi, rsi);
+        xor_(reg_idx, reg_idx);
         mov(r8, reg_sz);
-        shr(r8, 2);
+        shr(r8, sh_bits);
 
-        foreach(rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach(reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
             check_subnormals(reg_src, mask, zero);
             jnc(has_subnormals);
             add(reg_src, sizeof(float) * vlen);
         });
 
         // Tail
-        shl(rsi, 2);
-        sub(reg_sz, rsi);
+        shl(reg_idx, sh_bits);
+        sub(reg_sz, reg_idx);
         test(reg_sz, reg_sz);
         jz(exit);
 
-        // use space on stack for 4 floats
+        // use space on stack for 4 or 8 floats
         sub(rsp, vlen * sizeof(float));
         mov(r8, rsp);
 
-        movups(xword[r8], zero);
+        uni_vmovdqu(ptr[r8], zero);
 
         copy_floats(r8, reg_src, reg_sz);
         check_subnormals(r8, mask, zero);
@@ -260,13 +211,13 @@ struct jit_has_subnormals_sse41 : public jit_has_subnormals {
     }
 };
 
-jit_has_subnormals::fn_t jit_has_subnormals_function() {
+jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
     if (mayiuse(cpu_isa_t::avx2)) {
-        static jit_has_subnormals_avx2 generator;
+        static jit_has_subnormals<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
         return fn;
     } else if (mayiuse(cpu_isa_t::sse41)) {
-        static jit_has_subnormals_sse41 generator;
+        static jit_has_subnormals<cpu_isa_t::sse41> generator;
         static auto fn = generator.get();
         return fn;
     }
@@ -276,7 +227,7 @@ jit_has_subnormals::fn_t jit_has_subnormals_function() {
 }   // namespace
 
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache), origLayer(op) {
+        : MKLDNNNode(op, eng, cache) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::type_info,
             v0::Constant::type_info,
@@ -287,34 +238,22 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
 
     constant = ConstantType::NoConst;
 
-    auto constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
+    constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
-
-        auto dataPrecision = convertPrecision(op->get_element_type());
-
-        size_t shapeSize = ngraph::shape_size(op->get_shape());
-        constexpr size_t byte_size{8};
-        if (dataPrecision == Precision::BIN) {
-            shapeSize = (shapeSize + (byte_size - 1)) / byte_size;
-        }
-
-        TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
-
-        constBlob = make_blob_with_precision(td, const_cast<void*>(constOp->get_data_ptr()));
-
-        MKLDNNDims dims(op->get_shape().empty() ? ngraph::Shape(1, 1) : op->get_shape());
-
-        cloneBlobIfRequired(dims, dataPrecision);
+        cloneBlobIfRequired();
      }
 }
 
-void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const InferenceEngine::Precision& prec) {
+void MKLDNNInputNode::cloneBlobIfRequired() {
+    MKLDNNDims dims(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
+    const auto prec = convertPrecision(constOp->get_element_type());
+    const size_t size = dims.size();
     MKLDNNMemoryDesc memDesc(dims, MKLDNNExtensionUtils::IEPrecisionToDataType(prec));
 
     auto cloneBlob = [&, this] () {
         MKLDNNMemory memory{ getEngine() };
-        memory.Create(memDesc, constBlob->buffer());
+        memory.Create(memDesc, constOp->get_data_ptr());
 
         MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
         ptr->Create(memDesc);
@@ -324,15 +263,14 @@ void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const Inferenc
     };
 
     auto isBlobAligned = [&, this] () {
-        const void *ptr = constBlob->cbuffer().as<const void*>();
+        const void *ptr = constOp->get_data_ptr();
         return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
     };
 
     // The presence of subnormals is better to determined at IR read time.
     auto hasSubnormals = [&, this] () {
         if (prec == InferenceEngine::Precision::FP32) {
-            uint32_t const *u32data = constBlob->cbuffer().as<const uint32_t*>();
-            const size_t size = constBlob->byteSize() / prec.size();
+            uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
 
             if (!size)
                 return false;
@@ -345,7 +283,7 @@ void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const Inferenc
 
                 parallel_for(iterations_num, [&](int n) {
                     auto ptr = u32data + n * batch_size;
-                    const jit_has_subnormals::args_t args = {
+                    const jit_has_subnormals_base::args_t args = {
                         reinterpret_cast<float const *>(ptr),
                         std::min(batch_size, (size_t)(u32data + size - ptr)),
                         false
@@ -369,24 +307,23 @@ void MKLDNNInputNode::cloneBlobIfRequired(const MKLDNNDims& dims, const Inferenc
         return false;
     };
 
-    auto blobKey = [this] () {
+    auto blobKey = [&, this] () {
         char ptr[32];
-        snprintf(ptr, sizeof ptr, "%p", constBlob->cbuffer().as<const void*>());
+        snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
         return getName()
-                + "_" + std::to_string(constBlob->byteSize())
+                + "_" + std::to_string(size * prec.size())
                 + "_" + ptr;
     };
 
-    const void *data = constBlob->buffer();
-    (void)data;
-
     if (weightCache) {
-        memoryPtr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+        MKLDNNMemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
     } else if (isBlobAligned() && !hasSubnormals()) {
-        memoryPtr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
-        memoryPtr->Create(memDesc, constBlob->buffer());
+        auto ptr = new MKLDNNMemory(getEngine());
+        ptr->Create(memDesc, constOp->get_data_ptr());
+        memoryPtr = MKLDNNMemoryCPtr(ptr);
     } else {
-        memoryPtr = cloneBlob();
+        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(cloneBlob());
     }
 }
 
@@ -407,11 +344,7 @@ void MKLDNNInputNode::withMeanImage() {
     isMeanImage = true;
 }
 
-const InferenceEngine::Blob::CPtr MKLDNNInputNode::getConstBlob() const {
-    return constBlob;
-}
-
-MKLDNNMemoryPtr MKLDNNInputNode::getMemoryPtr() const {
+MKLDNNMemoryCPtr MKLDNNInputNode::getMemoryPtr() const {
     return memoryPtr;
 }
 

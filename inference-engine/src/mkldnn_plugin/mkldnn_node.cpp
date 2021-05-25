@@ -1345,10 +1345,14 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
     shifts.clear();
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
         auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
-        auto constBlob = constInputNode->getConstBlob();
-        auto srtPtr = constBlob->cbuffer().as<int8_t *>();
-        buffer.resize(constBlob->size());
-        cpu_convert(srtPtr, &buffer[0], constBlob->getTensorDesc().getPrecision(), Precision::FP32, constBlob->size());
+        auto constBlob = constInputNode->getMemoryPtr();
+        auto const elementsCount = constBlob->GetElementsCount();
+        buffer.resize(elementsCount);
+        cpu_convert(constBlob->GetPtr(),
+                    &buffer[0],
+                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    Precision::FP32,
+                    elementsCount);
     };
 
     const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
