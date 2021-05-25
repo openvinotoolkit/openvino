@@ -79,6 +79,14 @@ public:
         return outputNodesMap;
     }
 
+    bool hasInputWithName(const std::string& name) const {
+        return inputNodesMap.count(name);
+    }
+
+    bool hasOutputWithName(const std::string& name) const {
+        return outputNodesMap.count(name);
+    }
+
     mkldnn::engine getEngine() const {
         return eng;
     }

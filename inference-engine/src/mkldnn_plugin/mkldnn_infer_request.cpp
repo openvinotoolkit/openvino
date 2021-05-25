@@ -212,10 +212,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
     InferenceEngine::Blob::Ptr data;
 
-    InferenceEngine::BlobMap blobs;
-    graph->getInputBlobs(blobs);
-
-    if (blobs.find(name) != blobs.end()) {
+    if (graph->hasInputWithName(name)) {
+        InferenceEngine::BlobMap blobs;
+        graph->getInputBlobs(blobs);
         // ROI blob is returned only if it was set previously.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
@@ -245,9 +244,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         checkBlob(data, name, true);
     }
 
-    blobs.clear();
-    graph->getOutputBlobs(blobs);
-    if (blobs.find(name) != blobs.end()) {
+    if (graph->hasOutputWithName(name)) {
+        InferenceEngine::BlobMap blobs;
+        graph->getOutputBlobs(blobs);
         if (_outputs.find(name) == _outputs.end()) {
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
