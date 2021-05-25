@@ -122,7 +122,7 @@ class Computation(object):
         out_blob = output_blobs[out_name]
 
         if out_blob.tensor_desc.layout == "SCALAR":
-            return out_blob.buffer[0]
+            return out_blob.buffer.reshape(())
         else:
             return out_blob.buffer
 
