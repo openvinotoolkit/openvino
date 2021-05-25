@@ -448,7 +448,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
     }));
 
     ON_CALL(*net, Export(_)).WillByDefault(Invoke([&] (std::ostream& s) {
-        s << customNumber;
+        s << customNumber << " ";
     }));
 
     {
@@ -1120,7 +1120,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
     }));
 
     ON_CALL(*net, Export(_)).WillByDefault(Invoke([&] (std::ostream& s) {
-        s << customNumber;
+        s << customNumber << " ";
     }));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber()).WillRepeatedly(
             Invoke([&](const CNNNetwork &network, const std::map<std::string, std::string> &config) {
