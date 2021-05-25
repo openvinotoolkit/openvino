@@ -860,7 +860,7 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
-TEST_P(PreprocessDynamicallyInSetBlobTest, FailedToChangeBlobFormatAfterNetworkCompilation) {
+TEST_P(PreprocessDynamicallyInSetBlobTest, Infer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;

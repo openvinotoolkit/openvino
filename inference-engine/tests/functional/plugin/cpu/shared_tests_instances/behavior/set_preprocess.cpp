@@ -129,7 +129,7 @@ namespace {
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(heteroConfigs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessConversionTest,
@@ -157,7 +157,7 @@ namespace {
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(multiConfigs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessConversionTest,
@@ -185,7 +185,7 @@ namespace {
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(autoConfigs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
