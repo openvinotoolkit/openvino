@@ -302,7 +302,7 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const
     case ngraph::element::u32:
     case ngraph::element::u64:
     case ngraph::element::f16:
-    case ngraph::element::f32: hasEvaluate = true;
+    case ngraph::element::f32: hasEvaluate = true; break;
     default: break;
     }
     switch (get_input_element_type(1))
@@ -314,7 +314,7 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const
     case ngraph::element::u8:
     case ngraph::element::u16:
     case ngraph::element::u32:
-    case ngraph::element::u64: hasEvaluate &= true;
+    case ngraph::element::u64: hasEvaluate &= true; break;
     default: break;
     }
     return hasEvaluate;

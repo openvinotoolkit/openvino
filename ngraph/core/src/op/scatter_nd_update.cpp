@@ -111,13 +111,13 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::boolean: hasEvaluate = true;
+    case ngraph::element::boolean: hasEvaluate = true; break;
     default: break;
     }
     switch (get_input_element_type(1))
     {
     case ngraph::element::i32:
-    case ngraph::element::i64: hasEvaluate &= true;
+    case ngraph::element::i64: hasEvaluate &= true; break;
     default: break;
     }
     return hasEvaluate;

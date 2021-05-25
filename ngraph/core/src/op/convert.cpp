@@ -183,6 +183,8 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
 bool op::v0::Convert::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
+
+    bool hasEvaluate = false;
     switch (get_input_element_type(0))
     {
     case ngraph::element::u1:
@@ -199,10 +201,29 @@ bool op::v0::Convert::has_evaluate() const
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::boolean: return true;
-    default: break;
+    case ngraph::element::boolean: hasEvaluate = true; break;
+    default: return false;
     }
-    return false;
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u1:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::boolean: hasEvaluate &= true; break;
+    default: return false;
+    }
+    return hasEvaluate;
 }
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
