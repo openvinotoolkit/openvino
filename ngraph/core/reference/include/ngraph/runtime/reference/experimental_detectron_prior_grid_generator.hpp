@@ -65,22 +65,6 @@ namespace ngraph
                     }
                 }
             }
-
-//             void experimental_detectron_prior_grid_generator(const float* priors,
-//                                                              const Shape& priors_shape,
-//                                                              const Shape& feature_map_shape,
-//                                                              const Shape& im_data_shape,
-//                                                              float* output_rois,
-//                                                              int64_t grid_h,
-//                                                              int64_t grid_w,
-//                                                              float stride_h,
-//                                                              float stride_w);
-//
-//             void experimental_detectron_prior_grid_generator_postprocessing(
-//                 const HostTensorVector& outputs,
-//                 const ngraph::element::Type output_type,
-//                 const std::vector<float>& output_rois,
-//                 const Shape& output_rois_shape);
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
