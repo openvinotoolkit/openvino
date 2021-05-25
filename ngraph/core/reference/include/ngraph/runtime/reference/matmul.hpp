@@ -56,7 +56,7 @@ namespace ngraph
                     }
                 }
 
-                std::vector<size_t> get_transpose_order(const Shape& input_shape)
+                static std::vector<size_t> get_transpose_order(const Shape& input_shape)
                 {
                     size_t rank = input_shape.size();
                     NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
