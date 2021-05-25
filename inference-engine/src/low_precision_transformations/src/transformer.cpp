@@ -259,7 +259,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     return transformer;
 }
 
-bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function>& function) {
+bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<const Function>& function) {
     std::set<std::shared_ptr<Node>> handledNodes;
     std::deque<std::shared_ptr<Node>> nodes;
     for (auto result : function->get_results()) {

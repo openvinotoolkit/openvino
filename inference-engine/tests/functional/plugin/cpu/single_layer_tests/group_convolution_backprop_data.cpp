@@ -4,6 +4,7 @@
 
 #include <shared_test_classes/single_layer/group_convolution_backprop_data.hpp>
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;

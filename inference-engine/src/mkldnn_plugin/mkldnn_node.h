@@ -586,6 +586,10 @@ public:
         return false;
     }
 
+    void setQuantizedGraphFlag(bool flag) {
+        isInQuantizedGraph = flag;
+    }
+
 protected:
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
@@ -651,6 +655,8 @@ protected:
     MKLDNNWeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Undefined;
+
+    bool isInQuantizedGraph = false;
 
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;

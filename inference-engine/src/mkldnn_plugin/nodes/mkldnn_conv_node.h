@@ -62,6 +62,7 @@ private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
+    bool isNspcAvailable() const;
 
     bool withBiases;
     bool withSum;

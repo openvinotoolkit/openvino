@@ -278,7 +278,7 @@ class TRANSFORMATIONS_API LowPrecisionTransformer : public IParamsManager, ILaye
 public:
     static LowPrecisionTransformations getAllTransformations(const LayerTransformation::Params& params = LayerTransformation::Params());
 
-    static bool isFunctionQuantized(const std::shared_ptr<Function>& function);
+    static bool isFunctionQuantized(const std::shared_ptr<const Function>& function);
 
     LowPrecisionTransformer();
     LowPrecisionTransformer(const LowPrecisionTransformations& transformations);

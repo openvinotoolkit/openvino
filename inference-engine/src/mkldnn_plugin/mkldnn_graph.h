@@ -153,6 +153,10 @@ public:
 
     void SortTopologically();
 
+    bool isQuantized() const {
+        return isQuantizedFlag;
+    }
+
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
@@ -184,6 +188,8 @@ protected:
 
     std::map<std::string, MeanImage> _meanImages;
     std::string _name;
+
+    bool isQuantizedFlag = false;
 
     static mkldnn::engine eng;
 
