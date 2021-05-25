@@ -36,20 +36,20 @@ const std::vector<std::vector<size_t>> targetShapesNoBatch = {
 
 const std::vector<std::vector<size_t>> inShapesNightly = {
         {2, 8, 38, 38},
-        {3, 8, 3, 3},
-        {3, 8, 4, 4},
-        {3, 8, 16, 16},
-        {3, 8, 31, 31},
-        {3, 8, 26, 26},
+        {2, 8, 3, 3},
+        {2, 8, 4, 4},
+        {2, 8, 16, 16},
+        {2, 8, 31, 31},
+        {2, 8, 26, 26},
 };
 
 const std::vector<std::vector<size_t>> targetShapesNightly = {
         {2, 8, 38 * 2, 38 * 2},
-        {3, 8, 6, 6},
-        {3, 8, 3, 3},
-        {3, 8, 36, 36},
-        {3, 8, 72, 72},
-        {3, 8, 30, 30},
+        {2, 8, 6, 6},
+        {2, 8, 3, 3},
+        {2, 8, 36, 36},
+        {2, 8, 72, 72},
+        {2, 8, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> inShapes2x = {
