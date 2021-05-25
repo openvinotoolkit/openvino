@@ -254,7 +254,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (it.first == PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector())) {
+            if (isInQuantizedGraph && it.first == PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector())) {
                 convertTo = it.first;
             }
         }
