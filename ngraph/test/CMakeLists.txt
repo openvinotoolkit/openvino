@@ -173,6 +173,7 @@ set(SRC
     type_prop/reduce_l2.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
+    type_prop/result.cpp
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
@@ -256,6 +257,7 @@ set(SRC
     visitors/op/region_yolo.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
+    visitors/op/result.cpp
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
@@ -405,6 +407,7 @@ set(MULTI_TEST_SRC
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
+    backend/result.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roi_pooling.in.cpp
