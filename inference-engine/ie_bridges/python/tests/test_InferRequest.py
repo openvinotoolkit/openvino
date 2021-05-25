@@ -525,14 +525,17 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
+# issue 56653
+@pytest.mark.skip(reason="Test will enable when nGraph Python API allows to create network with memory")
 def test_query_state(device):
     import ngraph as ng
     from ngraph.impl import Function
     input_data = ng.parameter([5, 7], name="input_data", dtype=np.float32)
     rv = ng.read_value(input_data, "var_id_667")
+    #a = ng.add(rv, input_data)
     node = ng.assign(rv, "var_id_667")
-    # res = ng.result(node, "var_id_667")
-    func = Function(node, [input_data], 'test')
+    res = ng.result(rv, "res")
+    func = Function([res], sinks=[node], parameters=[input_data], name='test')
     caps = Function.to_capsule(func)
 
     net = ie.IENetwork(caps)
@@ -540,4 +543,10 @@ def test_query_state(device):
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
     request = exec_net.requests[0]
     mem_states = request.query_state()
-    print("olol")
+    mem_state = mem_states[0]
+    with pytest.raises(ValueError) as e:
+        ones_arr = np.ones(shape=(1, 800), dtype=np.float32)
+        mem_state.state.buffer[:] = ones_arr
+    assert "assignment destination is read-only" in str(e.value)
+    assert mem_state.name == 'id_1'
+    assert mem_state.state.tensor_desc.precision == 'FP32'

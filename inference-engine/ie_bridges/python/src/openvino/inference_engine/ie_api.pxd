@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from .cimport ie_api_impl_defs as C
-from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo, CVariableState
+from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo
 
 import os
 
@@ -13,7 +13,7 @@ from libcpp.memory cimport unique_ptr, shared_ptr
 
 cdef class Blob:
     cdef CBlob.Ptr _ptr
-    cdef CBlob.CPtr _cptr
+    cdef object _is_const
     cdef public object _array_data
     cdef public object _initial_shape
 
@@ -87,4 +87,4 @@ cdef class PreProcessChannel:
     cdef CPreProcessChannel.Ptr _ptr
 
 cdef class VariableState:
-    cdef CVariableState impl
+    cdef C.CVariableState impl

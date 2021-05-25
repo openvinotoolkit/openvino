@@ -38,6 +38,14 @@ struct ProfileInfo {
     unsigned execution_index;
 };
 
+struct CVariableState {
+    InferenceEngine::VariableState variableState;
+    void reset();
+    std::string getName();
+    InferenceEngine::Blob::Ptr getState();
+    void setState(InferenceEngine::Blob::Ptr state);
+};
+
 struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
@@ -123,7 +131,7 @@ struct InferRequestWrap {
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
 
-    std::vector<InferenceEngine::VariableState> queryState();
+    std::vector<InferenceEnginePython::CVariableState> queryState();
 };
 
 struct IEExecNetwork {

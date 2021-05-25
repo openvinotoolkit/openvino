@@ -18,7 +18,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
     cdef cppclass CBlob "InferenceEngine::Blob":
         ctypedef shared_ptr[CBlob] Ptr
-        ctypedef shared_ptr[const CBlob] CPtr
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
@@ -85,12 +84,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         MeanVariant getMeanVariant() const
         void setVariant(const MeanVariant& variant)
 
-    cdef cppclass CVariableState "InferenceEngine::VariableState":
-        void Reset()
-        string GetName() const
-        CBlob.CPtr GetState() const
-        void SetState(CBlob.Ptr state)
-
     ctypedef map[string, InputInfo.CPtr] InputsDataMap
 
     cdef cppclass Precision:
@@ -136,6 +129,12 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
+
+    cdef cppclass CVariableState:
+        void reset()
+        string getName()
+        CBlob.Ptr getState()
+        void setState(CBlob.Ptr state)
 
     cdef cppclass ProfileInfo:
         string status

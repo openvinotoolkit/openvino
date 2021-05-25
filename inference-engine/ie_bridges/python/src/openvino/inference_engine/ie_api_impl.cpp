@@ -390,8 +390,15 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
     request_ptr.SetBatch(size);
 }
 
-std::vector<InferenceEngine::VariableState> InferenceEnginePython::InferRequestWrap::queryState() {
-    return request_ptr.QueryState();
+std::vector<InferenceEnginePython::CVariableState> InferenceEnginePython::InferRequestWrap::queryState() {
+    auto queryStateVec = request_ptr.QueryState();
+    std::vector<InferenceEnginePython::CVariableState> memoryStates;
+    for(const auto& state : queryStateVec) {
+        InferenceEnginePython::CVariableState st;
+        st.variableState = state;
+        memoryStates.push_back(st);
+    }
+    return memoryStates;
 }
 
 
@@ -624,4 +631,21 @@ PyObject* InferenceEnginePython::IECore::getMetric(const std::string& deviceName
 PyObject* InferenceEnginePython::IECore::getConfig(const std::string& deviceName, const std::string& name) {
     InferenceEngine::Parameter param = actual.GetConfig(deviceName, name);
     return parse_parameter(param);
+}
+
+void InferenceEnginePython::CVariableState::reset() {
+    variableState.Reset();
+}
+
+std::string InferenceEnginePython::CVariableState::getName() {
+    return variableState.GetName();
+}
+
+InferenceEngine::Blob::Ptr InferenceEnginePython::CVariableState::getState() {
+    InferenceEngine::Blob::CPtr c_blob = variableState.GetState();
+    return std::const_pointer_cast<InferenceEngine::Blob>(c_blob);
+}
+
+void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr state) {
+    variableState.SetState(state);
 }
