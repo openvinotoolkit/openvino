@@ -12,24 +12,18 @@ The *SpaceToBatch* operation is similar to the TensorFlow* operation [SpaceToBat
 
 The operation is equivalent to the following transformation of the input tensor `data` of shape `[batch, D_1, D_2 ... D_{N - 1}]` and `block_shape`, `pads_begin`, `pads_end` of shapes `[N]` to *Y* output tensor.
 
-Zero-pad the start and end of dimensions [D_0, ..., D_{N - 1}] of the input according to `pads_begin` and `pads_end`
+Zero-pad the start and end of dimensions  \f$[D_0, \dots, D_{N - 1}]\f$ of the input according to `pads_begin` and `pads_end`
 
-note: P_0 for batch dimension is expected to be 0 (no-padding).
-\f[x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}]\f],
-where
-- \f$P_i = pads_begin[i] + pads_end\f$
-
-note: B_0 for batch is ignored.
-
-\f[
-x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, \dots, (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}])\f],
+\f[x = [batch + P_0, D_1 + P_1, D_2 + P_2, \dots, D_{N - 1} + P_{N - 1}]\f],
+\f[x' = reshape(x, [batch, \frac{D_1 + P_1}{B_1}, B_1, \frac{D_2 + P_2}{B_2}, B_2, \dots, \frac{D_{N - 1} + P_{N - 1}}{B_{N - 1}}, B_{N - 1}])\f],
+\f[x'' = transpose(x',  [2, 4, \dots, (N - 1) + (N - 1), 0, 1, 3, \dots, N + (N - 1)])\f],
+\f[y = reshape(x'', [batch \times B_1 \times \dots \times B_{N - 1}, \frac{D_1 + P_1}{B_1}, \frac{D_2 + P_2}{B_2}, \dots, \frac{D_{N - 1} + P_{N - 1}}{B_{N - 1}]}\f]
 
 where
-- \f$B_i = block_shape[i]\f$
-
-\f[x'' = transpose(x',  [2, 4, \dots, (N - 1) + (N - 1), 0, 1, 3, \dots, N + (N - 1)])\f]
-
-\f[y = reshape(x'', [batch * B_1 * \dots * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, \dots , (D_{N - 1} + P_{N - 1}) / B_{N - 1}])\f]
+- \f$P_i\f$ = pads_begin[i] + pads_end
+- \f$B_i\f$ = block_shape[i]
+- \f$P_0\f$ for batch dimension is expected to be 0 (no-padding)
+- \f$B_0\f$ for batch is ignored
 
 **Attributes**
 
