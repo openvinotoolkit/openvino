@@ -916,11 +916,11 @@ namespace
     {
         struct InfoForEDPriorGrid
         {
-            ngraph::element::Type output_type;
-            std::vector<float> priors_data;
-            Shape priors_shape;
-            Shape feature_map_shape;
-            Shape im_data_shape;
+//             ngraph::element::Type output_type;
+//             std::vector<float> priors_data;
+//             Shape priors_shape;
+//             Shape feature_map_shape;
+//             Shape im_data_shape;
             Shape output_shape;
             int64_t grid_h;
             int64_t grid_w;
@@ -979,11 +979,11 @@ namespace
             result.grid_w = attrs.w;
             result.stride_h = attrs.stride_y;
             result.stride_w = attrs.stride_x;
-            result.priors_shape = inputs[priors_port]->get_shape();
-            result.feature_map_shape = inputs[feature_map_port]->get_shape();
-            result.im_data_shape = inputs[im_data_port]->get_shape();
-            result.output_type = prior_grid->get_input_element_type(0);
-            result.priors_data = nms_v5::get_floats(inputs[priors_port], result.priors_shape);
+//             result.priors_shape = inputs[priors_port]->get_shape();
+//             result.feature_map_shape = inputs[feature_map_port]->get_shape();
+//             result.im_data_shape = inputs[im_data_port]->get_shape();
+//             result.output_type = prior_grid->get_input_element_type(0);
+//             result.priors_data = nms_v5::get_floats(inputs[priors_port], result.priors_shape);
 
             auto output_rois_shape = infer_output_shape(inputs, attrs.flatten);
             result.output_shape = output_rois_shape.to_shape();
@@ -999,20 +999,32 @@ namespace
     {
         auto info = experimental_prior_grid::get_info_for_ed_prior_grid_eval(op, inputs);
 
-        std::vector<float> output_rois(shape_size(info.output_shape));
-
-        runtime::reference::experimental_detectron_prior_grid_generator(info.priors_data.data(),
-                                                                        info.priors_shape,
-                                                                        info.feature_map_shape,
-                                                                        info.im_data_shape,
-                                                                        output_rois.data(),
-                                                                        info.grid_h,
-                                                                        info.grid_w,
-                                                                        info.stride_h,
-                                                                        info.stride_w);
-
-        runtime::reference::experimental_detectron_prior_grid_generator_postprocessing(
-            outputs, info.output_type, output_rois, info.output_shape);
+//         std::vector<float> output_rois(shape_size(info.output_shape));
+//
+//         runtime::reference::experimental_detectron_prior_grid_generator(info.priors_data.data(),
+//                                                                         info.priors_shape,
+//                                                                         info.feature_map_shape,
+//                                                                         info.im_data_shape,
+//                                                                         output_rois.data(),
+//                                                                         info.grid_h,
+//                                                                         info.grid_w,
+//                                                                         info.stride_h,
+//                                                                         info.stride_w);
+//
+//         runtime::reference::experimental_detectron_prior_grid_generator_postprocessing(
+//             outputs, info.output_type, output_rois, info.output_shape);
+        using T = typename element_type_traits<ET>::value_type;
+        outputs[0]->set_shape(info.output_shape);
+        runtime::reference::experimental_detectron_prior_grid_generator<T>(
+            inputs[priors_port]->get_data_ptr<const T>(),
+            inputs[priors_port]->get_shape(),
+            inputs[feature_map_port]->get_shape(),
+            inputs[im_data_port]->get_shape(),
+            outputs[0]->get_data_ptr<T>(),
+            info.grid_h,
+            info.grid_w,
+            info.stride_h,
+            info.stride_w);
 
         return true;
     }
