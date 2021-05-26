@@ -6,7 +6,7 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <ie_version.hpp>
-#include <ie_plugin_cpp.hpp>
+#include <cpp/ie_plugin.hpp>
 
 #include <cpp/ie_infer_async_request_base.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
@@ -60,7 +60,9 @@ protected:
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
+        IE_SUPPRESS_DEPRECATED_START
         ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(InferenceEngine::CNNNetwork(mockNotEmptyNet), {}));
+        IE_SUPPRESS_DEPRECATED_END
         ASSERT_NO_THROW(request = exeNetwork->CreateInferRequest());
     }
 };
@@ -169,12 +171,6 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
 }
 
 
-TEST(InferencePluginTests, throwsOnNullptrCreation) {
-    InferenceEnginePluginPtr nulptr;
-    InferencePlugin plugin;
-    ASSERT_THROW(plugin = InferencePlugin(nulptr), Exception);
-}
-
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;
     ASSERT_THROW(plg.GetVersion(), Exception);
@@ -198,9 +194,4 @@ TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
 TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
     InferencePlugin plg;
     ASSERT_THROW(plg.SetConfig({{}}), Exception);
-}
-
-TEST(InferencePluginTests, nothrowsUninitializedCast) {
-    InferencePlugin plg;
-    ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }

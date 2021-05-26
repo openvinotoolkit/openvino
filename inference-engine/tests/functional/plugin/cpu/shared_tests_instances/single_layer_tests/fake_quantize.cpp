@@ -89,4 +89,27 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> inputShapesPerChannel2D = {{1, 10}};
+const std::vector<std::vector<size_t>> constShapesPerChannel2D = { {10}, {1, 10}, {1} };
+const auto fqParamsPerChannel2D = ::testing::Combine(
+    ::testing::ValuesIn(levels),
+    ::testing::ValuesIn(constShapesPerChannel2D),
+    ::testing::Values(fqArgs),
+    ::testing::Values(inputParams)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
+    ::testing::Combine(
+        fqParamsPerChannel2D,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inputShapesPerChannel2D),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(config)),
+    FakeQuantizeLayerTest::getTestCaseName);
+
 }  // namespace
