@@ -478,11 +478,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (zeroPointsConstant == nullptr)
                     IE_THROW() << "Cannot cast to Input node";
 
-                auto zeroPointsBlob = dynamic_cast<const TBlob<uint8_t>*>(zeroPointsConstant->getConstBlob().get());
+                auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
                 if (zeroPointsBlob == nullptr)
                     IE_THROW() << "Cannot cast to TBlob internal zero points blob";
 
-                auto zeroPointsData = zeroPointsBlob->cbuffer().as<uint8_t*>();
+                auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
                 if (zeroPointsData == nullptr)
                     IE_THROW() << "zeroPointsBlob has not allocated buffer";
 
@@ -515,11 +515,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         if (!weightsConstant || !weightsConstant->isConstant())
             return;
 
-        auto weightsBlob = dynamic_cast<const TBlob<int8_t>*>(weightsConstant->getConstBlob().get());
+        auto weightsBlob = weightsConstant->getMemoryPtr();
         if (weightsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-        auto weightsPtr = weightsBlob->cbuffer().as<int8_t*>();
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetPtr());
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 

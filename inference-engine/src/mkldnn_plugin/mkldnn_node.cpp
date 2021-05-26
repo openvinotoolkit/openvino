@@ -367,10 +367,10 @@ bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const
 }
 
 void MKLDNNNode::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority());
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
 }
 
-void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority) {
+void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -383,6 +383,13 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
                 for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
                     auto parentEdge = getParentEdgeAt(j);
                     auto parentPtr = parentEdge->getParent();
+
+                    // We don't take into account constant edges since reorders on them will be executed on load network stage
+                    if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                        equalsLocalFormatCount++;
+                        continue;
+                    }
+
                     auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
 
                     if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
@@ -1338,10 +1345,14 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
     shifts.clear();
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
         auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
-        auto constBlob = constInputNode->getConstBlob();
-        auto srtPtr = constBlob->cbuffer().as<int8_t *>();
-        buffer.resize(constBlob->size());
-        cpu_convert(srtPtr, &buffer[0], constBlob->getTensorDesc().getPrecision(), Precision::FP32, constBlob->size());
+        auto constBlob = constInputNode->getMemoryPtr();
+        auto const elementsCount = constBlob->GetElementsCount();
+        buffer.resize(elementsCount);
+        cpu_convert(constBlob->GetPtr(),
+                    &buffer[0],
+                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    Precision::FP32,
+                    elementsCount);
     };
 
     const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;

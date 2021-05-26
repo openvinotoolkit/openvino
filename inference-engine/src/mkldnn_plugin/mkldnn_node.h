@@ -364,13 +364,13 @@ public:
         this->fusingPort = fusingPort;
     }
 
-    const std::string getName() const {
+    const std::string &getName() const {
         return name;
     }
 
     void addOriginalLayer(const std::string& layerName);
 
-    const std::string getOriginalLayers() const {
+    const std::string &getOriginalLayers() const {
         return originalLayers;
     }
 
@@ -665,7 +665,7 @@ protected:
 
     bool isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const;
     bool isInitConfig(const InferenceEngine::LayerConfig& config) const;
-    virtual void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority);
+    void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();

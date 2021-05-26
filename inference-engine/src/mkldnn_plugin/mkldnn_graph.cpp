@@ -572,7 +572,12 @@ void MKLDNNGraph::AllocateWithReuse() {
         for (auto &edge : cluster) {
             if (edge->getStatus() == MKLDNNEdge::Status::NeedAllocation
                 && edge->getParent()->isConstant()) {
-                edge->externalAllocate(weightsCache);
+                if (edge->getParent()->getType() == Input) {
+                    auto constNode = std::static_pointer_cast<MKLDNNInputNode>(edge->getParent());
+                    edge->reuse(std::const_pointer_cast<MKLDNNMemory>(constNode->getMemoryPtr()));
+                } else {
+                    edge->externalAllocate(weightsCache);
+                }
                 erase = true;
             }
         }
