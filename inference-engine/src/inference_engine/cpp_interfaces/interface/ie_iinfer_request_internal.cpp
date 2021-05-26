@@ -100,9 +100,9 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         }
         // ilavreno: this condition is valid for most plugins except MYRIAD
         // it is able to perform layout conversion for output blob dynamically
-        if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user output layout";
-        }
+        // if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
+        //     IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user output layout";
+        // }
         _outputs[name] = userBlob;
     }
 }
