@@ -365,7 +365,7 @@ Note that in many cases, you can directly share the (input) data with the Infere
 
 The general approach for sharing data between Inference Engine and media/graphics APIs like Intel&reg; Media Server Studio (Intel&reg; MSS) is based on sharing the *system* memory.  That is, in your code, you should map or copy the data from the API to the CPU address space first.
 
-For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onevpl.htm). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for `SetBlob`:
+For Intel® Media SDK, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onevpl.htm). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for `SetBlob`:
 
 @snippet snippets/dldt_optimization_guide2.cpp part2
 
@@ -373,7 +373,7 @@ Using the `InferenceEngine::NHWC` layout:
 
 @snippet snippets/dldt_optimization_guide3.cpp part3
 
-Alternatively, you can use an RGBP (planar RGB) output from Intel MSS. This allows you to wrap the (locked) result as regular NCHW. Then you can use it with `SetBlob` just like in the previous example:
+Alternatively, you can use an RGBP (planar RGB) output from Intel® Media SDK. This allows you to wrap the (locked) result as regular NCHW. Then you can use it with `SetBlob` just like in the previous example:
 
 @snippet snippets/dldt_optimization_guide4.cpp part4
 
