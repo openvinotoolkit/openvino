@@ -69,12 +69,6 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
     return p.returncode, stdout, stderr
 
 
-def softmax(val, axis=-1):
-    """ compute the softmax of the given tensor, normalizing on axis """
-    exp = np.exp(val - np.amax(val, axis=axis, keepdims=True))
-    return exp / np.sum(exp, axis=axis, keepdims=True)
-
-
 def allclose(cur_array, ref_array, atol, rtol):
     """
     Comparison of abs_diff and rel_diff with tolerances for every values of corresponding elements.
