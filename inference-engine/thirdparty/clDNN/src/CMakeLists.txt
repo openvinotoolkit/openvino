@@ -74,14 +74,6 @@ file(GLOB __CLDNN_Sources__gpu
     "${__CLDNN_Directory__gpu}/*.inc"
   )
 
-set(__CLDNN_Directory__gpu_runtime     "${CMAKE_CURRENT_SOURCE_DIR}/runtime")
-set(__CLDNN_Label__gpu_runtime         "runtime")
-file(GLOB __CLDNN_Sources__gpu_runtime
-    "${__CLDNN_Directory__gpu_runtime}/*.h"
-    "${__CLDNN_Directory__gpu_runtime}/*.hpp"
-    "${__CLDNN_Directory__gpu_runtime}/*.cpp"
-  )
-
 set(__CLDNN_Directory__cache           "${__CLDNN_Directory__gpu}/cache")
 set(__CLDNN_Label__cache               "${__CLDNN_Label__gpu}\\cache")
 file(GLOB __CLDNN_Sources__cache
@@ -113,7 +105,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Headers__include}
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__gpu}
-    ${__CLDNN_Sources__gpu_runtime}
     ${__CLDNN_Sources__cache}
     ${__CLDNN_Sources__ch_kernels}
     ${__CLDNN_Sources__cg_cache}
@@ -128,7 +119,6 @@ source_group("${__CLDNN_Label__include}"              FILES ${__CLDNN_Headers__i
 source_group("${__CLDNN_Label__graph_opt}"            FILES ${__CLDNN_Sources__graph_opt})
 source_group("${__CLDNN_Label__main}"                 FILES ${__CLDNN_Sources__main})
 source_group("${__CLDNN_Label__gpu}"                  FILES ${__CLDNN_Sources__gpu})
-source_group("${__CLDNN_Label__gpu_runtime}"          FILES ${__CLDNN_Sources__gpu_runtime})
 source_group("${__CLDNN_Label__cache}"                FILES ${__CLDNN_Sources__cache})
 source_group("${__CLDNN_Label__ch_kernels}"           FILES ${__CLDNN_Sources__ch_kernels})
 source_group("${__CLDNN_Label__cg_cache}"             FILES ${__CLDNN_Sources__cg_cache})
