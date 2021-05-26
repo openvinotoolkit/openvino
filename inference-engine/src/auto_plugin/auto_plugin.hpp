@@ -74,7 +74,8 @@ private:
     }
 
 private:
-    static thread_local ConfigType _autoConfig;
+    // it seems we have to use pointer due to this bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
+    static thread_local std::unique_ptr<ConfigType> _autoConfig;
 };
 
 }  // namespace AutoPlugin

@@ -45,7 +45,7 @@ namespace {
     }
 }  // namespace
 
-thread_local ConfigType AutoInferencePlugin::_autoConfig = {};
+thread_local std::unique_ptr<ConfigType> AutoInferencePlugin::_autoConfig = nullptr;
 
 AutoInferencePlugin::AutoInferencePlugin() {
     _pluginName = "AUTO";
@@ -115,7 +115,7 @@ void AutoInferencePlugin::SetConfig(const ConfigType& config) {
     for (auto && kvp : config) {
         _config[kvp.first] = kvp.second;
     }
-    _autoConfig = config;
+    _autoConfig.reset(new ConfigType(config));
 }
 
 IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
@@ -184,8 +184,8 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() cons
     // FIXME: workaround to get devicelist.
     std::unordered_set<std::string> capabilities;
     std::vector<std::string> queryDeviceLists{"CPU", "GPU"};
-    auto deviceListConfig = _autoConfig.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
-    if (deviceListConfig != _autoConfig.end()) {
+    auto deviceListConfig = _autoConfig->find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    if (deviceListConfig != _autoConfig->end()) {
         queryDeviceLists = IE::DeviceIDParser::getHeteroDevices(deviceListConfig->second);
     }
 
@@ -262,7 +262,7 @@ ConfigType AutoInferencePlugin::mergeConfigs(ConfigType config, const ConfigType
     for (auto && kvp : local) {
         config[kvp.first] = kvp.second;
     }
-    _autoConfig = config;
+    _autoConfig.reset(new ConfigType(config));
     return config;
 }
 
