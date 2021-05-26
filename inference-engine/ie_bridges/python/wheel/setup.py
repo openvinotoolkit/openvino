@@ -13,6 +13,7 @@ from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
+from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -78,7 +79,7 @@ LIB_INSTALL_CFG = {
         'name': 'tbb',
         'prefix': 'libs.tbb',
         'install_dir': TBB_LIBS_DIR,
-        'rpath': LIBS_RPATH
+        'rpath': LIBS_RPATH,
     },
 }
 
@@ -86,12 +87,12 @@ PY_INSTALL_CFG = {
     'ie_py': {
         'name': PYTHON_VERSION,
         'prefix': 'site-packages',
-        'install_dir': PY_PACKAGES_DIR
+        'install_dir': PY_PACKAGES_DIR,
     },
     'ngraph_py': {
         'name': f'pyngraph_{PYTHON_VERSION}',
         'prefix': 'site-packages',
-        'install_dir': PY_PACKAGES_DIR
+        'install_dir': PY_PACKAGES_DIR,
      },
 }
 
@@ -230,7 +231,7 @@ def set_rpath(rpath, executable):
     rpath_tool = ''
     with open(os.path.realpath(executable), 'rb') as file:
         if file.read(1) != b'\x7f':
-            print(f'WARNING: {executable}: missed ELF header')
+            log.warn(f'WARNING: {executable}: missed ELF header')
             return
     if sys.platform == 'linux':
         rpath_tool = 'patchelf'
