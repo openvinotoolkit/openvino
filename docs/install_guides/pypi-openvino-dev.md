@@ -89,7 +89,7 @@ To install and configure the components of the development package for working w
 | DL Framework                                                                     | Extra                          |
 | :------------------------------------------------------------------------------- | :-------------------------------|
 |   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Caffe* 2](https://caffe2.ai/)                                                 | caffe2                          |
+|   [Caffe2*](https://caffe2.ai/)                                                 | caffe2                          |
 |   [Kaldi*](https://kaldi-asr.org/)                                               | kaldi                           |
 |   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
 |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
