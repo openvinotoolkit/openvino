@@ -27,6 +27,7 @@
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
@@ -2073,6 +2074,23 @@ namespace
         {
             return false;
         }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        size_t max_rois = op->get_max_rois();
+        outputs[0]->set_shape(Shape{max_rois, 4});
+        runtime::reference::experimental_detectron_topk_rois<T>(inputs[0]->get_data_ptr<const T>(),
+                                                                inputs[1]->get_data_ptr<const T>(),
+                                                                inputs[0]->get_shape(),
+                                                                inputs[1]->get_shape(),
+                                                                max_rois,
+                                                                outputs[0]->get_data_ptr<T>());
         return true;
     }
 
