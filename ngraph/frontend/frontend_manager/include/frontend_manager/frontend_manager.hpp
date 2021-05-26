@@ -291,16 +291,16 @@ namespace ngraph
             /// \param outputPortIndex Index of input port for this operation
             /// \return Place representing input port of operation
             virtual Place::Ptr
-                get_place_by_operation_and_input_port(const std::string& operationName,
-                                                      int inputPortIndex);
+                get_place_by_operation_name_and_input_port(const std::string& operationName,
+                                                           int inputPortIndex);
 
             /// \brief Returns an output port place by operation name and appropriate port index
             /// \param operationNameNname of operation
             /// \param outputPortIndex Index of output port for this operation
             /// \return Place representing output port of operation
             virtual Place::Ptr
-                get_place_by_operation_and_output_port(const std::string& operationName,
-                                                       int outputPortIndex);
+                get_place_by_operation_name_and_output_port(const std::string& operationName,
+                                                            int outputPortIndex);
 
             ///// Naming and annotation  /////
 

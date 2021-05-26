@@ -205,16 +205,16 @@ Place::Ptr InputModel::get_place_by_operation_name(const std::string& operationN
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
 }
 
-Place::Ptr InputModel::get_place_by_operation_and_input_port(const std::string& operationName,
-                                                             int inputPortIndex)
+Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operationName,
+                                                                  int inputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_input_port);
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
 }
 
-Place::Ptr InputModel::get_place_by_operation_and_output_port(const std::string& operationName,
-                                                              int outputPortIndex)
+Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operationName,
+                                                                   int outputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_output_port);
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
 }
 
 void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& newName)

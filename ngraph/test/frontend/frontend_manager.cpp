@@ -118,8 +118,8 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
     ASSERT_ANY_THROW(im->extract_subgraph({nullptr}, {nullptr}));
     ASSERT_ANY_THROW(im->get_place_by_tensor_name(""));
     ASSERT_ANY_THROW(im->get_place_by_operation_name(""));
-    ASSERT_ANY_THROW(im->get_place_by_operation_and_input_port("", 0));
-    ASSERT_ANY_THROW(im->get_place_by_operation_and_output_port("", 0));
+    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_input_port("", 0));
+    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_output_port("", 0));
     ASSERT_ANY_THROW(im->set_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->add_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->set_name_for_operation(nullptr, ""));
