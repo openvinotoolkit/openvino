@@ -1,7 +1,6 @@
 # Speech Recognition Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
 
 This sample demonstrates how to do inference of acoustic model based on Kaldi* neural networks and speech feature vectors using Synchronous Inference Request API.  
-Models with only 1 input and output are supported.
 
 The following Inference Engine Python API is used in the application:
 
@@ -62,8 +61,6 @@ Thereby, it is possible to avoid the cost of full model quantization at run time
 In addition to performing inference directly from a GNA model file, these options make it possible to:
 
 - Convert from IR format to GNA format model file (`-m`, `-wg`)
-- Convert from IR format to embedded format model file (`-m`, `-we`)
-- Convert from GNA format to embedded format model file (`-rg`, `-we`)
 
 ## Running
 
@@ -79,7 +76,8 @@ Usage message:
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
                         [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
                         [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
-                        [-wg EXPORT_GNA_MODEL] [-oname OUTPUT_LAYERS]
+                        [-wg EXPORT_GNA_MODEL] [-iname INPUT_LAYERS]
+                        [-oname OUTPUT_LAYERS]
 
 optional arguments:
   -m MODEL, --model MODEL
@@ -112,6 +110,10 @@ Options:
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
+  -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
+                        Optional. Layer names for input blobs. The names are
+                        separated with ",". Allows to change the order of
+                        input layers for -i flag. Example: Input1,Input2
   -oname OUTPUT_LAYERS, --output_layers OUTPUT_LAYERS
                         Optional. Layer names for output blobs. The names are
                         separated with ",". Allows to change the order of
