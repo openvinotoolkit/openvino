@@ -297,7 +297,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     endif()
 
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS ON)
+    set(BUILD_SHARED_LIBS OFF)
 
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
