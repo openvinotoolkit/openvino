@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+from typing import Callable, List, Dict
 
 import numpy as np
 
 from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 
 
 class MarkNodesWithShapeValues(BackReplacementPattern):
@@ -34,7 +35,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
         return []
 
     @staticmethod
-    def get_operations_with_shape_inputs():
+    def get_shape_accepting_ops() -> Dict[str, List]:
         return {
             'Interpolate': [1, 2],  # sizes, scales inputs
             'Reshape': [1],  # shape
@@ -52,18 +53,21 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
             'OneHot': [1],  # depth input
         }
 
-    def find_and_replace_pattern(self, graph: Graph):
-        shape_input_ops_map = self.get_operations_with_shape_inputs()
-
-        nodes_with_shape_inputs = []
+    @staticmethod
+    def get_nodes_with_shape_inputs(graph: Graph) -> List[Node]:
+        shape_accepting_ops = MarkNodesWithShapeValues.get_shape_accepting_ops()
+        shape_accepting_nodes = []
         for node in graph.get_op_nodes():
-            if node.soft_get('type') in shape_input_ops_map:
-                nodes_with_shape_inputs.append(node)
+            if node.soft_get('type') in shape_accepting_ops:
+                shape_accepting_nodes.append(node)
+        return shape_accepting_nodes
 
-        condition = lambda node: node.soft_get('type') != 'ShapeOf'
-        start_nodes = []
+    @staticmethod
+    def get_sources_for_nodes(nodes_with_shape_inputs: List[Node], condition: Callable) -> List[Node]:
+        shape_accepting_ops = MarkNodesWithShapeValues.get_shape_accepting_ops()
+        sources = []
         for node in nodes_with_shape_inputs:
-            for port_idx in shape_input_ops_map[node.soft_get('type')]:
+            for port_idx in shape_accepting_ops[node.soft_get('type')]:
                 if not node.is_in_port_connected(port_idx):
                     continue
 
@@ -71,14 +75,25 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                 if not condition(source_node):
                     continue
 
-                start_nodes.append(source_node)
+                sources.append(source_node)
+        return sources
 
-        nodes_with_shape_values = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, set(), condition, forward=False)
-        for node in nodes_with_shape_values:
+    @staticmethod
+    def mark_nodes(shape_returning_nodes: List[Node]):
+        for node in shape_returning_nodes:
             node['returns_shape_value'] = True
             if node.soft_get('type') == 'Const':
                 if node.value.dtype == np.float32:
                     node.out_node(0)['correct_data_type'] = True
                 elif node.value.dtype in [np.float16, np.float64]:
-                    log.debug('Const nodes {} with shape values have {} type'.format(node.soft_get('name', node.id),
-                                                                                     node.value.dtype))
+                    log.debug('Const nodes {} with shape returning values have {} type'.
+                              format(node.soft_get('name', node.id), node.value.dtype))
+
+    def find_and_replace_pattern(self, graph: Graph):
+        shape_accepting_nodes = self.get_nodes_with_shape_inputs(graph)
+
+        condition = lambda node: node.soft_get('type') != 'ShapeOf'
+        sources_of_shape_accepting_nodes = self.get_sources_for_nodes(shape_accepting_nodes, condition)
+        shape_returning_nodes = MarkSubGraphsWithCorrectLayout.bfs(sources_of_shape_accepting_nodes, set(),
+                                                                   condition, forward=False)
+        self.mark_nodes(shape_returning_nodes)
