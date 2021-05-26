@@ -136,7 +136,7 @@ git clone https://github.com/dbolya/yolact
 git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 ```
 
-**Step 2**. Download a pretrained model, for example `yolact_base_54_800000.pth`.
+**Step 2**. Download a pre-trained model, for example `yolact_base_54_800000.pth`.
 
 **Step 3**. Export the model to ONNX* format.
 

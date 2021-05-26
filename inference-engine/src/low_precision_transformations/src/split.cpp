@@ -83,14 +83,20 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<DequantizationMultiply>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(parent, splitedMul[i]);
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
         lastNodes.push_back(multiply);
         replacement.push_back(multiply);
     }
 
-    replace_node(split, replacement);
+    for (size_t i = 0ul; i < newSplit->get_output_size(); ++i) {
+        for (auto input : split->output(i).get_target_inputs()) {
+            input.replace_source_output(replacement[i]);
+        }
+    }
+
     updateOutputs(context, lastNodes, newSplit);
     return true;
 }
@@ -110,10 +116,8 @@ void SplitTransformation::updateOutputs(
                 std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
                 std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
                 if (outputNode.get() == lastNode.get()) {
-                    std::ostringstream oss;
-                    oss << i;
                     originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-                    lastNode->set_friendly_name(originalName + "." + oss.str());
+                    lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                     break;
                 }
             }

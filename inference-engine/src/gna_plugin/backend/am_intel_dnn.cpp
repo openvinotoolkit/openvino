@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <cmath>
+#include <iostream>
 #include <set>
 #include <string>
 #include <algorithm>
@@ -1735,8 +1736,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 outputTensor.Shape.Dimensions[beginOfHInNHWC + dimHW] =
                                     outputFromPooling(outFromConv, poolWindow->Dimensions[beginOfHInHW + dimHW], poolStride->Dimensions[beginOfHInHW + dimHW]);
                             }
-                            AdvanceOperationIfAllApplied(component, i, gnaOperation);
                         }
+                        AdvanceOperationIfAllApplied(component, i, gnaOperation);
                     }
 #else
                 } else if (pLayer->nLayerKind == INTEL_CONVOLUTIONAL) {
@@ -1783,7 +1784,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         || (component[i - 1].operation == kDnnConvolutional1dOp)
                         || (component[i - 1].operation == kDnnConvolutional2dOp)
                         || ((component[i - 1].operation == kDnnMaxPoolOp) &&
-                        (component[i - 2].operation == kDnnConvolutional1dOp))) {
+                        (component[i - 2].operation == kDnnConvolutional1dOp || component[i - 2].operation == kDnnConvolutional2dOp))) {
                         if (gnaOperation->Operands[PwlOpIdx] == nullptr) {
                             HelperGna2OperationSetOperand(gnaOperation, gnaUserAllocator, gnaUserFree, PwlOpIdx, createGna2TensorPwl(1, nullptr));
                         }

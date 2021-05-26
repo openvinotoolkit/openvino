@@ -22,7 +22,7 @@ namespace InferenceEngine {
 IInferRequestInternal::~IInferRequestInternal() {}
 
 IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) {
-    // // We should copy maps since they can be overriden in SetBlob with preprocess
+    // We should copy maps since they can be overriden in SetBlob with preprocess
     copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
 }
 
@@ -321,5 +321,13 @@ void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Bl
     // Stores the given blob as ROI blob. It will be used to fill in network input
     // during pre-processing
     preproc_ptr->setRoiBlob(from);
+}
+
+void* IInferRequestInternal::GetUserData() noexcept {
+    return _userData;
+}
+
+void IInferRequestInternal::SetUserData(void* userData) noexcept {
+    _userData = userData;
 }
 }  // namespace InferenceEngine

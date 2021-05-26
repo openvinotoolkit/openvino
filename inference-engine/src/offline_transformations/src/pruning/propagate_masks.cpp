@@ -29,7 +29,7 @@ class ngraph::pass::mask_propagation::Convolution : public MatcherPass {
 public:
     Convolution() {
         auto input = pattern::any_input();
-        auto weights = pattern::any_input();
+        auto weights = pattern::any_input(pattern::has_static_shape());
         auto conv = pattern::wrap_type<opset6::Convolution>({input, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -92,8 +92,8 @@ public:
 class ngraph::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
     GroupConvolution() {
-        auto input = pattern::any_input();
-        auto weights = pattern::any_input();
+        auto input = pattern::any_input(pattern::has_static_dim(1));
+        auto weights = pattern::any_input(pattern::has_static_shape());
         auto group_conv = pattern::wrap_type<opset6::GroupConvolution>({input, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -104,9 +104,9 @@ public:
 
             // TODO: check static rank in pattern, use only particular dims
             auto weights_shape = m_weights.get_shape();
-            auto input_shape = m_input.get_shape();
+            auto input_shape = m_input.get_partial_shape();
             // support only depthwise convolutions
-            if (weights_shape[0] != input_shape[1]) {
+            if (weights_shape[0] != static_cast<size_t>(input_shape[1].get_length())) {
                 return false;
             }
 
@@ -137,7 +137,7 @@ public:
             }
 
             // Update output channels mask dims
-            auto conv_mask = std::make_shared<Mask>(input_shape.size());
+            auto conv_mask = std::make_shared<Mask>(input_shape.rank().get_length());
 
             conv_mask->add_callback([weights_mask](Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(1) = weights_mask->at(0);

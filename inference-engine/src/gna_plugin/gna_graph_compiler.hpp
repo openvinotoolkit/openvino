@@ -52,7 +52,7 @@ private:
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
 
-    const GNALimitations::Cnn2D::Validator cnn2dValidator;
+    static const GNALimitations::Cnn2D::Validator cnn2dValidator;
 
 public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
@@ -127,6 +127,7 @@ public:
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
+    void GemmPrimitive(InferenceEngine::CNNLayerPtr);
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 
 namespace LayerTestsDefinitions {
@@ -57,7 +56,6 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
 }
 
 void PriorBoxClusteredLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
         inPrc, outPrc, inLayout, outLayout,
