@@ -97,10 +97,17 @@ protected:
 
 };
 
-FuncTestUtils::TestModel::TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc);
-const FuncTestUtils::TestModel::TestModel convReluNormPoolFcModelFP32 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP32);
-const FuncTestUtils::TestModel::TestModel convReluNormPoolFcModelFP16 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP16);
-const FuncTestUtils::TestModel::TestModel convReluNormPoolFcModelQ78 = getConvReluNormPoolFcModel(InferenceEngine::Precision::Q78);
+class TestModel {
+public:
+    std::string model_xml_str;
+    InferenceEngine::Blob::Ptr weights_blob;
+    TestModel(const std::string &model, const InferenceEngine::Blob::Ptr &weights) : model_xml_str(model) , weights_blob(weights) {}
+};
+
+TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc);
+const TestModel convReluNormPoolFcModelFP32 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP32);
+const TestModel convReluNormPoolFcModelFP16 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP16);
+const TestModel convReluNormPoolFcModelQ78 = getConvReluNormPoolFcModel(InferenceEngine::Precision::Q78);
 
 class FPGAHangingTest : public BehaviorPluginTest {
 };

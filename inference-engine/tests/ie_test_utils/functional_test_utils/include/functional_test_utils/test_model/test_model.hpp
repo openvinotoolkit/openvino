@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include <legacy/ie_layers.h>
 #include "inference_engine.hpp"
 
 namespace FuncTestUtils {
@@ -25,16 +24,6 @@ void generateTestModel(const std::string &modelPath,
                        const std::string &weightsPath,
                        const InferenceEngine::Precision &netPrc = InferenceEngine::Precision::FP32,
                        const InferenceEngine::SizeVector &inputDims = {1, 3, 227, 227});
-
-class TestModel {
-public:
-    std::string model_xml_str;
-    InferenceEngine::Blob::Ptr weights_blob;
-    TestModel(const std::string &model, const InferenceEngine::Blob::Ptr &weights) : model_xml_str(model) , weights_blob(weights) {}
-};
-
-TestModel getModelWithMemory(InferenceEngine::Precision netPrc);
-TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPrc);
 
 const char incorrect_input_name[] = "incorrect_input_name";
 

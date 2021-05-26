@@ -11,7 +11,6 @@
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
 

@@ -128,7 +128,7 @@ std::string getRawConvReluNormPoolFcModel() {
 )V0G0N");
 }
 
-FuncTestUtils::TestModel::TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc) {
+TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc) {
     std::string model_str = getRawConvReluNormPoolFcModel();
     /* Default values for FP16 are used */
     size_t convWeigthsLen = 5808;  // kernel_x * kernel_y * in_channels * out_channels
@@ -164,6 +164,6 @@ FuncTestUtils::TestModel::TestModel getConvReluNormPoolFcModel(InferenceEngine::
     REPLACE_WITH_NUM(model_str, "_FC_WS_", fcWeigthsSize);
     REPLACE_WITH_NUM(model_str, "_FC_B_OFFS_", convWeigthsSize + convBiasesSize + fcWeigthsSize);
     REPLACE_WITH_NUM(model_str, "_FC_BS_", fcBiasesSize);
-    return FuncTestUtils::TestModel::TestModel(model_str, CommonTestUtils::getWeightsBlob(
+    return TestModel(model_str, CommonTestUtils::getWeightsBlob(
             convWeigthsSize + convBiasesSize + fcWeigthsSize + fcBiasesSize));
 }
