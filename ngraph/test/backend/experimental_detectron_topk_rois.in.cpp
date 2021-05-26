@@ -54,3 +54,35 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval)
 
     ASSERT_TRUE(test::all_close_f(read_vector<float>(topk_rois_output), expected_result));
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval_2)
+{
+    size_t num_rois = 2;
+
+    const auto input_rois_shape = Shape{4, 4};
+    const auto input_probs_shape = Shape{4};
+    const auto output_shape = Shape{2, 4};
+
+    auto input_rois = std::make_shared<op::Parameter>(element::f32, input_rois_shape);
+    auto input_probs = std::make_shared<op::Parameter>(element::f32, input_probs_shape);
+    auto topk_rois = std::make_shared<ExperimentalTopK>(input_rois, input_probs, num_rois);
+    auto f = std::make_shared<Function>(topk_rois, ParameterVector{input_rois, input_probs});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto topk_rois_output = backend->create_tensor(element::f32, output_shape);
+
+    std::vector<float> input_rois_data = {1.0f,  1.0f,  4.0f,  5.0f,  3.0f,  2.0f,  7.0f,  9.0f,
+                                          10.0f, 15.0f, 13.0f, 17.0f, 13.0f, 10.0f, 18.0f, 15.0f};
+    std::vector<float> input_probs_data = {0.1f, 0.7f, 0.5f, 0.9f};
+    std::vector<float> expected_result = {13.0f, 10.0f, 18.0f, 15.0f, 3.0f, 2.0f, 7.0f, 9.0f};
+
+    auto backend_input_rois_data = backend->create_tensor(element::f32, input_rois_shape);
+    copy_data(backend_input_rois_data, input_rois_data);
+    auto backend_input_probs_data = backend->create_tensor(element::f32, input_probs_shape);
+    copy_data(backend_input_probs_data, input_probs_data);
+
+    auto handle = backend->compile(f);
+    handle->call({topk_rois_output}, {backend_input_rois_data, backend_input_probs_data});
+
+    ASSERT_TRUE(test::all_close_f(read_vector<float>(topk_rois_output), expected_result));
+}
