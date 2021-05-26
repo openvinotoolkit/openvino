@@ -951,7 +951,7 @@ TEST_P(PreprocessDynamicallyInSetBlobTest, Infer) {
 
     if (setOutputBlob) {
         recreateOutputBlob(outBlob);
-        if (changeOPrecision || changeOLayout) {
+        if (changeOPrecision) {
             ASSERT_THROW(req.SetBlob("relu", outBlob), InferenceEngine::ParameterMismatch);
             // fallback
             outBlob = req.GetBlob("relu");
