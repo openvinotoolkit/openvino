@@ -15,6 +15,7 @@
 #include "caseless.hpp"
 #include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
+#include "ie_ngraph_utils.hpp"
 
 #include "legacy/ie_util_internal.hpp"
 #include "legacy/cnn_network_impl.hpp"
@@ -150,12 +151,12 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IELegacy_LT, "cloneNetwork");
 
-    IE_SUPPRESS_DEPRECATED_START
     if (network.getFunction()) {
-        return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
+        return InferenceEngine::details::cloneNetwork(network);
     }
 
-    return CNNNetwork(cloneNet(network));
+    IE_SUPPRESS_DEPRECATED_START
+    return CNNNetwork(InferenceEngine::cloneNet(network));
     IE_SUPPRESS_DEPRECATED_END
 }
 
