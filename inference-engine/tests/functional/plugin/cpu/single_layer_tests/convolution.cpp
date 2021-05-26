@@ -150,7 +150,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
         // eltwise
         fusingRelu,
-        fusingPRelu1D,
+        // fusingPRelu1D,
         // depthwise
         fusingReluScaleShift,
         // fake quantize
