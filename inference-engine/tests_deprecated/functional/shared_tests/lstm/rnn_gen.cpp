@@ -5,7 +5,7 @@
 #include "rnn_gen.hpp"
 #include "rnn_referee.hpp"
 #include "rnn_util.hpp"
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 #include <ie_core.hpp>
 
 #include <vector>
