@@ -263,14 +263,12 @@ void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
     int MB = batchToProcess();
 
     if (isOptimized) {
-        const auto precision = getParentEdgeAt(0)->getDesc().getPrecision();
+        const size_t dataSize = getParentEdgeAt(0)->getDesc().getPrecision().size();
         TransposeContext ctx = {this, srcMemPtr, dstMemPtr, MB};
-        OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, precision,
-                  OV_CASE(InferenceEngine::Precision::FP32, float),
-                  OV_CASE(InferenceEngine::Precision::I32, int32_t),
-                  OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
-                  OV_CASE(InferenceEngine::Precision::I8, int8_t),
-                  OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+        OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, dataSize,
+                  OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),
+                  OV_CASE(2, PrecisionTrait<Precision::U16>::value_type),
+                  OV_CASE(4, PrecisionTrait<Precision::I32>::value_type));
 
         return;
     }
