@@ -66,6 +66,8 @@ public:
     int getInputNum();
     int getOutputNum();
 
+    void setChildPort(const size_t port) { child_port = port; }
+
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;

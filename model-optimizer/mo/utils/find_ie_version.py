@@ -89,7 +89,8 @@ def find_ie_version(silent=False):
                 os.path.join(script_path, '../../../inference_engine/bin/intel64/Release'),
                 os.path.join(script_path, '../../../inference_engine/external/tbb/bin'),
                 os.path.join(script_path, '../../../ngraph/lib'),
-            ]
+            ],
+            "condition": lambda: sys.platform == "windows"
         },
         # Linux / Darwin
         {
@@ -98,7 +99,8 @@ def find_ie_version(silent=False):
                 os.path.join(script_path, '../../../inference_engine/lib/intel64'),
                 os.path.join(script_path, '../../../inference_engine/external/tbb/lib'),
                 os.path.join(script_path, '../../../ngraph/lib'),
-            ]
+            ],
+            "condition": lambda: sys.platform != "windows"
         },
         # Local builds
         {
@@ -124,6 +126,8 @@ def find_ie_version(silent=False):
     for item in bindings_paths:
         module = item['module']
         if not os.path.exists(module):
+            continue
+        if "condition" in item and not item["condition"]():
             continue
         if try_to_import_ie(module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
             return True
