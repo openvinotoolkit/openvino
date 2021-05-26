@@ -219,4 +219,27 @@ namespace ngraph
              {"bidirectional", op::RecurrentSequenceDirection::BIDIRECTIONAL}});
         return enum_names;
     }
+
+    NGRAPH_API
+    constexpr DiscreteTypeInfo AttributeAdapter<op::MemoryTransformation>::type_info;
+
+    std::ostream& op::operator<<(std::ostream& s, const op::MemoryTransformation& transformation)
+    {
+        return s << as_string(transformation);
+    }
+
+    template <>
+    NGRAPH_API EnumNames<op::MemoryTransformation>&
+    EnumNames<op::MemoryTransformation>::get()
+    {
+        static auto enum_names = EnumNames<op::MemoryTransformation>(
+                "op::MemoryTransformation",
+                {{"none", op::MemoryTransformation::NONE},
+                 {"low_latency", op::MemoryTransformation::LOW_LATENCY},
+                 {"low_latency_regular_api", op::MemoryTransformation::LOW_LATENCY_REGULAR_API},
+                 {"low_latency_v2", op::MemoryTransformation::LOW_LATENCY_V2},
+                 {"low_latency_v2_regular_api", op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API}}
+                 );
+        return enum_names;
+    }
 } // namespace ngraph

@@ -7,6 +7,15 @@
 
 namespace SubgraphTestsDefinitions {
 namespace {
+
+std::vector<ngraph::op::MemoryTransformation> transformation {
+        ngraph::op::MemoryTransformation::NONE,
+        ngraph::op::MemoryTransformation::LOW_LATENCY,
+        ngraph::op::MemoryTransformation::LOW_LATENCY_REGULAR_API,
+        ngraph::op::MemoryTransformation::LOW_LATENCY_V2,
+        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
+};
+
 std::vector<size_t> input_sizes = {
     80,
     32,
@@ -31,6 +40,7 @@ std::map<std::string, std::string> additional_config = {
 
 INSTANTIATE_TEST_CASE_P(MultipleLSTMCellTest, MultipleLSTMCellTest,
     ::testing::Combine(
+        ::testing::ValuesIn(transformation),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(input_sizes),

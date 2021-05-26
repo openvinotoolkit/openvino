@@ -53,4 +53,5 @@ namespace InferenceEngine {
  * *
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
+INFERENCE_ENGINE_API_CPP(void) LowLatency_v2(InferenceEngine::CNNNetwork& network);
 } // namespace InferenceEngine
