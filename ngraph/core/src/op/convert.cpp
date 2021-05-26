@@ -184,7 +184,6 @@ bool op::v0::Convert::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
 
-    bool hasEvaluate = false;
     switch (get_input_element_type(0))
     {
     case ngraph::element::u1:
@@ -201,7 +200,7 @@ bool op::v0::Convert::has_evaluate() const
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::boolean: hasEvaluate = true; break;
+    case ngraph::element::boolean: break;
     default: return false;
     }
     switch (get_output_element_type(0))
@@ -220,10 +219,10 @@ bool op::v0::Convert::has_evaluate() const
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::boolean: hasEvaluate &= true; break;
+    case ngraph::element::boolean: break;
     default: return false;
     }
-    return hasEvaluate;
+    return true;
 }
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
