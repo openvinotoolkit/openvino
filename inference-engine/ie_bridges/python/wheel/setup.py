@@ -167,8 +167,6 @@ class PrepareLibs(build_clib):
             self.announce(f'Adding {WHEEL_LIBS_PACKAGE} package', level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ['*']})
-            packages.append(f'{WHEEL_LIBS_PACKAGE}.vpu_custom_kernels')
-            package_data.update({f'{WHEEL_LIBS_PACKAGE}.vpu_custom_kernels': ['*']})
 
 
 class CopyExt(build_ext):
