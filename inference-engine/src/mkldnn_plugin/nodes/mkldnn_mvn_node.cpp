@@ -703,12 +703,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
-            || acrossChannels_ || !normalizeVariance_) {
-        if (!isFloatCompatible(inputPrecision)) {
-            inputPrecision = Precision::FP32;
-        }
-    }
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)

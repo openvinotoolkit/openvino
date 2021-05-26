@@ -91,6 +91,7 @@ const std::vector<std::vector<size_t>> inputShapes_2D = {
 const std::vector<std::vector<size_t>> inputShapes_3D = {
         {1, 32, 17},
         {1, 37, 9},
+        {1, 16, 4},
 };
 
 const std::vector<std::vector<size_t>> inputShapes_4D = {
@@ -127,7 +128,8 @@ const std::vector<double> epsilon = {
         0.000000001
 };
 
-std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
+std::vector<Precision> inpPrc = {Precision::I8, Precision::BF16, Precision::FP32};
+std::vector<Precision> outPrc = {Precision::FP32};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -151,8 +153,8 @@ const auto Mvn1D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
 
@@ -166,10 +168,11 @@ const auto Mvn2D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
+
 
 const auto Mvn3D = ::testing::Combine(
         ::testing::Combine(
@@ -181,8 +184,8 @@ const auto Mvn3D = ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
@@ -196,8 +199,8 @@ const auto Mvn4D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
 
@@ -211,8 +214,8 @@ const auto Mvn5D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
 
@@ -240,10 +243,11 @@ const auto Mvn2DFuse = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_2D_Fuse, MvnLayerCPUTest, Mvn2DFuse, MvnLayerCPUTest::getTestCaseName);
+
 
 const auto Mvn3DFuse = ::testing::Combine(
         ::testing::Combine(
@@ -255,8 +259,8 @@ const auto Mvn3DFuse = ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_3D_Fuse, MvnLayerCPUTest, Mvn3DFuse, MvnLayerCPUTest::getTestCaseName);
 
@@ -270,8 +274,8 @@ const auto Mvn4DFuse = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_Fuse, MvnLayerCPUTest, Mvn4DFuse, MvnLayerCPUTest::getTestCaseName);
 
@@ -285,8 +289,8 @@ const auto Mvn5DFuse = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
+        ::testing::ValuesIn(inpPrc),
+        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_Fuse, MvnLayerCPUTest, Mvn5DFuse, MvnLayerCPUTest::getTestCaseName);
 
