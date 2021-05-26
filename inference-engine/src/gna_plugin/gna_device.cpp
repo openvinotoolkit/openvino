@@ -96,9 +96,6 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
-void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    wait(propagate(requestConfigId, gna2AccelerationMode));
-}
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
