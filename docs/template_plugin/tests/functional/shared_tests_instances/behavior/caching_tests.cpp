@@ -7,14 +7,19 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-static const std::vector<ngraph::element::Type> precisionsTemplate = {
-    ngraph::element::f32,
-};
+    static const std::vector<ngraph::element::Type> precisionsTemplate = {
+            ngraph::element::f32,
+    };
 
-static const std::vector<std::size_t> batchSizesTemplate = {1, 2};
+    static const std::vector<std::size_t> batchSizesTemplate = {
+            1, 2
+    };
 
-INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_Template, LoadNetworkCacheTestBase,
-                        ::testing::Combine(::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()), ::testing::ValuesIn(precisionsTemplate),
-                                           ::testing::ValuesIn(batchSizesTemplate), ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
-                        LoadNetworkCacheTestBase::getTestCaseName);
-}  // namespace
+    INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_Template, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsTemplate),
+                                    ::testing::ValuesIn(batchSizesTemplate),
+                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+} // namespace

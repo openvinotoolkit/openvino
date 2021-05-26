@@ -90,6 +90,20 @@ namespace {
                                 ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
 
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::ValuesIn(configs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
@@ -103,6 +117,20 @@ namespace {
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                 ::testing::ValuesIn(heteroConfigs)),
                         PreprocessConversionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::ValuesIn(heteroConfigs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
@@ -118,6 +146,20 @@ namespace {
                                 ::testing::ValuesIn(multiConfigs)),
                         PreprocessConversionTest::getTestCaseName);
 
+    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::ValuesIn(multiConfigs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
@@ -131,5 +173,19 @@ namespace {
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(autoConfigs)),
                         PreprocessConversionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(autoConfigs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace

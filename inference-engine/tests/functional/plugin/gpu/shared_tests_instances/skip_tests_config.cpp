@@ -22,6 +22,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
+            R"(.*(PreprocessDynamicallyInSetBlobTest).*)",
             // TODO: Issue: 51764
             ".*PreprocessConversionTest.*",
             // TODO: Issue: 41462
