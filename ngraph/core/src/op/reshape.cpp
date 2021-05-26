@@ -48,11 +48,6 @@ namespace reshapeop
                                 const PartialShape& input_pshape,
                                 vector<Dimension>& output_shape)
     {
-        if (reshape_pattern == std::vector<Dimension>{0} && !reshape_node->get_special_zero())
-        {
-            output_shape = {0};
-            return;
-        }
         Dimension output_product(1);
         for (int64_t i = 0; i < static_cast<int64_t>(reshape_pattern.size()); ++i)
         {
