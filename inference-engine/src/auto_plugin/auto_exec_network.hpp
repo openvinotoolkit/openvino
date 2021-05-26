@@ -47,9 +47,10 @@ private:
 
     InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
     AutoPlugin::NetworkPromiseSharedPtr _networkPromiseActualNeeded;
-    AutoPlugin::NetworkFuture futureActualNetwork; // for requests
+    AutoPlugin::NetworkFuture _futureActualNetwork; // for requests
+    std::atomic<bool> _anyRequestHasHotSwapped = {false};
     void wait_for_actual_device() const {
-        // _networkActualNeeded = _networkPromiseActualNeeded->get_future().get();
+        //        _networkActualNeeded = _futureActualNetwork.share().get();
         // todo : catch the st std::future_error / std::future_errc::promise_already_satisfied
         // todo: make the two members above volatile to keep this method const
     }
