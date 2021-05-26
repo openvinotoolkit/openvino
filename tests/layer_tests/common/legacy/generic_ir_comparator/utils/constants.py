@@ -16,6 +16,5 @@ else:
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
-caffe_models_path = os.path.join(out_path, 'caffe_models')
 tf_models_path = os.path.join(out_path, 'tf_models')
-ir_path = os.path.join(out_path, 'ir')
+

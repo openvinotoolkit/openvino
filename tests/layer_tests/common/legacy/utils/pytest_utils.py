@@ -7,7 +7,7 @@ from _pytest.mark import Mark, MarkDecorator
 
 """Mark generator to specify pytest marks in tests in common format
 :param target_runner: name of the runner for which required to specify pytest mark (e.g. "test_run")
-:param pytest_mark: pytest mark (e.g. "skip", "xfail") or any another mark (e.g. "caffe2")
+:param pytest_mark: pytest mark (e.g. "skip", "xfail") or any another mark (e.g. "onnx")
 :param is_simple_mark: bool value to split pytest marks and another marks
 """
 mark = namedtuple("mark", ("pytest_mark", "target_runner", "is_simple_mark"))
@@ -39,21 +39,6 @@ def skip(reason):
     return pytest.mark.skip(True, reason=reason), reason
 
 
-def skip_if(expr, reason):
-    """Generate skip marker if expr returns True.
-
-    :param expr: expression to be tested
-
-    :param reason: reason why marker is generated
-
-    :return: pytest marker
-    """
-    if expr:
-        return skip(reason)
-    else:
-        return None, None
-
-
 def xfail(reason, regexps="", match_mode="any"):
     """Generate xfail marker.
 
@@ -67,22 +52,6 @@ def xfail(reason, regexps="", match_mode="any"):
     mark = XFailMarkWrapper(regexps=regexps, match_mode=match_mode,
                             args=(True,), kwargs={"reason": reason, "strict": True})
     return MarkDecorator(mark=mark), reason
-
-
-def xfail_if(expr, reason, regexps="", match_mode="any"):
-    """Generate xfail marker if expr returns True.
-
-    :param expr: expression to be tested
-    :param reason: reason why marker is generated
-    :param regexps: see "xfail" function defined above
-    :param match_mode: see "xfail" function defined above
-
-    :return: pytest marker
-    """
-    if expr:
-        return xfail(reason, regexps, match_mode)
-    else:
-        return None, None
 
 
 def timeout(seconds, reason):
@@ -105,8 +74,3 @@ def warning(reason):
     :return: pytest marker
     """
     return pytest.mark.warning(reason), reason
-
-
-def timeout_error_filter(err, *args):
-    """Filter function for pytest flaky plugin for restarting only test where TimeoutError was raised"""
-    return issubclass(err[0], TimeoutError)

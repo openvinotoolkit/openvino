@@ -4,7 +4,6 @@ import platform
 import signal
 import sys
 import traceback
-from logging.handlers import QueueHandler
 from multiprocessing import Process, Queue, TimeoutError, ProcessError
 from queue import Empty as QueueEmpty
 from typing import Callable, Union
@@ -25,10 +24,6 @@ def _mp_wrapped_func(func: Callable, func_args: list, queue: Queue, logger_queue
     :param logger_queue: multiprocessing.Queue(). Used for getting logs from child process in parent process
     :return:
     """
-
-    # Remove all handlers from root logger in child process in favor of `QueueHandler`
-    # to prevent double console logs in stdout
-    log.getLogger().handlers = [QueueHandler(logger_queue)]
 
     error_message = ""
     res = None

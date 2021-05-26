@@ -9,26 +9,16 @@ import numpy as np
 from common.legacy.generic_ir_comparator.IR import IR
 from common.legacy.generic_ir_comparator.layers import *
 
+
 try:
     import constants
 except (SystemError, ImportError):
     constants = None
 
 try:
-    import caffe
-except ImportError:
-    caffe = None
-
-try:
     import tensorflow as tf
 except ImportError:
     tf = None
-
-try:
-    import mxnet as mx
-except ImportError:
-    mx = None
-
 
 class Network:
     def __init__(self, name='network', precision='FP32'):
@@ -207,26 +197,6 @@ class Network:
                 outputs.append(u.get_name())
         return outputs
 
-    def save_caffemodel(self, path=None, input_layer=None):
-        if not path:
-            path = constants.caffe_models_path
-        if not os.path.exists(path):
-            os.mkdir(path)
-        inputs = tuple(sorted(self.get_inputs(), key=lambda i: i.name))
-        nodes = self.get_children_proto(inputs)
-        nodes_str = '\n'.join(nodes)
-        proto_file = '{}.prototxt'.format(os.path.join(path, self.name))
-        caffe_file = '{}.caffemodel'.format(os.path.join(path, self.name))
-        with open(proto_file, 'w') as file:
-            file.write('name: "{}"\n'.format(self.name))
-            file.write(nodes_str)
-        net = caffe.Net(proto_file, caffe.TEST)
-        if not input_layer:
-            input_layer = net.inputs[0]
-        input_shape = net.blobs[input_layer].shape
-        net.blobs[input_layer].data[...] = np.random.rand(*input_shape).squeeze()
-        net.save(caffe_file)
-
     def get_children_proto(self, inputs, v=None):
         nodes = []
         t = set()
@@ -346,17 +316,6 @@ class Network:
                     self.add_node_to_tf_graph(edge[1], edge_inputs_set.pop(), tf_graph_inputs)
                 else:
                     self.add_node_to_tf_graph(edge[1], edge_inputs_set, tf_graph_inputs)
-
-    def generate_mxnet_model(self, path=None):
-        if not path:
-            path = constants.tf_models_path
-
-        if not os.path.exists(path):
-            os.mkdir(path)
-
-        topology, params = self.create_topology()
-        topology.save(os.path.join(path, self.name + "-symbol.json"))
-        mx.nd.save(os.path.join(path, self.name + "-0000.params"), params)
 
     def create_topology(self):
         # sort topology edges by levels

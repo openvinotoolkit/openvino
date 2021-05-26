@@ -1,12 +1,10 @@
 import os
-import traceback
+import re
+
 import tensorflow as tf
 import numpy as np
 import cv2
-import re
-from distutils.version import LooseVersion
 
-from common.legacy.utils.pytest_utils import skip_if
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -37,20 +35,7 @@ def load_graph(model_file, output_nodes_for_freeze=None):
     return graph
 
 
-def preprocess_image(image_path, input_shape=(1, 224, 224, 3), scale=1, mean=0, flip=False):
-    if flip:
-        img = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
-    else:
-        img = cv2.imread(image_path)
-    img = cv2.resize(img, (input_shape[1], input_shape[2]))
-    img = img - mean
-    img = img / scale
-    img = np.expand_dims(img, axis=0)
-    img = img.astype(np.float32)
-    return img
-
-
-def collect_tf_references(model_path, feed_dict, out_layer, output_nodes_for_freeze=None, mean_mode='no_mean'):
+def collect_tf_references(model_path, feed_dict, out_layer, output_nodes_for_freeze=None):
     t = dict()
     """t[inputs] = read_tensor_from_image_file(image, input_height=input_shape[1], input_width=input_shape[2],
                                                 input_mean=0, input_std=scale)"""
