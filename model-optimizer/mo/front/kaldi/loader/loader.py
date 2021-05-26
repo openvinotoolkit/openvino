@@ -151,6 +151,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
                        kind='op',
                        layer_i=layer_i,
                        layer_o=layer_o)
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
@@ -280,6 +282,8 @@ def load_components(file_descr, graph, component_layer_map=None):
                            parameters=get_parameters(file_descr, start_index, end_index),
                            op=component_type,
                            kind='op')
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         all_components.append(layer_id)
         log.debug('{} (type is {}) was loaded'.format(layer_id, component_type))

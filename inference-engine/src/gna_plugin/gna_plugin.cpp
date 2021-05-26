@@ -705,7 +705,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
+    IE_SUPPRESS_DEPRECATED_END
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
@@ -764,6 +766,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
+        passes->registerPass<BroadcastConstPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
@@ -771,7 +774,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
-        passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
 

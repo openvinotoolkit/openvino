@@ -33,6 +33,8 @@
 namespace InferenceEngine {
 namespace details {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief Ngraph-based implementation of the ICNNNetwork interface.
  */
@@ -107,5 +109,8 @@ private:
     void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
     void validateFunctionNames() const;
 };
+
+IE_SUPPRESS_DEPRECATED_END
+
 }  // namespace details
 }  // namespace InferenceEngine
