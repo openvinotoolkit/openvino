@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::NonZero::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg)
     : Op({arg})

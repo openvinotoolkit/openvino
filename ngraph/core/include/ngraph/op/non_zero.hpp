@@ -23,8 +23,7 @@ namespace ngraph
             class NGRAPH_API NonZero : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"NonZero", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a NonZero operation.
                 NonZero() = default;
                 /// \brief Constructs a NonZero operation.
