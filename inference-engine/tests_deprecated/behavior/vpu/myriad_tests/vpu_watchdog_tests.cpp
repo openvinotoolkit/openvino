@@ -191,7 +191,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -229,7 +229,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
