@@ -35,6 +35,7 @@ private:
     DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
+    static ConfigType _autoConfig;
 
     template <typename T>
     std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
@@ -72,9 +73,5 @@ private:
 
         return impl;
     }
-
-private:
-    static thread_local ConfigType _autoConfig;
 };
-
 }  // namespace AutoPlugin
