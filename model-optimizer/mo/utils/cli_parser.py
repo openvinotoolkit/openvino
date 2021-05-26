@@ -416,6 +416,15 @@ def get_onnx_cli_options():
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
 
+def get_params_with_paths_list():
+    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'transformations_config']
+
+
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     """
     Specifies cli arguments for Model Optimizer for Caffe*
@@ -1234,12 +1243,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1252,7 +1264,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)

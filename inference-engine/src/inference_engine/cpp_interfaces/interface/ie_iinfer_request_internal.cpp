@@ -22,7 +22,7 @@ namespace InferenceEngine {
 IInferRequestInternal::~IInferRequestInternal() {}
 
 IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) {
-    // // We should copy maps since they can be overriden in SetBlob with preprocess
+    // We should copy maps since they can be overriden in SetBlob with preprocess
     copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
 }
 
@@ -61,6 +61,8 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     DataPtr foundOutput;
     size_t dataSize = userBlob->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        // ilavreno: the condition below is obsolete, but we need an exact list of precisions
+        // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user input precision";
         }
@@ -96,6 +98,11 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user output precision";
         }
+        // ilavreno: this condition is valid for most plugins except MYRIAD
+        // it is able to perform layout conversion for output blob dynamically
+        // if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
+        //     IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user output layout";
+        // }
         _outputs[name] = userBlob;
     }
 }
