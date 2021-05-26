@@ -12,11 +12,7 @@
     if (_impl == nullptr) IE_THROW(NotAllocated) << "VariableState was not initialized.";          \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        IE_THROW() << ex.what();                                                                   \
-    } catch (...) {                                                                                \
-        IE_THROW(Unexpected);                                                                      \
-    }
+    } catch(...) {details::Rethrow();}
 
 namespace InferenceEngine {
 
