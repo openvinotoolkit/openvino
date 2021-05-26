@@ -93,7 +93,7 @@ PY_INSTALL_CFG = {
         'name': f'pyngraph_{PYTHON_VERSION}',
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
-     },
+    },
 }
 
 
