@@ -75,82 +75,152 @@ namespace ngraph
 
             /// \brief Returns references to all operation nodes that consume data from this place
             /// \note It can be called for any kind of graph place searching for the first consuming
-            /// operations.
-            ///
-            /// \param outputPortIndex If place is an operational node it specifies which output
-            /// port should be considered. It is optional if place has only one output port
+            /// operations. It is optional if place has only one output port
             ///
             /// \return A vector with all operation node references that consumes data from this
             /// place
-            virtual std::vector<Ptr> get_consuming_operations(int outputPortIndex = -1) const;
+            virtual std::vector<Ptr> get_consuming_operations() const;
+
+            /// \brief Returns references to all operation nodes that consume data from this place
+            /// for specified output port
+            ///
+            /// \note It can be called for any kind of graph place searching for the first consuming
+            /// operations.
+            ///
+            /// \param outputPortIndex If place is an operational node it specifies which output
+            /// port should be considered.
+            ///
+            /// \return A vector with all operation node references that consumes data from this
+            /// place
+            virtual std::vector<Ptr> get_consuming_operations(int outputPortIndex) const;
+
+            /// \brief Returns a tensor place that gets data from this place; applicable for
+            /// operations, output ports and output edges which have only one output port
+            ///
+            /// \return A tensor place which hold the resulting value for this place
+            virtual Ptr get_target_tensor() const;
 
             /// \brief Returns a tensor place that gets data from this place; applicable for
             /// operations, output ports and output edges
             ///
             /// \param outputPortIndex Output port index if the current place is an operation node
-            /// and has multiple output ports. It is optional if place has only one output port
+            /// and has multiple output ports
             ///
             /// \return A tensor place which hold the resulting value for this place
-            virtual Ptr get_target_tensor(int outputPortIndex = -1) const;
+            virtual Ptr get_target_tensor(int outputPortIndex) const;
+
+            /// \brief Returns a tensor place that supplies data for this place; applicable for
+            /// operations, input ports and input edges which have only one input port
+            ///
+            /// \return A tensor place which supplies data for this place
+            virtual Ptr get_source_tensor() const;
 
             /// \brief Returns a tensor place that supplies data for this place; applicable for
             /// operations, input ports and input edges
             ///
-            /// \param inputPortIndex Input port index for operational nodes. It is optional if
-            /// place has only one input port
+            /// \param inputPortIndex Input port index for operational nodes.
+            ///
             /// \return A tensor place which supplies data for this place
-            virtual Ptr get_source_tensor(int inputPortIndex = -1) const;
+            virtual Ptr get_source_tensor(int inputPortIndex) const;
+
+            /// \brief Get an operation node place that immediately produces data for this place;
+            /// applicable if place has only one input port
+            ///
+            /// \return An operation place that produces data for this place
+            virtual Ptr get_producing_operation() const;
 
             /// \brief Get an operation node place that immediately produces data for this place
             ///
             /// \param inputPortIndex If a given place is itself an operation node, this specifies a
-            /// port index. It is optional if place has only one input port
+            /// port index
             ///
             /// \return An operation place that produces data for this place
-            virtual Ptr get_producing_operation(int inputPortIndex = -1) const;
+            virtual Ptr get_producing_operation(int inputPortIndex) const;
 
             /// Returns a port that produces data for this place
             virtual Ptr get_producing_port() const;
 
-            /// For operation node returns reference to an input port with specified index
-            /// \param inputPortIndex Input port index. It is optional if place has only one input
-            /// port
-            virtual Ptr get_input_port(int inputPortIndex = -1) const;
+            /// \brief For operation node returns reference to an input port; applicable if
+            /// operation node has only one input port
+            ///
+            /// \return Input port place
+            virtual Ptr get_input_port() const;
 
-            /// For operation node returns reference to an input port with specified name and index
+            /// \brief For operation node returns reference to an input port with specified index
+            ///
+            /// \param inputPortIndex Input port index
+            ///
+            /// \return Appropriate input port place
+            virtual Ptr get_input_port(int inputPortIndex) const;
+
+            /// \brief For operation node returns reference to an input port with specified name;
+            /// applicable if port group has only one input port
+            ///
+            /// \param inputName Name of port group
+            ///
+            /// \return Appropriate input port place
+            virtual Ptr get_input_port(const std::string& inputName) const;
+
+            /// \brief For operation node returns reference to an input port with specified name and
+            /// index
+            ///
             /// \param inputName Name of port group, each group can have multiple ports
-            /// \param inputPortIndex Input port index. It is optional if port group has only one
-            /// input port
-            virtual Ptr get_input_port(const std::string& inputName, int inputPortIndex = -1) const;
+            ///
+            /// \param inputPortIndex Input port index in a group
+            ///
+            /// \return Appropriate input port place
+            virtual Ptr get_input_port(const std::string& inputName, int inputPortIndex) const;
 
-            /// For operation node returns reference to an output port with specified index
-            /// \param outputPortIndex Output port index. It is optional if place has only one
-            /// output port
-            virtual Ptr get_output_port(int outputPortIndex = -1) const;
+            /// \brief For operation node returns reference to an output port; applicable for
+            /// operations with only one output port
+            ///
+            /// \return Appropriate output port place
+            virtual Ptr get_output_port() const;
 
-            /// For operation node returns reference to an output port with specified name and index
+            /// \brief For operation node returns reference to an output port with specified index
+            ///
+            /// \param outputPortIndex Output port index
+            ///
+            /// \return Appropriate output port place
+            virtual Ptr get_output_port(int outputPortIndex) const;
+
+            /// \brief For operation node returns reference to an output port with specified name;
+            /// applicable if port group has only one output port
+            ///
+            /// \param outputName Name of output port group
+            ///
+            /// \return Appropriate output port place
+            virtual Ptr get_output_port(const std::string& outputName) const;
+
+            /// \brief For operation node returns reference to an output port with specified name
+            /// and index
+            ///
             /// \param outputName Name of output port group, each group can have multiple ports
-            /// \param outputPortIndex Output port index. It is optional if port group has only one
-            /// output port
-            virtual Ptr get_output_port(const std::string& outputName,
-                                        int outputPortIndex = -1) const;
+            ///
+            /// \param outputPortIndex Output port index
+            ///
+            /// \return Appropriate output port place
+            virtual Ptr get_output_port(const std::string& outputName, int outputPortIndex) const;
 
-            /// Returns all input ports that consume data flows through this place
+            /// \brief Returns all input ports that consume data flows through this place
             virtual std::vector<Place::Ptr> get_consuming_ports() const;
 
-            /// Returns true if this place is input for a model.
+            /// \brief Returns true if this place is input for a model.
             virtual bool is_input() const;
 
-            /// Returns true if this place is output for a model.
+            /// \brief Returns true if this place is output for a model.
             virtual bool is_output() const;
 
-            /// Returns true if another place is the same as this place.
+            /// \brief Returns true if another place is the same as this place.
+            ///
             /// \param another Another place object
             virtual bool is_equal(Ptr another) const;
 
             /// \brief Returns true if another place points to the same data.
+            ///
             /// \note The same data means all places on path: output port -> output edge -> tensor
             /// -> input edge -> input port.
+            ///
             /// \param another Another place object
             virtual bool is_equal_data(Ptr another) const;
         };
@@ -462,24 +532,40 @@ namespace ngraph
         class FRONTEND_API FrontEndManager final
         {
         public:
+            /// \brief Default constructor. Searches and loads of available frontends
             FrontEndManager();
 
+            /// \brief Default move constructor
+            FrontEndManager(FrontEndManager&&);
+
+            /// \brief Default move assignment operator
+            FrontEndManager& operator=(FrontEndManager&&);
+
+            /// \brief Default destructor
             ~FrontEndManager();
 
             /// \brief Loads frontend by name of framework and capabilities
+            ///
             /// \param framework Framework name. Throws exception if name is not in list of
-            /// available frontends \param fec Frontend capabilities. It is recommended to use only
+            /// available frontends
+            ///
+            /// \param fec Frontend capabilities. It is recommended to use only
             /// those capabilities which are needed to minimize load time
+            ///
             /// \return Frontend interface for further loading of models
             FrontEnd::Ptr
                 load_by_framework(const std::string& framework,
                                   FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
 
             /// \brief Loads frontend by model file path. Selects and loads appropriate frontend
-            /// depending on model file extension and other file info (header) \param framework
+            /// depending on model file extension and other file info (header)
+            ///
+            /// \param framework
             /// Framework name. Throws exception if name is not in list of available frontends
+            ///
             /// \param fec Frontend capabilities. It is recommended to use only those capabilities
             /// which are needed to minimize load time
+            ///
             /// \return Frontend interface for further loading of model
             FrontEnd::Ptr load_by_model(const std::string& path,
                                         FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
@@ -488,6 +574,11 @@ namespace ngraph
             std::vector<std::string> get_available_front_ends() const;
 
             /// \brief Register frontend with name and factory creation method
+            ///
+            /// \param name Name of front end
+            ///
+            /// \param creator Creation factory callback. Will be called when frontend is about to
+            /// be created
             void register_front_end(const std::string& name, FrontEndFactory creator);
 
         private:

@@ -97,6 +97,9 @@ FrontEndManager::FrontEndManager()
 {
 }
 
+FrontEndManager::FrontEndManager(FrontEndManager&&) = default;
+FrontEndManager& FrontEndManager::operator=(FrontEndManager&&) = default;
+
 FrontEndManager::~FrontEndManager() = default;
 
 FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework, FrontEndCapFlags fec)
@@ -316,14 +319,29 @@ std::vector<std::string> Place::get_names() const
     FRONT_END_NOT_IMPLEMENTED(get_names);
 }
 
+std::vector<Place::Ptr> Place::get_consuming_operations() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
+}
+
 std::vector<Place::Ptr> Place::get_consuming_operations(int outputPortIndex) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
 
+Place::Ptr Place::get_target_tensor() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
 Place::Ptr Place::get_target_tensor(int outputPortIndex) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
+Place::Ptr Place::get_producing_operation() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
 }
 
 Place::Ptr Place::get_producing_operation(int inputPortIndex) const
@@ -336,7 +354,17 @@ Place::Ptr Place::get_producing_port() const
     FRONT_END_NOT_IMPLEMENTED(get_producing_port);
 }
 
+Place::Ptr Place::get_input_port() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+}
+
 Place::Ptr Place::get_input_port(int inputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+}
+
+Place::Ptr Place::get_input_port(const std::string& inputName) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
@@ -346,7 +374,17 @@ Place::Ptr Place::get_input_port(const std::string& inputName, int inputPortInde
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
 
+Place::Ptr Place::get_output_port() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+}
+
 Place::Ptr Place::get_output_port(int outputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+}
+
+Place::Ptr Place::get_output_port(const std::string& outputName) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
@@ -379,6 +417,11 @@ bool Place::is_equal(Ptr another) const
 bool Place::is_equal_data(Ptr another) const
 {
     FRONT_END_NOT_IMPLEMENTED(is_equal_data);
+}
+
+Place::Ptr Place::get_source_tensor() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
 }
 
 Place::Ptr Place::get_source_tensor(int inputPortIndex) const
