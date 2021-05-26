@@ -54,7 +54,8 @@ namespace prelu
                                   slope->get_data_ptr<ET>(),
                                   out->get_data_ptr<ET>(),
                                   arg->get_shape(),
-                                  slope->get_shape());
+                                  slope->get_shape(),
+                                  out->get_shape());
         return true;
     }
 
