@@ -186,7 +186,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_broadcast_slope)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_a, {-1, -100, -1, -100}); // 2021.3 result
-    // test_case.add_expected_output<float>(shape_a, {-1, -1, -100, -100}); // 2021.3 master
     test_case.run();
 }
 
