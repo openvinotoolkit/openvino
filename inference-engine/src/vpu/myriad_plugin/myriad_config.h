@@ -18,9 +18,6 @@ namespace MyriadPlugin {
 
 class MyriadConfig : public virtual ParsedConfig {
 public:
-    bool asyncDma() const {
-        return _enableAsyncDma;
-    }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -29,7 +26,6 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    bool _enableAsyncDma = true;
 };
 
 }  // namespace MyriadPlugin

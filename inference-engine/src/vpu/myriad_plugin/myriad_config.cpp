@@ -41,8 +41,6 @@ IE_SUPPRESS_DEPRECATED_END
 
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
     ParsedConfig::parse(config);
-
-    setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 }
 
 }  // namespace MyriadPlugin

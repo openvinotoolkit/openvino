@@ -25,6 +25,7 @@
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_async_dma.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -94,7 +95,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
     const std::string& configDevName = config.get<DeviceIDOption>();
     PowerConfig powerConfig = config.get<PowerConfigOption>();
-    int enableAsyncDma = config.asyncDma();
+    int enableAsyncDma = config.get<EnableAsyncDMAOption>();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
