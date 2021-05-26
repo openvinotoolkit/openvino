@@ -5,7 +5,7 @@
 #include <legacy/ie_layers.h>
 #include <precision_utils.h>
 #include "conv_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 

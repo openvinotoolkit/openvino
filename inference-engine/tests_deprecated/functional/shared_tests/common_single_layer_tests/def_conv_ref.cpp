@@ -7,7 +7,7 @@
 #include <math.h>
 #include <ie_parallel.hpp>
 #include "def_conv_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 

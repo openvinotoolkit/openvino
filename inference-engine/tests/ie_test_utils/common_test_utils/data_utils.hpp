@@ -26,12 +26,6 @@ inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     }
 }
 
-inline void fill_data_sine(float *data, size_t size, float center, float ampl, float omega) {
-    for (size_t i = 0; i < size; i++) {
-        data[i] = center + ampl * sin(static_cast<float>(i) * omega);
-    }
-}
-
 /**
  * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
  * with initial seed equal to variable seed with default of 0
@@ -43,21 +37,6 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
     std::uniform_real_distribution<float> dist(min, max);
     for (std::size_t i = 0; i < vec_len; i++)
         res.emplace_back(static_cast<float>(dist(gen)));
-
-    return res;
-}
-
-/**
- * @brief Create vector of floats with length of vec_len, with values ranging from min to max,
- * with initial seed equal to variable seed with default of 0
- */
-template<typename T>
-inline std::vector<T>  fill_vector(std::vector<T> &res, double min, double max, int seed = 0) {
-    std::mt19937 gen(seed);
-
-    std::uniform_real_distribution<double> dist(min, max);
-    for (std::size_t i = 0; i < res.size(); i++)
-        res[i] = static_cast<T>(dist(gen));
 
     return res;
 }
@@ -111,33 +90,6 @@ void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
  * @return size in bytes
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
-
-inline void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
-    float center_h = (height - 1.0f) / 2;
-    float center_w = (width - 1.0f) / 2;
-    for (size_t i = 0; i < size; i = i + 5) {
-        data[i] = 0.0f;
-        data[i + 1] = center_w + width * 0.6f * sin(static_cast<float>(i + 1) * omega);
-        data[i + 3] = center_w + width * 0.6f * sin(static_cast<float>(i + 3) * omega);
-        if (data[i + 3] < data[i + 1]) {
-            std::swap(data[i + 1], data[i + 3]);
-        }
-        if (data[i + 1] < 0)
-            data[i + 1] = 0;
-        if (data[i + 3] > width - 1)
-            data[i + 3] = static_cast<float>(width - 1);
-
-        data[i + 2] = center_h + height * 0.6f * sin(static_cast<float>(i + 2) * omega);
-        data[i + 4] = center_h + height * 0.6f * sin(static_cast<float>(i + 4) * omega);
-        if (data[i + 4] < data[i + 2]) {
-            std::swap(data[i + 2], data[i + 4]);
-        }
-        if (data[i + 2] < 0)
-            data[i + 2] = 0;
-        if (data[i + 4] > height - 1)
-            data[i + 4] = static_cast<float>(height - 1);
-    }
-}
 
 template<InferenceEngine::Precision::ePrecision PRC>
 inline void

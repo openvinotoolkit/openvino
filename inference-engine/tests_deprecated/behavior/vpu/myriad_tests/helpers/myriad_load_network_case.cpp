@@ -16,8 +16,8 @@ void MyriadLoadNetworkTestCase::SetUp() {
         std::cerr << "create core error";
     }
 
-    cnnNetwork = ie->ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+    cnnNetwork = ie->ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                 convReluNormPoolFcModelFP16.weights_blob);
 }
 
 void MyriadLoadNetworkTestCase::LoadNetwork() {

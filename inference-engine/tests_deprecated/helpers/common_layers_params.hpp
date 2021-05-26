@@ -81,11 +81,6 @@ size_t getConvBiasesSize(const conv_common_params &params,
 
 InferenceEngine::Blob::Ptr getWeightsBlob(size_t sizeInBytes, const std::string &precision = "");
 
-InferenceEngine::Blob::Ptr getConvWeightsBlob(const std::vector<size_t> &inShape,
-                                              const conv_common_params &params,
-                                              const std::string &precision = "FP32",
-                                              bool keepOrigPrc = false);
-
 void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimx,
                      int32_t &dimy,

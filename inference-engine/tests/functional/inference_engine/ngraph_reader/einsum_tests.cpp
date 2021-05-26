@@ -4,7 +4,6 @@
 
 #include <string>
 
-#include "common_test_utils/xml_net_builder/ir_net.hpp"
 #include "ngraph_reader_tests.hpp"
 
 // since EinsumDecomposition is applied, disable these two tests

@@ -7,7 +7,7 @@
 #include <map>
 
 #include "common_layers_params.hpp"
-#include "data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace CommonTestUtils {
 
@@ -117,19 +117,6 @@ size_t getConvBiasesSize(const conv_common_params &params,
         return 0lu;
     auto prc = InferenceEngine::Precision::FromStr(precision);
     return prc.size() * params.out_c;
-}
-
-InferenceEngine::Blob::Ptr getConvWeightsBlob(const std::vector<size_t> &inShape,
-                                              const conv_common_params &params,
-                                              const std::string &precision,
-                                              bool keepOrigPrc) {
-    size_t blob_size = getConvWeightsSize(inShape, params, precision);
-    blob_size += getConvBiasesSize(params, precision);
-
-    if (keepOrigPrc)
-        return getWeightsBlob(blob_size, precision);
-    else
-        return getWeightsBlob(blob_size);
 }
 
 InferenceEngine::Blob::Ptr getWeightsBlob(size_t sizeInBytes, const std::string &precision) {

@@ -27,9 +27,7 @@ addIeTarget(
             inference_engine_lp_transformations
             inference_engine
         PRIVATE
-            # use this dependency as private in order to minimize
-            # its usage in 3rd party applications
-            inference_engine_legacy
+            ngraphFunctions
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

@@ -12,7 +12,7 @@
 #include <map>
 
 #include "xml_father.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 namespace CommonTestUtils {
 
