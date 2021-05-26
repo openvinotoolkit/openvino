@@ -1047,7 +1047,6 @@ namespace
                                                                     output_classes.data());
 
         runtime::reference::experimental_detectron_detection_output_postprocessing(
-            // outputs,
             outputs[0]->get_data_ptr(),
             outputs[1]->get_data_ptr(),
             outputs[2]->get_data_ptr(),

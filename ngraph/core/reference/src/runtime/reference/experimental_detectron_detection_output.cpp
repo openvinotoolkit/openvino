@@ -348,7 +348,6 @@ namespace ngraph
             }
 
             void experimental_detectron_detection_output_postprocessing(
-                // const HostTensorVector& outputs,
                 void* pboxes,
                 void* pclasses,
                 void* pscores,
@@ -366,8 +365,6 @@ namespace ngraph
                 {
                 case element::Type_t::bf16:
                 {
-                    // bfloat16* boxes_ptr = outputs[0]->get_data_ptr<bfloat16>();
-                    // bfloat16* scores_ptr = outputs[2]->get_data_ptr<bfloat16>();
                     bfloat16* boxes_ptr = reinterpret_cast<bfloat16*>(pboxes);
                     bfloat16* scores_ptr = reinterpret_cast<bfloat16*>(pscores);
                     for (size_t i = 0; i < rois_num; ++i)
@@ -382,8 +379,6 @@ namespace ngraph
                 break;
                 case element::Type_t::f16:
                 {
-                    // float16* boxes_ptr = outputs[0]->get_data_ptr<float16>();
-                    // float16* scores_ptr = outputs[2]->get_data_ptr<float16>();
                     float16* boxes_ptr = reinterpret_cast<float16*>(pboxes);
                     float16* scores_ptr = reinterpret_cast<float16*>(pscores);
                     for (size_t i = 0; i < rois_num; ++i)
@@ -398,8 +393,6 @@ namespace ngraph
                 break;
                 case element::Type_t::f32:
                 {
-                    // float* boxes_ptr = outputs[0]->get_data_ptr<float>();
-                    // float* scores_ptr = outputs[2]->get_data_ptr<float>();
                     float* boxes_ptr = reinterpret_cast<float*>(pboxes);
                     float* scores_ptr = reinterpret_cast<float*>(pscores);
                     memcpy(boxes_ptr,
@@ -413,7 +406,6 @@ namespace ngraph
                 default:;
                 }
 
-                // int32_t* classes_ptr = outputs[1]->get_data_ptr<int32_t>();
                 int32_t* classes_ptr = reinterpret_cast<int32_t*>(pclasses);
                 memcpy(classes_ptr,
                        output_classes.data(),

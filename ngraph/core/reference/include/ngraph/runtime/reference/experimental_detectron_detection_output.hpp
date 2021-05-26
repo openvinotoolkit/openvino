@@ -43,7 +43,6 @@ namespace ngraph
                 int32_t* output_classes);
 
             void experimental_detectron_detection_output_postprocessing(
-                // const HostTensorVector& outputs,
                 void* pboxes,
                 void* pclasses,
                 void* pscores,
