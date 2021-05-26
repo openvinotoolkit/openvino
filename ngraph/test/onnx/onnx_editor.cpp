@@ -1453,7 +1453,7 @@ NGRAPH_TEST(onnx_editor, cut_operator_with_no_schema)
     ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/unknown_input_value_info.prototxt")};
 
-    editor.cut_graph_fragment({{InputEdge(1, "X")}}, {});
+    editor.cut_graph_fragment({{InputEdge{1, 0}}}, {});
 
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/unknown_input_value_info.prototxt");
