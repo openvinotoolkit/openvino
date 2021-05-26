@@ -3,7 +3,6 @@ import re
 
 import tensorflow as tf
 import numpy as np
-import cv2
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -36,9 +35,6 @@ def load_graph(model_file, output_nodes_for_freeze=None):
 
 
 def collect_tf_references(model_path, feed_dict, out_layer, output_nodes_for_freeze=None):
-    t = dict()
-    """t[inputs] = read_tensor_from_image_file(image, input_height=input_shape[1], input_width=input_shape[2],
-                                                input_mean=0, input_std=scale)"""
     _feed_dict = dict()
 
     graph = load_graph(model_path, output_nodes_for_freeze)

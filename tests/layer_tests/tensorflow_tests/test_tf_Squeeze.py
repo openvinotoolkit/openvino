@@ -29,7 +29,6 @@ class TestSqueeze(CommonTFLayerTest):
 
             x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
             squeeze = tf.squeeze(x, axis=axis, name="Operation")
-            squeeze_shape = squeeze.shape.as_list()
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def

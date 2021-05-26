@@ -55,10 +55,7 @@ class TestOneHot(CommonTFLayerTest):
         if off_value is None:
             off_value = 0.0
 
-        one_hot_axis = -1 if axis is None else axis
-
         axis = len(shape) if axis is None else axis
-        one_hot_result_shape = np.insert(net_shape, axis, depth)
 
         ref_net = None
 

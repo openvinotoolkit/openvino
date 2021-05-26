@@ -5,11 +5,6 @@ from common.onnx_layer_test_class import Caffe2OnnxLayerTest
 
 
 class TestImageScaler(Caffe2OnnxLayerTest):
-    @classmethod
-    def setup_class(self):
-        # caffe2 doesn't support ImageScaler at this moment
-        self.skip_framework = True
-
     def create_net(self, shape, scale, ir_version):
         """
             ONNX net                           IR net

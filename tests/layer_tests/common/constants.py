@@ -1,5 +1,4 @@
 import os
-from .logger import *
 
 
 if 'MO_ROOT' in os.environ:
@@ -21,12 +20,3 @@ else:
 # supported_devices : CPU, GPU, MYRIAD, FPGA
 test_device = os.environ.get('TEST_DEVICE', 'CPU;GPU').split(';')
 test_precision = os.environ.get('TEST_PRECISION', 'FP32;FP16').split(';')
-
-"""
-List of ignored attributes
-"""
-ignore_attributes = {'Split': ['num_split'],
-                     'Flatten': ['end_axis'],
-                     'RegionYolo': ['axis', 'end_axis'],
-                     'Pooling': ['global_pool', 'convention','exclude_pad'],
-                     'ReLU': ['engine']}

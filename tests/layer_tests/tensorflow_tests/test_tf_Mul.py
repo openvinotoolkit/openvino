@@ -68,8 +68,6 @@ class TestMul(CommonTFLayerTest):
             order = [0, len(y_shape_to_compare) - 1] + list(range(1, len(y_shape_to_compare) - 1))
             y_shape_to_compare = [y_shape_to_compare[i] for i in order]
             constant_value = np.transpose(constant_value, order)
-        y_const_shape_to_compare = np.product(y_shape_to_compare, keepdims=True)
-        y_value_to_compare = np.reshape(constant_value, newshape=y_const_shape_to_compare)
 
         ref_net = None
 

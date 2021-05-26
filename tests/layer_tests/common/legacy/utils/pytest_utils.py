@@ -11,8 +11,6 @@ from _pytest.mark import Mark, MarkDecorator
 :param is_simple_mark: bool value to split pytest marks and another marks
 """
 mark = namedtuple("mark", ("pytest_mark", "target_runner", "is_simple_mark"))
-# default values for "target_runner" and "is_simple_mark" fields respectively
-mark.__new__.__defaults__ = ("all", False)
 
 
 class XFailMarkWrapper(Mark):

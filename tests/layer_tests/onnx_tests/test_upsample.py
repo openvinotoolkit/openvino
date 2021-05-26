@@ -129,9 +129,6 @@ class UpsampleModel(torch.nn.Module):
             args['size'] = size
         self.upsample = torch.nn.modules.upsampling.Upsample(**args)
 
-    def forward(self, input):
-        return self.upsample(input)
-
 
 class TestPytorchUpsample(PytorchLayerTest):
     def create_net(self, shape, mode, size, scale_factor, ir_version):

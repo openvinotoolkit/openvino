@@ -269,9 +269,6 @@ class GemmModel(torch.nn.Module):
         super(GemmModel, self).__init__()
         self.weights = torch.from_numpy(weights)
 
-    def forward(self, input):
-        return input.mm(self.weights)
-
 
 class TestPytorchMM(PytorchLayerTest):
     def create_net(self, precision, shape, w_shape, output_shape, ir_version):

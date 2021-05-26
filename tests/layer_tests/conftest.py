@@ -4,7 +4,6 @@ import tempfile
 
 import pytest
 from common import constants
-from common.logger import *
 
 
 def pytest_make_parametrize_id(config, val, argname):

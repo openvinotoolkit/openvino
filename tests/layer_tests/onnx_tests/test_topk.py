@@ -123,12 +123,6 @@ class TestTopK(OnnxRuntimeLayerTest):
         #   Create reference IR net
         #
 
-        top_k_ir_attrs = {
-            'axis': axis,
-            'sort': 'none' if opset == 11 and sorted == 0 else 'values',
-            'mode': 'min' if opset == 11 and largest == 0 else 'max',
-        }
-
         ref_net = None
 
         return onnx_net, ref_net

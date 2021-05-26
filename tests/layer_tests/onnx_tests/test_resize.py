@@ -560,7 +560,6 @@ def create_ref_net_in_sizes_mode(precision, input_shape, output_shape, sizes_val
 def create_ref_net_in_scales_mode(precision, input_shape, output_shape, sizes_value, scales_value, attrs):
     input_data_type = np_data_type_to_destination_type(data_type_str_to_np(precision))
     input_rank = len(input_shape)
-    scales_len = len(scales_value)
     epsilon = np.array([1.0e-5])
     spatial_dims = spatial_dimensions(input_shape)
     begin_dim = spatial_dims[0]

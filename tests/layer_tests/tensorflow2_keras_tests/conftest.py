@@ -1,7 +1,6 @@
 import inspect
 
 from common.layer_test_class import get_params
-from common.logger import *
 
 
 def pytest_generate_tests(metafunc):

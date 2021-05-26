@@ -116,9 +116,6 @@ class TestBiasAdd(CommonTFLayerTest):
             concat_ax = order.index(concat_ax)
             add_value = np.transpose(add_value, order)
 
-        xy_input_shape_to_compare = np.product(add_shape, keepdims=True)
-        xy_value_to_compare = np.reshape(add_value, newshape=xy_input_shape_to_compare)
-
         ref_net = None
 
         return tf_net, ref_net

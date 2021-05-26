@@ -21,7 +21,6 @@ class TestBucketize(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'Input')
             constant_value = np.arange(-boundaries_size * 5, boundaries_size * 5, 10, dtype=np.float32)
-            bucketize = tf.raw_ops.Bucketize(input=x, boundaries=constant_value.tolist(), name='Operation')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 

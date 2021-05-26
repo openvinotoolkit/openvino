@@ -32,12 +32,6 @@ class EmbeddingBagModel(torch.nn.Module):
         else:
             self.per_sample_weights = None
 
-    def forward(self, indices, offsets=None):
-        if self.per_sample_weights is not None:
-            return self.embedding_bag(indices, offsets, per_sample_weights=self.per_sample_weights)
-        else:
-            return self.embedding_bag(indices, offsets)
-
 
 class TestPytorchEmbeddingBag(PytorchLayerTest):
     def _prepare_input(self, inputs_dict):
