@@ -69,31 +69,50 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork) {
 </net>
 )V0G0N";
 
-//     CommonTestUtils::IRBuilder_v6 ir_builder_v6("LRN");
-//     auto in_layer = ir_builder_v6
-//             .AddLayer("in1", "Input", Precision::ePrecision::FP32)
-//             .AddOutPort({1, 3, 22, 22})
-//             .getLayer();
+    std::string model_v5 = R"V0G0N(
+<net name="LRN" version="6">
+    <layers>
+        <layer id="0" name="in1" precision="FP32" type="Input">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="activation" precision="FP32" type="Norm">
+            <data alpha="0.000000" beta="0.750000" k="1" local-size="5" region="same" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+    </edges>
+</net>
+)V0G0N";
 
-//     auto activation_layer = ir_builder_v6
-//             .AddLayer("activation", "Norm", Precision::ePrecision::FP32, {{"alpha",     "0.000000"},
-//                                                                          {"beta",       "0.750000"},
-//                                                                          {"local-size", "5"},
-//                                                                          {"region",     "same"},
-//                                                                          {"k",          "1"}})
-//             .AddInPort({1, 3, 22, 22})
-//             .AddOutPort({1, 3, 22, 22})
-//             .getLayer();
-
-//     in_layer.out(0).connect(activation_layer.in(0));
-
-//     std::string model_v5 = ir_builder_v6.serialize();
-
-//     compareIRs(model_v10, model_v5, 16, [](Blob::Ptr& weights) {
-//                 auto * w = weights->buffer().as<int64_t*>();
-//                 w[0] = 2;
-//                 w[1] = 3;
-//             });
+    compareIRs(model_v10, model_v5, 16, [](Blob::Ptr& weights) {
+                auto * w = weights->buffer().as<int64_t*>();
+                w[0] = 2;
+                w[1] = 3;
+            });
 }
 
 TEST_F(NGraphReaderTests, ReadLrnNetwork2) {
@@ -160,28 +179,47 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork2) {
 </net>
 )V0G0N";
 
-//     CommonTestUtils::IRBuilder_v6 ir_builder_v6("Activation");
-//     auto in_layer = ir_builder_v6
-//             .AddLayer("in1", "Input", Precision::ePrecision::FP32)
-//             .AddOutPort({1, 3, 22, 22})
-//             .getLayer();
+    std::string model_v5 = R"V0G0N(
+<net name="Activation" version="6">
+    <layers>
+        <layer id="0" name="in1" precision="FP32" type="Input">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="activation" precision="FP32" type="Norm">
+            <data alpha="0.000000" beta="0.750000" k="1" local-size="5" region="across" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+    </edges>
+</net>
+)V0G0N";
 
-//     auto activation_layer = ir_builder_v6
-//             .AddLayer("activation", "Norm", Precision::ePrecision::FP32, {{"alpha",      "0.000000"},
-//                                                                           {"beta",       "0.750000"},
-//                                                                           {"local-size", "5"},
-//                                                                           {"region",     "across"},
-//                                                                           {"k",          "1"}})
-//             .AddInPort({1, 3, 22, 22})
-//             .AddOutPort({1, 3, 22, 22})
-//             .getLayer();
-
-//     in_layer.out(0).connect(activation_layer.in(0));
-
-//     std::string model_v5 = ir_builder_v6.serialize();
-
-//     compareIRs(model_v10, model_v5, 8, [](Blob::Ptr& weights) {
-//         auto * w = weights->buffer().as<int64_t*>();
-//         w[0] = 1;
-//     });
+    compareIRs(model_v10, model_v5, 8, [](Blob::Ptr& weights) {
+        auto * w = weights->buffer().as<int64_t*>();
+        w[0] = 1;
+    });
 }

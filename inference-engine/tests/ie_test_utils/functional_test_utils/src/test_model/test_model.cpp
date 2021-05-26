@@ -77,7 +77,6 @@ TestModel getModelWithMemory(InferenceEngine::Precision netPrc) {
 
     auto serial = test_model_builder.serialize();
 
-    // CommonTestUtils::getWeightsBlob(0)
     return TestModel(serial, {});
 }
 TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPrc) {
@@ -135,8 +134,6 @@ TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPr
     test_model_builder.AddEdge(Activation_1_layer.out(0), Memory_4_layer.in(0));
 
     auto serial = test_model_builder.serialize();
-
-    // CommonTestUtils::getWeightsBlob(0)
     return TestModel(serial, {});
 }
 }  // namespace TestModel
