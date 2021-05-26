@@ -269,6 +269,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
                                    , MakeJitConstant("IS_STAGE_0", "true")});
         } else if (i == 1) {
             cldnn_jit.AddConstants({ MakeJitConstant("IS_STAGE_1", "true")
+                                   , MakeJitConstant("LOCAL_BATCH_NUM", dispatchData.lws[0])
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
                                    , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});

@@ -228,18 +228,42 @@ void NmsLayerTest::CompareBBoxes(const std::vector<std::pair<ngraph::element::Ty
     // Get expected bboxes' index/score
     std::vector<Box> expectedList;
     {
-        size_t selected_indices_size = expectedOutputs[0].second.size() / sizeof(float);
-        auto selected_indices_data = reinterpret_cast<const int32_t *>(expectedOutputs[0].second.data());
-        size_t selected_scores_size = expectedOutputs[1].second.size() / sizeof(float);
-        auto selected_scores_data = reinterpret_cast<const float *>(expectedOutputs[1].second.data());
+        size_t selected_indices_size = expectedOutputs[0].second.size() / expectedOutputs[0].first.size();
+        size_t selected_scores_size = expectedOutputs[1].second.size() / expectedOutputs[1].first.size();
         ASSERT_TRUE(selected_indices_size == selected_scores_size);
 
-        for (size_t i = 0; i < selected_indices_size; i += 3) {
-            const int32_t batchId = selected_indices_data[i+0];
-            const int32_t classId = selected_indices_data[i+1];
-            const int32_t boxId = selected_indices_data[i+2];
-            const float score = selected_scores_data[i+2];
-            expectedList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+        expectedList.resize(selected_indices_size);
+
+        if (expectedOutputs[0].first.size() == 4) {
+            auto selected_indices_data = reinterpret_cast<const int32_t *>(expectedOutputs[0].second.data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expectedList[i/3].batchId = selected_indices_data[i+0];
+                expectedList[i/3].classId = selected_indices_data[i+1];
+                expectedList[i/3].boxId   = selected_indices_data[i+2];
+                expectedList[i/3].rect    = coordList[expectedList[i/3].batchId][expectedList[i/3].boxId];
+            }
+        } else {
+            auto selected_indices_data = reinterpret_cast<const int64_t *>(expectedOutputs[0].second.data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expectedList[i/3].batchId = static_cast<int32_t>(selected_indices_data[i+0]);
+                expectedList[i/3].classId = static_cast<int32_t>(selected_indices_data[i+1]);
+                expectedList[i/3].boxId   = static_cast<int32_t>(selected_indices_data[i+2]);
+                expectedList[i/3].rect    = coordList[expectedList[i/3].batchId][expectedList[i/3].boxId];
+            }
+        }
+
+        if (expectedOutputs[1].first.size() == 4) {
+            auto selected_scores_data = reinterpret_cast<const float *>(expectedOutputs[0].second.data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expectedList[i/3].score = selected_scores_data[i+2];
+            }
+        } else {
+            auto selected_scores_data = reinterpret_cast<const double *>(expectedOutputs[0].second.data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expectedList[i/3].score = static_cast<float>(selected_scores_data[i+2]);
+            }
         }
 
         std::sort(expectedList.begin(), expectedList.end(), compareBox);

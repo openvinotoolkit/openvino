@@ -23,7 +23,6 @@
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            20 bytes * NUM_BOXES
 
-/* XXX: Add assert to check lws[batch] == 1 */
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define NUM_BATCHES     INPUT0_BATCH_NUM
@@ -126,12 +125,27 @@ inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
     return (i + 1);
 }
 
+inline void FUNC(bubbleSortIterative)(__global SBOX_INFO* arr, int l, int h)
+{
+    for (int i = 0; i < h-l; i++) {
+        bool swapped = false;
+        for (int j = l; j < h-i; j++) {
+            if ((arr[j].score > arr[j+1].score) || (arr[j].score == arr[j+1].score && arr[j].boxId < arr[j+1].boxId)) {
+                FUNC_CALL(swap_sbox_info)(&arr[j], &arr[j+1]);
+                swapped = true;
+            }
+        }
+
+        if (!swapped)
+            break;
+    }
+}
 
 inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
 {
     // Create an auxiliary stack
-    // int stack[NUM_BOXES];
-    int stack[200];    /* FIXME: what is the proper maximum size of the stack? */
+    const int kStackSize = 100;
+    int stack[kStackSize];
 
     // initialize top of stack
     int top = -1;
@@ -153,15 +167,23 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {
-            stack[++top] = l;
-            stack[++top] = p - 1;
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, l, p - 1);
+            } else {
+                stack[++top] = l;
+                stack[++top] = p - 1;
+            }
         }
 
         // If there are elements on right side of pivot,
         // then push right side to stack
         if (p + 1 < h) {
-            stack[++top] = p + 1;
-            stack[++top] = h;
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, p + 1, h);
+            } else {
+                stack[++top] = p + 1;
+                stack[++top] = h;
+            }
         }
     }
 }
@@ -334,6 +356,11 @@ KERNEL (non_max_suppression_ref_stage_0)(
 #endif /* IS_STAGE_0 */
 
 #ifdef IS_STAGE_1
+
+#if LOCAL_BATCH_NUM != 1
+#error "The batch number of LWS should be 1."
+#endif
+
 KERNEL (non_max_suppression_ref_stage_1)(
     __global uchar *buffer0
     , __global int *buffer3
