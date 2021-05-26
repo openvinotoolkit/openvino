@@ -7,7 +7,7 @@
 #include <map>
 
 #include "common_layers_params.hpp"
-#include "data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace CommonTestUtils {
 

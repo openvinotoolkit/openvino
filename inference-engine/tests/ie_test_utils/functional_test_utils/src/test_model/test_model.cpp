@@ -10,7 +10,7 @@
 
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "ir_net.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+// #include "common_layers_params.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -77,7 +77,8 @@ TestModel getModelWithMemory(InferenceEngine::Precision netPrc) {
 
     auto serial = test_model_builder.serialize();
 
-    return TestModel(serial, CommonTestUtils::getWeightsBlob(0));
+    // CommonTestUtils::getWeightsBlob(0)
+    return TestModel(serial, {});
 }
 TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPrc) {
     CommonTestUtils::IRBuilder_v6 test_model_builder("model");
@@ -135,7 +136,8 @@ TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPr
 
     auto serial = test_model_builder.serialize();
 
-    return TestModel(serial, CommonTestUtils::getWeightsBlob(0));
+    // CommonTestUtils::getWeightsBlob(0)
+    return TestModel(serial, {});
 }
 }  // namespace TestModel
 }  // namespace FuncTestUtils

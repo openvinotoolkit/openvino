@@ -4,7 +4,7 @@
 
 #include "behavior_test_plugin.h"
 #include "common_test_utils/xml_net_builder/xml_filler.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 std::string getRawConvReluNormPoolFcModel() {
     return (R"V0G0N(
@@ -167,4 +167,3 @@ FuncTestUtils::TestModel::TestModel getConvReluNormPoolFcModel(InferenceEngine::
     return FuncTestUtils::TestModel::TestModel(model_str, CommonTestUtils::getWeightsBlob(
             convWeigthsSize + convBiasesSize + fcWeigthsSize + fcBiasesSize));
 }
-
