@@ -289,7 +289,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
             std::vector<element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(newAdd, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(a, element::f32).get());
-    copyInfo(multiply, newMultiply);
+    copyInfo({ multiply, newMultiply }, newMultiply);
 
     replace_node(addAfterMultiply, newMultiply);
     return newMultiply;
