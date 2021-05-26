@@ -15,32 +15,11 @@
 
 namespace InferenceEngine {
 
-#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
-
-#define CATCH_IE_EXCEPTIONS                     \
-        CATCH_IE_EXCEPTION(GeneralError)        \
-        CATCH_IE_EXCEPTION(NotImplemented)      \
-        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION(ParameterMismatch)   \
-        CATCH_IE_EXCEPTION(NotFound)            \
-        CATCH_IE_EXCEPTION(OutOfBounds)         \
-        CATCH_IE_EXCEPTION(Unexpected)          \
-        CATCH_IE_EXCEPTION(RequestBusy)         \
-        CATCH_IE_EXCEPTION(ResultNotReady)      \
-        CATCH_IE_EXCEPTION(NotAllocated)        \
-        CATCH_IE_EXCEPTION(InferNotStarted)     \
-        CATCH_IE_EXCEPTION(NetworkNotRead)      \
-        CATCH_IE_EXCEPTION(InferCancelled)
-
 #define INFER_REQ_CALL_STATEMENT(...)                                                              \
     if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                    \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        IE_THROW() << ex.what();                                                                   \
-    } catch (...) {                                                                                \
-        IE_THROW(Unexpected);                                                                      \
-    }
+    } catch(...) {details::Rethrow();}
 
 InferRequest::InferRequest(const details::SharedObjectLoader& so,
                            const IInferRequestInternal::Ptr&  impl)
