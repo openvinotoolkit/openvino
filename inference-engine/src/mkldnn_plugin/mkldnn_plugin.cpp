@@ -118,9 +118,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
-    const bool useLpt_ =
-        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
-        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     const bool useLpt = false;
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
