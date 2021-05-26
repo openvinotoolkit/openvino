@@ -41,6 +41,9 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
     # TODO: Find a model that applicable for this option
     args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
+    args.add_argument('-iname', '--input_layers', type=str,
+                      help='Optional. Layer names for input blobs. The names are separated with ",". '
+                      'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
     args.add_argument('-oname', '--output_layers', type=str,
                       help='Optional. Layer names for output blobs. The names are separated with ",". '
                       'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
@@ -126,32 +129,33 @@ def write_ark_file(file_name: str, utterances: dict):
             file.write(matrix.tobytes())
 
 
-def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
+def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
     """Do a synchronous matrix inference"""
+    matrix_shape = next(iter(data.values())).shape
     result = {}
 
     for blob_name in output_blobs:
         batch_size, num_of_dims = exec_net.outputs[blob_name].shape
-        result[blob_name] = np.ndarray((matrix.shape[0], num_of_dims))
+        result[blob_name] = np.ndarray((matrix_shape[0], num_of_dims))
 
     slice_begin = 0
     slice_end = batch_size
 
     while True:
-        vectors = matrix[slice_begin:slice_end]
+        vectors = {blob_name: data[blob_name][slice_begin:slice_end] for blob_name in input_blobs}
+        vector_shape = next(iter(vectors.values())).shape
 
-        if vectors.shape[0] < batch_size:
-            for vector in vectors:
-                input_data = {blob_name: vector for blob_name in input_blobs}
-                vector_result = exec_net.infer(input_data)
+        if vector_shape[0] < batch_size:
+            for i in range(vector_shape[0]):
+                input_data = {key: value[i] for key, value in vectors.items()}
+                vector_results = exec_net.infer(input_data)
 
                 for blob_name in output_blobs:
-                    result[blob_name][slice_begin] = vector_result[blob_name][0]
+                    result[blob_name][slice_begin] = vector_results[blob_name][0]
 
                 slice_begin += 1
         else:
-            input_data = {blob_name: vectors for blob_name in input_blobs}
-            vector_results = exec_net.infer(input_data)
+            vector_results = exec_net.infer(vectors)
 
             for blob_name in output_blobs:
                 result[blob_name][slice_begin:slice_end] = vector_results[blob_name]
@@ -159,7 +163,7 @@ def infer_matrix(matrix: np.ndarray, exec_net: ExecutableNetwork, input_blobs: l
             slice_begin += batch_size
             slice_end += batch_size
 
-        if slice_begin >= matrix.shape[0]:
+        if slice_begin >= matrix_shape[0]:
             return result
 
 
@@ -189,7 +193,7 @@ def read_utterance_file(file_name: str) -> dict:
         return dict(np.load(file_name))
     else:
         log.error(f'The file {file_name} cannot be read. The sample supports only .ark and .npz files.')
-        sys.exit(-3)
+        sys.exit(-1)
 
 
 def write_utterance_file(file_name: str, utterances: dict):
@@ -202,7 +206,7 @@ def write_utterance_file(file_name: str, utterances: dict):
         np.savez(file_name, **utterances)
     else:
         log.error(f'The file {file_name} cannot be written. The sample supports only .ark and .npz files.')
-        sys.exit(-4)
+        sys.exit(-2)
 
 
 def main():
@@ -222,31 +226,24 @@ def main():
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
         log.info('Configuring input and output blobs')
         # Get names of input and output blobs
-        input_blobs = [next(iter(net.input_info))]
+        if args.input_layers:
+            input_blobs = re.split(', |,', args.input_layers)
+        else:
+            input_blobs = [next(iter(net.input_info))]
 
         if args.output_layers:
             output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
-            output_name_port = [(blob_name, int(port)) for blob_name, port in output_name_port]
+            try:
+                output_name_port = [(blob_name, int(port)) for blob_name, port in output_name_port]
+            except ValueError:
+                log.error('Output Parameter does not have a port.')
+                sys.exit(-4)
 
             net.add_outputs(output_name_port)
 
             output_blobs = [blob_name for blob_name, port in output_name_port]
         else:
-            output_blobs = [next(iter(net.outputs))]
-
-        if args.reference:
-            reference_files = re.split(', |,', args.reference)
-
-            if len(output_blobs) != len(reference_files):
-                log.error('The number of reference files is not equal to the number of network outputs.')
-                sys.exit(-5)
-
-        if args.output:
-            output_files = re.split(', |,', args.output)
-
-            if len(output_blobs) != len(output_files):
-                log.error('The number of output files is not equal to the number of network outputs.')
-                sys.exit(-6)
+            output_blobs = [list(net.outputs.keys())[-1]]
 
         # Set input and output precision manually
         for blob_name in input_blobs:
@@ -272,7 +269,7 @@ def main():
         if args.import_gna_model:
             log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
         else:
-            utterances = read_utterance_file(args.input)
+            utterances = read_utterance_file(args.input.split(',')[0])
             key = sorted(utterances)[0]
             scale_factor = get_scale_factor(utterances[key])
             log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
@@ -291,7 +288,29 @@ def main():
     else:
         exec_net = ie.import_network(args.import_gna_model, device_str, plugin_config)
         input_blobs = [next(iter(exec_net.input_info))]
-        output_blobs = [next(iter(exec_net.outputs))]
+        output_blobs = [list(exec_net.outputs.keys())[-1]]
+
+    if args.input:
+        input_files = re.split(', |,', args.input)
+
+        if len(input_blobs) != len(input_files):
+            log.error(f'Number of network inputs ({len(input_blobs)}) is not equal '
+                      f'to number of ark files ({len(input_files)})')
+            sys.exit(-3)
+
+    if args.reference:
+        reference_files = re.split(', |,', args.reference)
+
+        if len(output_blobs) != len(reference_files):
+            log.error('The number of reference files is not equal to the number of network outputs.')
+            sys.exit(-5)
+
+    if args.output:
+        output_files = re.split(', |,', args.output)
+
+        if len(output_blobs) != len(output_files):
+            log.error('The number of output files is not equal to the number of network outputs.')
+            sys.exit(-6)
 
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
@@ -309,7 +328,14 @@ def main():
 # instance which stores infer requests. So you already created Infer requests in the previous step.
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    utterances = read_utterance_file(args.input)
+    file_data = [read_utterance_file(file_name) for file_name in input_files]
+    input_data = {
+        utterance_name: {
+            input_blobs[i]: file_data[i][utterance_name] for i in range(len(input_blobs))
+        }
+        for utterance_name in file_data[0].keys()
+    }
+
     if args.reference:
         references = {output_blobs[i]: read_utterance_file(reference_files[i]) for i in range(len(output_blobs))}
 
@@ -318,9 +344,9 @@ def main():
     results = {blob_name: {} for blob_name in output_blobs}
     infer_times = []
 
-    for key, matrix in sorted(utterances.items()):
+    for key in sorted(input_data):
         start_infer_time = default_timer()
-        result = infer_matrix(matrix, exec_net, input_blobs, output_blobs)
+        result = infer_data(input_data[key], exec_net, input_blobs, output_blobs)
 
         for blob_name in result.keys():
             results[blob_name][key] = result[blob_name]
