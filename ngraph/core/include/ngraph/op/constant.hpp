@@ -66,7 +66,6 @@ namespace ngraph
                     {
                         write_values(values);
                     }
-                    constructor_validate_and_infer_types();
                     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
                 }
 
@@ -84,7 +83,6 @@ namespace ngraph
                     : Constant(type, shape)
                 {
                     fill_data(type, value);
-                    constructor_validate_and_infer_types();
                     m_all_elements_bitwise_identical = true;
                 }
 
