@@ -215,12 +215,13 @@ void loop_inst::preprocess_output_memory() {
                 sliced_mems.push_back(sliced_mem);
             }
 
-            const int64_t linear_size = static_cast<int>(sliced_layout.get_linear_size());
-            const int64_t stride = linear_size * output_mapping.stride;
+            const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
+                sliced_layout, output_mapping.axis);
+            const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
             const int64_t start = output_mapping.start < 0? node.get_max_iteration() - 1: output_mapping.start;
-            const int64_t offset = linear_size * start;
             concatenated_memory_mapping memory_mapping_info(
-                to_mem, sliced_mems, linear_size, stride, offset);
+                output_mapping.axis, to_mem, sliced_mems,
+                num_elements_iteration, output_mapping.stride, start);
             memory_mapping_info.concat_data_prim = body_network->get_primitive(internal_id);
             concatenated_output_mem_mappings.push_back(memory_mapping_info);
         }
@@ -255,12 +256,13 @@ void loop_inst::preprocess_input_memory() {
                     memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                     sliced_mems.push_back(sliced_mem);
                 }
-                const int64_t linear_size = sliced_layout.get_linear_size();
-                const int64_t stride = linear_size * input_map->stride;
+                const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
+                    sliced_layout, input_map->axis);
+                const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
                 const int64_t start = input_map->start < 0? node.get_max_iteration() - 1: input_map->start;
-                const int64_t offset = linear_size * start;
                 concatenated_memory_mapping concatenated_input_mem_mapping_info(
-                    (memory_impl::ptr)&memory, sliced_mems, linear_size, stride, offset);
+                    input_map->axis, (memory_impl::ptr)&memory, sliced_mems,
+                    num_elements_iteration, input_map->stride, start);
                 concatenated_input_mem_mapping_info.sliced_data_prim = body_network->get_primitive(input_map->internal_id);
                 iteration_mem.push_back(concatenated_input_mem_mapping_info);
             } else {
@@ -275,7 +277,6 @@ void loop_inst::preprocess_input_memory() {
 
 void loop_inst::preprocess_backedge_memory() {
     const auto& back_edges = node.get_back_edges();
-    auto& backedge_memory_mappgins = backedge_memory_mappings;
     // checking if memory is a destination of a backedge
     for (const auto& back_edge : back_edges) {
         //find corresponding input of the backedge
@@ -292,19 +293,26 @@ void loop_inst::preprocess_backedge_memory() {
             const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
             memory_impl::ptr backedge_mem;
             if (output_mapping.empty()) {
-                auto output_prim = body_network->get_primitive(back_edge.from);
-                layout output_layout = output_prim->output_memory().get_layout();
-                backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
+                // from and to primitives in backedge are connected directly
+                if (backedge_to_prim == backedge_from_prim->dependencies().front()) {
+                    backedge_memory_mappings.emplace_back(
+                        backedge_from_prim, backedge_to_prim, initial_mem);
+                    continue;
+                } else {
+                    auto output_prim = body_network->get_primitive(back_edge.from);
+                    layout output_layout = output_prim->output_memory().get_layout();
+                    backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
+                }
             } else {
                 backedge_mem = get_external_memory(output_mapping.front()->external_id);
             }
             body_network->set_input_data(back_edge.to, *backedge_mem);
             body_network->set_output_memory(back_edge.from, *backedge_mem);
-            backedge_memory_mappgins.emplace_back(
+            backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem);
         } else {
             // backedge output which needs concatenation
-            backedge_memory_mappgins.emplace_back(
+            backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, backedged_sliced_output_mems, initial_mem);
         }
     }

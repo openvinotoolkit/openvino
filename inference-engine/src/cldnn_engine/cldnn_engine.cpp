@@ -473,13 +473,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto pass_config = manager.get_pass_config();
             pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
                 [config](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                    if (config.enable_loop_unrolling) {
-                        return false;
-                    }
-                    if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                        return canTensorIteratorUseLoop(ti_op);
-                    }
-                    return true;
+                    return !config.enable_loop_unrolling;
                 });
 
             manager.run_passes(nGraphFunc);

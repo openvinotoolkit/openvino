@@ -16,6 +16,7 @@
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
+#include "loop_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -276,6 +277,8 @@ void prepare_buffer_fusing::run(program_impl& p) {
             // do not optimize when next node is concatenation which is not output
             for (auto user : node.get_users()) {
                 if (user->is_type<concatenation>() && !user->is_output())
+                    return;
+                if (user->is_type<loop>())
                     return;
             }
 

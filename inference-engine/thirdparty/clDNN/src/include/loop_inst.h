@@ -286,6 +286,11 @@ public:
             // output memory(from_primitive) of body network needs to be concatenated
             CONCAT_OUTPUT,
             // output memory(from_primitive) of body network does not need to be concateneated
+            // input memory is shared by output memory
+            SINGLE_SHARED,
+            // output memory(from_primitive) of body network does not need to be concateneated
+            // input memory is not shared by output memroy
+            // each iteration input memory and output memory are swapped
             SINGLE,
         };
         std::shared_ptr<primitive_inst> from_primitive;
@@ -308,10 +313,21 @@ public:
 
         backedge_memory_mapping(
             std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory_impl::ptr from_mem, memory_impl::ptr initial_mem, backedge_type type = SINGLE):
+            memory_impl::ptr from_mem, memory_impl::ptr initial_mem, backedge_type type = SINGLE_SHARED):
             from_primitive(from_primitive),
             to_primitive(to_primitive),
             from_mems{from_mem},
+            initial_mem(initial_mem),
+            type(type),
+            total_bytes(initial_mem->get_layout().bytes_count()) {
+                validate_backedge_memory();
+            }
+
+        backedge_memory_mapping(
+            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
+            memory_impl::ptr initial_mem, backedge_type type = SINGLE):
+            from_primitive(from_primitive),
+            to_primitive(to_primitive),
             initial_mem(initial_mem),
             type(type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -327,9 +343,16 @@ public:
                 } else {
                     throw std::runtime_error("Invalid iteraton count" + std::to_string(iter));
                 }
-            } else {
+            } else if (type == SINGLE_SHARED && iter == 0) {
+                copy_data(initial_mem, from_mems.front());
+            } else if (type == SINGLE) {
+                memory_impl::ptr mem1 = (memory_impl::ptr)&to_primitive->output_memory();
                 if (iter == 0) {
-                    copy_initial_data();
+                    copy_data(initial_mem, mem1);
+                } else {
+                    memory_impl::ptr mem2 = (memory_impl::ptr)&from_primitive->output_memory();
+                    to_primitive->set_output_memory(*mem2);
+                    from_primitive->set_output_memory(*mem1);
                 }
             }
         }
@@ -345,9 +368,9 @@ private:
             }
         }
 
-        void copy_initial_data() const {
-            mem_lock<uint8_t> from_lock {initial_mem};
-            mem_lock<uint8_t> to_lock {from_mems.front()};
+        void copy_data(cldnn::memory_impl::ptr src_mem, cldnn::memory_impl::ptr dst_mem) const {
+            mem_lock<uint8_t> from_lock {src_mem};
+            mem_lock<uint8_t> to_lock {dst_mem};
             const auto src = from_lock.begin();
             const auto dst = to_lock.begin();
             std::copy(src, src + total_bytes, dst);
@@ -355,27 +378,47 @@ private:
     };
 
     struct concatenated_memory_mapping {
-        concatenated_memory_mapping(memory_impl::ptr concatenated_mem,
-                             std::vector<memory_impl::ptr> sliced_mems,
-                             int64_t iteration_elements = 0,
-                             int64_t stride = 0,
-                             int64_t initial_offset = 0) :
+        concatenated_memory_mapping(int64_t axis,
+                            memory_impl::ptr concatenated_mem,
+                            std::vector<memory_impl::ptr> sliced_mems,
+                            int64_t iteration_elements = 0,
+                            int64_t stride = 0,
+                            int64_t initial_offset = 0) :
+            axis(axis),
             concatenated_mem(concatenated_mem),
             sliced_mems(sliced_mems),
             bytes_per_element(data_type_traits::size_of(concatenated_mem->get_layout().data_type)),
-            bytes_per_iteration(iteration_elements * bytes_per_element),
-            bytes_stride(stride * bytes_per_element),
-            bytes_initial_offset(initial_offset * bytes_per_element) {}
+            batch_size(get_batch_size(concatenated_mem->get_layout(), axis)),
+            bytes_batch_stride((static_cast<int64_t>(concatenated_mem->get_layout().count()) / batch_size) * bytes_per_element),
+            bytes_iteration(iteration_elements * bytes_per_element),
+            bytes_iteration_stride(stride * bytes_iteration),
+            bytes_iteration_initial_offset(initial_offset * bytes_iteration) {}
+
+        static int64_t get_batch_size(layout mem_layout, int64_t axis) {
+            assert(axis >= 0);
+            int64_t batch_size = 1;
+            for (int64_t i = 0; i < axis; ++i) {
+                batch_size *= mem_layout.size.raw[i];
+            }
+            for (int64_t i = axis-1; i >= 2; --i) {
+                batch_size *= mem_layout.size.raw[i];
+            }
+            return batch_size;
+        }
 
         void restore_concatenated_mem() const {
             mem_lock<uint8_t> concat_mem_lock{ concatenated_mem };
-            int64_t output_offset = bytes_initial_offset;
+            int64_t iteration_offset = bytes_iteration_initial_offset;
             for (const auto& sliced_mem : sliced_mems) {
-                mem_lock<uint8_t> sliced_mem_lock{ sliced_mem };
-                uint8_t* src = sliced_mem_lock.data();
-                uint8_t* dst = concat_mem_lock.data() + output_offset;
-                std::copy(src, src + bytes_per_iteration, dst);
-                output_offset += bytes_stride;
+                for (int64_t batch = 0; batch < batch_size; ++batch) {
+                    const int64_t src_offset = batch * bytes_iteration;
+                    const int64_t dst_offset = batch * bytes_batch_stride + iteration_offset;
+                    mem_lock<uint8_t> sliced_mem_lock{ sliced_mem };
+                    uint8_t* src = sliced_mem_lock.data() + src_offset;
+                    uint8_t* dst = concat_mem_lock.data() + dst_offset;
+                    std::copy(src, src + bytes_iteration, dst);
+                }
+                iteration_offset += bytes_iteration_stride;
             }
         }
 
@@ -385,25 +428,39 @@ private:
         }
 
         memory_impl::ptr get_sliced_mem(int64_t iteration) const {
-            const int64_t offset = bytes_initial_offset + bytes_stride * iteration;
-            {
-                mem_lock<uint8_t> from_lock{ concatenated_mem };
+            mem_lock<uint8_t> from_lock{ concatenated_mem };
+            int64_t batch_offset = 0;
+            const int64_t iteration_offset = bytes_iteration_initial_offset +
+                bytes_iteration_stride * iteration;
+            for (int64_t batch = 0; batch < batch_size; ++batch) {
+                const int64_t src_offset = batch_offset + iteration_offset;
+                const int64_t dst_offset = batch * bytes_iteration;
                 mem_lock<uint8_t> to_lock{ sliced_mems.at(iteration) };
-                const auto src = from_lock.begin() + offset;
-                const auto dst = to_lock.begin();
-                std::copy(src, src + bytes_per_iteration, dst);
+                const auto src = from_lock.begin() + src_offset;
+                const auto dst = to_lock.begin() + dst_offset;
+                std::copy(src, src + bytes_iteration, dst);
+                batch_offset += bytes_batch_stride;
             }
             return sliced_mems.at(iteration);
         }
 
+        const int64_t axis;
         std::shared_ptr<primitive_inst> concat_data_prim;
         std::shared_ptr<primitive_inst> sliced_data_prim;
         memory_impl::ptr concatenated_mem;
         std::vector<memory_impl::ptr> sliced_mems;
+        // element size
         const int64_t bytes_per_element;
-        const int64_t bytes_per_iteration;
-        const int64_t bytes_stride;
-        const int64_t bytes_initial_offset;
+        // number of higher level of dimension of slicing axis
+        const int64_t batch_size;
+        // stride of batch in concatanated memory
+        const int64_t bytes_batch_stride;
+        // byte size of each iteration per batch in a sliced memory
+        const int64_t bytes_iteration;
+        // byte size of each iteration (bytes_iteration * batch_size) in a sliced memory
+        const int64_t bytes_iteration_stride;
+        // byte offset of 1st iteration in a batch in a sliced memory
+        const int64_t bytes_iteration_initial_offset;
     };
 
     static layout calc_output_layout(const loop_node& node);
