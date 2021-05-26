@@ -70,4 +70,6 @@ namespace CPUTestUtils {
     const auto conv_sse42_2D_1x1_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42_1x1"}, "jit_sse42_1x1"};
     const auto conv_avx2_2D_1x1_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2_1x1"}, "jit_avx2_1x1"};
     const auto conv_avx512_2D_1x1_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512_1x1"}, "jit_avx512_1x1"};
+
+    const auto conv_winograd = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_winograd"}, "jit_avx512_winograd"};
 } // namespace CPUTestUtils

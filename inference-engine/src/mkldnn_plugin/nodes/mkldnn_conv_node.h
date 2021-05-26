@@ -32,8 +32,12 @@ public:
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+
+    const mkldnn::memory& getWeights() const;
+    const mkldnn::memory& getBias() const;
+
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(getOriginalInputsNumber());
+        return static_cast<size_t>(isWinograd() ? 1 : getOriginalInputsNumber());
     }
 
     bool canBeExecutedInInt8() const;
@@ -54,6 +58,8 @@ public:
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
 
+    bool isWinograd() const { return isWino; }
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
@@ -63,12 +69,13 @@ private:
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
+    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     bool withBiases;
     bool withSum;
     bool withDWConv;
     bool isGrouped;
-    bool isPrimitivesPriorityDefined;
+    bool isPrimitivesPriorityDefined = false;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -92,6 +99,8 @@ private:
 
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
+
+    bool isWino = false;
 };
 
 }  // namespace MKLDNNPlugin
