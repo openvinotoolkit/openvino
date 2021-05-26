@@ -81,7 +81,6 @@ namespace ngraph
             , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
-            std::map<std::string, SparseTensor> sparse_initializers;
             // Process all initializers in the graph
             for (const auto& initializer_tensor : m_model->get_graph().initializer())
             {
@@ -117,40 +116,6 @@ namespace ngraph
                     add_provenance_tag_to_initializer(tensor, ng_constant);
                     m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
                 }
-            }
-
-            for (const auto& initializer_sparse_tensor : m_model->get_graph().sparse_initializer())
-            {
-                SparseTensor sparse_tensor = SparseTensor{initializer_sparse_tensor};
-                std::shared_ptr<default_opset::Constant> ng_constant;
-                // For each initializer create a Constant node and store it in cache
-                try
-                {
-                    ng_constant = sparse_tensor.get_ng_constant();
-                }
-                catch (const error::invalid_external_data&)
-                {
-                    // invalid external data makes initializers creation impossible
-                    throw;
-                }
-                catch (const ngraph::ngraph_error& exc)
-                {
-                    NGRAPH_WARN
-                        << "\nCould not create an nGraph Constant for initializer '"
-                        << sparse_tensor.get_name() << "'. \n"
-                        << "Constant with a 0 value was created, make sure connected input is "
-                           "optional.\n"
-                        << "Otherwise verify if the initializer contains a correct number of "
-                           "elements matching the initializer's shape. \n"
-                        << "Detailed error:\n"
-                        << exc.what();
-                    ng_constant =
-                        default_opset::Constant::create(sparse_tensor.get_ng_type(), Shape{}, {0});
-                }
-
-                sparse_initializers.emplace(sparse_tensor.get_name(), sparse_tensor);
-                add_provenance_tag_to_initializer(sparse_tensor, ng_constant);
-                m_cache->emplace_node(sparse_tensor.get_name(), std::move(ng_constant));
             }
 
             // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
@@ -316,20 +281,6 @@ namespace ngraph
 
             const std::string tag =
                 detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
-
-            node->add_provenance_tag(tag);
-        }
-
-        void Graph::add_provenance_tag_to_initializer(
-            const SparseTensor& sparse_tensor, std::shared_ptr<default_opset::Constant> node) const
-        {
-            if (!ngraph::get_provenance_enabled())
-            {
-                return;
-            }
-
-            const std::string tag = detail::build_input_provenance_tag(sparse_tensor.get_name(),
-                                                                       sparse_tensor.get_shape());
 
             node->add_provenance_tag(tag);
         }

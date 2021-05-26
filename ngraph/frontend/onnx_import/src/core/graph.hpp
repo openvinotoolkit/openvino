@@ -53,10 +53,6 @@ namespace ngraph
             void add_provenance_tag_to_initializer(
                 const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
 
-            void add_provenance_tag_to_initializer(
-                const SparseTensor& initializer,
-                std::shared_ptr<default_opset::Constant> node) const;
-
             void add_provenance_tag_to_input(const ValueInfo& input,
                                              std::shared_ptr<ngraph::Node> node) const;
 

@@ -3,12 +3,15 @@
 //
 
 #include "op/constant.hpp"
-#include "core/attribute.hpp"
 #include "core/tensor.hpp"
+#include "core/sparse_tensor.hpp"
+#include "core/attribute.hpp"
 #include "default_opset.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
+#include <vector>
+
 
 namespace ngraph
 {
@@ -32,10 +35,10 @@ namespace ngraph
                     {
                         NGRAPH_WARN
                             << "\nCould not create an nGraph Constant for an ONNX Constant "
-                               "node. "
+                                "node. "
                             << "Constant with a 0 value was created instead.\n"
                             << "Verify if the ONNX Constant node contains a correct number of "
-                               "elements matching the node's shape. \n"
+                                "elements matching the node's shape. \n"
                             << "Detailed error:\n"
                             << exc.what();
                         constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
@@ -142,10 +145,11 @@ namespace ngraph
                     return __make_ng_constant<ngraph::bfloat16>(element::bf16, tensor);
                 }
 
-                inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tensor)
+                inline std::shared_ptr<default_opset::Constant>
+                    make_constant(const Tensor& tensor)
                 {
 #define MAKE_NG_CONSTANT(data_type_)                                                               \
-    case data_type_: return make_ng_constant<data_type_>(tensor)
+case data_type_: return make_ng_constant<data_type_>(tensor)
 
                     switch (tensor.get_type())
                     {
@@ -166,7 +170,7 @@ namespace ngraph
                     }
                 }
             } // namespace
-
+            
             namespace set_1
             {
                 OutputVector constant(const onnx_import::Node& node)
@@ -188,35 +192,81 @@ namespace ngraph
 
                     auto& attribute = node.get_attribute(attributes_names[0]);
 
-                    if (attribute.is_float())
+                    if(attribute.is_float())
                     {
-                        return {default_opset::Constant::create(
-                            element::f32, ngraph::Shape{}, {attribute.get_float()})};
+                       return {default_opset::Constant::create(element::f32, ngraph::Shape{}, {attribute.get_float()})};
                     }
                     else if (attribute.is_float_array())
                     {
-                        auto values = attribute.get_float_array();
-                        return {default_opset::Constant::create(
-                            element::f32, ngraph::Shape{values.size()}, values)};
+                       auto values = attribute.get_float_array();
+                       return {default_opset::Constant::create(element::f32, ngraph::Shape{values.size()}, values)};
                     }
-                    else if (attribute.is_integer())
+                    else if(attribute.is_integer())
                     {
-                        return {default_opset::Constant::create(
-                            element::i64, ngraph::Shape{}, {attribute.get_integer()})};
+                       return {default_opset::Constant::create(element::i64, ngraph::Shape{}, {attribute.get_integer()})};
                     }
                     else if (attribute.is_integer_array())
                     {
-                        auto values = attribute.get_integer_array();
-                        return {default_opset::Constant::create(
-                            element::i64, ngraph::Shape{values.size()}, values)};
+                       auto values = attribute.get_integer_array();
+                       return {default_opset::Constant::create(element::i64, ngraph::Shape{values.size()}, values)};
                     }
-                    else if (attribute.is_sparse_tensor())
-                    {
+                    else if(attribute.is_sparse_tensor()){
+                        auto sparse_tensor = attribute.get_sparse_tensor();
+                        const Tensor& values_tensor = sparse_tensor.get_values();
+                        const Tensor& indices_tensor = sparse_tensor.get_indices();
+                        const Shape& shape = sparse_tensor.get_shape();
+                        size_t all_elements_number = 1;
+                        for (auto dim : shape) all_elements_number*=dim;
+                        std::cout<<"all_elements_number " << all_elements_number << std::endl;
+                        std::vector<float> dense_values(all_elements_number);
+                        auto rank = shape.size();
+                        auto nnz = values_tensor.get_shape().at(0);
+                        std::cout<<"rank " << rank << std::endl;
+                        std::cout<<"nnz " << nnz << std::endl;
+
+                        auto indices = indices_tensor.get_data<int64_t>();
+                        auto values = values_tensor.get_data<float>();
+                        auto indices_shape = indices_tensor.get_shape();
+                        for (auto k = indices.begin(); k != indices.end(); ++k)
+                        {
+                            std::cout << *k << ' ';
+                        }
+                        for (auto k = values.begin(); k != values.end(); ++k)
+                        {
+                            std::cout << *k << ' ';
+                        }
+                        std::cout << std::endl;
+                        for (size_t i = 0; i < nnz; i++)
+                        {
+                            int64_t index=0;
+                            for(size_t j=0; j< rank; j++)
+                            {
+                                auto dim_index_in_indices = i*rank +j;
+                                std::cout << "dim " << j << " " <<  dim_index_in_indices << std::endl;
+                                auto dim_value_in_indices = indices.at(dim_index_in_indices);
+                                std::cout << "value in indices " << dim_value_in_indices << std::endl;
+                                if(j < rank-1){
+                                    std::cout << "dim value " << shape.at(rank-j-1) << std::endl;
+                                    index +=dim_value_in_indices*shape.at(rank-j-1);
+                                }
+                                else{
+                                    index +=dim_value_in_indices;
+                                }
+                            }
+
+                            std::cout << "index " << index << std::endl;
+                            dense_values.at(index) = values.at(i);
+
+                        }
+                    
+
+                         std::cout << std::endl;
+                        return {default_opset::Constant::create(values_tensor.get_ng_type(), shape, dense_values)};
                     }
                     return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
                 }
 
-            } // namespace set_13
+            } // namespace set_13       
 
         } // namespace op
 

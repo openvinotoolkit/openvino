@@ -9,21 +9,27 @@ graph {
       type: SPARSE_TENSOR
       sparse_tensor {
         values {
-          dims: 1
+          dims: 3
           data_type: 1
-          float_data: 5
+          float_data: 1
+          float_data: 8
+          float_data: 3
           name: "values"
         }
         indices {
-          dims: 1
+          dims: 3
           dims: 2
           data_type: 7
           int64_data: 0
-          int64_data: 1
+          int64_data: 0
+          int64_data: 0
+          int64_data: 3
+          int64_data: 2
+          int64_data: 2
           name: "indices"
         }
-        dims: 2
-        dims: 2
+        dims: 3
+        dims: 4
       }
     }
   }
@@ -35,10 +41,10 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 2
+            dim_value: 3
           },
           dim {
-            dim_value: 2
+            dim_value: 4
           }
         }
       }
