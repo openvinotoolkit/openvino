@@ -160,10 +160,10 @@ public:
 
                 const auto result =
                     moutputHolder
-                        .as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[_results[id] +
+                        .as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[_results.at(id) +
                                                                                                                     image_id * (_outBlob->size() / _batchSize)];
 
-                std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results[id] << " ";
+                std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
                 std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
 
                 if (!_labels.empty()) {
