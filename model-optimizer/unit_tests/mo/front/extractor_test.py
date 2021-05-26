@@ -254,6 +254,7 @@ class TestInputAddition(unittest.TestCase):
             ('output_data', 'op_output')
         ]
         graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
         add_input_ops(graph=graph, user_defined_inputs=inputs, before_infer=False)
         new_input = list(graph.in_edges(list(graph.in_edges('conv_1'))[0][0]))[0][0]
         new_input_data = list(graph.in_edges('conv_1'))[0][0]
@@ -407,6 +408,7 @@ class TestInputAddition(unittest.TestCase):
             ('conv_data', 'relu_1'),
         ]
         graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
         add_input_ops(graph=graph, user_defined_inputs=inputs, before_infer=False)
 
         graph_ref = build_graph(nodes_attrs={'new_input': {'kind': 'op', 'op': 'Parameter', 'shape': shape},
