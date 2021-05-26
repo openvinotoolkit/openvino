@@ -8,7 +8,6 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <codecvt>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -19,6 +18,7 @@
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 # define GTEST_COUT std::cerr << "[          ] [ INFO ] "
+# include <codecvt>
 #endif
 
 using NetReaderNoParamTest = CommonTestUtils::TestsCommon;
