@@ -588,53 +588,42 @@ namespace
         return true;
     }
 
-    namespace nms_v5
+    namespace
     {
-        using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
-
-        struct InfoForNMS5
+        std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
         {
-            int64_t max_output_boxes_per_class;
-            float iou_threshold;
-            float score_threshold;
-            float soft_nms_sigma;
-            Shape out_shape;
-            Shape boxes_shape;
-            Shape scores_shape;
-            std::vector<float> boxes_data;
-            std::vector<float> scores_data;
-            size_t out_shape_size;
-            bool sort_result_descending;
-            ngraph::element::Type output_type;
-        };
+            size_t input_size = shape_size(shape);
+            std::vector<float> result(input_size);
 
-        constexpr size_t boxes_port = 0;
-        constexpr size_t scores_port = 1;
-
-        PartialShape
-            infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                         int64_t max_output_boxes_per_class)
-        {
-            const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-            const auto scores_ps = inputs[scores_port]->get_partial_shape();
-
-            // NonMaxSuppression produces triplets
-            // that have the following format: [batch_index, class_index, box_index]
-            PartialShape result = {Dimension::dynamic(), 3};
-
-            if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+            switch (input->get_element_type())
             {
-                const auto num_boxes_boxes = boxes_ps[1];
-                if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
-                    scores_ps[1].is_static())
+            case element::Type_t::bf16:
+            {
+                bfloat16* p = input->get_data_ptr<bfloat16>();
+                for (size_t i = 0; i < input_size; ++i)
                 {
-                    const auto num_boxes = num_boxes_boxes.get_length();
-                    const auto num_classes = scores_ps[1].get_length();
-
-                    result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                                scores_ps[0].get_length();
+                    result[i] = float(p[i]);
                 }
             }
+            break;
+            case element::Type_t::f16:
+            {
+                float16* p = input->get_data_ptr<float16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::f32:
+            {
+                float* p = input->get_data_ptr<float>();
+                memcpy(result.data(), p, input_size * sizeof(float));
+            }
+            break;
+            default: throw std::runtime_error("Unsupported data type."); break;
+            }
+
             return result;
         }
 
@@ -725,41 +714,55 @@ namespace
 
             return result;
         }
+    } // namespace
 
-        std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
+    namespace nms_v5
+    {
+        using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
+
+        struct InfoForNMS5
         {
-            size_t input_size = shape_size(shape);
-            std::vector<float> result(input_size);
+            int64_t max_output_boxes_per_class;
+            float iou_threshold;
+            float score_threshold;
+            float soft_nms_sigma;
+            Shape out_shape;
+            Shape boxes_shape;
+            Shape scores_shape;
+            std::vector<float> boxes_data;
+            std::vector<float> scores_data;
+            size_t out_shape_size;
+            bool sort_result_descending;
+            ngraph::element::Type output_type;
+        };
 
-            switch (input->get_element_type())
+        constexpr size_t boxes_port = 0;
+        constexpr size_t scores_port = 1;
+
+        PartialShape
+            infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                         int64_t max_output_boxes_per_class)
+        {
+            const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+            const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+            // NonMaxSuppression produces triplets
+            // that have the following format: [batch_index, class_index, box_index]
+            PartialShape result = {Dimension::dynamic(), 3};
+
+            if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
             {
-            case element::Type_t::bf16:
-            {
-                bfloat16* p = input->get_data_ptr<bfloat16>();
-                for (size_t i = 0; i < input_size; ++i)
+                const auto num_boxes_boxes = boxes_ps[1];
+                if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
+                    scores_ps[1].is_static())
                 {
-                    result[i] = float(p[i]);
+                    const auto num_boxes = num_boxes_boxes.get_length();
+                    const auto num_classes = scores_ps[1].get_length();
+
+                    result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                scores_ps[0].get_length();
                 }
             }
-            break;
-            case element::Type_t::f16:
-            {
-                float16* p = input->get_data_ptr<float16>();
-                for (size_t i = 0; i < input_size; ++i)
-                {
-                    result[i] = float(p[i]);
-                }
-            }
-            break;
-            case element::Type_t::f32:
-            {
-                float* p = input->get_data_ptr<float>();
-                memcpy(result.data(), p, input_size * sizeof(float));
-            }
-            break;
-            default: throw std::runtime_error("Unsupported data type."); break;
-            }
-
             return result;
         }
 
@@ -1018,10 +1021,10 @@ namespace
 
         const auto output_type = op->get_input_element_type(0);
 
-        const auto boxes_data = nms_v5::get_floats(inputs[0], inputs[0]->get_shape());
-        const auto input_deltas_data = nms_v5::get_floats(inputs[1], inputs[1]->get_shape());
-        const auto input_scores_data = nms_v5::get_floats(inputs[2], inputs[2]->get_shape());
-        const auto input_im_info_data = nms_v5::get_floats(inputs[3], inputs[3]->get_shape());
+        const auto boxes_data = get_floats(inputs[0], inputs[0]->get_shape());
+        const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
+        const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
+        const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
 
         std::vector<float> output_boxes(shape_size(output_boxes_shape));
         std::vector<int32_t> output_classes(shape_size(output_classes_shape));
@@ -1065,7 +1068,7 @@ namespace
         {
             if (inputs.size() == 3)
             {
-                return nms_v5::get_integers(inputs[2], inputs[2]->get_shape());
+                return get_integers(inputs[2], inputs[2]->get_shape());
             }
 
             return std::vector<int64_t>(num_of_axes, static_cast<int64_t>(-1));
@@ -1077,8 +1080,8 @@ namespace
 
             result.input_data_shape = inputs[0]->get_shape();
             result.axes_data_shape = inputs[1]->get_shape();
-            result.input_data = nms_v5::get_floats(inputs[0], result.input_data_shape);
-            result.axes_data = nms_v5::get_integers(inputs[1], result.axes_data_shape);
+            result.input_data = get_floats(inputs[0], result.input_data_shape);
+            result.axes_data = get_integers(inputs[1], result.axes_data_shape);
 
             auto output_shape = result.input_data_shape;
 
