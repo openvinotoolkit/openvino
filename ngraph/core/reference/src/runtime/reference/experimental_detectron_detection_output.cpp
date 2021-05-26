@@ -348,7 +348,10 @@ namespace ngraph
             }
 
             void experimental_detectron_detection_output_postprocessing(
-                const HostTensorVector& outputs,
+                // const HostTensorVector& outputs,
+                void* pboxes,
+                void* pclasses,
+                void* pscores,
                 const ngraph::element::Type output_type,
                 const std::vector<float>& output_boxes,
                 const std::vector<int32_t>& output_classes,
@@ -357,21 +360,16 @@ namespace ngraph
                 const Shape& output_classes_shape,
                 const Shape& output_scores_shape)
             {
-                outputs[0]->set_element_type(output_type);
-                outputs[0]->set_shape(output_boxes_shape);
-                outputs[1]->set_element_type(element::Type_t::i32);
-                outputs[1]->set_shape(output_classes_shape);
-                outputs[2]->set_element_type(output_type);
-                outputs[2]->set_shape(output_scores_shape);
-
                 size_t rois_num = output_boxes_shape[0];
 
                 switch (output_type)
                 {
                 case element::Type_t::bf16:
                 {
-                    bfloat16* boxes_ptr = outputs[0]->get_data_ptr<bfloat16>();
-                    bfloat16* scores_ptr = outputs[2]->get_data_ptr<bfloat16>();
+                    // bfloat16* boxes_ptr = outputs[0]->get_data_ptr<bfloat16>();
+                    // bfloat16* scores_ptr = outputs[2]->get_data_ptr<bfloat16>();
+                    bfloat16* boxes_ptr = reinterpret_cast<bfloat16*>(pboxes);
+                    bfloat16* scores_ptr = reinterpret_cast<bfloat16*>(pscores);
                     for (size_t i = 0; i < rois_num; ++i)
                     {
                         boxes_ptr[4 * i + 0] = bfloat16(output_boxes[4 * i + 0]);
@@ -384,8 +382,10 @@ namespace ngraph
                 break;
                 case element::Type_t::f16:
                 {
-                    float16* boxes_ptr = outputs[0]->get_data_ptr<float16>();
-                    float16* scores_ptr = outputs[2]->get_data_ptr<float16>();
+                    // float16* boxes_ptr = outputs[0]->get_data_ptr<float16>();
+                    // float16* scores_ptr = outputs[2]->get_data_ptr<float16>();
+                    float16* boxes_ptr = reinterpret_cast<float16*>(pboxes);
+                    float16* scores_ptr = reinterpret_cast<float16*>(pscores);
                     for (size_t i = 0; i < rois_num; ++i)
                     {
                         boxes_ptr[4 * i + 0] = float16(output_boxes[4 * i + 0]);
@@ -398,8 +398,10 @@ namespace ngraph
                 break;
                 case element::Type_t::f32:
                 {
-                    float* boxes_ptr = outputs[0]->get_data_ptr<float>();
-                    float* scores_ptr = outputs[2]->get_data_ptr<float>();
+                    // float* boxes_ptr = outputs[0]->get_data_ptr<float>();
+                    // float* scores_ptr = outputs[2]->get_data_ptr<float>();
+                    float* boxes_ptr = reinterpret_cast<float*>(pboxes);
+                    float* scores_ptr = reinterpret_cast<float*>(pscores);
                     memcpy(boxes_ptr,
                            output_boxes.data(),
                            shape_size(output_boxes_shape) * sizeof(float));
@@ -411,7 +413,8 @@ namespace ngraph
                 default:;
                 }
 
-                int32_t* classes_ptr = outputs[1]->get_data_ptr<int32_t>();
+                // int32_t* classes_ptr = outputs[1]->get_data_ptr<int32_t>();
+                int32_t* classes_ptr = reinterpret_cast<int32_t*>(pclasses);
                 memcpy(classes_ptr,
                        output_classes.data(),
                        shape_size(output_classes_shape) * sizeof(int32_t));
